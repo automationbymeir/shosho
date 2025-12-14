@@ -4,6 +4,13 @@ const functions = require("firebase-functions");
 
 // OAuth2 Configuration
 // These should be set in Firebase Functions config or environment variables
+/**
+ * Get OAuth configuration from environment/runtime config.
+ * Prefers process.env (secrets / emulator env) and falls back to
+ * firebase-functions runtime config (functions.config()).
+ *
+ * @return {{clientId: (string|undefined), clientSecret: (string|undefined), redirectUri: string}}
+ */
 function getOauthConfig() {
   // Prefer process.env (works with secrets and emulator env files)
   const envClientId = process.env.GOOGLE_CLIENT_ID;
