@@ -1,4 +1,5 @@
 const PDFDocument = require("pdfkit");
+const path = require("path");
 const {google} = require("googleapis");
 const fetch = require("node-fetch");
 const auth = require("./auth");
@@ -27,36 +28,74 @@ function getPageSize(format) {
   return sizes[format] || sizes["square-8x8"];
 }
 
+// (hexToRgb removed — we now pass hex directly to PDFKit)
+
+// ============================================
+// TEXT / FONTS (Hebrew support)
+// ============================================
+
+const HEBREW_FONT_REGULAR = "NotoSansHebrew";
+const HEBREW_FONT_BOLD = "NotoSansHebrew-Bold";
+const HEBREW_FONT_REGULAR_PATH = path.join(__dirname, "..", "assets", "fonts", "NotoSansHebrew-Regular.ttf");
+const HEBREW_FONT_BOLD_PATH = path.join(__dirname, "..", "assets", "fonts", "NotoSansHebrew-Bold.ttf");
+
 /**
- * Convert hex color to RGB object
- * @param {string} hex - Hex color code
- * @return {Object} RGB values (0-255 range)
+ * Register fonts used by the PDF generator.
+ * @param {PDFDocument} doc - PDF document
  */
-function hexToRgb(hex) {
-  if (!hex || typeof hex !== "string") {
-    return {red: 255, green: 255, blue: 255};
+function registerPdfFonts(doc) {
+  try {
+    doc.registerFont(HEBREW_FONT_REGULAR, HEBREW_FONT_REGULAR_PATH);
+    doc.registerFont(HEBREW_FONT_BOLD, HEBREW_FONT_BOLD_PATH);
+  } catch (e) {
+    // If font files are missing for any reason, fall back to built-in fonts.
+    console.warn("Hebrew fonts not available, falling back to built-in fonts:", e?.message || e);
   }
-  hex = hex.replace("#", "");
+}
 
-  // Handle 3-digit hex
-  if (hex.length === 3) {
-    hex = hex.split("").map((char) => char + char).join("");
+/**
+ * Detect Hebrew characters.
+ * @param {string} text
+ * @return {boolean}
+ */
+function containsHebrew(text) {
+  if (!text || typeof text !== "string") return false;
+  return /[\u0590-\u05FF]/.test(text);
+}
+
+/**
+ * Reverse text for basic RTL rendering in PDFKit (which is LTR-only).
+ * Uses grapheme segmentation when available.
+ * @param {string} text
+ * @return {string}
+ */
+function rtlize(text) {
+  if (!text || typeof text !== "string") return text;
+  let parts;
+  try {
+    if (typeof Intl !== "undefined" && Intl.Segmenter) {
+      const seg = new Intl.Segmenter("he", {granularity: "grapheme"});
+      parts = Array.from(seg.segment(text), (s) => s.segment);
+    } else {
+      parts = Array.from(text);
+    }
+  } catch (e) {
+    parts = Array.from(text);
   }
+  // RLM + reversed graphemes
+  return "\u200F" + parts.reverse().join("");
+}
 
-  if (hex.length !== 6) {
-    return {red: 255, green: 255, blue: 255};
-  }
-
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-
-  // Check for NaN but allow 0 (crucial fix)
-  return {
-    red: isNaN(r) ? 255 : r,
-    green: isNaN(g) ? 255 : g,
-    blue: isNaN(b) ? 255 : b,
-  };
+/**
+ * Pick font + transform text for PDF.
+ * @param {string} text
+ * @param {{latinFont: string, hebrewFont: string}} fonts
+ * @return {{text: string, font: string, isHebrew: boolean}}
+ */
+function preparePdfText(text, fonts) {
+  const isHeb = containsHebrew(text);
+  if (!isHeb) return {text, font: fonts.latinFont, isHebrew: false};
+  return {text: rtlize(text), font: fonts.hebrewFont, isHebrew: true};
 }
 
 /**
@@ -618,17 +657,9 @@ function drawDecorations(doc, pageSize, designData) {
 
   const colors = designData.data.colors || {};
   const decorationColor = colors.accentColor || colors.secondary || colors.primary || "#97BC62";
-  const decorationRgb = hexToRgb(decorationColor);
+  const decoOpacity = 0.15;
 
   console.log(`Drawing decorations with color ${decorationColor}`);
-
-  // Common settings
-  const colorArray = [
-    decorationRgb.red / 255,
-    decorationRgb.green / 255,
-    decorationRgb.blue / 255,
-    0.15, // Low opacity
-  ];
 
   // Draw Corner Elements (Classic / Elegant)
   // If we have specific emoji/text decorations, we use them as vector approximations
@@ -641,7 +672,7 @@ function drawDecorations(doc, pageSize, designData) {
 
   themeDecorations.slice(0, 4).forEach((decoration, index) => {
     doc.save();
-    doc.fillColor(colorArray);
+    doc.fillColor(decorationColor, decoOpacity);
 
     // Position logic
     let x; let y; let rotation;
@@ -666,7 +697,7 @@ function drawDecorations(doc, pageSize, designData) {
       doc.path(`M 0 ${size} C ${size} ${size} ${size} ${-size / 2} 0 ${-size} ` +
         `C ${-size} ${-size / 2} ${-size} ${size} 0 ${size} Z`).fill();
       // vein
-      doc.moveTo(0, size).lineTo(0, -size).strokeColor(colorArray).lineWidth(1).stroke();
+      doc.moveTo(0, size).lineTo(0, -size).strokeColor(decorationColor, decoOpacity).lineWidth(1).stroke();
     } else if (decoration === "●" || decoration.includes("circle")) {
       // Minimalist Dot
       doc.circle(0, 0, size / 2).fill();
@@ -687,11 +718,11 @@ function drawDecorations(doc, pageSize, designData) {
     doc.save();
     doc.rect(20, 20, w - 40, h - 40)
         .lineWidth(1)
-        .strokeColor(colorArray)
+        .strokeColor(decorationColor, decoOpacity)
         .stroke();
     doc.rect(25, 25, w - 50, h - 50)
         .lineWidth(0.5)
-        .strokeColor(colorArray)
+        .strokeColor(decorationColor, decoOpacity)
         .stroke();
     doc.restore();
   }
@@ -753,18 +784,20 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
         const x = margin + (maxWidth - fit.width) / 2;
         const y = margin + 20; // Slight top padding
 
-        // Add photo with optional border or shadow
+        // Shadow (draw separately to avoid leaking opacity into the image)
         doc.save();
-        // Shadow
-        doc.rect(x + 4, y + 4, fit.width, fit.height).fillColor("black", 0.2).fill();
+        doc.fillColor("black", 0.2);
+        doc.rect(x + 4, y + 4, fit.width, fit.height).fill();
+        doc.restore();
 
-        // Image
+        // Image (must be fully opaque)
         doc.image(imageBuffer, x, y, {
           width: fit.width,
           height: fit.height,
         });
 
         // Frame
+        doc.save();
         doc.rect(x, y, fit.width, fit.height)
             .lineWidth(1)
             .strokeColor("#333333", 0.1)
@@ -783,7 +816,10 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
   if (titleText) {
     const titleColor = bookData.coverTextColor || "#333333";
     const titleSize = bookData.coverTitleSize || 36;
-    const titleFont = "Times-Bold"; // Use standard serif for elegance
+    const preparedTitle = preparePdfText(titleText, {
+      latinFont: "Times-Bold",
+      hebrewFont: HEBREW_FONT_BOLD,
+    });
 
     // Calculate title position - below photo
     let titleY = photoBottom > 0 ? photoBottom + 40 : (pageSize.height - titleSize) / 2;
@@ -796,9 +832,9 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
     // Add Elegant Title
     doc.save();
     doc.fontSize(titleSize)
-        .font(titleFont)
+        .font(preparedTitle.font)
         .fillColor(titleColor)
-        .text(titleText, margin, titleY, {
+        .text(preparedTitle.text, margin, titleY, {
           width: maxWidth,
           align: "center",
           lineBreak: true,
@@ -811,11 +847,15 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
     if (bookData.coverSubtitle || bookData.cover?.subtitle) {
       const subtitle = bookData.coverSubtitle || bookData.cover?.subtitle;
       const subtitleY = titleY + titleSize + 15;
+      const preparedSubtitle = preparePdfText(subtitle, {
+        latinFont: "Helvetica",
+        hebrewFont: HEBREW_FONT_REGULAR,
+      });
 
       doc.fontSize(14)
-          .font("Helvetica")
+          .font(preparedSubtitle.font)
           .fillColor("#666666")
-          .text(subtitle.toUpperCase(), margin, subtitleY, {
+          .text(preparedSubtitle.text, margin, subtitleY, {
             width: maxWidth,
             align: "center",
             characterSpacing: 2,
@@ -909,17 +949,19 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
         x = slot.x + (slot.width - fit.width) / 2;
       }
 
-      // Draw photo with shadow
+      // Shadow (separate from image so opacity doesn't affect the image)
       doc.save();
-      doc.rect(x + 3, y + 3, fit.width, fit.height).fillColor("black", 0.15).fill();
+      doc.fillColor("black", 0.15);
+      doc.rect(x + 3, y + 3, fit.width, fit.height).fill();
+      doc.restore();
 
+      // Image
       doc.image(imageBuffer, x, y, {
         width: fit.width,
         height: fit.height,
         align: alignment,
         valign: "center",
       });
-      doc.restore();
 
       const placedMsg = `✓ Photo ${i + 1} placed at (${x.toFixed(0)}, ${y.toFixed(0)}) ` +
         `size ${fit.width.toFixed(0)}x${fit.height.toFixed(0)} [${alignment}]`;
@@ -949,10 +991,14 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
     const captionY = pageSize.height - 50; // Constrained to bottom
 
     console.log(`Adding caption: "${page.caption}" - Color: ${captionColor} - Size: ${captionSize}`);
+    const preparedCaption = preparePdfText(page.caption, {
+      latinFont: "Times-Italic",
+      hebrewFont: HEBREW_FONT_REGULAR,
+    });
     doc.fontSize(captionSize)
-        .font("Times-Italic")
+        .font(preparedCaption.font)
         .fillColor(captionColor)
-        .text(page.caption, margin, captionY, {
+        .text(preparedCaption.text, margin, captionY, {
           width: maxWidth,
           align: "center",
           lineBreak: true,
@@ -1004,10 +1050,14 @@ function createBackCoverPage(doc, bookData, pageSize) {
     const textColor = getTextColor(null, designData);
 
     console.log(`Adding back cover text: "${backCoverText}" - Color: ${textColor}`);
+    const preparedBackText = preparePdfText(backCoverText, {
+      latinFont: "Helvetica",
+      hebrewFont: HEBREW_FONT_REGULAR,
+    });
     doc.fontSize(12)
-        .font("Helvetica")
+        .font(preparedBackText.font)
         .fillColor(textColor)
-        .text(backCoverText, 60, pageSize.height - 100, {
+        .text(preparedBackText.text, 60, pageSize.height - 100, {
           width: pageSize.width - 120,
           align: "center",
           height: 50,
@@ -1078,6 +1128,7 @@ async function generatePdfDirectly(userId, bookData) {
     margin: 0,
     autoFirstPage: false,
   });
+  registerPdfFonts(doc);
 
   // Collect PDF data
   const chunks = [];
