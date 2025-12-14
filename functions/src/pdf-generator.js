@@ -517,6 +517,11 @@ function drawThemeBackground(doc, pageSize, designData, bookData, type = "conten
   const w = pageSize.width;
   const h = pageSize.height;
 
+  // IMPORTANT:
+  // PDFKit fill opacity can "stick" and affect later drawing (including images).
+  // Always isolate background drawing in a saved graphics state.
+  doc.save();
+
   // 1. Base Background Color
   let bgColor = "#ffffff";
   if (type === "cover" && bookData.coverBackground) {
@@ -569,25 +574,31 @@ function drawThemeBackground(doc, pageSize, designData, bookData, type = "conten
 
   if (themeName.includes("modern") || themeName.includes("geometric")) {
     // Geometric flair
+    doc.save();
     doc.moveTo(0, h)
         .lineTo(w, h * 0.7)
         .lineTo(w, h)
         .fillColor(accentHex, 0.1)
         .fill();
+    doc.restore();
 
+    doc.save();
     doc.moveTo(0, 0)
         .lineTo(w * 0.3, 0)
         .lineTo(0, h * 0.2)
         .fillColor(secondaryHex, 0.05)
         .fill();
+    doc.restore();
   } else if (themeName.includes("botanical") || themeName.includes("nature")) {
     // Organic bottom curve
+    doc.save();
     doc.path(`M 0 ${h} L 0 ${h - 100} Q ${w / 4} ${h - 150} ${w / 2} ${h - 100} T ${w} ${h - 80} L ${w} ${h} Z`)
         .fillColor(accentHex, 0.08)
         .fill();
+    doc.restore();
   }
 
-  doc.restore();
+  doc.restore(); // restore initial background save()
 }
 
 /**
