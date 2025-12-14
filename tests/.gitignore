@@ -1,0 +1,10 @@
+# Screenshots from automated tests
+screenshots/
+*.png
+*.jpg
+*.jpeg
+
+# Test results
+test-results/
+*.json
+

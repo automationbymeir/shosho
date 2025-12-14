@@ -1,0 +1,18 @@
+{
+  "name": "shoso-photobook",
+  "version": "1.0.0",
+  "description": "Photo Book Creator - Create beautiful photo books from Google Photos",
+  "scripts": {
+    "serve": "firebase emulators:start",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:functions": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase": "^12.6.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  }
+}

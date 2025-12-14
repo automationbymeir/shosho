@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Photo Book Creator</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-functions-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics-compat.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@400;500;600&family=Lato:wght@400;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/styles.css">
+
+  <!-- Firebase Config -->
+  <script src="/js/firebase-config.js"></script>
+
+  <!-- Templates Data -->
+  <script src="/data/templates.js"></script>
+</head>
+
+<body>
+  <!-- Login Screen -->
+  <div id="loginScreen"
+    style="display: none; position: fixed; inset: 0; z-index: 9999; flex-direction: column; align-items: center; justify-content: center; background: var(--color-bg);">
+    <div style="text-align: center; max-width: 400px; padding: 2rem;">
+      <h1 style="font-family: var(--font-serif); color: var(--color-primary); margin-bottom: 1rem;">Photo Book Creator
+      </h1>
+      <p style="color: var(--color-text-light); margin-bottom: 2rem;">Create beautiful photo books from your Google
+        Photos</p>
+      <button onclick="signInWithGoogle()" class="btn btn-primary" style="width: 100%;">
+        Sign in with Google
+      </button>
+    </div>
+  </div>
+
+  <div id="app">
+    <!-- Template Gallery View (Initial View) -->
+    <div id="templateGalleryView" class="template-gallery-view">
+      <header class="gallery-header">
+        <div class="gallery-header-content">
+          <h1 class="gallery-title">Create Your Photo Book</h1>
+          <p class="gallery-subtitle">Choose a template to begin</p>
+        </div>
+        <div class="gallery-header-actions">
+          <button class="btn btn-secondary" onclick="showLoadDialog()">Load Project</button>
+        </div>
+      </header>
+
+      <div class="template-gallery-container">
+        <div class="template-gallery-grid" id="templateGalleryGrid">
+          <!-- Templates will be injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Editor View (Hidden Initially) -->
+    <div id="editorView" class="editor-view" style="display: none;">
+      <header class="header">
+        <div class="header-left">
+          <button class="btn-icon" onclick="showTemplateGallery()" title="Back to Templates">
+            ← Back
+          </button>
+          <h1>Photo Book Creator</h1>
+          <span id="selectedTemplateName" class="template-indicator"
+            style="margin-left: 1rem; font-size: 0.9rem; color: var(--color-text-light); font-weight: 400;"></span>
+        </div>
+        <div class="header-right">
+          <button class="btn btn-secondary" onclick="saveProject()">Save</button>
+          <button class="btn btn-secondary" onclick="showLoadDialog()">Load</button>
+          <button class="btn btn-primary" onclick="generateBook()">Generate Book</button>
+        </div>
+      </header>
+
+      <div class="main-container" id="mainContainer">
+        <aside class="sidebar" id="sidebar">
+          <div class="sidebar-tabs">
+            <button class="tab active" data-tab="picker" onclick="switchTab('picker')">Photos</button>
+            <button class="tab" data-tab="selected" onclick="switchTab('selected')">
+              Selected (<span id="selectedCount">0</span>)
+            </button>
+            <button class="tab" data-tab="design" onclick="switchTab('design')">Design</button>
+            <button class="tab" data-tab="themes" onclick="switchTab('themes')">Themes</button>
+          </div>
+
+          <div class="tab-content active" id="picker-tab" style="padding: 2rem 1rem;">
+            <div class="text-center mb-1">
+              <p style="color: var(--color-text-light); font-size: 0.9rem;">Select photos from your library</p>
+            </div>
+            <button id="pickerBtn" class="btn btn-primary" onclick="loadPicker()" style="width: 100%;">
+              Open Google Photos
+            </button>
+            <div id="picker-message" style="margin-top:15px; font-size:13px;"></div>
+          </div>
+
+          <div class="tab-content" id="themes-tab">
+            <div class="design-inspiration-section"
+              style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border);">
+              <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--color-primary);">🎨 Design Inspiration
+              </h3>
+              <p style="color: var(--color-text-light); font-size: 0.85rem; margin-bottom: 1rem;">Search for design
+                trends and color palette ideas</p>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <input type="text" id="designSearchInput" placeholder="e.g., botanical, modern..."
+                  style="width: 100%; padding: 0.6rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.9rem;"
+                  onkeypress="if(event.key === 'Enter') searchDesignInspiration()" />
+                <button class="btn btn-primary" onclick="searchDesignInspiration()" style="width: 100%;">
+                  🔍 Search
+                </button>
+              </div>
+              <div id="designSearchStatus"
+                style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--color-text-light); display: none;"></div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+              <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--color-primary);">Built-in Themes</h3>
+            </div>
+
+            <div class="theme-list">
+              <!-- Theme items will be injected here or hardcoded -->
+              <div class="theme-item" onclick="applyTheme('classic')" data-theme="classic">
+                <div class="book-3d-preview" id="preview-classic">
+                  <div class="book-cover-3d" style="background: #FFFFFF; border: 2px solid #1E3932;">
+                    <div class="book-spine-3d" style="background: #1E3932;"></div>
+                    <div class="book-pages-3d" style="background: #FFFFFF;"></div>
+                  </div>
+                </div>
+                <span>Classic Minimal</span>
+              </div>
+              <div class="theme-item" onclick="applyTheme('botanical')" data-theme="botanical">
+                <div class="book-3d-preview" id="preview-botanical">
+                  <div class="book-cover-3d" style="background: #F3F4F0; border: 2px solid #2C5F2D;">
+                    <div class="book-spine-3d" style="background: #2C5F2D;"></div>
+                    <div class="book-pages-3d" style="background: #F3F4F0;"></div>
+                    <div class="book-decoration" style="color: #97BC62;">🌿</div>
+                  </div>
+                </div>
+                <span>Botanical</span>
+              </div>
+              <div class="theme-item" onclick="applyTheme('modern')" data-theme="modern">
+                <div class="book-3d-preview" id="preview-modern">
+                  <div class="book-cover-3d" style="background: #F5F5F5; border: 2px solid #000000;">
+                    <div class="book-spine-3d" style="background: #000000;"></div>
+                    <div class="book-pages-3d" style="background: #F5F5F5;"></div>
+                    <div class="book-decoration" style="color: #FF3366;">◆</div>
+                  </div>
+                </div>
+                <span>Modern Bold</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-content" id="selected-tab">
+            <div class="selected-actions">
+              <button class="btn btn-small" onclick="clearSelectedPhotos()">Clear</button>
+              <button class="btn btn-small" onclick="shuffleSelectedPhotos()">Shuffle</button>
+            </div>
+            <div class="selected-photos-list" id="selectedPhotosList">
+              <div class="empty-state">No photos selected</div>
+            </div>
+          </div>
+
+          <div class="tab-content" id="design-tab">
+            <div class="design-editor-container">
+              <div class="design-toolbar">
+                <h3 style="margin-bottom: 1rem;">Design Editor</h3>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">
+                  Click the "✏️ Edit" button on any photo in your album pages to edit it here.
+                </p>
+
+                <div class="tool-section">
+                  <h4>Tools</h4>
+                  <div id="toolControls" class="tool-controls"></div>
+                </div>
+
+                <div class="tool-section" id="brushControlsSection" style="display: none;">
+                  <h4>Brush Settings</h4>
+                  <div id="brushControls"></div>
+                </div>
+
+                <div class="tool-section">
+                  <h4>Image Filters</h4>
+                  <div id="filterControls" class="filter-controls"></div>
+                </div>
+
+                <div class="tool-section">
+                  <h4>Actions</h4>
+                  <div class="actions-group-container">
+                    <button class="btn btn-small" onclick="designEditor.undo()">↶ Undo</button>
+                    <button class="btn btn-small" onclick="designEditor.redo()">↷ Redo</button>
+                    <button class="btn btn-small" onclick="designEditor.clear()">Clear</button>
+                    <button class="btn btn-small" onclick="designEditor.reset()">Reset</button>
+                    <button class="btn btn-primary" onclick="saveEditedPhoto()">Save Edited Photo</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="design-canvas-container">
+                <div id="designCanvasContainer" class="canvas-wrapper"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="resize-handle" id="resizeHandle"></div>
+
+        <main class="editor">
+          <div class="settings-panel">
+            <div class="setting-group">
+              <label>Title:</label>
+              <input type="text" id="bookTitle" value="My Photo Book">
+            </div>
+            <div class="setting-group">
+              <label>Format:</label>
+              <select id="pageFormat" onchange="updatePagePreview()">
+                <option value="square-8x8">8" x 8" Square</option>
+                <option value="square-10x10">10" x 10" Square</option>
+                <option value="square-12x12">12" x 12" Square</option>
+                <option value="landscape-11x8.5">11" x 8.5" Landscape</option>
+                <option value="landscape-13x10">13" x 10" Landscape</option>
+                <option value="portrait-8.5x11">8.5" x 11" Portrait</option>
+                <option value="portrait-10x13">10" x 13" Portrait</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label>Auto-Layout:</label>
+              <select id="autoLayout">
+                <option value="random">Random Layouts</option>
+                <option value="mixed">Mixed (Single & Multi)</option>
+                <option value="single">All Single Photos</option>
+                <option value="two-horizontal">All Two Horizontal</option>
+                <option value="four-grid">All Four Grid</option>
+              </select>
+            </div>
+            <button class="btn btn-accent" onclick="autoArrange()">🎲 Auto-Arrange</button>
+          </div>
+
+          <div class="editor-tabs">
+            <button class="editor-tab active" data-editortab="cover" onclick="switchEditorTab('cover')">Cover</button>
+            <button class="editor-tab" data-editortab="pages" onclick="switchEditorTab('pages')">Pages</button>
+            <button class="editor-tab" data-editortab="backcover" onclick="switchEditorTab('backcover')">Back
+              Cover</button>
+          </div>
+
+          <div class="editor-content active" id="cover-editor">
+            <div class="cover-settings">
+              <div class="cover-preview" id="coverPreview">
+                <div class="cover-photo-placeholder" id="coverPhotoSlot" onclick="selectCoverPhoto()">
+                  <span>Click to add cover photo</span>
+                </div>
+                <div class="cover-title" id="coverTitlePreview">My Photo Book</div>
+                <div class="cover-subtitle" id="coverSubtitlePreview"></div>
+              </div>
+              <div class="cover-controls">
+                <div class="control-group">
+                  <label>Cover Title:</label>
+                  <input type="text" id="coverTitle" value="My Photo Book" oninput="updateCoverPreview()">
+                </div>
+                <div class="control-group">
+                  <label>Title Size:</label>
+                  <input type="range" id="coverTitleSize" min="18" max="72" value="36" oninput="updateCoverPreview()">
+                  <span id="coverTitleSizeVal">36px</span>
+                </div>
+                <div class="control-group">
+                  <label>Title Color:</label>
+                  <input type="color" id="coverTitleColor" value="#ffffff" oninput="updateCoverPreview()">
+                </div>
+                <div class="control-group">
+                  <label>Title Font:</label>
+                  <select id="coverTitleFont" onchange="updateCoverPreview()">
+                    <option value="Arial">Arial</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Playfair Display" selected>Playfair Display</option>
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Lato">Lato</option>
+                  </select>
+                </div>
+                <div class="control-group">
+                  <label>Subtitle:</label>
+                  <input type="text" id="coverSubtitle" placeholder="Optional subtitle" oninput="updateCoverPreview()">
+                </div>
+                <div class="control-group">
+                  <label>Background Color:</label>
+                  <input type="color" id="coverBgColor" value="#1a1a2e" oninput="updateCoverPreview()">
+                </div>
+                <div class="control-group">
+                  <label>Photo Border:</label>
+                  <div class="inline-controls">
+                    <input type="checkbox" id="coverPhotoBorder" onchange="updateCoverPreview()">
+                    <input type="color" id="coverBorderColor" value="#000000" oninput="updateCoverPreview()">
+                    <input type="number" id="coverBorderWeight" min="0" max="10" value="2"
+                      oninput="updateCoverPreview()">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="editor-content" id="pages-editor">
+            <div class="pages-toolbar">
+              <button class="btn btn-small" onclick="addPage()">+ Add Page</button>
+              <button class="btn btn-small" onclick="duplicatePage()">Duplicate</button>
+              <button class="btn btn-small" onclick="deletePage()">Delete</button>
+              <span class="page-indicator">
+                Page <span id="currentPageNum">1</span> of <span id="totalPages">0</span>
+              </span>
+            </div>
+
+            <div class="page-navigator">
+              <button class="nav-btn" onclick="prevPage()">◀</button>
+              <div class="page-thumbnails" id="pageThumbnails"></div>
+              <button class="nav-btn" onclick="nextPage()">▶</button>
+            </div>
+
+            <div class="page-editor-area">
+              <div class="page-preview" id="pagePreview">
+                <div class="empty-state">No pages yet. Select photos and click "Auto-Arrange"</div>
+              </div>
+              <div class="page-controls">
+                <div class="control-group">
+                  <label>Layout:</label>
+                  <select id="pageLayout" onchange="updatePageLayout()">
+                    <option value="single">Single Photo</option>
+                    <option value="two-horizontal">Two Horizontal</option>
+                    <option value="two-vertical">Two Vertical</option>
+                    <option value="three-left">Three (Large Left)</option>
+                    <option value="three-right">Three (Large Right)</option>
+                    <option value="four-grid">Four Grid</option>
+                    <option value="collage-5">Collage (5 Photos)</option>
+                    <option value="collage-6">Collage (6 Photos)</option>
+                  </select>
+                </div>
+                <div class="control-group">
+                  <label>Background:</label>
+                  <input type="color" id="pageBgColor" value="#ffffff" oninput="updatePageBackground()">
+                </div>
+                <div class="control-group">
+                  <label>Caption:</label>
+                  <input type="text" id="pageCaption" placeholder="Optional caption" oninput="updatePageCaption()">
+                </div>
+                <div class="control-group">
+                  <label>
+                    <input type="checkbox" id="showPageNumber" checked onchange="updatePageNumber()">
+                    Show page number
+                  </label>
+                </div>
+
+                <div class="control-group">
+                  <label>Photo Border:</label>
+                  <div class="inline-controls">
+                    <input type="checkbox" id="pageBorder" onchange="updatePageBorder()">
+                    <input type="color" id="pageBorderColor" value="#cccccc" oninput="updatePageBorder()">
+                    <input type="number" id="pageBorderWeight" min="1" max="10" value="1" oninput="updatePageBorder()">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="editor-content" id="backcover-editor">
+            <div class="cover-settings">
+              <div class="cover-preview" id="backCoverPreview">
+                <div class="back-cover-text" id="backCoverTextPreview">
+                  Thank you for viewing this photo book
+                </div>
+              </div>
+              <div class="cover-controls">
+                <div class="control-group">
+                  <label>Back Cover Text:</label>
+                  <textarea id="backCoverText" rows="4"
+                    oninput="updateBackCoverPreview()">Thank you for viewing this photo book</textarea>
+                </div>
+                <div class="control-group">
+                  <label>Background Color:</label>
+                  <input type="color" id="backCoverBgColor" value="#1a1a2e" oninput="updateBackCoverPreview()">
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <!-- Progress Modal -->
+      <div class="modal" id="progressModal">
+        <div class="modal-content modal-small">
+          <div class="progress-content">
+            <div class="spinner"></div>
+            <p id="progressText">Generating your photo book...</p>
+            <div class="progress-bar-container" style="margin-top: 20px; width: 100%;">
+              <div class="progress-bar" id="progressBar"
+                style="width: 0%; height: 8px; background: var(--color-primary); border-radius: 4px; transition: width 0.3s;">
+              </div>
+            </div>
+            <p id="progressStatus" style="margin-top: 10px; font-size: 0.9rem; color: #666;"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Modal -->
+      <div class="modal" id="resultModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Photo Book Created!</h3>
+            <button class="close-btn" onclick="closeResultModal()">&times;</button>
+          </div>
+          <div class="result-content">
+            <p>Your photo book has been created as a Google Slides presentation.</p>
+            <div class="result-actions">
+              <a id="viewPresentationLink" href="#" target="_blank" class="btn btn-primary">View Presentation</a>
+              <button class="btn btn-accent" onclick="exportToPdf()">Export as PDF</button>
+            </div>
+            <div id="pdfResult" style="display: none; margin-top: 1rem;">
+              <p>PDF exported successfully!</p>
+              <a id="downloadPdfLink" href="#" target="_blank" class="btn btn-secondary">Download PDF</a>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeResultModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Photo Picker Modal -->
+      <div class="modal" id="photoPickerModal">
+        <div class="modal-content modal-large">
+          <div class="modal-header">
+            <h3>Select a Photo</h3>
+            <button class="close-btn" onclick="closePhotoPicker()">&times;</button>
+          </div>
+          <div class="selected-photos-grid" id="photoPickerGrid"></div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closePhotoPicker()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Load Project Modal -->
+      <div class="modal" id="loadProjectModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Load Project</h3>
+            <button class="close-btn" onclick="closeLoadModal()">&times;</button>
+          </div>
+          <div class="projects-list" id="projectsList">
+            <div class="loading">Loading projects...</div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeLoadModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Design Inspiration Modal -->
+      <div class="modal" id="designInspirationModal">
+        <div class="modal-content modal-large">
+          <div class="modal-header">
+            <h3>🎨 Design Inspiration Results</h3>
+            <button class="close-btn" onclick="closeDesignInspirationModal()">&times;</button>
+          </div>
+          <div class="design-inspiration-content" id="designInspirationContent">
+            <div class="loading">Searching for design inspiration...</div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+
+  <!-- Design Editor Script -->
+  <script src="/js/design-editor.js"></script>
+
+  <!-- Main Application Script -->
+  <script src="/js/app.js"></script>
+
+  <!-- Template Gallery Script -->
+  <script src="/js/template-gallery.js"></script>
+</body>
+
+</html>
