@@ -1,11 +1,33 @@
 const {google} = require("googleapis");
 const admin = require("firebase-admin");
+const functions = require("firebase-functions");
 
 // OAuth2 Configuration
 // These should be set in Firebase Functions config or environment variables
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || "https://shoso-photobook.web.app/oauth/callback";
+function getOauthConfig() {
+  // Prefer process.env (works with secrets and emulator env files)
+  const envClientId = process.env.GOOGLE_CLIENT_ID;
+  const envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const envRedirectUri = process.env.OAUTH_REDIRECT_URI;
+
+  // Fallback to Firebase runtime config (older but still common)
+  const cfg = (() => {
+    try {
+      return functions.config?.() || {};
+    } catch (e) {
+      return {};
+    }
+  })();
+
+  const clientId = envClientId || cfg.google?.client_id || cfg.google?.clientId;
+  const clientSecret = envClientSecret || cfg.google?.client_secret || cfg.google?.clientSecret;
+  const redirectUri = envRedirectUri ||
+    cfg.google?.redirect_uri ||
+    cfg.google?.redirectUri ||
+    "https://shoso-photobook.web.app/oauth/callback";
+
+  return {clientId, clientSecret, redirectUri};
+}
 
 const SCOPES = [
   "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
@@ -19,14 +41,15 @@ const SCOPES = [
  * @return {Promise<OAuth2Client>} Configured OAuth2 client
  */
 async function getOAuth2Client(userId) {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
+  const {clientId, clientSecret, redirectUri} = getOauthConfig();
+  if (!clientId || !clientSecret) {
     console.error("Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env vars");
     return null;
   }
   const oauth2Client = new google.auth.OAuth2(
-      CLIENT_ID,
-      CLIENT_SECRET,
-      REDIRECT_URI,
+      clientId,
+      clientSecret,
+      redirectUri,
   );
 
   if (userId) {
@@ -64,10 +87,17 @@ async function getOAuth2Client(userId) {
  * @return {Promise<Object>} Authorization URL and state
  */
 async function getAuthorizationUrl(userId) {
+  const {clientId, clientSecret, redirectUri} = getOauthConfig();
+  if (!clientId || !clientSecret) {
+    return {
+      status: "CONFIG_ERROR",
+      error: "Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in Functions runtime",
+    };
+  }
   const oauth2Client = new google.auth.OAuth2(
-      CLIENT_ID,
-      CLIENT_SECRET,
-      REDIRECT_URI,
+      clientId,
+      clientSecret,
+      redirectUri,
   );
 
   const authUrl = oauth2Client.generateAuthUrl({
@@ -108,10 +138,17 @@ async function handleCallback(query) {
   }
 
   try {
+    const {clientId, clientSecret, redirectUri} = getOauthConfig();
+    if (!clientId || !clientSecret) {
+      return {
+        success: false,
+        message: "Server OAuth config missing (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).",
+      };
+    }
     const oauth2Client = new google.auth.OAuth2(
-        CLIENT_ID,
-        CLIENT_SECRET,
-        REDIRECT_URI,
+        clientId,
+        clientSecret,
+        redirectUri,
     );
 
     const {tokens} = await oauth2Client.getToken(code);
