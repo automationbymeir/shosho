@@ -34,10 +34,10 @@ function getPageSize(format) {
 // TEXT / FONTS (Hebrew support)
 // ============================================
 
-const HEBREW_FONT_REGULAR = "NotoSansHebrew";
-const HEBREW_FONT_BOLD = "NotoSansHebrew-Bold";
-const HEBREW_FONT_REGULAR_PATH = path.join(__dirname, "..", "assets", "fonts", "NotoSansHebrew-Regular.ttf");
-const HEBREW_FONT_BOLD_PATH = path.join(__dirname, "..", "assets", "fonts", "NotoSansHebrew-Bold.ttf");
+const HEBREW_FONT_REGULAR = "Alef";
+const HEBREW_FONT_BOLD = "Alef-Bold";
+const HEBREW_FONT_REGULAR_PATH = path.join(__dirname, "..", "assets", "fonts", "Alef-Regular.ttf");
+const HEBREW_FONT_BOLD_PATH = path.join(__dirname, "..", "assets", "fonts", "Alef-Bold.ttf");
 
 /**
  * Register fonts used by the PDF generator.
