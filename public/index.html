@@ -163,6 +163,19 @@
 
           <div class="tab-content" id="selected-tab">
             <div class="selected-actions">
+              <div class="zoom-control" title="Change thumbnail size">
+                <span class="zoom-icon" aria-hidden="true">🔍</span>
+                <input
+                  type="range"
+                  min="80"
+                  max="240"
+                  step="10"
+                  value="120"
+                  data-album-zoom-range
+                  aria-label="Thumbnail size"
+                >
+                <span class="zoom-label" data-album-zoom-label>120px</span>
+              </div>
               <button class="btn btn-small" onclick="clearSelectedPhotos()">Clear</button>
               <button class="btn btn-small" onclick="shuffleSelectedPhotos()">Shuffle</button>
             </div>
@@ -310,12 +323,29 @@
 
           <div class="editor-content" id="pages-editor">
             <div class="pages-toolbar">
-              <button class="btn btn-small" onclick="addPage()">+ Add Page</button>
-              <button class="btn btn-small" onclick="duplicatePage()">Duplicate</button>
-              <button class="btn btn-small" onclick="deletePage()">Delete</button>
-              <span class="page-indicator">
-                Page <span id="currentPageNum">1</span> of <span id="totalPages">0</span>
-              </span>
+              <div class="pages-toolbar-left">
+                <button class="btn btn-small" onclick="addPage()">+ Add Page</button>
+                <button class="btn btn-small" onclick="duplicatePage()">Duplicate</button>
+                <button class="btn btn-small" onclick="deletePage()">Delete</button>
+              </div>
+              <div class="pages-toolbar-right">
+                <span class="page-indicator">
+                  Page <span id="currentPageNum">1</span> of <span id="totalPages">0</span>
+                </span>
+                <div class="zoom-control zoom-control-compact" title="Change page zoom">
+                  <span class="zoom-icon" aria-hidden="true">🔍</span>
+                  <input
+                    type="range"
+                    min="50"
+                    max="150"
+                    step="10"
+                    value="100"
+                    data-page-zoom-range
+                    aria-label="Page zoom"
+                  >
+                  <span class="zoom-label" data-page-zoom-label>100%</span>
+                </div>
+              </div>
             </div>
 
             <div class="page-navigator">
@@ -437,7 +467,21 @@
         <div class="modal-content modal-large">
           <div class="modal-header">
             <h3>Select a Photo</h3>
+            <div class="modal-header-actions">
+              <div class="zoom-control zoom-control-compact" title="Change thumbnail size">
+                <span class="zoom-icon" aria-hidden="true">🔍</span>
+                <input
+                  type="range"
+                  min="80"
+                  max="240"
+                  step="10"
+                  value="120"
+                  data-album-zoom-range
+                  aria-label="Thumbnail size"
+                >
+              </div>
             <button class="close-btn" onclick="closePhotoPicker()">&times;</button>
+            </div>
           </div>
           <div class="selected-photos-grid" id="photoPickerGrid"></div>
           <div class="modal-footer">

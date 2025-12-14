@@ -455,6 +455,8 @@ async function initialize() {
         updateCoverPreview();
         updateBackCoverPreview();
         initResizableSidebar();
+        initAlbumViewSizeControls();
+        initPagePreviewZoomControls();
 
         // Initialize design editor
         if (typeof designEditor !== 'undefined') {
@@ -679,6 +681,125 @@ function resetPickerButton() {
 // ============================================
 // SELECTED PHOTOS UI
 // ============================================
+const ALBUM_VIEW_SIZE_STORAGE_KEY = 'shoso:albumViewSize';
+const ALBUM_VIEW_SIZE_DEFAULT = 120;
+const ALBUM_VIEW_SIZE_MIN = 80;
+const ALBUM_VIEW_SIZE_MAX = 240;
+
+const PAGE_PREVIEW_ZOOM_STORAGE_KEY = 'shoso:pagePreviewZoom';
+const PAGE_PREVIEW_ZOOM_DEFAULT = 100; // %
+const PAGE_PREVIEW_ZOOM_MIN = 50; // %
+const PAGE_PREVIEW_ZOOM_MAX = 150; // %
+
+function clampNumber(value, min, max) {
+    if (!Number.isFinite(value)) return min;
+    return Math.min(max, Math.max(min, value));
+}
+
+function getAlbumViewSize() {
+    try {
+        const raw = localStorage.getItem(ALBUM_VIEW_SIZE_STORAGE_KEY);
+        const parsed = parseInt(raw, 10);
+        if (!Number.isFinite(parsed)) return ALBUM_VIEW_SIZE_DEFAULT;
+        return clampNumber(parsed, ALBUM_VIEW_SIZE_MIN, ALBUM_VIEW_SIZE_MAX);
+    } catch (e) {
+        return ALBUM_VIEW_SIZE_DEFAULT;
+    }
+}
+
+function applyAlbumViewSize(size) {
+    const clamped = clampNumber(size, ALBUM_VIEW_SIZE_MIN, ALBUM_VIEW_SIZE_MAX);
+    document.documentElement.style.setProperty('--album-tile-size', `${clamped}px`);
+
+    // Sync all zoom sliders/labels (sidebar + modal)
+    document.querySelectorAll('[data-album-zoom-range]').forEach((el) => {
+        const input = /** @type {HTMLInputElement} */ (el);
+        if (parseInt(input.value, 10) !== clamped) input.value = String(clamped);
+    });
+
+    document.querySelectorAll('[data-album-zoom-label]').forEach((el) => {
+        el.textContent = `${clamped}px`;
+    });
+}
+
+function setAlbumViewSize(size) {
+    const clamped = clampNumber(size, ALBUM_VIEW_SIZE_MIN, ALBUM_VIEW_SIZE_MAX);
+    try {
+        localStorage.setItem(ALBUM_VIEW_SIZE_STORAGE_KEY, String(clamped));
+    } catch (e) {
+        // ignore (private mode / blocked storage)
+    }
+    applyAlbumViewSize(clamped);
+}
+
+function initAlbumViewSizeControls() {
+    const initial = getAlbumViewSize();
+    applyAlbumViewSize(initial);
+
+    document.querySelectorAll('[data-album-zoom-range]').forEach((el) => {
+        const input = /** @type {HTMLInputElement} */ (el);
+        input.min = String(ALBUM_VIEW_SIZE_MIN);
+        input.max = String(ALBUM_VIEW_SIZE_MAX);
+        input.step = '10';
+        input.value = String(initial);
+        input.addEventListener('input', () => {
+            setAlbumViewSize(parseInt(input.value, 10));
+        });
+    });
+}
+
+function getPagePreviewZoomPercent() {
+    try {
+        const raw = localStorage.getItem(PAGE_PREVIEW_ZOOM_STORAGE_KEY);
+        const parsed = parseInt(raw, 10);
+        if (!Number.isFinite(parsed)) return PAGE_PREVIEW_ZOOM_DEFAULT;
+        return clampNumber(parsed, PAGE_PREVIEW_ZOOM_MIN, PAGE_PREVIEW_ZOOM_MAX);
+    } catch (e) {
+        return PAGE_PREVIEW_ZOOM_DEFAULT;
+    }
+}
+
+function applyPagePreviewZoomPercent(percent) {
+    const clamped = clampNumber(percent, PAGE_PREVIEW_ZOOM_MIN, PAGE_PREVIEW_ZOOM_MAX);
+    const scale = clamped / 100;
+    document.documentElement.style.setProperty('--page-preview-zoom', String(scale));
+
+    document.querySelectorAll('[data-page-zoom-range]').forEach((el) => {
+        const input = /** @type {HTMLInputElement} */ (el);
+        if (parseInt(input.value, 10) !== clamped) input.value = String(clamped);
+    });
+
+    document.querySelectorAll('[data-page-zoom-label]').forEach((el) => {
+        el.textContent = `${clamped}%`;
+    });
+}
+
+function setPagePreviewZoomPercent(percent) {
+    const clamped = clampNumber(percent, PAGE_PREVIEW_ZOOM_MIN, PAGE_PREVIEW_ZOOM_MAX);
+    try {
+        localStorage.setItem(PAGE_PREVIEW_ZOOM_STORAGE_KEY, String(clamped));
+    } catch (e) {
+        // ignore
+    }
+    applyPagePreviewZoomPercent(clamped);
+}
+
+function initPagePreviewZoomControls() {
+    const initial = getPagePreviewZoomPercent();
+    applyPagePreviewZoomPercent(initial);
+
+    document.querySelectorAll('[data-page-zoom-range]').forEach((el) => {
+        const input = /** @type {HTMLInputElement} */ (el);
+        input.min = String(PAGE_PREVIEW_ZOOM_MIN);
+        input.max = String(PAGE_PREVIEW_ZOOM_MAX);
+        input.step = '10';
+        input.value = String(initial);
+        input.addEventListener('input', () => {
+            setPagePreviewZoomPercent(parseInt(input.value, 10));
+        });
+    });
+}
+
 function updateSelectedPhotosUI() {
     const list = document.getElementById('selectedPhotosList');
     const count = document.getElementById('selectedCount');
