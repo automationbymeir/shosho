@@ -17,6 +17,19 @@ function getOauthConfig() {
   const envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const envRedirectUri = process.env.OAUTH_REDIRECT_URI;
 
+  // Cloud Functions runtime config (often injected as JSON string env var)
+  // Works for both deployed Functions and the emulator when .runtimeconfig.json exists.
+  const runtimeCfg = (() => {
+    try {
+      const raw = process.env.CLOUD_RUNTIME_CONFIG;
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed || {};
+    } catch (e) {
+      return {};
+    }
+  })();
+
   // Fallback to Firebase runtime config (older but still common)
   const cfg = (() => {
     try {
@@ -26,9 +39,19 @@ function getOauthConfig() {
     }
   })();
 
-  const clientId = envClientId || cfg.google?.client_id || cfg.google?.clientId;
-  const clientSecret = envClientSecret || cfg.google?.client_secret || cfg.google?.clientSecret;
+  const clientId = envClientId ||
+    runtimeCfg.google?.client_id ||
+    runtimeCfg.google?.clientId ||
+    cfg.google?.client_id ||
+    cfg.google?.clientId;
+  const clientSecret = envClientSecret ||
+    runtimeCfg.google?.client_secret ||
+    runtimeCfg.google?.clientSecret ||
+    cfg.google?.client_secret ||
+    cfg.google?.clientSecret;
   const redirectUri = envRedirectUri ||
+    runtimeCfg.google?.redirect_uri ||
+    runtimeCfg.google?.redirectUri ||
     cfg.google?.redirect_uri ||
     cfg.google?.redirectUri ||
     "https://shoso-photobook.web.app/oauth/callback";
