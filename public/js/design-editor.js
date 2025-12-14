@@ -561,11 +561,48 @@ class DesignEditor {
         });
     }
 
-    exportImage(format = 'png', quality = 0.9) {
+    exportImage(format = 'png', quality = 0.9, options = {}) {
+        // Export at higher resolution WITHOUT upscaling beyond source pixels.
+        // This is critical so the generated PDF never uses a low-res raster.
+        //
+        // options:
+        // - maxDimension: cap the exported longest side in pixels (default 2400)
+
+        const baseW = this.canvas.width;
+        const baseH = this.canvas.height;
+
+        const maxDimension = Number.isFinite(options?.maxDimension) ? options.maxDimension : 2400;
+
+        // Default export size matches the editor canvas.
+        let exportW = baseW;
+        let exportH = baseH;
+
+        if (this.currentImage) {
+            // Max scale we can apply without upscaling the underlying image.
+            const maxScaleNoUpscale = Math.min(
+                this.currentImage.width / baseW,
+                this.currentImage.height / baseH
+            );
+
+            // Scale up to maxDimension, but never beyond source resolution.
+            const desiredScale = Math.min(
+                maxScaleNoUpscale,
+                maxDimension / Math.max(baseW, baseH)
+            );
+
+            // Never upscale beyond 1 if the source is already smaller than the editor canvas.
+            const finalScale = Math.max(1, desiredScale);
+
+            exportW = Math.max(1, Math.round(baseW * finalScale));
+            exportH = Math.max(1, Math.round(baseH * finalScale));
+        }
+
+        const scaleFactor = exportW / baseW;
+
         // Create a temporary canvas to export with filters applied to image data
         const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = this.canvas.width;
-        exportCanvas.height = this.canvas.height;
+        exportCanvas.width = exportW;
+        exportCanvas.height = exportH;
         const exportCtx = exportCanvas.getContext('2d');
         
         // Draw white background
@@ -606,13 +643,17 @@ class DesignEditor {
         // Draw filtered image to export canvas
         exportCtx.drawImage(imageCanvas, x, y, scaledWidth, scaledHeight);
         
-        // Draw text elements
+        // Draw text elements (scaled to match export resolution)
         this.textElements.forEach(element => {
             exportCtx.save();
-            exportCtx.font = `${element.fontSize}px ${element.fontFamily}`;
+            exportCtx.font = `${Math.round(element.fontSize * scaleFactor)}px ${element.fontFamily}`;
             exportCtx.fillStyle = element.color;
             exportCtx.textBaseline = 'top';
-            exportCtx.fillText(element.text, element.x, element.y);
+            exportCtx.fillText(
+                element.text,
+                Math.round(element.x * scaleFactor),
+                Math.round(element.y * scaleFactor)
+            );
             exportCtx.restore();
         });
         

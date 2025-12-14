@@ -251,17 +251,44 @@ function getDecorations(designData) {
 /**
  * Fetch image as buffer from Google Photos or data URL
  * Priority: editedImageData > editedData > thumbnailUrl > Google Photos (=d)
+ * But: never return a raster that would require upscaling for the target print size.
  * @param {Object} photo - Photo object
  * @param {string} accessToken - OAuth access token
+ * @param {Object=} requirements - Minimum pixel dimensions to avoid upscaling
+ * @param {number=} requirements.minWidthPx - Minimum width in pixels
+ * @param {number=} requirements.minHeightPx - Minimum height in pixels
  * @return {Promise<Buffer|null>} Image buffer or null
  */
-async function fetchImageAsBuffer(photo, accessToken) {
+async function fetchImageAsBuffer(photo, accessToken, requirements = {}) {
+  const minWidthPx = Math.max(0, Math.floor(requirements.minWidthPx || 0));
+  const minHeightPx = Math.max(0, Math.floor(requirements.minHeightPx || 0));
+
+  const meetsMinPixels = (buffer, label) => {
+    try {
+      if (!minWidthPx && !minHeightPx) return true;
+      const sizeOf = require("image-size").default || require("image-size");
+      const dim = sizeOf(buffer);
+      const ok = (minWidthPx ? dim.width >= minWidthPx : true) &&
+        (minHeightPx ? dim.height >= minHeightPx : true);
+      if (!ok) {
+        console.log(
+            `⚠ ${label} too small: ${dim.width}x${dim.height}px (need >= ${minWidthPx}x${minHeightPx})`,
+        );
+      }
+      return ok;
+    } catch (e) {
+      // If we can't measure, don't block.
+      return true;
+    }
+  };
+
   // Priority 1: Edited image data (from design editor)
   if (photo.editedImageData && photo.editedImageData.startsWith("data:")) {
     const base64Data = photo.editedImageData.split(",")[1];
     const buffer = Buffer.from(base64Data, "base64");
     console.log(`✓ Using editedImageData: ${buffer.length} bytes`);
-    return buffer;
+    if (meetsMinPixels(buffer, "editedImageData")) return buffer;
+    console.log("↪ Falling back to original image to avoid resolution loss.");
   }
 
   // Priority 2: Other edited data
@@ -269,7 +296,8 @@ async function fetchImageAsBuffer(photo, accessToken) {
     const base64Data = photo.editedData.split(",")[1];
     const buffer = Buffer.from(base64Data, "base64");
     console.log(`✓ Using editedData: ${buffer.length} bytes`);
-    return buffer;
+    if (meetsMinPixels(buffer, "editedData")) return buffer;
+    console.log("↪ Falling back to original image to avoid resolution loss.");
   }
 
   // Priority 3: Thumbnail data URL (fallback only)
@@ -277,7 +305,8 @@ async function fetchImageAsBuffer(photo, accessToken) {
     const base64Data = photo.thumbnailUrl.split(",")[1];
     const buffer = Buffer.from(base64Data, "base64");
     console.log(`⚠ Using thumbnailUrl (low res): ${buffer.length} bytes`);
-    return buffer;
+    if (meetsMinPixels(buffer, "thumbnailUrl")) return buffer;
+    console.log("↪ Falling back to original image to avoid resolution loss.");
   }
 
   // Priority 4: Fetch from Google Photos at MAXIMUM resolution
@@ -287,16 +316,19 @@ async function fetchImageAsBuffer(photo, accessToken) {
     return null;
   }
 
-  // Use =d parameter for original resolution
-  let url = baseUrl;
-  if (url.includes("=")) {
-    url = url.split("=")[0] + "=d";
-  } else {
-    url = url + "=d";
-  }
+  const stripParams = (u) => (u.includes("=") ? u.split("=")[0] : u);
+  const base = stripParams(baseUrl);
+
+  // If a minimum is required, request at least that size (capped) to avoid upscaling.
+  const targetPx = Math.max(minWidthPx, minHeightPx, 0);
+  const cappedTargetPx = Math.min(Math.max(targetPx, 0), 8192);
+
+  const urlD = base + "=d";
+  const urlSized = cappedTargetPx > 0 ? (base + `=w${cappedTargetPx}-h${cappedTargetPx}`) : null;
 
   try {
-    const response = await fetch(url, {
+    // Try original (=d) first
+    const response = await fetch(urlD, {
       headers: {
         "Authorization": `Bearer ${accessToken}`,
       },
@@ -306,31 +338,46 @@ async function fetchImageAsBuffer(photo, accessToken) {
       const buffer = await response.buffer();
       const sizeMB = (buffer.length / 1024 / 1024).toFixed(2);
       console.log(`✓ Fetched original from Google Photos: ${buffer.length} bytes (${sizeMB} MB)`);
-      return buffer;
+      if (meetsMinPixels(buffer, "googlePhotos(=d)")) return buffer;
+      if (!urlSized) return buffer;
+      console.log("⚠ Original fetched but below minimum; retrying sized fetch...");
     } else {
-      // Fallback to ultra-high resolution
-      const fallbackUrl = baseUrl.includes("=") ?
-        baseUrl.split("=")[0] + "=w8192-h8192" :
-        baseUrl + "=w8192-h8192";
-      console.log(`⚠ =d failed (${response.status}), trying w8192-h8192...`);
-      const fallbackResponse = await fetch(fallbackUrl, {
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      });
-      if (fallbackResponse.ok) {
-        const buffer = await fallbackResponse.buffer();
-        const sizeMB = (buffer.length / 1024 / 1024).toFixed(2);
-        console.log(`✓ Fetched high-res fallback: ${buffer.length} bytes (${sizeMB} MB)`);
-        return buffer;
+      if (!urlSized) {
+        console.log(`✗ =d failed (${response.status}) and no sized request needed`);
+        return null;
       }
-      console.log(`✗ Fallback also failed: ${fallbackResponse.status}`);
-      return null;
+      console.log(`⚠ =d failed (${response.status}), trying sized fetch...`);
     }
+
+    // Sized fetch (requested minimum, capped)
+    const sizedResponse = await fetch(urlSized, {
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+      },
+    });
+    if (sizedResponse.ok) {
+      const buffer = await sizedResponse.buffer();
+      const sizeMB = (buffer.length / 1024 / 1024).toFixed(2);
+      console.log(`✓ Fetched sized image: ${buffer.length} bytes (${sizeMB} MB)`);
+      return buffer;
+    }
+
+    console.log(`✗ Sized fetch failed: ${sizedResponse.status}`);
+    return null;
   } catch (error) {
     console.log(`✗ Error fetching image: ${error.message}`);
     return null;
   }
+}
+
+/**
+ * Convert PDF points to pixels at target DPI.
+ * @param {number} points
+ * @param {number} dpi
+ * @return {number}
+ */
+function pointsToPixels(points, dpi) {
+  return Math.ceil((points / 72) * dpi);
 }
 
 /**
@@ -770,7 +817,14 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
 
   if (coverPhoto) {
     console.log("Loading cover photo...");
-    const imageBuffer = await fetchImageAsBuffer(coverPhoto, accessToken);
+    // Resolution guard: request enough pixels for print-quality (300 DPI) to avoid upscaling.
+    const dpi = 300;
+    const neededW = pointsToPixels(maxWidth, dpi);
+    const neededH = pointsToPixels(maxHeight * 0.55, dpi);
+    const imageBuffer = await fetchImageAsBuffer(coverPhoto, accessToken, {
+      minWidthPx: Math.ceil(neededW * 1.1),
+      minHeightPx: Math.ceil(neededH * 1.1),
+    });
     if (imageBuffer) {
       try {
         const sizeOf = require("image-size").default || require("image-size");
@@ -779,6 +833,20 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
         // Use 55% of page height to leave room for title
         const photoHeight = maxHeight * 0.55;
         const photoWidth = maxWidth;
+
+        // Resolution validation: cover image must not be upscaled in the PDF.
+        // Our cover photo target area is `photoWidth x photoHeight`.
+        const requiredW = pointsToPixels(photoWidth, dpi);
+        const requiredH = pointsToPixels(photoHeight, dpi);
+        const upscaleX = requiredW / dimensions.width;
+        const upscaleY = requiredH / dimensions.height;
+        const upscale = Math.max(upscaleX, upscaleY);
+        if (upscale > 1.01) {
+          throw new Error(
+              `Cover photo resolution too low: need ~${requiredW}x${requiredH}px but got ` +
+              `${dimensions.width}x${dimensions.height}px (upscale x${upscale.toFixed(2)}).`,
+          );
+        }
 
         const fit = calculateFitDimensions(dimensions.width, dimensions.height, photoWidth, photoHeight);
         const x = margin + (maxWidth - fit.width) / 2;
@@ -916,7 +984,14 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
     if (slot.y < 0) slot.y = 20;
 
     console.log(`Loading photo ${i + 1}/${photos.length}...`);
-    const imageBuffer = await fetchImageAsBuffer(photo, accessToken);
+    // Resolution guard: make sure we never upscale in the PDF.
+    const dpi = 300;
+    const minW = pointsToPixels(slot.width, dpi);
+    const minH = pointsToPixels(slot.height, dpi);
+    const imageBuffer = await fetchImageAsBuffer(photo, accessToken, {
+      minWidthPx: Math.ceil(minW * 1.1),
+      minHeightPx: Math.ceil(minH * 1.1),
+    });
     if (!imageBuffer) {
       console.log(`✗ Photo ${i + 1}: Failed to load`);
       continue;
@@ -934,6 +1009,22 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
           slot.width,
           slot.height,
       );
+
+      // Resolution validation (hard guard): never upscale in final PDF.
+      // 300 DPI target.
+      const dpi = 300;
+      const requiredW = pointsToPixels(fit.width, dpi);
+      const requiredH = pointsToPixels(fit.height, dpi);
+      const upscaleX = requiredW / dimensions.width;
+      const upscaleY = requiredH / dimensions.height;
+      const upscale = Math.max(upscaleX, upscaleY);
+      if (upscale > 1.01) {
+        throw new Error(
+            `Photo resolution too low for print: need ~${requiredW}x${requiredH}px but got ` +
+            `${dimensions.width}x${dimensions.height}px (upscale x${upscale.toFixed(2)}). ` +
+            `Choose a higher-res photo or reduce its size/layout.`,
+        );
+      }
 
       // Center in slot based on alignment setting
       const alignment = photo.alignment || "center";

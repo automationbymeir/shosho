@@ -2273,7 +2273,11 @@ async function saveEditedPhoto() {
         showProgress('Saving edited photo...', 'Processing your edits...', 50);
 
         // Export edited image from canvas (this now includes filters applied to image data)
-        const editedImageData = await Promise.resolve(designEditor.exportImage('png', 0.9));
+        // Export at high resolution (without upscaling beyond the source image).
+        // This ensures PDF generation can stay crisp.
+        const editedImageData = await Promise.resolve(
+            designEditor.exportImage('png', 0.95, { maxDimension: 3600 })
+        );
 
         // Update the photo in the page with the edited version
         const page = state.pages[currentEditingPageIndex];
