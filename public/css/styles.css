@@ -787,15 +787,22 @@ input[type="checkbox"] {
   gap: 20px;
   padding: 3rem;
   /* Inner page margin */
+  background: transparent;
 }
 
 .layout-slot {
-  background: #F8F8F8;
+  /* Let the page background (template/bg color) show through */
+  background: transparent;
   position: relative;
   overflow: hidden;
   cursor: pointer;
   transition: opacity 0.2s, border 0.2s, box-shadow 0.2s;
   border: 2px solid transparent;
+}
+
+/* Keep a subtle surface for empty slots only */
+.layout-slot:not(.has-photo) {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .layout-slot:hover {

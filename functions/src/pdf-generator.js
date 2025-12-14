@@ -545,11 +545,9 @@ function drawThemeBackground(doc, pageSize, designData, bookData, type = "conten
     }
   }
 
-  const bgRgb = hexToRgb(bgColor);
-
   // Fill base color
   doc.rect(0, 0, w, h)
-      .fillColor([bgRgb.red / 255, bgRgb.green / 255, bgRgb.blue / 255])
+      .fillColor(bgColor)
       .fill();
 
   // 2. Texture / Pattern Overlay (Papier Aesthetic)
@@ -566,26 +564,26 @@ function drawThemeBackground(doc, pageSize, designData, bookData, type = "conten
   const themeName = (designData.data && designData.data.id) || "custom";
   const colors = (designData.data && designData.data.colors) || {};
 
-  const secondary = hexToRgb(colors.secondary || "#777777");
-  const accent = hexToRgb(colors.accentColor || "#97BC62");
+  const accentHex = colors.accentColor || colors.accent || colors.primary || "#97BC62";
+  const secondaryHex = colors.secondary || colors.borderColor || colors.textColor || "#777777";
 
   if (themeName.includes("modern") || themeName.includes("geometric")) {
     // Geometric flair
     doc.moveTo(0, h)
         .lineTo(w, h * 0.7)
         .lineTo(w, h)
-        .fillColor([accent.red / 255, accent.green / 255, accent.blue / 255, 0.1])
+        .fillColor(accentHex, 0.1)
         .fill();
 
     doc.moveTo(0, 0)
         .lineTo(w * 0.3, 0)
         .lineTo(0, h * 0.2)
-        .fillColor([secondary.red / 255, secondary.green / 255, secondary.blue / 255, 0.05])
+        .fillColor(secondaryHex, 0.05)
         .fill();
   } else if (themeName.includes("botanical") || themeName.includes("nature")) {
     // Organic bottom curve
     doc.path(`M 0 ${h} L 0 ${h - 100} Q ${w / 4} ${h - 150} ${w / 2} ${h - 100} T ${w} ${h - 80} L ${w} ${h} Z`)
-        .fillColor([accent.red / 255, accent.green / 255, accent.blue / 255, 0.08])
+        .fillColor(accentHex, 0.08)
         .fill();
   }
 
@@ -747,7 +745,7 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
         // Add photo with optional border or shadow
         doc.save();
         // Shadow
-        doc.rect(x + 4, y + 4, fit.width, fit.height).fillColor([0, 0, 0, 0.2]).fill();
+        doc.rect(x + 4, y + 4, fit.width, fit.height).fillColor("black", 0.2).fill();
 
         // Image
         doc.image(imageBuffer, x, y, {
@@ -776,8 +774,6 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
     const titleSize = bookData.coverTitleSize || 36;
     const titleFont = "Times-Bold"; // Use standard serif for elegance
 
-    const titleRgb = hexToRgb(titleColor);
-
     // Calculate title position - below photo
     let titleY = photoBottom > 0 ? photoBottom + 40 : (pageSize.height - titleSize) / 2;
 
@@ -790,7 +786,7 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
     doc.save();
     doc.fontSize(titleSize)
         .font(titleFont)
-        .fillColor([titleRgb.red / 255, titleRgb.green / 255, titleRgb.blue / 255])
+        .fillColor(titleColor)
         .text(titleText, margin, titleY, {
           width: maxWidth,
           align: "center",
@@ -807,7 +803,7 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
 
       doc.fontSize(14)
           .font("Helvetica")
-          .fillColor([0.4, 0.4, 0.4]) // Grey
+          .fillColor("#666666")
           .text(subtitle.toUpperCase(), margin, subtitleY, {
             width: maxWidth,
             align: "center",
@@ -904,7 +900,7 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
 
       // Draw photo with shadow
       doc.save();
-      doc.rect(x + 3, y + 3, fit.width, fit.height).fillColor([0, 0, 0, 0.15]).fill();
+      doc.rect(x + 3, y + 3, fit.width, fit.height).fillColor("black", 0.15).fill();
 
       doc.image(imageBuffer, x, y, {
         width: fit.width,
@@ -932,7 +928,6 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
   if (page.caption) {
     const maxWidth = pageSize.width - (margin * 2);
     const captionColor = getTextColor(page, designData);
-    const captionRgb = hexToRgb(captionColor);
 
     // Get caption size from template
     let captionSize = 12;
@@ -945,7 +940,7 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
     console.log(`Adding caption: "${page.caption}" - Color: ${captionColor} - Size: ${captionSize}`);
     doc.fontSize(captionSize)
         .font("Times-Italic")
-        .fillColor([captionRgb.red / 255, captionRgb.green / 255, captionRgb.blue / 255])
+        .fillColor(captionColor)
         .text(page.caption, margin, captionY, {
           width: maxWidth,
           align: "center",
@@ -996,12 +991,11 @@ function createBackCoverPage(doc, bookData, pageSize) {
   const backCoverText = bookData.backCover?.text || "Made with Shoso";
   if (backCoverText) {
     const textColor = getTextColor(null, designData);
-    const textRgb = hexToRgb(textColor);
 
     console.log(`Adding back cover text: "${backCoverText}" - Color: ${textColor}`);
     doc.fontSize(12)
         .font("Helvetica")
-        .fillColor([textRgb.red / 255, textRgb.green / 255, textRgb.blue / 255])
+        .fillColor(textColor)
         .text(backCoverText, 60, pageSize.height - 100, {
           width: pageSize.width - 120,
           align: "center",
