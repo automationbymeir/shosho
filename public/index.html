@@ -5,12 +5,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Photo Book Creator</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.svg">
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-functions-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-storage-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics-compat.js"></script>
 
   <!-- Google Fonts -->
@@ -22,6 +25,11 @@
 
   <!-- Styles -->
   <link rel="stylesheet" href="/css/styles.css">
+  <!-- Enhanced 3D Book Styles -->
+  <link rel="stylesheet" href="/css/book-3d-enhanced.css">
+
+  <!-- Mobile redirect (sends mobile devices to /mobile/*) -->
+  <script src="/js/mobile-redirect.js"></script>
 
   <!-- Firebase Hosting auto-config (avoids hardcoding apiKey in repo) -->
   <script src="/__/firebase/init.js"></script>
@@ -55,6 +63,7 @@
         </div>
         <div class="gallery-header-actions">
           <button class="btn btn-secondary" onclick="showLoadDialog()">Load Project</button>
+          <button class="btn btn-secondary" onclick="showProfileModal()">Profile</button>
         </div>
       </header>
 
@@ -64,6 +73,121 @@
         </div>
       </div>
     </div>
+
+      <!-- Memory Director View -->
+      <div id="memoryDirectorView" class="memory-director-view" style="display: none;">
+
+        <!-- Story Detection Modal -->
+        <div id="storyDetectionModal" class="md-modal-overlay">
+          <div class="md-modal-card">
+            <div class="md-modal-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;color:white">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" />
+                <line x1="7" y1="2" x2="7" y2="22" /><line x1="17" y1="2" x2="17" y2="22" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+              </svg>
+            </div>
+            <h2>Story Detected</h2>
+            <p class="md-modal-subtitle">AI analyzed your photos and found a narrative</p>
+
+            <div class="md-detected-story">
+              <h3 id="mdStoryTitle">Your Photo Story</h3>
+              <div id="mdChaptersList"></div>
+            </div>
+
+            <div class="md-modal-actions">
+              <button class="btn btn-secondary" onclick="document.getElementById('storyDetectionModal').classList.remove('active')">
+                Customize
+              </button>
+              <button class="btn btn-primary" onclick="acceptStoryStructure()">
+                Use This Story ✨
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Header -->
+        <header class="md-header">
+          <div class="md-header-left">
+            <button class="btn btn-secondary btn-small" onclick="exitMemoryDirector()">← Back</button>
+            <h1>Memory Director</h1>
+            <span class="md-project-badge">New Project</span>
+          </div>
+          <div class="md-header-right">
+            <button class="btn btn-secondary btn-small" onclick="startNewAlbum()">New album</button>
+            <button class="btn btn-secondary btn-small" onclick="saveMemoryDirectorProject()">Save</button>
+            <button class="btn btn-secondary btn-small" onclick="showLoadDialog()">Load</button>
+            <button class="btn btn-secondary btn-small" onclick="showProfileModal()">Profile</button>
+            <button class="btn btn-secondary btn-small" onclick="openCinematicPreview()">▶ Preview</button>
+            <button class="btn btn-primary" onclick="generateMDBook()">Generate Book</button>
+          </div>
+        </header>
+
+        <!-- Layout -->
+        <div class="md-layout">
+
+          <!-- Left Sidebar -->
+          <aside class="md-sidebar md-sidebar-left">
+            <h3 class="md-sidebar-title">Story Chapters</h3>
+            <p class="md-sidebar-subtitle">AI-detected from your photos</p>
+
+            <div id="mdChaptersContainer"></div>
+
+            <button class="md-btn-add" onclick="addMDChapter()">+ Add Chapter</button>
+
+            <div class="md-ai-panel">
+              <div class="md-ai-panel-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px">
+                  <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
+                </svg>
+                <span>AI Captions</span>
+              </div>
+              <p>Auto-generate captions from photo metadata</p>
+              <button class="btn btn-primary btn-small" onclick="generateMDCaptions()" style="width:100%">
+                Generate All Captions
+              </button>
+            </div>
+          </aside>
+
+          <!-- Main Content -->
+          <main class="md-main">
+            <div id="mdChapterHeader"></div>
+            <div id="mdSpreadsContainer"></div>
+            <button class="md-btn-add" onclick="addMDSpread()">+ Add Spread</button>
+          </main>
+
+          <!-- Right Sidebar -->
+          <aside class="md-sidebar md-sidebar-right">
+            <h3 class="md-sidebar-title">Book Settings</h3>
+
+            <div class="setting-group">
+              <label>Format</label>
+              <select id="mdPageFormat" onchange="mdState.settings.pageFormat = this.value">
+                <option value="square-10x10">10&quot; × 10&quot; Square</option>
+                <option value="square-8x8">8&quot; × 8&quot; Square</option>
+                <option value="square-12x12">12&quot; × 12&quot; Square</option>
+                <option value="landscape-11x8.5">11&quot; × 8.5&quot; Landscape</option>
+                <option value="portrait-8.5x11">8.5&quot; × 11&quot; Portrait</option>
+              </select>
+            </div>
+
+            <div class="setting-group">
+              <label>Paper</label>
+              <div class="md-btn-group">
+                <button class="btn btn-small active" onclick="setMDPaperTexture('matte')">Matte</button>
+                <button class="btn btn-small" onclick="setMDPaperTexture('glossy')">Glossy</button>
+              </div>
+            </div>
+
+            <div class="md-info-panel">
+              <h4>Print Quality</h4>
+              <p>Photos should be at least <strong>3000×3000 pixels</strong> for best results at 10×10&quot;.</p>
+              <p>Most phone photos (12MP+) will work great!</p>
+            </div>
+          </aside>
+
+        </div>
+      </div>
 
     <!-- Main Editor View (Hidden Initially) -->
     <div id="editorView" class="editor-view" style="display: none;">
@@ -77,9 +201,11 @@
             style="margin-left: 1rem; font-size: 0.9rem; color: var(--color-text-light); font-weight: 400;"></span>
         </div>
         <div class="header-right">
+          <button class="btn btn-secondary" onclick="startNewAlbum()">New album</button>
           <button class="btn btn-secondary" onclick="saveProject()">Save</button>
           <button class="btn btn-secondary" onclick="showLoadDialog()">Load</button>
-          <button class="btn btn-primary" onclick="generateBook()">Generate Book</button>
+          <button class="btn btn-secondary" onclick="showProfileModal()">Profile</button>
+          <button class="btn btn-primary" onclick="openAlbumConfigAndGenerate()">Generate Book</button>
         </div>
       </header>
 
@@ -91,7 +217,6 @@
               Selected (<span id="selectedCount">0</span>)
             </button>
             <button class="tab" data-tab="design" onclick="switchTab('design')">Design</button>
-            <button class="tab" data-tab="themes" onclick="switchTab('themes')">Themes</button>
           </div>
 
           <div class="tab-content active" id="picker-tab" style="padding: 2rem 1rem;">
@@ -102,63 +227,6 @@
               Open Google Photos
             </button>
             <div id="picker-message" style="margin-top:15px; font-size:13px;"></div>
-          </div>
-
-          <div class="tab-content" id="themes-tab">
-            <div class="design-inspiration-section"
-              style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border);">
-              <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--color-primary);">🎨 Design Inspiration
-              </h3>
-              <p style="color: var(--color-text-light); font-size: 0.85rem; margin-bottom: 1rem;">Search for design
-                trends and color palette ideas</p>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                <input type="text" id="designSearchInput" placeholder="e.g., botanical, modern..."
-                  style="width: 100%; padding: 0.6rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.9rem;"
-                  onkeypress="if(event.key === 'Enter') searchDesignInspiration()" />
-                <button class="btn btn-primary" onclick="searchDesignInspiration()" style="width: 100%;">
-                  🔍 Search
-                </button>
-              </div>
-              <div id="designSearchStatus"
-                style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--color-text-light); display: none;"></div>
-            </div>
-
-            <div style="margin-bottom: 1rem;">
-              <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--color-primary);">Built-in Themes</h3>
-            </div>
-
-            <div class="theme-list">
-              <!-- Theme items will be injected here or hardcoded -->
-              <div class="theme-item" onclick="applyTheme('classic')" data-theme="classic">
-                <div class="book-3d-preview" id="preview-classic">
-                  <div class="book-cover-3d" style="background: #FFFFFF; border: 2px solid #1E3932;">
-                    <div class="book-spine-3d" style="background: #1E3932;"></div>
-                    <div class="book-pages-3d" style="background: #FFFFFF;"></div>
-                  </div>
-                </div>
-                <span>Classic Minimal</span>
-              </div>
-              <div class="theme-item" onclick="applyTheme('botanical')" data-theme="botanical">
-                <div class="book-3d-preview" id="preview-botanical">
-                  <div class="book-cover-3d" style="background: #F3F4F0; border: 2px solid #2C5F2D;">
-                    <div class="book-spine-3d" style="background: #2C5F2D;"></div>
-                    <div class="book-pages-3d" style="background: #F3F4F0;"></div>
-                    <div class="book-decoration" style="color: #97BC62;">🌿</div>
-                  </div>
-                </div>
-                <span>Botanical</span>
-              </div>
-              <div class="theme-item" onclick="applyTheme('modern')" data-theme="modern">
-                <div class="book-3d-preview" id="preview-modern">
-                  <div class="book-cover-3d" style="background: #F5F5F5; border: 2px solid #000000;">
-                    <div class="book-spine-3d" style="background: #000000;"></div>
-                    <div class="book-pages-3d" style="background: #F5F5F5;"></div>
-                    <div class="book-decoration" style="color: #FF3366;">◆</div>
-                  </div>
-                </div>
-                <span>Modern Bold</span>
-              </div>
-            </div>
           </div>
 
           <div class="tab-content" id="selected-tab">
@@ -181,6 +249,32 @@
             </div>
             <div class="selected-photos-list" id="selectedPhotosList">
               <div class="empty-state">No photos selected</div>
+            </div>
+            <div class="selected-photos-footer">
+              <button id="selectedShowMoreBtn" class="btn btn-small btn-secondary" style="display:none;" onclick="openSelectedPhotosModal()">Show more</button>
+            </div>
+
+            <!-- Design inspiration (moved from Themes tab) -->
+            <div class="design-inspiration-section"
+              style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--color-border);">
+              <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--color-primary);">🎨 Design Inspiration</h3>
+              <p style="color: var(--color-text-light); font-size: 0.85rem; margin-bottom: 1rem;">
+                Search for design trends and color palette ideas (from MCP search)
+              </p>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <input type="text" id="designSearchInput" placeholder="e.g., botanical, modern..."
+                  style="width: 100%; padding: 0.6rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.9rem;"
+                  onkeypress="if(event.key === 'Enter') searchDesignInspiration()" />
+                <button class="btn btn-primary" onclick="searchDesignInspiration()" style="width: 100%;">
+                  🔍 Search
+                </button>
+              </div>
+              <div id="designSearchStatus"
+                style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--color-text-light); display: none;"></div>
+
+              <div id="designInspirationInlineContent" style="margin-top: 0.75rem;">
+                <!-- Results will render here -->
+              </div>
             </div>
           </div>
 
@@ -229,7 +323,7 @@
         <div class="resize-handle" id="resizeHandle"></div>
 
         <main class="editor">
-          <div class="settings-panel">
+          <div class="settings-panel album-config-toolbar">
             <div class="setting-group">
               <label>Title:</label>
               <input type="text" id="bookTitle" value="My Photo Book">
@@ -246,17 +340,72 @@
                 <option value="portrait-10x13">10" x 13" Portrait</option>
               </select>
             </div>
+
+            <div class="setting-group" style="margin-top: 10px;">
+              <label style="font-weight:700; color: var(--color-primary);">BookPod print settings (prep)</label>
+              <div style="color: var(--color-text-light); font-size: 0.85rem; margin-top: 4px;">
+                These fields map to BookPod’s API: <code>printcolor</code>, <code>sheettype</code>, <code>laminationtype</code>, <code>readingdirection</code>, <code>width</code>, <code>height</code>, <code>bleed</code>.
+              </div>
+            </div>
+
             <div class="setting-group">
-              <label>Auto-Layout:</label>
-              <select id="autoLayout">
-                <option value="random">Random Layouts</option>
-                <option value="mixed">Mixed (Single & Multi)</option>
-                <option value="single">All Single Photos</option>
-                <option value="two-horizontal">All Two Horizontal</option>
-                <option value="four-grid">All Four Grid</option>
+              <label>Print color</label>
+              <select id="bpPrintColor">
+                <option value="color">Color</option>
+                <option value="bw">Black &amp; White</option>
               </select>
             </div>
-            <button class="btn btn-accent" onclick="autoArrange()">🎲 Auto-Arrange</button>
+
+            <div class="setting-group">
+              <label>Sheet type</label>
+              <select id="bpSheetType">
+                <option value="white70">white70 (Wood-free White 70gsm)</option>
+                <option value="white80" selected>white80 (Wood-free White 80gsm)</option>
+                <option value="white90">white90 (Wood-free White 90gsm)</option>
+                <option value="white110">white110 (Wood-free White 110gsm)</option>
+                <option value="cream80">cream80 (Cream 80gsm)</option>
+                <option value="cream110">cream110 (Cream 110gsm)</option>
+                <option value="chromo115">chromo115 (Matte Chromo 115gsm)</option>
+                <option value="chromo130">chromo130 (Matte Chromo 130gsm)</option>
+                <option value="chromo170">chromo170 (Matte Chromo 170gsm)</option>
+              </select>
+            </div>
+
+            <div class="setting-group">
+              <label>Lamination</label>
+              <select id="bpLaminationType">
+                <option value="none" selected>none</option>
+                <option value="flat">flat</option>
+                <option value="matt">matt</option>
+              </select>
+            </div>
+
+            <div class="setting-group">
+              <label>Reading direction</label>
+              <select id="bpReadingDirection">
+                <option value="right" selected>Right-to-left</option>
+                <option value="left">Left-to-right</option>
+              </select>
+            </div>
+
+            <div class="setting-group">
+              <label>Bleed</label>
+              <label style="display:flex; gap: 10px; align-items:center; font-weight: 500;">
+                <input id="bpBleed" type="checkbox" />
+                Include bleed
+              </label>
+            </div>
+
+            <div class="setting-group">
+              <label>BookPod size (cm)</label>
+              <select id="bpSizeCm">
+                <option value="15x22" selected>15 × 22</option>
+                <option value="14x21">14 × 21</option>
+                <option value="17x24">17 × 24</option>
+                <option value="21x29.7">21 × 29.7 (A4)</option>
+              </select>
+            </div>
+
           </div>
 
           <div class="editor-tabs">
@@ -305,6 +454,14 @@
                   <input type="text" id="coverSubtitle" placeholder="Optional subtitle" oninput="updateCoverPreview()">
                 </div>
                 <div class="control-group">
+                  <label>Subtitle Size</label>
+                  <div class="range-control">
+                    <input type="range" id="coverSubtitleSize" min="10" max="24" value="14" 
+                           oninput="updateCoverPreview()">
+                    <span class="range-value" id="coverSubtitleSizeVal">14px</span>
+                  </div>
+                </div>
+                <div class="control-group">
                   <label>Background Color:</label>
                   <input type="color" id="coverBgColor" value="#1a1a2e" oninput="updateCoverPreview()">
                 </div>
@@ -315,6 +472,14 @@
                     <input type="color" id="coverBorderColor" value="#000000" oninput="updateCoverPreview()">
                     <input type="number" id="coverBorderWeight" min="0" max="10" value="2"
                       oninput="updateCoverPreview()">
+                  </div>
+                </div>
+                <!-- Embossed Border Toggle -->
+                <div class="control-group">
+                  <div class="checkbox-control">
+                    <input type="checkbox" id="coverShowBorder" checked 
+                           onchange="updateCoverPreview()">
+                    <label for="coverShowBorder">Show embossed border</label>
                   </div>
                 </div>
               </div>
@@ -348,6 +513,14 @@
               </div>
             </div>
 
+            <div class="auto-arrange-cta">
+              <button class="btn btn-primary btn-auto-arrange" type="button" onclick="autoArrange()">
+                <span class="auto-arrange-icon" aria-hidden="true">🪄</span>
+                Auto-Arrange Pages
+              </button>
+              <div class="auto-arrange-sub">Build a book layout from your selected photos</div>
+            </div>
+
             <div class="page-navigator">
               <button class="nav-btn" onclick="prevPage()">◀</button>
               <div class="page-thumbnails" id="pageThumbnails"></div>
@@ -359,6 +532,14 @@
                 <div class="empty-state">No pages yet. Select photos and click "Auto-Arrange"</div>
               </div>
               <div class="page-controls">
+                <div class="control-group">
+                  <label>Template:</label>
+                  <div class="inline-controls" style="align-items:center;">
+                    <span id="pageTemplateLabel" style="font-size: 0.9rem; color: var(--color-text-light); flex: 1 1 auto;"></span>
+                    <button class="btn btn-small btn-secondary" type="button" onclick="openPageTemplatePicker()">Change</button>
+                    <button class="btn btn-small" type="button" onclick="resetPageTemplateToBook()">Reset</button>
+                  </div>
+                </div>
                 <div class="control-group">
                   <label>Layout:</label>
                   <select id="pageLayout" onchange="updatePageLayout()">
@@ -375,6 +556,15 @@
                 <div class="control-group">
                   <label>Background:</label>
                   <input type="color" id="pageBgColor" value="#ffffff" oninput="updatePageBackground()">
+                </div>
+                <div class="control-group">
+                  <label>Background Image:</label>
+                  <div class="inline-controls">
+                    <input type="file" id="pageBgImageFile" accept="image/png,image/jpeg" style="display:none" onchange="updatePageBackgroundImage(event)">
+                    <button class="btn btn-small btn-secondary" type="button" onclick="triggerPageBackgroundImageUpload()">Upload</button>
+                    <button class="btn btn-small" type="button" onclick="clearPageBackgroundImage()">Remove</button>
+                  </div>
+                  <div id="pageBgImageStatus" style="margin-top: 6px; font-size: 0.85rem; color: var(--color-text-light);"></div>
                 </div>
                 <div class="control-group">
                   <label>Caption:</label>
@@ -401,124 +591,723 @@
 
           <div class="editor-content" id="backcover-editor">
             <div class="cover-settings">
-              <div class="cover-preview" id="backCoverPreview">
-                <div class="back-cover-text" id="backCoverTextPreview">
-                  Thank you for viewing this photo book
+              <!-- 3D Back Cover Preview -->
+              <div class="cover-preview is-cover-3d" id="backCoverPreview">
+                <div class="book3d-cover-root is-back">
+                  <div class="book3d-cover-stage">
+                    <div class="book3d-cover-spine"></div>
+                    <div class="book3d-cover-foreedge"></div>
+                    <div class="book3d-cover-bottom"></div>
+                    <div class="book3d-cover-face">
+                      <div class="book3d-cover-inner" style="justify-content: center;">
+                        <div class="back-cover-text" id="backCoverTextPreview" 
+                             style="color: #ffffff; font-size: 18px; font-family: 'Inter', sans-serif; 
+                                    line-height: 1.7; max-width: 85%; text-align: center;">
+                          Thank you for viewing this photo book
+                        </div>
+                        <p class="back-cover-subtitle" id="backCoverSubtitlePreview"
+                           style="color: #ffffff; font-size: 12px; opacity: 0.75; margin-top: 1rem;
+                                  font-family: 'Inter', sans-serif; display: none;">
+                        </p>
+                        <div class="back-cover-logo" id="backCoverLogoPreview" 
+                             style="display: none; margin-top: 2rem; opacity: 0.5; font-size: 10px; 
+                                    color: #ffffff; text-transform: uppercase; letter-spacing: 0.1em;">
+                          Made with Photo Book Creator
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+              
+              <!-- Back Cover Controls (Full Parity with Front Cover) -->
               <div class="cover-controls">
+                <h3>Back Cover Settings</h3>
+                
+                <!-- Main Text -->
                 <div class="control-group">
-                  <label>Back Cover Text:</label>
-                  <textarea id="backCoverText" rows="4"
-                    oninput="updateBackCoverPreview()">Thank you for viewing this photo book</textarea>
+                  <label>Back Cover Text</label>
+                  <textarea id="backCoverText" rows="4" oninput="updateBackCoverPreview()" 
+                            style="resize: vertical;">Thank you for viewing this photo book</textarea>
                 </div>
+                
+                <!-- Subtitle -->
                 <div class="control-group">
-                  <label>Background Color:</label>
-                  <input type="color" id="backCoverBgColor" value="#1a1a2e" oninput="updateBackCoverPreview()">
+                  <label>Subtitle / Additional Text</label>
+                  <input type="text" id="backCoverSubtitle" placeholder="e.g., Made with love" 
+                         oninput="updateBackCoverPreview()">
                 </div>
+                
+                <!-- Text Size -->
+                <div class="control-group">
+                  <label>Text Size</label>
+                  <div class="range-control">
+                    <input type="range" id="backCoverTextSize" min="12" max="32" value="18" 
+                           oninput="updateBackCoverPreview()">
+                    <span class="range-value" id="backCoverTextSizeVal">18px</span>
+                  </div>
+                </div>
+                
+                <!-- Subtitle Size -->
+                <div class="control-group">
+                  <label>Subtitle Size</label>
+                  <div class="range-control">
+                    <input type="range" id="backCoverSubtitleSize" min="10" max="20" value="12" 
+                           oninput="updateBackCoverPreview()">
+                    <span class="range-value" id="backCoverSubtitleSizeVal">12px</span>
+                  </div>
+                </div>
+                
+                <!-- Text Font -->
+                <div class="control-group">
+                  <label>Text Font</label>
+                  <select id="backCoverTextFont" onchange="updateBackCoverPreview()">
+                    <option value="Playfair Display">Playfair Display (Serif)</option>
+                    <option value="Inter" selected>Inter (Sans-serif)</option>
+                    <option value="Georgia">Georgia (Classic)</option>
+                    <option value="Montserrat">Montserrat (Modern)</option>
+                    <option value="Lato">Lato (Clean)</option>
+                  </select>
+                </div>
+                
+                <!-- Text Color -->
+                <div class="control-group">
+                  <label>Text Color</label>
+                  <div class="inline-controls">
+                    <input type="color" id="backCoverTextColor" value="#ffffff" 
+                           oninput="updateBackCoverPreview()">
+                    <input type="text" id="backCoverTextColorText" value="#ffffff" 
+                           oninput="syncBackCoverTextColor()" style="flex: 1;">
+                  </div>
+                </div>
+                
+                <!-- Background Color -->
+                <div class="control-group">
+                  <label>Background Color</label>
+                  <div class="inline-controls">
+                    <input type="color" id="backCoverBgColor" value="#1a1a2e" 
+                           oninput="updateBackCoverPreview()">
+                    <input type="text" id="backCoverBgColorText" value="#1a1a2e" 
+                           oninput="syncBackCoverBgColor()" style="flex: 1;">
+                  </div>
+                </div>
+                
+                <!-- Text Alignment -->
+                <div class="control-group">
+                  <label>Text Alignment</label>
+                  <div class="alignment-controls">
+                    <button type="button" class="btn-alignment" data-alignment="left" 
+                            onclick="setBackCoverAlign('left')" title="Align Left">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="12" x2="15" y2="12"/>
+                        <line x1="3" y1="18" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                    <button type="button" class="btn-alignment active" data-alignment="center" 
+                            onclick="setBackCoverAlign('center')" title="Align Center">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="6" y1="12" x2="18" y2="12"/>
+                        <line x1="4" y1="18" x2="20" y2="18"/>
+                      </svg>
+                    </button>
+                    <button type="button" class="btn-alignment" data-alignment="right" 
+                            onclick="setBackCoverAlign('right')" title="Align Right">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="9" y1="12" x2="21" y2="12"/>
+                        <line x1="6" y1="18" x2="21" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Embossed Border Toggle -->
+                <div class="control-group">
+                  <div class="checkbox-control">
+                    <input type="checkbox" id="backCoverShowBorder" checked 
+                           onchange="updateBackCoverPreview()">
+                    <label for="backCoverShowBorder">Show embossed border</label>
+                  </div>
+                </div>
+                
+                <!-- Logo/Branding Toggle -->
+                <div class="control-group">
+                  <div class="checkbox-control">
+                    <input type="checkbox" id="backCoverShowLogo" 
+                           onchange="updateBackCoverPreview()">
+                    <label for="backCoverShowLogo">Show "Photo Book Creator" branding</label>
+                  </div>
+                </div>
+                
               </div>
             </div>
           </div>
         </main>
       </div>
 
-      <!-- Progress Modal -->
-      <div class="modal" id="progressModal">
-        <div class="modal-content modal-small">
-          <div class="progress-content">
-            <div class="spinner"></div>
-            <p id="progressText">Generating your photo book...</p>
-            <div class="progress-bar-container" style="margin-top: 20px; width: 100%;">
-              <div class="progress-bar" id="progressBar"
-                style="width: 0%; height: 8px; background: var(--color-primary); border-radius: 4px; transition: width 0.3s;">
+    </div>
+
+    <!-- Progress Modal (Global) -->
+    <div class="modal" id="progressModal">
+      <div class="modal-content modal-small">
+        <div class="progress-content">
+          <div class="spinner"></div>
+          <p id="progressText">Generating your photo book...</p>
+          <div class="progress-bar-container" style="margin-top: 20px; width: 100%;">
+            <div class="progress-bar" id="progressBar"
+              style="width: 0%; height: 8px; background: var(--color-primary); border-radius: 4px; transition: width 0.3s;">
+            </div>
+          </div>
+          <p id="progressStatus" style="margin-top: 10px; font-size: 0.9rem; color: #666;"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Album Configuration Modal (shown only on "Generate Book") -->
+    <div class="modal" id="albumConfigModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Book settings</h3>
+          <button class="close-btn" onclick="closeAlbumConfigModal(false)">&times;</button>
+        </div>
+
+        <div class="profile-grid" style="margin-top: 10px;">
+          <div class="profile-card">
+            <div class="profile-section-header">
+              <h4>Album configuration</h4>
+            </div>
+            <div class="profile-form">
+              <div class="control-group">
+                <label>Book title</label>
+                <input id="acBookTitle" type="text" placeholder="My Photo Book" />
+              </div>
+
+              <div class="control-group">
+                <label>Format</label>
+                <select id="acPageFormat">
+                  <option value="square-8x8">8&quot; x 8&quot; Square</option>
+                  <option value="square-10x10">10&quot; x 10&quot; Square</option>
+                  <option value="square-12x12">12&quot; x 12&quot; Square</option>
+                  <option value="landscape-11x8.5">11&quot; x 8.5&quot; Landscape</option>
+                  <option value="landscape-13x10">13&quot; x 10&quot; Landscape</option>
+                  <option value="portrait-8.5x11">8.5&quot; x 11&quot; Portrait</option>
+                  <option value="portrait-10x13">10&quot; x 13&quot; Portrait</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <label>Auto-layout</label>
+                <select id="acAutoLayout">
+                  <option value="random">Random Layouts</option>
+                  <option value="mixed">Mixed (Single &amp; Multi)</option>
+                  <option value="single">All Single Photos</option>
+                  <option value="two-horizontal">All Two Horizontal</option>
+                  <option value="four-grid">All Four Grid</option>
+                </select>
               </div>
             </div>
-            <p id="progressStatus" style="margin-top: 10px; font-size: 0.9rem; color: #666;"></p>
           </div>
-        </div>
-      </div>
 
-      <!-- Result Modal -->
-      <div class="modal" id="resultModal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Photo Book Created!</h3>
-            <button class="close-btn" onclick="closeResultModal()">&times;</button>
-          </div>
-          <div class="result-content">
-            <p>Your photo book has been created as a Google Slides presentation.</p>
-            <div class="result-actions">
-              <a id="viewPresentationLink" href="#" target="_blank" class="btn btn-primary">View Presentation</a>
-              <button class="btn btn-accent" onclick="exportToPdf()">Export as PDF</button>
+          <div class="profile-card">
+            <div class="profile-section-header">
+              <h4>Printing configuration (BookPod — prep)</h4>
             </div>
-            <div id="pdfResult" style="display: none; margin-top: 1rem;">
-              <p>PDF exported successfully!</p>
-              <a id="downloadPdfLink" href="#" target="_blank" class="btn btn-secondary">Download PDF</a>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeResultModal()">Close</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Photo Picker Modal -->
-      <div class="modal" id="photoPickerModal">
-        <div class="modal-content modal-large">
-          <div class="modal-header">
-            <h3>Select a Photo</h3>
-            <div class="modal-header-actions">
-              <div class="zoom-control zoom-control-compact" title="Change thumbnail size">
-                <span class="zoom-icon" aria-hidden="true">🔍</span>
-                <input
-                  type="range"
-                  min="80"
-                  max="240"
-                  step="10"
-                  value="120"
-                  data-album-zoom-range
-                  aria-label="Thumbnail size"
-                >
+            <div class="profile-form">
+              <div class="control-group">
+                <label>Print color</label>
+                <select id="acBpPrintColor">
+                  <option value="color">Color</option>
+                  <option value="bw">Black &amp; White</option>
+                </select>
               </div>
-            <button class="close-btn" onclick="closePhotoPicker()">&times;</button>
+
+              <div class="control-group">
+                <label>Sheet type</label>
+                <select id="acBpSheetType">
+                  <option value="white70">white70 (Wood-free White 70gsm)</option>
+                  <option value="white80" selected>white80 (Wood-free White 80gsm)</option>
+                  <option value="white90">white90 (Wood-free White 90gsm)</option>
+                  <option value="white110">white110 (Wood-free White 110gsm)</option>
+                  <option value="cream80">cream80 (Cream 80gsm)</option>
+                  <option value="cream110">cream110 (Cream 110gsm)</option>
+                  <option value="chromo115">chromo115 (Matte Chromo 115gsm)</option>
+                  <option value="chromo130">chromo130 (Matte Chromo 130gsm)</option>
+                  <option value="chromo170">chromo170 (Matte Chromo 170gsm)</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <label>Lamination</label>
+                <select id="acBpLaminationType">
+                  <option value="none" selected>none</option>
+                  <option value="flat">flat</option>
+                  <option value="matt">matt</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <label>Reading direction</label>
+                <select id="acBpReadingDirection">
+                  <option value="right" selected>Right-to-left</option>
+                  <option value="left">Left-to-right</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <label>Bleed</label>
+                <label style="display:flex; gap: 10px; align-items:center; font-weight: 500;">
+                  <input id="acBpBleed" type="checkbox" />
+                  Include bleed
+                </label>
+              </div>
+
+              <div class="control-group">
+                <label>BookPod size (cm)</label>
+                <select id="acBpSizeCm">
+                  <option value="15x22" selected>15 × 22</option>
+                  <option value="14x21">14 × 21</option>
+                  <option value="17x24">17 × 24</option>
+                  <option value="21x29.7">21 × 29.7 (A4)</option>
+                </select>
+              </div>
             </div>
           </div>
-          <div class="selected-photos-grid" id="photoPickerGrid"></div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closePhotoPicker()">Cancel</button>
-          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeAlbumConfigModal(false)">Cancel</button>
+          <button class="btn btn-primary" onclick="closeAlbumConfigModal(true)">Continue</button>
         </div>
       </div>
+    </div>
 
-      <!-- Load Project Modal -->
-      <div class="modal" id="loadProjectModal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Load Project</h3>
-            <button class="close-btn" onclick="closeLoadModal()">&times;</button>
-          </div>
-          <div class="projects-list" id="projectsList">
-            <div class="loading">Loading projects...</div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeLoadModal()">Cancel</button>
+    <!-- BookPod Delivery Step (shown only on "Generate Book") -->
+    <div class="modal" id="bookpodDeliveryConfigModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Delivery (BookPod)</h3>
+          <button class="close-btn" onclick="closeBookpodDeliveryConfigModal('skip')">&times;</button>
+        </div>
+
+        <div style="padding: 0.75rem 0; color: var(--color-text-light); font-size: 0.95rem;">
+          Optional step: add delivery details now (including pickup points). You can also skip and generate the PDF.
+        </div>
+
+        <div class="profile-grid" style="margin-top: 10px;">
+          <div class="profile-card">
+            <div class="profile-section-header">
+              <h4>Shipping details</h4>
+              <button class="btn btn-small" onclick="acBpPrefillShippingFromProfile()">Prefill from Profile</button>
+            </div>
+
+            <div class="profile-form">
+              <div class="control-group">
+                <label>Shipping method</label>
+                <select id="acBpShipMethod" onchange="acBpOnShipMethodChanged()">
+                  <option value="2" selected>Home delivery</option>
+                  <option value="1">Pickup point delivery</option>
+                  <option value="3">Factory self-pickup</option>
+                </select>
+                <div id="acBpShipHint" style="margin-top: 6px; color: var(--color-text-light); font-size: 0.85rem;">
+                  If you choose pickup points, search and select a pickup location.
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label>Full name</label>
+                <input id="acBpShipName" type="text" placeholder="Full name" />
+              </div>
+              <div class="control-group">
+                <label>Email</label>
+                <input id="acBpShipEmail" type="email" placeholder="Email" />
+              </div>
+              <div class="control-group">
+                <label>Phone</label>
+                <input id="acBpShipPhone" type="tel" placeholder="Phone" />
+              </div>
+
+              <div class="control-group">
+                <label>Country</label>
+                <input id="acBpShipCountry" type="text" placeholder="Country" value="Israel" />
+              </div>
+              <div class="control-group">
+                <label>City</label>
+                <input id="acBpShipCity" type="text" placeholder="City" />
+              </div>
+              <div class="control-group">
+                <label>Address line 1</label>
+                <input id="acBpShipAddress1" type="text" placeholder="Address line 1" />
+              </div>
+              <div class="control-group">
+                <label>Address line 2</label>
+                <input id="acBpShipAddress2" type="text" placeholder="Address line 2" />
+              </div>
+              <div class="control-group">
+                <label>Postal code</label>
+                <input id="acBpShipPostalCode" type="text" placeholder="Postal code" />
+              </div>
+
+              <div id="acBpPickupPointSection" style="display:none; margin-top: 8px;">
+                <div class="control-group">
+                  <label>Pickup point</label>
+                  <select id="acBpPickupPoint">
+                    <option value="">Search to load pickup points…</option>
+                  </select>
+                  <div id="acBpPickupStatus" style="margin-top: 6px; color: var(--color-text-light); font-size: 0.85rem;"></div>
+                </div>
+                <div class="control-group">
+                  <button class="btn btn-secondary" type="button" onclick="acBpSearchPickupPoints()">
+                    Find pickup points near this address
+                  </button>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label>Quantity</label>
+                <input id="acBpQuantity" type="number" min="1" value="1" />
+              </div>
+
+              <div class="control-group">
+                <label>Total price (for order)</label>
+                <input id="acBpTotalPrice" type="number" min="0" step="1" placeholder="e.g. 99" />
+                <div style="margin-top: 6px; color: var(--color-text-light); font-size: 0.85rem;">
+                  Used for creating the BookPod order. If empty, we’ll use a default estimate.
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label>Invoice URL (for order)</label>
+                <input id="acBpInvoiceUrl" type="text" placeholder="Will default to the generated PDF link" />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Design Inspiration Modal -->
-      <div class="modal" id="designInspirationModal">
-        <div class="modal-content modal-large">
-          <div class="modal-header">
-            <h3>🎨 Design Inspiration Results</h3>
-            <button class="close-btn" onclick="closeDesignInspirationModal()">&times;</button>
+        <div class="modal-footer" style="display:flex; gap: 10px; justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeBookpodDeliveryConfigModal('back')">Back</button>
+          <button class="btn btn-secondary" onclick="closeBookpodDeliveryConfigModal('skip')">Skip</button>
+          <button class="btn btn-primary" onclick="closeBookpodDeliveryConfigModal('continue')">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result Modal (Global) -->
+    <div class="modal" id="resultModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Photo Book Created!</h3>
+          <button class="close-btn" onclick="closeResultModal()">&times;</button>
+        </div>
+        <div class="result-content">
+          <p>Your photo book is ready.</p>
+          <div class="result-actions">
+            <a id="viewPresentationLink" href="#" target="_blank" class="btn btn-primary">View</a>
+            <button class="btn btn-accent" onclick="exportToPdf()">Export as PDF</button>
+            <button id="sendToPrintBtn" class="btn btn-primary" style="display:none;" onclick="sendToBookpodPrinting()">
+              Send to printing
+            </button>
           </div>
-          <div class="design-inspiration-content" id="designInspirationContent">
-            <div class="loading">Searching for design inspiration...</div>
+          <div id="pdfResult" style="display: none; margin-top: 1rem;">
+            <p>PDF exported successfully!</p>
+            <a id="downloadPdfLink" href="#" target="_blank" class="btn btn-secondary">Download PDF</a>
           </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeResultModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Photo Picker Modal (Global) -->
+    <div class="modal" id="photoPickerModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Select a Photo</h3>
+          <div class="modal-header-actions">
+            <div class="zoom-control zoom-control-compact" title="Change thumbnail size">
+              <span class="zoom-icon" aria-hidden="true">🔍</span>
+              <input
+                type="range"
+                min="80"
+                max="240"
+                step="10"
+                value="120"
+                data-album-zoom-range
+                aria-label="Thumbnail size"
+              >
+            </div>
+          <button class="close-btn" onclick="closePhotoPicker()">&times;</button>
           </div>
+        </div>
+        <div class="selected-photos-grid" id="photoPickerGrid"></div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closePhotoPicker()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selected Photos Modal (Global) -->
+    <div class="modal" id="selectedPhotosModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Selected Photos (<span id="selectedPhotosModalCount">0</span>)</h3>
+          <button class="close-btn" onclick="closeSelectedPhotosModal()">&times;</button>
+        </div>
+        <div class="selected-photos-modal-grid" id="selectedPhotosModalGrid"></div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeSelectedPhotosModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page Template Picker Modal (Global) -->
+    <div class="modal" id="pageTemplateModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Choose a template for this page</h3>
+          <button class="close-btn" onclick="closePageTemplatePicker()">&times;</button>
+        </div>
+        <div id="pageTemplateGrid" class="page-template-grid"></div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closePageTemplatePicker()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Load Project Modal (Global) -->
+    <div class="modal" id="loadProjectModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Load Project</h3>
+          <button class="close-btn" onclick="closeLoadModal()">&times;</button>
+        </div>
+        <div class="projects-list" id="projectsList">
+          <div class="loading">Loading projects...</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeLoadModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BookPod Order Modal (Prep) -->
+    <div class="modal" id="bookpodOrderModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Order print (BookPod) — prep</h3>
+          <button class="close-btn" onclick="closeBookpodOrderModal()">&times;</button>
+        </div>
+
+        <div style="padding: 0.75rem 0; color: var(--color-text-light); font-size: 0.95rem;">
+          This UI shows the <strong>available shipping methods</strong> (from BookPod docs) and lets you review your order.
+          Full checkout + live shipping prices are not enabled yet.
+        </div>
+
+        <div class="profile-grid" style="margin-top: 10px;">
+          <div class="profile-card">
+            <div class="profile-section-header">
+              <h4>Shipping details</h4>
+              <button class="btn btn-small" onclick="prefillBookpodShippingFromProfile()">Prefill from Profile</button>
+            </div>
+
+            <div class="profile-form">
+              <div class="control-group">
+                <label>Full name</label>
+                <input id="bpShipName" type="text" placeholder="Full name" />
+              </div>
+              <div class="control-group">
+                <label>Email</label>
+                <input id="bpShipEmail" type="email" placeholder="Email" />
+              </div>
+              <div class="control-group">
+                <label>Phone</label>
+                <input id="bpShipPhone" type="tel" placeholder="Phone" />
+              </div>
+              <div class="control-group">
+                <label>Country</label>
+                <input id="bpShipCountry" type="text" placeholder="Country" />
+              </div>
+              <div class="control-group">
+                <label>City</label>
+                <input id="bpShipCity" type="text" placeholder="City" />
+              </div>
+              <div class="control-group">
+                <label>Address line 1</label>
+                <input id="bpShipAddress1" type="text" placeholder="Address line 1" />
+              </div>
+              <div class="control-group">
+                <label>Address line 2</label>
+                <input id="bpShipAddress2" type="text" placeholder="Address line 2" />
+              </div>
+              <div class="control-group">
+                <label>Postal code</label>
+                <input id="bpShipPostalCode" type="text" placeholder="Postal code" />
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-card">
+            <div class="profile-section-header">
+              <h4>Shipping method</h4>
+              <button class="btn btn-small" onclick="loadBookpodShippingOptions()">Refresh</button>
+            </div>
+
+            <div class="profile-form">
+              <div class="control-group">
+                <label>Shipping company</label>
+                <input id="bpShipCompany" type="text" value="HFD (companyId=6)" disabled />
+              </div>
+              <div class="control-group">
+                <label>Shipping method</label>
+                <select id="bpShipMethod">
+                  <option value="2" selected>Home delivery</option>
+                  <option value="1">Pickup point delivery</option>
+                  <option value="3">Factory self-pickup</option>
+                </select>
+                <div id="bpShipOptionsHint" style="margin-top: 6px; color: var(--color-text-light); font-size: 0.85rem;"></div>
+              </div>
+              <div class="control-group">
+                <label>Quantity</label>
+                <input id="bpQuantity" type="number" min="1" value="1" />
+              </div>
+
+              <div class="md-info-panel" style="margin-top: 10px;">
+                <h4>Order preview</h4>
+                <div id="bpOrderPreview" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; white-space: pre-wrap;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="display:flex; gap: 10px; justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeBookpodOrderModal()">Close</button>
+          <button class="btn btn-secondary" onclick="previewBookpodOrder()">Preview order</button>
+          <button class="btn btn-primary" onclick="createBookpodOrderPrep()" disabled title="Not enabled yet">
+            Create order (coming soon)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Modal (Global) -->
+    <div class="modal" id="profileModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Profile</h3>
+          <button class="close-btn" onclick="closeProfileModal()">&times;</button>
+        </div>
+
+        <div class="profile-header">
+          <img id="profileAvatar" class="profile-avatar" alt="Profile" />
+          <div class="profile-identity">
+            <div id="profileName" class="profile-name"></div>
+            <div id="profileEmail" class="profile-email"></div>
+          </div>
+        </div>
+
+        <div class="profile-tabs">
+          <button class="profile-tab active" data-profiletab="albums" onclick="switchProfileTab('albums')">Saved albums</button>
+          <button class="profile-tab" data-profiletab="payments" onclick="switchProfileTab('payments')">Payments (prep)</button>
+        </div>
+
+        <div class="profile-tab-content active" id="profile-albums-tab">
+          <div class="profile-section-header">
+            <h4>Saved albums</h4>
+            <button class="btn btn-small" onclick="refreshProfileAlbums()">Refresh</button>
+          </div>
+          <div class="projects-list" id="profileAlbumsList">
+            <div class="loading">Loading albums...</div>
+          </div>
+        </div>
+
+        <div class="profile-tab-content" id="profile-payments-tab">
+          <div class="profile-grid">
+            <div class="profile-card">
+              <div class="profile-section-header">
+                <h4>Personal details</h4>
+                <button class="btn btn-small btn-primary" onclick="savePersonalDetails()">Save</button>
+              </div>
+              <div class="profile-form">
+                <div class="control-group">
+                  <label>Full name</label>
+                  <input id="pdFullName" type="text" placeholder="Full name" />
+                </div>
+                <div class="control-group">
+                  <label>Email</label>
+                  <input id="pdEmail" type="email" placeholder="Email" />
+                </div>
+                <div class="control-group">
+                  <label>Phone</label>
+                  <input id="pdPhone" type="tel" placeholder="Phone" />
+                </div>
+                <div class="control-group">
+                  <label>Country</label>
+                  <input id="pdCountry" type="text" placeholder="Country" />
+                </div>
+                <div class="control-group">
+                  <label>City</label>
+                  <input id="pdCity" type="text" placeholder="City" />
+                </div>
+                <div class="control-group">
+                  <label>Address line 1</label>
+                  <input id="pdAddress1" type="text" placeholder="Address line 1" />
+                </div>
+                <div class="control-group">
+                  <label>Address line 2</label>
+                  <input id="pdAddress2" type="text" placeholder="Address line 2" />
+                </div>
+                <div class="control-group">
+                  <label>Postal code</label>
+                  <input id="pdPostalCode" type="text" placeholder="Postal code" />
+                </div>
+                <div class="control-group">
+                  <label>Company (optional)</label>
+                  <input id="pdCompany" type="text" placeholder="Company" />
+                </div>
+                <div class="control-group">
+                  <label>VAT number (optional)</label>
+                  <input id="pdVatNumber" type="text" placeholder="VAT number" />
+                </div>
+              </div>
+            </div>
+
+            <div class="profile-card">
+              <div class="profile-section-header">
+                <h4>Purchases</h4>
+                <div class="profile-actions-inline">
+                  <button class="btn btn-small" onclick="refreshPurchases()">Refresh</button>
+                  <button class="btn btn-small btn-secondary" onclick="createTestPurchaseDraft()">Create test purchase</button>
+                </div>
+              </div>
+              <div id="profilePurchasesList" class="profile-purchases-list">
+                <div class="loading">Loading purchases...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="signOut()">Sign out</button>
+          <button class="btn btn-secondary" onclick="closeProfileModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design Inspiration Modal (Global) -->
+    <div class="modal" id="designInspirationModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>🎨 Design Inspiration Results</h3>
+          <button class="close-btn" onclick="closeDesignInspirationModal()">&times;</button>
+        </div>
+        <div class="design-inspiration-content" id="designInspirationContent">
+          <div class="loading">Searching for design inspiration...</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
         </div>
       </div>
     </div>
@@ -529,11 +1318,17 @@
   <!-- Design Editor Script -->
   <script src="/js/design-editor.js"></script>
 
+  <!-- Icons (Memory Director + UI) -->
+  <script src="/js/icons.js"></script>
+
   <!-- Main Application Script -->
   <script src="/js/app.js"></script>
 
   <!-- Template Gallery Script -->
   <script src="/js/template-gallery.js"></script>
+
+  <!-- Support Chat Widget (AI + Human escalation) -->
+  <script src="/js/support-chat.js"></script>
 </body>
 
 </html>
