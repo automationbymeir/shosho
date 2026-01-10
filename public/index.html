@@ -1297,50 +1297,60 @@
             <button class="btn btn-secondary btn-sm" onclick="searchDesignApi()" title="Simulate MCP Search">
               ✨ Search with AI
             </button>
-            <button class="close-btn" onclick="closeBackgroundGallery()">×</button>
-          </div>
-          <div class="modal-body">
-            <div id="backgroundGalleryGrid"
-              style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; padding: 10px;">
-              <!-- Populated by JS -->
+            <div class="modal-header">
+              <h3>Design Gallery</h3>
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary btn-sm" onclick="searchDesignApi()">
+                  <span class="icon">✨</span> Search with AI
+                </button>
+                <button class="close-btn" onclick="closeBackgroundGallery()">×</button>
+              </div>
+            </div>
+            <div class="modal-body">
+              <div id="backgroundGalleryGrid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; padding: 10px;">
+                <!-- Populated by JS -->
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Design Inspiration Modal (Global) -->
-      <div class="modal" id="designInspirationModal">
-        <div class="modal-content modal-large">
-          <div class="modal-header">
-            <h3>🎨 Design Inspiration Results</h3>
-            <button class="close-btn" onclick="closeDesignInspirationModal()">&times;</button>
-          </div>
-          <div class="design-inspiration-content" id="designInspirationContent">
-            <div class="loading">Searching for design inspiration...</div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
+        <!-- Design Inspiration Modal (Global) -->
+        <div class="modal" id="designInspirationModal">
+          <div class="modal-content modal-large">
+            <div class="modal-header">
+              <h3>🎨 Design Inspiration Results</h3>
+              <button class="close-btn" onclick="closeDesignInspirationModal()">&times;</button>
+            </div>
+            <div class="design-inspiration-content" id="designInspirationContent">
+              <div class="loading">Searching for design inspiration...</div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
+            </div>
           </div>
         </div>
+
       </div>
-
     </div>
-  </div>
 
-  <!-- Design Editor Script -->
-  <script src="/js/design-editor.js"></script>
+    <!-- Data: Backgrounds & Templates -->
+    <script src="/data/backgrounds.js"></script>
 
-  <!-- Icons (Memory Director + UI) -->
-  <script src="/js/icons.js"></script>
+    <!-- Design Editor Script -->
+    <script src="/js/design-editor.js"></script>
 
-  <!-- Main Application Script -->
-  <script src="/js/app.js?v=v45_fix_cover"></script>
+    <!-- Icons (Memory Director + UI) -->
+    <script src="/js/icons.js"></script>
 
-  <!-- Template Gallery Script -->
-  <script src="/js/template-gallery.js"></script>
+    <!-- Main Application Script -->
+    <script src="/js/app.js?v=v45_fix_cover"></script>
 
-  <!-- Support Chat Widget (AI + Human escalation) -->
-  <!-- <script src="/js/support-chat.js"></script> -->
+    <!-- Template Gallery Script -->
+    <script src="/js/template-gallery.js"></script>
+
+    <!-- Support Chat Widget (AI + Human escalation) -->
+    <!-- <script src="/js/support-chat.js"></script> -->
 </body>
 
 </html>
