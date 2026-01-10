@@ -8,15 +8,26 @@ class DesignEditor {
         this.ctx = null;
         this.currentImage = null;
         this.currentFilter = 'none';
+
+        // New: Mutable adjustments state
+        this.adjustments = {
+            brightness: 100, // 0-200, 100 is neutral
+            contrast: 100,   // 0-200, 100 is neutral
+            saturation: 100  // 0-200, 100 is neutral
+        };
+
         this.isDrawing = false;
-        this.currentTool = 'select'; // select, brush, text, eraser
-        this.brushSize = 10;
-        this.brushColor = '#000000';
+        this.currentTool = 'move'; // move, brush, text
+        this.brushSize = 5;
+        this.brushColor = '#ff0000';
+        // ... (rest of constructor fields if any, checking context)
+        this.paths = [];
         this.textElements = [];
-        this.drawingHistory = [];
+        this.history = []; // Undo stack
         this.historyIndex = -1;
         this.maxHistory = 50;
-        
+        this.selectedTextId = null;
+
         // Image filters
         this.filters = {
             none: { filter: 'none' },
@@ -29,7 +40,9 @@ class DesignEditor {
             vintage: { filter: 'sepia(50%) contrast(1.2) brightness(0.9)' },
             blackwhite: { filter: 'grayscale(100%) contrast(1.3)' },
             warm: { filter: 'sepia(30%) saturate(1.2) brightness(1.1)' },
-            cool: { filter: 'brightness(0.9) saturate(0.8) hue-rotate(10deg)' }
+            cool: { filter: 'brightness(0.9) saturate(0.8) hue-rotate(10deg)' },
+            vivid: { filter: 'saturate(1.5) contrast(1.2)' },
+            muted: { filter: 'saturate(0.5) brightness(1.1)' }
         };
     }
 
@@ -92,15 +105,21 @@ class DesignEditor {
         const rect = container.getBoundingClientRect();
         // Ensure we have valid dimensions
         if (rect.width <= 0 || rect.height <= 0) {
-            // Use default dimensions if container not yet visible
-            this.canvas.width = 800;
+            // Use default square dimensions if container not yet visible
+            // CRITICAL FIX: Always default to something usable so we don't end up with 0x0 canvas
+            this.canvas.width = 600;
             this.canvas.height = 600;
+            console.warn('Canvas container hidden or 0 size, defaulting to 600x600');
         } else {
-            // Use available space but with reasonable limits
-            const maxWidth = Math.min(800, rect.width - 40);
-            const maxHeight = Math.min(600, rect.height - 40);
-            this.canvas.width = Math.max(400, maxWidth);
-            this.canvas.height = Math.max(300, maxHeight);
+            // Make the drawing area square so photos are never stretched
+            const availableWidth = rect.width - 40;
+            const availableHeight = rect.height - 80; // leave some vertical padding
+            const side = Math.max(
+                320,
+                Math.min(600, Math.min(availableWidth, availableHeight))
+            );
+            this.canvas.width = side;
+            this.canvas.height = side;
         }
 
         // Set display size to match canvas size
@@ -119,7 +138,7 @@ class DesignEditor {
         this.canvas.addEventListener('mousemove', (e) => this.draw(e));
         this.canvas.addEventListener('mouseup', () => this.stopDrawing());
         this.canvas.addEventListener('mouseout', () => this.stopDrawing());
-        
+
         // Touch events for mobile
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -130,9 +149,11 @@ class DesignEditor {
             });
             this.canvas.dispatchEvent(mouseEvent);
         });
-        
+
+        // Mobile touch move/end
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
+            // Simple mapping to mousemove for now
             const touch = e.touches[0];
             const mouseEvent = new MouseEvent('mousemove', {
                 clientX: touch.clientX,
@@ -140,7 +161,6 @@ class DesignEditor {
             });
             this.canvas.dispatchEvent(mouseEvent);
         });
-        
         this.canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
             const mouseEvent = new MouseEvent('mouseup', {});
@@ -154,9 +174,15 @@ class DesignEditor {
         if (filterContainer) {
             filterContainer.innerHTML = Object.keys(this.filters).map(filterName => {
                 const filter = this.filters[filterName];
+                // Map filter names to chips
+                let label = this.formatFilterName(filterName);
+                if (filterName === 'blackwhite') label = 'B&W';
+
                 return `
-                    <button class="filter-btn" data-filter="${filterName}" onclick="designEditor.applyFilter('${filterName}')">
-                        ${this.formatFilterName(filterName)}
+                    <button class="filter-chip ${this.currentFilter === filterName ? 'active' : ''}" 
+                            data-filter="${filterName}" 
+                            onclick="designEditor.applyFilter('${filterName}')">
+                        ${label}
                     </button>
                 `;
             }).join('');
@@ -204,7 +230,7 @@ class DesignEditor {
         return name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1');
     }
 
-    loadImage(imageUrl) {
+    loadImage(imageUrl, fallbackUrl = null) {
         return new Promise((resolve, reject) => {
             if (!this.canvas || !this.ctx) {
                 console.error('Canvas not initialized when loading image');
@@ -212,7 +238,7 @@ class DesignEditor {
                 return;
             }
 
-            console.log('Loading image:', imageUrl.substring(0, 100) + '...');
+            console.log('Loading image:', imageUrl.substring(0, 100) + '...', fallbackUrl ? '(has fallback)' : '');
 
             const img = new Image();
             // For data URLs, don't set crossOrigin
@@ -230,14 +256,23 @@ class DesignEditor {
                 // Also redraw after a short delay to ensure visibility
                 setTimeout(() => {
                     this.redraw();
-                    console.log('Image drawn on canvas, canvas visible:', this.canvas.style.display, 'opacity:', this.canvas.style.opacity);
                 }, 100);
                 resolve();
             };
 
             img.onerror = (e) => {
-                console.error('Image load error:', e, imageUrl);
-                reject(new Error('Failed to load image: ' + (e.message || 'Unknown error')));
+                console.warn('Image load error for ' + imageUrl, e);
+
+                if (fallbackUrl) {
+                    console.log('Attempting to load fallback URL...');
+                    this.loadImage(fallbackUrl, null)
+                        .then(resolve)
+                        .catch(err => {
+                            reject(new Error('Failed to load image and fallback: ' + (e.message || 'Unknown error')));
+                        });
+                } else {
+                    reject(new Error('Failed to load image: ' + (e.message || 'Unknown error')));
+                }
             };
 
             // Set source after setting up handlers
@@ -248,7 +283,7 @@ class DesignEditor {
     applyFilter(filterName) {
         this.currentFilter = filterName;
         this.redraw();
-        
+
         // Update active filter button
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.filter === filterName);
@@ -257,9 +292,9 @@ class DesignEditor {
 
     setTool(tool) {
         this.currentTool = tool;
-        this.canvas.style.cursor = tool === 'brush' || tool === 'eraser' ? 'crosshair' : 
-                                   tool === 'text' ? 'text' : 'default';
-        
+        this.canvas.style.cursor = tool === 'brush' || tool === 'eraser' ? 'crosshair' :
+            tool === 'text' ? 'text' : 'default';
+
         // Update active tool button
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tool === tool);
@@ -291,10 +326,10 @@ class DesignEditor {
 
     startDrawing(e) {
         if (this.currentTool === 'select') return;
-        
+
         this.isDrawing = true;
         const pos = this.getMousePos(e);
-        
+
         if (this.currentTool === 'text') {
             this.addText(pos.x, pos.y);
         } else {
@@ -306,9 +341,9 @@ class DesignEditor {
 
     draw(e) {
         if (!this.isDrawing || this.currentTool === 'select' || this.currentTool === 'text') return;
-        
+
         const pos = this.getMousePos(e);
-        
+
         if (this.currentTool === 'brush') {
             this.ctx.lineWidth = this.brushSize;
             this.ctx.lineCap = 'round';
@@ -340,7 +375,7 @@ class DesignEditor {
     addText(x, y) {
         const text = prompt('Enter text:');
         if (!text) return;
-        
+
         this.saveState();
         const textElement = {
             text: text,
@@ -351,7 +386,7 @@ class DesignEditor {
             color: this.brushColor,
             id: Date.now()
         };
-        
+
         this.textElements.push(textElement);
         this.redraw();
         this.showTextEditor(textElement);
@@ -366,7 +401,7 @@ class DesignEditor {
             editor.className = 'text-editor-panel';
             document.body.appendChild(editor);
         }
-        
+
         editor.innerHTML = `
             <div class="text-editor-content">
                 <h4>Edit Text</h4>
@@ -465,6 +500,13 @@ class DesignEditor {
         }
     }
 
+    setAdjustment(name, value) {
+        if (this.adjustments.hasOwnProperty(name)) {
+            this.adjustments[name] = parseInt(value, 10);
+            this.redraw();
+        }
+    }
+
     redraw() {
         if (!this.ctx || !this.canvas) {
             console.warn('Cannot redraw: canvas or context not available');
@@ -494,18 +536,23 @@ class DesignEditor {
             const x = (this.canvas.width - scaledWidth) / 2;
             const y = (this.canvas.height - scaledHeight) / 2;
 
-            console.log('Drawing image at:', x.toFixed(1), y.toFixed(1), 'size:', scaledWidth.toFixed(1), 'x', scaledHeight.toFixed(1));
-
-            // Draw white background first
+            // Draw white background locally
             this.ctx.fillStyle = 'white';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-            // Draw the image (filter will be applied during export)
+            // 1. Draw raw image
             this.ctx.drawImage(
                 this.currentImage,
                 0, 0, this.currentImage.width, this.currentImage.height,
                 x, y, scaledWidth, scaledHeight
             );
+
+            // 2. Apply Filters + Adjustments (Pixel Manipulation)
+            // We must grab the data for the drawn area (or whole canvas to be safe/easy)
+            // Getting whole canvas is easier for simplicity
+            const imgData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            this.applyFilterToImageData(imgData.data, this.currentFilter);
+            this.ctx.putImageData(imgData, 0, 0);
 
             this.ctx.restore();
         } else {
@@ -520,34 +567,11 @@ class DesignEditor {
             this.ctx.fillText('Click Edit on a photo to load it here', this.canvas.width / 2, this.canvas.height / 2 + 30);
         }
 
-        // Apply CSS filter to canvas element (for visual preview only)
-        // Note: This is just for display - the actual filter is applied to image data above
-        if (this.filters[this.currentFilter] && this.filters[this.currentFilter].filter !== 'none') {
-            this.canvas.style.filter = this.filters[this.currentFilter].filter;
-        } else {
-            this.canvas.style.filter = 'none';
-        }
+        // Remove CSS filter (we are doing it in JS now)
+        this.canvas.style.filter = 'none';
 
-        // Redraw text elements
+        // Redraw text elements (on top of the filtered image)
         this.redrawText();
-
-        // Log canvas state for debugging
-        if (this.canvas) {
-            const rect = this.canvas.getBoundingClientRect();
-            console.log('Canvas state after redraw:', {
-                display: this.canvas.style.display,
-                visibility: this.canvas.style.visibility,
-                opacity: this.canvas.style.opacity,
-                width: this.canvas.width,
-                height: this.canvas.height,
-                boundingRect: {
-                    width: rect.width,
-                    height: rect.height,
-                    top: rect.top,
-                    left: rect.left
-                }
-            });
-        }
     }
 
     redrawText() {
@@ -604,16 +628,16 @@ class DesignEditor {
         exportCanvas.width = exportW;
         exportCanvas.height = exportH;
         const exportCtx = exportCanvas.getContext('2d');
-        
+
         // Draw white background
         exportCtx.fillStyle = 'white';
         exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-        
+
         if (!this.currentImage) {
             // No image - just export canvas as is
             return this.canvas.toDataURL(`image/${format}`, quality);
         }
-        
+
         // Calculate image position and size
         const scale = Math.min(
             exportCanvas.width / this.currentImage.width,
@@ -623,26 +647,26 @@ class DesignEditor {
         const scaledHeight = this.currentImage.height * scale;
         const x = (exportCanvas.width - scaledWidth) / 2;
         const y = (exportCanvas.height - scaledHeight) / 2;
-        
+
         // Create a temporary canvas for the image at full resolution
         const imageCanvas = document.createElement('canvas');
         imageCanvas.width = this.currentImage.width;
         imageCanvas.height = this.currentImage.height;
         const imageCtx = imageCanvas.getContext('2d');
-        
+
         // Draw original image to temp canvas
         imageCtx.drawImage(this.currentImage, 0, 0);
-        
+
         // Apply filter to image data if filter is active
         if (this.currentFilter && this.currentFilter !== 'none' && this.filters[this.currentFilter]) {
             const imageData = imageCtx.getImageData(0, 0, imageCanvas.width, imageCanvas.height);
             this.applyFilterToImageData(imageData.data, this.currentFilter);
             imageCtx.putImageData(imageData, 0, 0);
         }
-        
+
         // Draw filtered image to export canvas
         exportCtx.drawImage(imageCanvas, x, y, scaledWidth, scaledHeight);
-        
+
         // Draw text elements (scaled to match export resolution)
         this.textElements.forEach(element => {
             exportCtx.save();
@@ -656,98 +680,81 @@ class DesignEditor {
             );
             exportCtx.restore();
         });
-        
+
         return exportCanvas.toDataURL(`image/${format}`, quality);
     }
-    
+
     applyFilterToImageData(data, filterName) {
-        // Apply filter effects to image data array (RGBA format)
+        const { brightness, contrast, saturation } = this.adjustments;
+
+        // Math helpers
+        // Brightness: 0..200 -> 0..2 multiplier
+        const bMult = brightness / 100;
+
+        // Contrast: 0..200 -> 0..3 (approx)
+        const cVal = (contrast - 100) * 2.55;
+        const cFactor = (259 * (cVal + 255)) / (255 * (259 - cVal));
+
+        // Saturation: 0..200 -> 0..2 multiplier
+        const sMult = saturation / 100;
+
         for (let i = 0; i < data.length; i += 4) {
             let r = data[i];
             let g = data[i + 1];
             let b = data[i + 2];
-            // data[i + 3] is alpha, we keep it unchanged
-            
+
+            // 1. Presets
             switch (filterName) {
                 case 'grayscale':
+                case 'blackwhite': // Treating bw as grayscale + high contrast via slider ideally, but keeping logic implies bw is preset
                     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                    data[i] = gray;
-                    data[i + 1] = gray;
-                    data[i + 2] = gray;
+                    r = gray; g = gray; b = gray;
+                    if (filterName === 'blackwhite') {
+                        // Hardcode extra contrast for BW preset
+                        r = (r - 128) * 1.5 + 128;
+                        g = (g - 128) * 1.5 + 128;
+                        b = (b - 128) * 1.5 + 128;
+                    }
                     break;
-                    
-                case 'blackwhite':
-                    const gray2 = 0.299 * r + 0.587 * g + 0.114 * b;
-                    const contrast = 1.3;
-                    const adjusted = Math.min(255, Math.max(0, (gray2 - 128) * contrast + 128));
-                    data[i] = adjusted;
-                    data[i + 1] = adjusted;
-                    data[i + 2] = adjusted;
-                    break;
-                    
                 case 'sepia':
                     const tr = Math.min(255, 0.393 * r + 0.769 * g + 0.189 * b);
                     const tg = Math.min(255, 0.349 * r + 0.686 * g + 0.168 * b);
                     const tb = Math.min(255, 0.272 * r + 0.534 * g + 0.131 * b);
-                    data[i] = tr;
-                    data[i + 1] = tg;
-                    data[i + 2] = tb;
+                    r = tr; g = tg; b = tb;
                     break;
-                    
                 case 'vintage':
-                    const tr2 = 0.393 * r + 0.769 * g + 0.189 * b;
-                    const tg2 = 0.349 * r + 0.686 * g + 0.168 * b;
-                    const tb2 = 0.272 * r + 0.534 * g + 0.131 * b;
-                    const contrast2 = 1.2;
-                    data[i] = Math.min(255, Math.max(0, (tr2 * 0.9 - 128) * contrast2 + 128));
-                    data[i + 1] = Math.min(255, Math.max(0, (tg2 * 0.9 - 128) * contrast2 + 128));
-                    data[i + 2] = Math.min(255, Math.max(0, (tb2 * 0.9 - 128) * contrast2 + 128));
+                    r = (r * 0.9 + 20);
+                    g = (g * 0.8 + 20);
+                    b = (b * 0.6 + 20);
                     break;
-                    
                 case 'warm':
-                    const tr3 = 0.393 * r + 0.769 * g + 0.189 * b;
-                    const tg3 = 0.349 * r + 0.686 * g + 0.168 * b;
-                    const tb3 = 0.272 * r + 0.534 * g + 0.131 * b;
-                    data[i] = Math.min(255, tr3 * 1.1);
-                    data[i + 1] = Math.min(255, tg3 * 1.1);
-                    data[i + 2] = Math.min(255, tb3 * 1.1);
+                    r = r * 1.1;
+                    g = g * 1.05;
+                    b = b * 0.9;
                     break;
-                    
-                case 'brightness':
-                    data[i] = Math.min(255, r * 1.2);
-                    data[i + 1] = Math.min(255, g * 1.2);
-                    data[i + 2] = Math.min(255, b * 1.2);
-                    break;
-                    
-                case 'contrast':
-                    const factor = 1.5;
-                    data[i] = Math.min(255, Math.max(0, (r - 128) * factor + 128));
-                    data[i + 1] = Math.min(255, Math.max(0, (g - 128) * factor + 128));
-                    data[i + 2] = Math.min(255, Math.max(0, (b - 128) * factor + 128));
-                    break;
-                    
-                case 'saturate':
-                    const gray3 = 0.299 * r + 0.587 * g + 0.114 * b;
-                    data[i] = Math.min(255, Math.max(0, gray3 + (r - gray3) * 1.5));
-                    data[i + 1] = Math.min(255, Math.max(0, gray3 + (g - gray3) * 1.5));
-                    data[i + 2] = Math.min(255, Math.max(0, gray3 + (b - gray3) * 1.5));
-                    break;
-                    
                 case 'cool':
-                    data[i] = Math.min(255, r * 0.9);
-                    data[i + 1] = Math.min(255, g * 0.8);
-                    data[i + 2] = Math.min(255, b * 0.9);
-                    // Slight hue shift towards blue
-                    const temp = data[i];
-                    data[i] = Math.min(255, data[i] * 0.95 + data[i + 2] * 0.05);
-                    data[i + 2] = Math.min(255, data[i + 2] * 0.95 + temp * 0.05);
-                    break;
-                    
-                case 'blur':
-                    // Blur requires multi-pass processing with neighbors
-                    // For now, skip blur as it's complex to implement properly
+                    b = b * 1.15;
+                    r = r * 0.9;
                     break;
             }
+
+            // 2. Adjustments
+            if (brightness !== 100) { r *= bMult; g *= bMult; b *= bMult; }
+            if (contrast !== 100) {
+                r = (cFactor * (r - 128)) + 128;
+                g = (cFactor * (g - 128)) + 128;
+                b = (cFactor * (b - 128)) + 128;
+            }
+            if (saturation !== 100) {
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                r = gray + (r - gray) * sMult;
+                g = gray + (g - gray) * sMult;
+                b = gray + (b - gray) * sMult;
+            }
+
+            data[i] = Math.max(0, Math.min(255, r));
+            data[i + 1] = Math.max(0, Math.min(255, g));
+            data[i + 2] = Math.max(0, Math.min(255, b));
         }
     }
 

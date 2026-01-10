@@ -56,3 +56,9 @@ A complete redesign matching Papier.com's elegant aesthetic with:
 3. Integrate template selection
 4. Update book generation
 
+
+
+
+
+
+

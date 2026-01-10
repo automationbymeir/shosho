@@ -23,9 +23,9 @@ function initTemplateGallery() {
     // Get all templates - check both window and global scope
     const templatesObj = window.PHOTO_BOOK_TEMPLATES || PHOTO_BOOK_TEMPLATES || {};
     const templates = Object.values(templatesObj);
-    
+
     console.log(`Found ${templates.length} templates to render`);
-    
+
     if (templates.length === 0) {
         console.error('No templates found! Check if templates.js is loaded.');
         galleryGrid.innerHTML = '<p style="text-align: center; color: var(--color-text-light); padding: 2rem;">No templates available. Please refresh the page.</p>';
@@ -76,13 +76,13 @@ function createTemplateCard(template) {
     const card = document.createElement('div');
     card.className = 'template-card';
     card.style.position = 'relative';
-    
+
     // Highlight if this is the selected template
-    if (typeof state !== 'undefined' && state.selectedTemplate && 
+    if (typeof state !== 'undefined' && state.selectedTemplate &&
         state.selectedTemplate.id === template.id) {
         card.classList.add('template-selected');
     }
-    
+
     card.onclick = () => selectTemplate(template.id);
 
     // Create preview container
@@ -161,11 +161,15 @@ function selectTemplate(templateId) {
         return;
     }
 
-    // Store selected template
-    if (typeof state !== 'undefined') {
-        state.selectedTemplate = template;
-        state.currentTheme = templateId;
+    // Store selected template - robustly check window.state
+    const appState = window.state || (typeof state !== 'undefined' ? state : null);
+
+    if (appState) {
+        console.log(`[DEBUG-Template] Setting selectedTemplate on shared state: ${template.name} (${template.id})`);
+        appState.selectedTemplate = template;
+        appState.currentTheme = templateId;
     } else {
+        console.warn(`[DEBUG-Template] State not found, falling back to window.selectedTemplate`);
         window.selectedTemplate = template;
     }
 
@@ -181,7 +185,7 @@ function showTemplateGallery() {
     if (galleryView) galleryView.style.display = 'block';
     if (editorView) editorView.style.display = 'none';
     if (mdView) mdView.style.display = 'none';
-    
+
     // Re-initialize gallery to show current selection
     if (typeof initTemplateGallery !== 'undefined') {
         initTemplateGallery();
@@ -231,7 +235,7 @@ function showPhotoSelectionPopup() {
         </div>
     `;
     document.body.appendChild(popup);
-    
+
     // Animate in
     requestAnimationFrame(() => {
         popup.classList.add('active');
@@ -244,16 +248,32 @@ function openPhotoSelectionAndEditor() {
         popup.classList.remove('active');
         setTimeout(() => popup.remove(), 300);
     }
-    
+
     // Show editor view
     showEditorView();
-    
+
     // Apply template after a brief delay to ensure DOM is ready
     setTimeout(() => {
-        if (typeof applyTemplate !== 'undefined' && typeof state !== 'undefined' && state.selectedTemplate) {
-            applyTemplate(state.selectedTemplate);
+        // Access state and applyTemplate securely from window global if needed
+        const appState = window.state || (typeof state !== 'undefined' ? state : null);
+        const appApplyTemplate = window.applyTemplate || (typeof applyTemplate !== 'undefined' ? applyTemplate : null);
+
+        console.log('[DEBUG-Template] Applying template:', appState?.selectedTemplate);
+
+        if (appApplyTemplate && appState && appState.selectedTemplate) {
+            appApplyTemplate(appState.selectedTemplate);
+        } else if (window.selectedTemplate && appApplyTemplate) {
+            // Fallback to window.selectedTemplate if state wasn't ready
+            appApplyTemplate(window.selectedTemplate);
+        } else {
+            console.error('[DEBUG-Template] Failed to apply template: state or function missing', {
+                hasState: !!appState,
+                hasSelectedTemplate: !!(appState && appState.selectedTemplate),
+                hasWindowSelectedTemplate: !!window.selectedTemplate,
+                hasApplyFunc: !!appApplyTemplate
+            });
         }
-        
+
         // Open photo picker
         if (typeof loadPicker !== 'undefined') {
             loadPicker();
@@ -267,14 +287,26 @@ function skipPhotoSelection() {
         popup.classList.remove('active');
         setTimeout(() => popup.remove(), 300);
     }
-    
+
     // Show editor view
     showEditorView();
-    
+
     // Apply template after a brief delay to ensure DOM is ready
     setTimeout(() => {
-        if (typeof applyTemplate !== 'undefined' && typeof state !== 'undefined' && state.selectedTemplate) {
-            applyTemplate(state.selectedTemplate);
+        const appState = window.state || (typeof state !== 'undefined' ? state : null);
+        const appApplyTemplate = window.applyTemplate || (typeof applyTemplate !== 'undefined' ? applyTemplate : null);
+
+        console.log('[DEBUG-Template] Skip - Applying template:', appState?.selectedTemplate);
+
+        if (appApplyTemplate && appState && appState.selectedTemplate) {
+            appApplyTemplate(appState.selectedTemplate);
+        } else if (window.selectedTemplate && appApplyTemplate) {
+            appApplyTemplate(window.selectedTemplate);
+        } else {
+            console.error('[DEBUG-Template] Failed to apply template (Skip):', {
+                hasState: !!appState,
+                hasApplyFunc: !!appApplyTemplate
+            });
         }
     }, 100);
 }

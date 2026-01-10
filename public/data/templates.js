@@ -152,6 +152,107 @@ const PHOTO_BOOK_TEMPLATES = {
       borderStyle: 'typewriter',
       borderColor: '#4A3B32'
     }
+  },
+  'noir-film': {
+    id: 'noir-film',
+    name: 'Noir Filmstrip',
+    description: 'High-contrast cinematic pages with filmstrip framing',
+    category: 'Cinematic',
+    preview: {
+      coverColor: '#0B0D10',
+      accentColor: '#E63946',
+      pattern: 'film'
+    },
+    colors: {
+      pageBackground: '#0B0D10',
+      textColor: '#F5F7FA',
+      accentColor: '#E63946',
+      borderColor: '#2B2F36',
+      captionColor: '#B8BCC4'
+    },
+    fonts: {
+      title: 'Montserrat',
+      body: 'Montserrat'
+    },
+    typography: {
+      headingFont: "'Montserrat', sans-serif",
+      bodyFont: "'Montserrat', sans-serif",
+      headingSize: 36,
+      bodySize: 14,
+      captionSize: 11
+    },
+    layout: {
+      pageMargin: 42,
+      photoSpacing: 12,
+      borderStyle: 'filmstrip',
+      showPageNumbers: true,
+      pageNumberStyle: 'cinema'
+    },
+    decorations: {
+      enabled: true,
+      style: 'filmstrip',
+      elements: ['◼', '●', '◆']
+    },
+    cover: {
+      backgroundColor: '#0B0D10',
+      titleColor: '#F5F7FA',
+      titleFont: "'Montserrat', sans-serif",
+      titleSize: 52,
+      subtitleColor: '#B8BCC4',
+      borderStyle: 'filmstrip',
+      borderColor: '#2B2F36'
+    }
+  },
+  'bauhaus-pop': {
+    id: 'bauhaus-pop',
+    name: 'Bauhaus Pop',
+    description: 'Bold geometry, playful color blocks, modern gallery feel',
+    category: 'Graphic',
+    preview: {
+      coverColor: '#FFF6E6',
+      accentColor: '#005BBB',
+      pattern: 'geometric'
+    },
+    colors: {
+      pageBackground: '#FFF6E6',
+      textColor: '#111111',
+      accentColor: '#005BBB',
+      secondary: '#FF3D00',
+      borderColor: '#111111',
+      captionColor: '#333333'
+    },
+    fonts: {
+      title: 'Montserrat',
+      body: 'Montserrat'
+    },
+    typography: {
+      headingFont: "'Montserrat', sans-serif",
+      bodyFont: "'Montserrat', sans-serif",
+      headingSize: 34,
+      bodySize: 14,
+      captionSize: 12
+    },
+    layout: {
+      pageMargin: 55,
+      photoSpacing: 18,
+      borderStyle: 'geometric',
+      showPageNumbers: true,
+      pageNumberStyle: 'bold'
+    },
+    decorations: {
+      enabled: true,
+      style: 'bauhaus',
+      elements: ['◼', '●']
+    },
+    cover: {
+      backgroundColor: '#FFF6E6',
+      titleColor: '#111111',
+      titleFont: "'Montserrat', sans-serif",
+      titleSize: 50,
+      subtitleColor: '#333333',
+      borderStyle: 'geometric',
+      borderColor: '#111111'
+    }
   }
 };
 

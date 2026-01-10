@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout – Shoso</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.svg">
+
+  <!-- Firebase SDKs (same versions as app) -->
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-functions-compat.js"></script>
+
+  <!-- App styles for consistent look -->
+  <link rel="stylesheet" href="/css/styles.css" />
+
+  <!-- Mobile redirect (sends mobile devices to /mobile/*) -->
+  <script src="/js/mobile-redirect.js"></script>
+
+  <!-- Firebase Hosting auto-config -->
+  <script src="/__/firebase/init.js"></script>
+
+  <style>
+    .pay-wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px; }
+    .pay-header { display:flex; align-items:center; justify-content:space-between; gap: 16px; margin-bottom: 18px; }
+    .pay-title { font-family: var(--font-serif); margin: 0; }
+    .pay-sub { color: var(--color-text-light); margin: 6px 0 0; }
+    .pay-grid { display:grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; }
+    .pay-card { background: var(--color-surface, #fff); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 18px; }
+    .pay-kv { display:flex; align-items:center; justify-content:space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-bg-muted); }
+    .pay-kv:last-child { border-bottom: none; }
+    .pay-k { color: var(--color-text-light); }
+    .pay-v { font-weight: 600; }
+    .pay-actions { display:flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+    .pay-note { font-size: 0.9rem; color: var(--color-text-light); line-height: 1.45; }
+    .pay-banner { padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 12px; color: #8a5a00; margin-bottom: 14px; }
+    .pay-small { font-size: 0.9rem; color: var(--color-text-light); }
+
+    @media (max-width: 900px) {
+      .pay-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="pay-wrap">
+    <div class="pay-header">
+      <div>
+        <h1 class="pay-title">Checkout</h1>
+        <p class="pay-sub">Select a package, then continue to the editor.</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <a class="btn btn-secondary" href="/Landing.html">← Back</a>
+        <a class="btn btn-secondary" id="continueLinkTop" href="/index.html">Go to editor</a>
+      </div>
+    </div>
+
+    <div class="pay-banner" id="testingBanner" style="display:none;">
+      <strong>Testing mode:</strong> payment is optional right now. You can skip and still use the app.
+    </div>
+
+    <div class="pay-grid">
+      <div class="pay-card">
+        <h3 style="margin:0 0 10px;">Order summary</h3>
+        <div class="pay-kv"><div class="pay-k">Package</div><div class="pay-v" id="planName">—</div></div>
+        <div class="pay-kv"><div class="pay-k">Price</div><div class="pay-v" id="planPrice">—</div></div>
+        <div class="pay-kv"><div class="pay-k">Notes</div><div class="pay-v" id="planNotes" style="font-weight:500;color:var(--color-text-light)">—</div></div>
+
+        <div class="pay-actions">
+          <button class="btn btn-primary" id="btnCreateDraft">Create purchase draft (prep)</button>
+          <button class="btn btn-secondary" id="btnSkip">Skip payment (testing) → continue</button>
+          <div class="pay-note">
+            The “draft” records the user’s intent and selected package in Firestore. Later we can swap the provider from <code>manual</code> to Stripe (or another processor) without changing the UI flow.
+          </div>
+        </div>
+      </div>
+
+      <div class="pay-card">
+        <h3 style="margin:0 0 10px;">Account</h3>
+        <div class="pay-small" id="authStatus">Checking sign-in…</div>
+        <div class="pay-actions">
+          <button class="btn btn-secondary" id="btnSignIn" style="display:none;">Sign in with Google</button>
+          <button class="btn btn-secondary" id="btnSignOut" style="display:none;">Sign out</button>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--color-border); margin: 14px 0;" />
+
+        <h3 style="margin:0 0 10px;">Debug</h3>
+        <div class="pay-small">Selected plan key: <code id="planKey">—</code></div>
+        <div class="pay-small">Draft purchase id: <code id="draftId">—</code></div>
+        <div class="pay-small">Continue URL: <code id="continueUrl">—</code></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/payment.js"></script>
+</body>
+</html>
+
+
+
+
+
+

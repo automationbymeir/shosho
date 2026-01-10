@@ -1,0 +1,1123 @@
+/* ============================================
+   ENHANCED 3D BOOK VISUALIZATION
+   Realistic book rendering with depth, texture, and lighting
+   ============================================ */
+
+/* ----------------------------------------
+   CSS Variables for Book Theming
+   ---------------------------------------- */
+:root {
+  /* Book dimensions */
+  --book-page-color: #fdfbf7;
+  --book-page-edge-color: #f5f0e8;
+  --book-page-shadow: rgba(0, 0, 0, 0.08);
+  --book-spine-highlight: rgba(255, 255, 255, 0.15);
+  --book-spine-shadow: rgba(0, 0, 0, 0.25);
+  --book-cover-sheen: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.05) 100%);
+
+  /* Page stack effect */
+  --page-stack-lines: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 1px,
+      rgba(0, 0, 0, 0.03) 1px,
+      rgba(0, 0, 0, 0.03) 2px);
+
+  /* Paper texture (subtle noise) */
+  --paper-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* ----------------------------------------
+   Base 3D Book Container
+   ---------------------------------------- */
+.book3d {
+  --book-thickness: 28px;
+  --book-radius: 6px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  perspective: 1800px;
+}
+
+.book3d-stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(4deg) rotateY(0deg);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Subtle hover lift - disabled for page preview to prevent diagonal overlay bug */
+.book3d:hover .book3d-stage {
+  transform: rotateX(2deg) rotateY(-2deg);
+}
+
+/* Explicitly prevent hover transform on page preview spread */
+.page-preview.is-book-spread .book3d:hover .book3d-stage {
+  transform: none !important;
+}
+
+/* Ensure no diagonal overlay appears on hover for page preview */
+.page-preview.is-book-spread::before,
+.page-preview.is-book-spread:hover::before {
+  content: none !important;
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Ensure page preview container doesn't show background on hover */
+.page-preview.is-book-spread,
+.page-preview.is-book-spread:hover {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.book3d-body {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* ----------------------------------------
+   Realistic Spine
+   ---------------------------------------- */
+.book3d-spine {
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: var(--book-thickness);
+  border-radius: var(--book-radius) 0 0 var(--book-radius);
+  transform: translateZ(calc(var(--book-thickness) * -0.5)) rotateY(-90deg);
+  transform-origin: right center;
+
+  /* Multi-layer gradient for realistic curved spine */
+  background:
+    /* Highlight on the curve */
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.05) 20%,
+      transparent 40%,
+      rgba(0, 0, 0, 0.08) 70%,
+      rgba(0, 0, 0, 0.15) 100%),
+    /* Base color - inherits from cover */
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--cover-color, #2c3e50) 95%, white) 0%,
+      var(--cover-color, #2c3e50) 50%,
+      color-mix(in srgb, var(--cover-color, #2c3e50) 90%, black) 100%);
+
+  /* Subtle texture */
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.15),
+    inset -2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Spine text area hint */
+.book3d-spine::after {
+  content: '';
+  position: absolute;
+  top: 15%;
+  bottom: 15%;
+  left: 20%;
+  right: 20%;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ----------------------------------------
+   Realistic Page Edge (Fore-edge)
+   ---------------------------------------- */
+.book3d-foreedge {
+  position: absolute;
+  right: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: var(--book-thickness);
+  border-radius: 0 2px 2px 0;
+  transform: translateZ(calc(var(--book-thickness) * -0.5)) rotateY(90deg);
+  transform-origin: left center;
+  overflow: hidden;
+
+  /* Stacked pages effect */
+  background:
+    /* Individual page lines */
+    var(--page-stack-lines),
+    /* Subtle unevenness */
+    linear-gradient(90deg,
+      var(--book-page-edge-color) 0%,
+      color-mix(in srgb, var(--book-page-edge-color) 98%, black) 30%,
+      var(--book-page-edge-color) 50%,
+      color-mix(in srgb, var(--book-page-edge-color) 96%, black) 70%,
+      var(--book-page-edge-color) 100%),
+    /* Base cream color */
+    var(--book-page-edge-color);
+
+  box-shadow:
+    inset 0 0 10px rgba(0, 0, 0, 0.05),
+    inset 2px 0 6px rgba(0, 0, 0, 0.08),
+    -1px 0 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Top page edge pattern */
+.book3d-foreedge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(180, 170, 155, 0.15) 2px,
+      rgba(180, 170, 155, 0.15) 2.5px);
+  opacity: 0.7;
+}
+
+/* Slight page irregularity */
+.book3d-foreedge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 3px;
+  background: linear-gradient(to bottom,
+      transparent 5%,
+      rgba(0, 0, 0, 0.02) 10%,
+      transparent 15%,
+      rgba(0, 0, 0, 0.015) 25%,
+      transparent 30%,
+      rgba(0, 0, 0, 0.02) 45%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.015) 65%,
+      transparent 70%,
+      rgba(0, 0, 0, 0.02) 85%,
+      transparent 95%);
+}
+
+/* ----------------------------------------
+   Bottom Edge (Page Block)
+   ---------------------------------------- */
+.book3d-bottom {
+  position: absolute;
+  left: calc(var(--book-thickness) + 12px);
+  right: calc(var(--book-thickness) + 12px);
+  bottom: 8px;
+  height: var(--book-thickness);
+  transform: translateZ(calc(var(--book-thickness) * -0.5)) rotateX(90deg);
+  transform-origin: top center;
+  border-radius: 0 0 2px 2px;
+
+  /* Page stack from bottom view */
+  background:
+    var(--page-stack-lines),
+    linear-gradient(180deg,
+      var(--book-page-edge-color) 0%,
+      color-mix(in srgb, var(--book-page-edge-color) 94%, black) 100%);
+
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ----------------------------------------
+   Main Spread (Open Book Pages)
+   ---------------------------------------- */
+.book3d-spread {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: calc(var(--book-thickness) + 12px);
+  right: calc(var(--book-thickness) + 12px);
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: var(--book-radius);
+  overflow: hidden;
+
+  /* Paper background */
+  background: var(--book-page-color);
+
+  /* Realistic shadow */
+  box-shadow:
+    0 25px 60px -15px rgba(0, 0, 0, 0.25),
+    0 10px 25px -10px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Paper texture overlay */
+.book3d-spread::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--paper-grain);
+  opacity: 0.015;
+  pointer-events: none;
+  z-index: 100;
+  mix-blend-mode: multiply;
+}
+
+/* ----------------------------------------
+   Center Gutter (Binding)
+   ---------------------------------------- */
+.book3d-gutter {
+  position: relative;
+  width: 24px;
+  flex: 0 0 24px;
+
+  /* Deep binding shadow */
+  background:
+    /* Center crease */
+    linear-gradient(90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.08) 20%,
+      rgba(0, 0, 0, 0.18) 45%,
+      rgba(0, 0, 0, 0.22) 50%,
+      rgba(0, 0, 0, 0.18) 55%,
+      rgba(0, 0, 0, 0.08) 80%,
+      transparent 100%);
+
+  box-shadow:
+    inset 0 0 30px rgba(0, 0, 0, 0.12),
+    inset 0 0 10px rgba(0, 0, 0, 0.08);
+}
+
+/* Stitching hint */
+.book3d-gutter::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 8px,
+      rgba(0, 0, 0, 0.08) 8px,
+      rgba(0, 0, 0, 0.08) 12px);
+}
+
+/* Page curl shadow near gutter */
+.book3d-gutter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -15px;
+  right: -15px;
+  background:
+    linear-gradient(90deg,
+      rgba(0, 0, 0, 0.03) 0%,
+      transparent 30%,
+      transparent 70%,
+      rgba(0, 0, 0, 0.03) 100%);
+  pointer-events: none;
+}
+
+/* ----------------------------------------
+   Individual Pages
+   ---------------------------------------- */
+.book3d-page {
+  flex: 1 1 0;
+  position: relative;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+  background: var(--book-page-color);
+}
+
+/* Subtle page lift effect */
+.book3d-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+
+  /* Very subtle vignette */
+  background: radial-gradient(ellipse at center,
+      transparent 60%,
+      rgba(0, 0, 0, 0.02) 100%);
+}
+
+/* Left page - subtle curve shadow */
+.book3d-page:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  background: linear-gradient(to left,
+      rgba(0, 0, 0, 0.04) 0%,
+      transparent 100%);
+  pointer-events: none;
+  z-index: 51;
+}
+
+/* Right page - subtle curve shadow */
+.book3d-page:last-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  background: linear-gradient(to right,
+      rgba(0, 0, 0, 0.04) 0%,
+      transparent 100%);
+  pointer-events: none;
+  z-index: 51;
+}
+
+/* Active page highlight */
+.book3d-page.is-active {
+  outline: none;
+  box-shadow: inset 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.book3d-page.is-active::before {
+  background:
+    radial-gradient(ellipse at center,
+      rgba(99, 102, 241, 0.02) 0%,
+      transparent 70%);
+}
+
+/* Non-active page subtle fade */
+.book3d-page:not(.is-active) {
+  filter: brightness(0.98);
+}
+
+/* Page number styling */
+.book3d-page .page-number {
+  position: absolute;
+  bottom: 12px;
+  font-size: 11px;
+  color: #94a3b8;
+  z-index: 5;
+}
+
+.book3d-page .page-number[style*="left"] {
+  left: 16px;
+}
+
+.book3d-page .page-number[style*="right"] {
+  right: 16px;
+}
+
+/* ----------------------------------------
+   Page Progress Indicator
+   ---------------------------------------- */
+.book3d-progress {
+  position: absolute;
+  left: 50%;
+  bottom: -40px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(15, 23, 42, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Page activation button */
+.book3d-page-activate {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 200;
+  transition: background 0.2s ease;
+}
+
+.book3d-page-activate:hover {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.book3d-page-activate:active {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* ============================================
+   3D COVER PREVIEW (Enhanced)
+   ============================================ */
+
+.cover-preview.is-cover-3d {
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  background-image: none;
+}
+
+.book3d-cover-root {
+  --book-thickness: 28px;
+  --cover-color: #2c3e50;
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  perspective: 1800px;
+}
+
+.book3d-cover-stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(4deg) rotateY(-8deg);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover effect - book tilts toward viewer */
+.book3d-cover-root:hover .book3d-cover-stage {
+  /* Gentle lift and tilt */
+  transform: rotateX(2deg) rotateY(-10deg) scale(1.02) translateY(-5px);
+  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.4);
+  /* Enhanced shadow on lift */
+}
+
+/* Back cover flips the perspective */
+.book3d-cover-root.is-back .book3d-cover-stage {
+  transform: rotateX(4deg) rotateY(8deg);
+}
+
+.book3d-cover-root.is-back:hover .book3d-cover-stage {
+  transform: rotateX(2deg) rotateY(12deg) scale(1.02);
+}
+
+/* ----------------------------------------
+   Cover Face (Main Surface)
+   ---------------------------------------- */
+.book3d-cover-face {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: calc(var(--book-thickness) + 12px);
+  right: calc(var(--book-thickness) + 12px);
+  border-radius: var(--book-radius);
+  overflow: hidden;
+  display: flex;
+
+  /* Cover material texture */
+  background: var(--cover-color, #2c3e50);
+
+  /* Realistic shadow stack */
+  box-shadow:
+    0 30px 70px -20px rgba(0, 0, 0, 0.35),
+    0 15px 35px -15px rgba(0, 0, 0, 0.25),
+    0 5px 15px -5px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Cover sheen/gloss effect */
+.book3d-cover-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--book-cover-sheen);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Embossed border effect */
+.book3d-cover-face::after {
+  content: '';
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 11;
+
+  /* Subtle emboss */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* ----------------------------------------
+   Cover Spine (Enhanced)
+   ---------------------------------------- */
+.book3d-cover-spine {
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: var(--book-thickness);
+  border-radius: var(--book-radius) 0 0 var(--book-radius);
+
+  /* Curved spine illusion */
+  background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.03) 15%,
+      transparent 30%,
+      rgba(0, 0, 0, 0.05) 50%,
+      rgba(0, 0, 0, 0.12) 80%,
+      rgba(0, 0, 0, 0.18) 100%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--cover-color, #2c3e50) 95%, white) 0%,
+      var(--cover-color, #2c3e50) 30%,
+      var(--cover-color, #2c3e50) 70%,
+      color-mix(in srgb, var(--cover-color, #2c3e50) 90%, black) 100%);
+
+  box-shadow:
+    inset 0 0 15px rgba(0, 0, 0, 0.12),
+    2px 0 8px rgba(0, 0, 0, 0.15),
+    inset -1px 0 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Spine ridges (decorative) */
+.book3d-cover-spine::before {
+  content: '';
+  position: absolute;
+  top: 8%;
+  bottom: 8%;
+  left: 3px;
+  right: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ----------------------------------------
+   Cover Fore-edge (Page Block Visible)
+   ---------------------------------------- */
+.book3d-cover-foreedge {
+  position: absolute;
+  right: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: var(--book-thickness);
+  border-radius: 0 2px 2px 0;
+  overflow: hidden;
+
+  /* Stacked pages */
+  background:
+    var(--page-stack-lines),
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--book-page-edge-color) 96%, black) 0%,
+      var(--book-page-edge-color) 40%,
+      color-mix(in srgb, var(--book-page-edge-color) 98%, black) 60%,
+      var(--book-page-edge-color) 100%),
+    var(--book-page-edge-color);
+
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.06),
+    inset 3px 0 8px rgba(0, 0, 0, 0.1),
+    -2px 0 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Page edge lines */
+.book3d-cover-foreedge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 2.5px,
+      rgba(160, 150, 135, 0.12) 2.5px,
+      rgba(160, 150, 135, 0.12) 3px);
+}
+
+/* ----------------------------------------
+   Cover Bottom Edge
+   ---------------------------------------- */
+.book3d-cover-bottom {
+  position: absolute;
+  left: calc(var(--book-thickness) + 10px);
+  right: calc(var(--book-thickness) + 10px);
+  bottom: 8px;
+  height: var(--book-thickness);
+  border-radius: 0 0 var(--book-radius) var(--book-radius);
+
+  background:
+    var(--page-stack-lines),
+    linear-gradient(180deg,
+      var(--book-page-edge-color) 0%,
+      color-mix(in srgb, var(--book-page-edge-color) 92%, black) 100%);
+
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, 0.08),
+    0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ----------------------------------------
+   Cover Inner Content Container
+   ---------------------------------------- */
+.book3d-cover-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3rem;
+  text-align: center;
+  overflow: hidden;
+  z-index: 5;
+}
+
+/* Cover photo placeholder */
+.book3d-cover-inner .cover-photo-placeholder {
+  width: 100%;
+  height: 55%;
+  margin-bottom: 1.5rem;
+  border-radius: 6px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.book3d-cover-inner .cover-photo-placeholder img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Back cover position adjustments */
+.book3d-cover-root.is-back .book3d-cover-spine {
+  left: auto;
+  right: 4px;
+  border-radius: 0 var(--book-radius) var(--book-radius) 0;
+
+  /* Flip the gradient */
+  background:
+    linear-gradient(-90deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.03) 15%,
+      transparent 30%,
+      rgba(0, 0, 0, 0.05) 50%,
+      rgba(0, 0, 0, 0.12) 80%,
+      rgba(0, 0, 0, 0.18) 100%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--cover-color, #2c3e50) 95%, white) 0%,
+      var(--cover-color, #2c3e50) 30%,
+      var(--cover-color, #2c3e50) 70%,
+      color-mix(in srgb, var(--cover-color, #2c3e50) 90%, black) 100%);
+
+  box-shadow:
+    inset 0 0 15px rgba(0, 0, 0, 0.12),
+    -2px 0 8px rgba(0, 0, 0, 0.15),
+    inset 1px 0 3px rgba(0, 0, 0, 0.08);
+}
+
+.book3d-cover-root.is-back .book3d-cover-foreedge {
+  right: auto;
+  left: 4px;
+  border-radius: 2px 0 0 2px;
+
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.06),
+    inset -3px 0 8px rgba(0, 0, 0, 0.1),
+    2px 0 4px rgba(0, 0, 0, 0.08);
+}
+
+/* ============================================
+   TEMPLATE GALLERY BOOK PREVIEW (Enhanced)
+   ============================================ */
+
+.template-book-demo {
+  --cover-color: #6366f1;
+  width: 140px;
+  height: 185px;
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.template-stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: perspective(1000px) rotateY(-18deg) rotateX(3deg);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.template-card:hover .template-stage {
+  transform: perspective(1000px) rotateY(-24deg) rotateX(4deg) translateZ(12px);
+}
+
+.template-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  border-radius: 5px 0 0 5px;
+  background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      transparent 35%,
+      rgba(0, 0, 0, 0.1) 75%,
+      rgba(0, 0, 0, 0.2) 100%),
+    var(--cover-color);
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.1),
+    inset -2px 0 6px rgba(0, 0, 0, 0.1);
+}
+
+.template-cover {
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  border-radius: 0 5px 5px 0;
+  background: var(--cover-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    10px 15px 35px rgba(0, 0, 0, 0.25),
+    4px 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.template-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.1) 100%);
+}
+
+.template-cover::after {
+  content: '';
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.template-pages {
+  position: absolute;
+  right: -10px;
+  top: 5px;
+  bottom: 5px;
+  width: 10px;
+  border-radius: 0 2px 2px 0;
+  background:
+    repeating-linear-gradient(to bottom,
+      #faf8f2 0px, #faf8f2 2.5px,
+      #e5e1d7 2.5px, #e5e1d7 3px);
+  box-shadow: inset 2px 0 4px rgba(0, 0, 0, 0.06);
+}
+
+.template-decoration {
+  font-size: 2.5rem;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
+  z-index: 5;
+  transition: transform 0.3s ease;
+}
+
+.template-card:hover .template-decoration {
+  transform: scale(1.15);
+}
+
+/* Legacy template book cover (keeping for backward compatibility) */
+.template-book-cover {
+  width: 140px;
+  height: 180px;
+  position: relative;
+  border-radius: 4px;
+  transform-style: preserve-3d;
+  perspective: 800px;
+  transform: perspective(1000px) rotateY(-18deg) rotateX(2deg);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.template-card:hover .template-book-cover {
+  transform: perspective(1000px) rotateY(-22deg) rotateX(3deg) translateZ(10px);
+}
+
+.template-book-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  border-radius: 4px 0 0 4px;
+
+  background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 30%,
+      rgba(0, 0, 0, 0.1) 70%,
+      rgba(0, 0, 0, 0.2) 100%),
+    inherit;
+  background-color: inherit;
+
+  box-shadow:
+    inset 0 0 10px rgba(0, 0, 0, 0.1),
+    inset -2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.template-book-pages {
+  position: absolute;
+  left: 16px;
+  top: 4px;
+  bottom: 4px;
+  right: 4px;
+  background:
+    repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.02) 2px,
+      rgba(0, 0, 0, 0.02) 2.5px),
+    linear-gradient(90deg,
+      #f8f6f0 0%,
+      #fffefa 50%,
+      #f8f6f0 100%);
+  border-radius: 0 4px 4px 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+
+  box-shadow:
+    inset 0 0 8px rgba(0, 0, 0, 0.04),
+    inset 2px 0 4px rgba(0, 0, 0, 0.06);
+}
+
+.template-book-pages::before {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background:
+    repeating-linear-gradient(to bottom,
+      #faf8f2 0px,
+      #faf8f2 2px,
+      #e8e4da 2px,
+      #e8e4da 2.5px);
+  border-radius: 0 2px 2px 0;
+  opacity: 0.9;
+}
+
+/* ============================================
+   PAGE TEMPLATE PICKER BOOK PREVIEW
+   ============================================ */
+
+.page-template-mini-book {
+  width: 100px;
+  height: 130px;
+  position: relative;
+  border-radius: 4px;
+  transform-style: preserve-3d;
+  transform: perspective(900px) rotateY(-16deg) rotateX(2deg);
+  transition: transform 0.3s ease;
+
+  box-shadow:
+    8px 12px 25px rgba(0, 0, 0, 0.2),
+    2px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.page-template-card:hover .page-template-mini-book {
+  transform: perspective(900px) rotateY(-20deg) rotateX(3deg) scale(1.05);
+}
+
+.page-template-mini-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  border-radius: 4px 0 0 4px;
+
+  background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 40%,
+      rgba(0, 0, 0, 0.15) 100%),
+    inherit;
+  background-color: inherit;
+}
+
+.page-template-mini-pages {
+  position: absolute;
+  left: 12px;
+  top: 3px;
+  bottom: 3px;
+  right: 3px;
+  background:
+    linear-gradient(90deg, #fdfbf7 0%, #fff 50%, #fdfbf7 100%);
+  border-radius: 0 4px 4px 0;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+
+  box-shadow: inset 2px 0 4px rgba(0, 0, 0, 0.04);
+}
+
+/* ============================================
+   ANIMATIONS & TRANSITIONS
+   ============================================ */
+
+/* Page flip animation layers */
+.book3d-flip-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  transform-style: preserve-3d;
+}
+
+.book3d-sheet {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: calc((100% - 24px) / 2);
+  transform-style: preserve-3d;
+  transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.book3d-sheet.is-next {
+  left: calc((100% + 24px) / 2);
+  transform-origin: left center;
+}
+
+.book3d-sheet.is-prev {
+  left: 0;
+  transform-origin: right center;
+}
+
+.book3d-sheet.is-next.is-flipping {
+  transform: rotateY(-180deg);
+}
+
+.book3d-sheet.is-prev.is-flipping {
+  transform: rotateY(180deg);
+}
+
+.book3d-sheet-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  overflow: hidden;
+  border-radius: var(--book-radius);
+  background: var(--book-page-color);
+
+  box-shadow:
+    0 0 20px rgba(0, 0, 0, 0.15),
+    0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.book3d-sheet-face.back {
+  transform: rotateY(180deg);
+}
+
+/* ============================================
+   DROP SHADOW ON SURFACE
+   ============================================ */
+
+/* Add a subtle surface shadow beneath the book */
+.page-preview.is-book-spread::after,
+.cover-preview.is-cover-3d::after {
+  content: '';
+  position: absolute;
+  bottom: -30px;
+  left: 10%;
+  right: 10%;
+  height: 40px;
+  background: radial-gradient(ellipse at center,
+      rgba(0, 0, 0, 0.15) 0%,
+      rgba(0, 0, 0, 0.08) 40%,
+      transparent 70%);
+  filter: blur(8px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 1100px) {
+  .page-preview.is-book-spread {
+    width: 95%;
+    max-width: 1000px;
+  }
+
+  .book3d {
+    --book-thickness: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  .book3d {
+    --book-thickness: 18px;
+  }
+
+  .template-book-demo {
+    width: 110px;
+    height: 145px;
+  }
+
+  .template-spine {
+    width: 12px;
+  }
+
+  .template-pages {
+    right: -8px;
+    width: 8px;
+  }
+
+  .template-book-cover {
+    width: 110px;
+    height: 145px;
+  }
+
+  .template-book-spine {
+    width: 12px;
+  }
+
+  .template-book-pages {
+    left: 12px;
+  }
+}
+
+
+
+
+/* FIX: Ensure Toolbar is always visible above the 3D book */
+.floating-toolbar {
+  z-index: 1000 !important;
+  position: absolute !important;
+  bottom: 2rem !important;
+  display: flex !important;
+}
+
+/* FIX: Ensure cover photo slot is clickable */
+.cover-photo-slot {
+  pointer-events: auto !important;
+}
+
+/* FIX REVISION: Toolbar must be fixed to viewport */
+.floating-toolbar {
+  position: fixed !important;
+  bottom: 30px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 10000 !important;
+  display: flex !important;
+}

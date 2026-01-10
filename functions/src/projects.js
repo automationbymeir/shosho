@@ -36,6 +36,12 @@ function cleanDataForFirestore(obj, maxDepth = 10) {
       continue;
     }
 
+    // Never store inline background image data URLs in Firestore (too large).
+    // We store persisted Storage URLs instead (backgroundImageUrl).
+    if (key === "backgroundImageData") {
+      continue;
+    }
+
     // For photos, keep ONLY essential identifiers - NO base64 data at all
     if (key === "photos" && Array.isArray(value)) {
       cleaned[key] = value.map((photo) => {
@@ -43,7 +49,8 @@ function cleanDataForFirestore(obj, maxDepth = 10) {
         // Only save minimal identifiers - photos will be reloaded from Google Photos
         const cleanedPhoto = {
           id: photo.id || null,
-          baseUrl: photo.baseUrl || null,
+          // Be tolerant of historical field names (some older clients used fullUrl/url).
+          baseUrl: photo.baseUrl || photo.fullUrl || photo.url || null,
           // Remove fullUrl, thumbnailUrl, editedData, editedImageData - too large
           // These will be regenerated when loading
         };
@@ -61,7 +68,7 @@ function cleanDataForFirestore(obj, maxDepth = 10) {
         if (!photo) return null;
         const cleanedPhoto = {
           id: photo.id || null,
-          baseUrl: photo.baseUrl || null,
+          baseUrl: photo.baseUrl || photo.fullUrl || photo.url || null,
         };
         Object.keys(cleanedPhoto).forEach((k) => {
           if (cleanedPhoto[k] === null || cleanedPhoto[k] === undefined) {
@@ -71,7 +78,7 @@ function cleanDataForFirestore(obj, maxDepth = 10) {
         return Object.keys(cleanedPhoto).length > 0 ? cleanedPhoto : null;
       }).filter((p) => p !== null && p !== undefined);
     } else if (key === "cover" && value && typeof value === "object") {
-      // Clean cover - remove photo data entirely, only keep photo ID
+      // Clean cover - remove heavy photo data, keep identifiers (id/baseUrl)
       const cleanedCover = {
         title: value.title || null,
         titleSize: value.titleSize || null,
@@ -80,16 +87,14 @@ function cleanDataForFirestore(obj, maxDepth = 10) {
         subtitle: value.subtitle || null,
         backgroundColor: value.backgroundColor || null,
         photoBorder: value.photoBorder || null,
-        // Only save photo ID and baseUrl - no image data
-        photo: value.photo && value.photo.id ? {
-          id: value.photo.id,
-          baseUrl: value.photo.baseUrl || null,
+        // Keep either id and/or baseUrl. (Older projects sometimes had baseUrl but no id.)
+        photo: value.photo && typeof value.photo === "object" ? {
+          id: value.photo.id || null,
+          baseUrl: value.photo.baseUrl || value.photo.fullUrl || value.photo.url || null,
         } : null,
       };
-      // Remove photo if no valid data
-      if (cleanedCover.photo && !cleanedCover.photo.baseUrl) {
-        cleanedCover.photo = null;
-      }
+      // Remove photo if it contains no identifiers
+      if (cleanedCover.photo && !cleanedCover.photo.id && !cleanedCover.photo.baseUrl) cleanedCover.photo = null;
       // Remove undefined/null values
       Object.keys(cleanedCover).forEach((k) => {
         if (cleanedCover[k] === undefined || cleanedCover[k] === null) {

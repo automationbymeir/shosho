@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modern Redesign Preview - Photo Book Creator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      line-height: 1.6;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: #475569;
+      margin-bottom: 48px;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-bottom: 64px;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e2e8f0;
+    }
+
+    .panel h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      color: #0f172a;
+    }
+
+    /* OLD DESIGN */
+    .old-design {
+      background: #F9F7F1;
+    }
+
+    .old-header {
+      background: white;
+      padding: 16px 32px;
+      border-bottom: 1px solid #D1C7B7;
+      box-shadow: 0 2px 4px rgba(44, 62, 80, 0.1);
+    }
+
+    .old-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      color: #2C3E50;
+      margin-bottom: 4px;
+    }
+
+    .old-subtitle {
+      color: #595959;
+      font-size: 14px;
+    }
+
+    .old-button {
+      background: #2C3E50;
+      color: #F9F7F1;
+      border: 1px solid #2C3E50;
+      padding: 12px 24px;
+      border-radius: 2px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 2px 2px 0 #2C3E50;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+
+    .old-card {
+      background: white;
+      border-radius: 4px;
+      padding: 24px;
+      border: 1px solid #D1C7B7;
+      box-shadow: 0 4px 8px rgba(44, 62, 80, 0.15);
+      margin-top: 16px;
+    }
+
+    .old-card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      color: #2C3E50;
+      margin-bottom: 8px;
+    }
+
+    .old-card-text {
+      color: #595959;
+      font-size: 14px;
+    }
+
+    /* NEW DESIGN */
+    .new-design {
+      background: #f8fafc;
+    }
+
+    .new-header {
+      background: white;
+      padding: 20px 32px;
+      border-bottom: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .new-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .new-subtitle {
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .new-button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all 0.2s;
+    }
+
+    .new-button:hover {
+      background: #4f46e5;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .new-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      margin-top: 16px;
+      transition: all 0.2s;
+    }
+
+    .new-card:hover {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .new-card-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .new-card-text {
+      color: #475569;
+      font-size: 14px;
+    }
+
+    /* Template Gallery Preview */
+    .gallery-preview {
+      margin-top: 32px;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .template-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .template-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      transform: translateY(-4px);
+      border-color: #6366f1;
+    }
+
+    .template-preview {
+      height: 200px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 48px;
+    }
+
+    .template-info {
+      padding: 20px;
+    }
+
+    .template-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .template-desc {
+      font-size: 14px;
+      color: #475569;
+    }
+
+    /* Editor Preview */
+    .editor-preview {
+      margin-top: 32px;
+    }
+
+    .editor-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .editor-sidebar {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .sidebar-tab {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #475569;
+      transition: all 0.2s;
+    }
+
+    .sidebar-tab:hover {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    .sidebar-tab.active {
+      background: #6366f1;
+      color: white;
+    }
+
+    .editor-main {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      min-height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-preview-box {
+      width: 300px;
+      height: 400px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    .color-swatch {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      margin-right: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .color-primary { background: #6366f1; }
+    .color-secondary { background: #0ea5e9; }
+    .color-accent { background: #8b5cf6; }
+    .color-bg { background: #f8fafc; }
+    .color-surface { background: #ffffff; }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #6366f1;
+      color: white;
+      margin-left: 12px;
+    }
+
+    .note {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 24px;
+      color: #0c4a6e;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Modern Redesign Preview</h1>
+    <p class="subtitle">Visual comparison of old vs new design system</p>
+
+    <!-- Design System Comparison -->
+    <div class="comparison">
+      <div class="panel old-design">
+        <h2>Current Design (Vintage)</h2>
+        <div class="old-header">
+          <div class="old-title">Photo Book Creator</div>
+          <div class="old-subtitle">Create beautiful photo books</div>
+        </div>
+        <button class="old-button">Sign in with Google</button>
+        <div class="old-card">
+          <div class="old-card-title">Template Name</div>
+          <div class="old-card-text">Vintage serif fonts, cream backgrounds, pressed-paper buttons</div>
+        </div>
+      </div>
+
+      <div class="panel new-design">
+        <h2>New Design (Modern)</h2>
+        <div class="new-header">
+          <div class="new-title">Photo Book Creator</div>
+          <div class="new-subtitle">Create beautiful photo books</div>
+        </div>
+        <button class="new-button">Sign in with Google</button>
+        <div class="new-card">
+          <div class="new-card-title">Template Name</div>
+          <div class="new-card-text">Clean sans-serif fonts, white surfaces, modern buttons</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Template Gallery Preview -->
+    <div class="panel new-design gallery-preview">
+      <h2>Template Gallery View (Modern)</h2>
+      <p style="color: #475569; margin-bottom: 24px;">Clean grid layout with modern cards</p>
+      <div class="gallery-grid">
+        <div class="template-card">
+          <div class="template-preview">📖</div>
+          <div class="template-info">
+            <div class="template-name">Classic Minimal</div>
+            <div class="template-desc">Clean and elegant design</div>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-preview">🎨</div>
+          <div class="template-info">
+            <div class="template-name">Modern Art</div>
+            <div class="template-desc">Bold and creative layouts</div>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-preview">✨</div>
+          <div class="template-info">
+            <div class="template-name">Memory Director</div>
+            <div class="template-desc">AI-powered storytelling</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Preview -->
+    <div class="panel new-design editor-preview">
+      <h2>Editor View (Modern)</h2>
+      <p style="color: #475569; margin-bottom: 24px;">Clean sidebar + centered editor area</p>
+      <div class="editor-layout">
+        <div class="editor-sidebar">
+          <div class="sidebar-tab active">Photos</div>
+          <div class="sidebar-tab">Selected</div>
+          <div class="sidebar-tab">Design</div>
+        </div>
+        <div class="editor-main">
+          <div class="page-preview-box">Page Preview</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color Palette -->
+    <div class="panel new-design" style="margin-top: 32px;">
+      <h2>Modern Color Palette</h2>
+      <div style="margin-top: 24px;">
+        <div style="margin-bottom: 16px;">
+          <span class="color-swatch color-primary"></span>
+          <strong>Primary:</strong> #6366f1 (Indigo)
+        </div>
+        <div style="margin-bottom: 16px;">
+          <span class="color-swatch color-secondary"></span>
+          <strong>Secondary:</strong> #0ea5e9 (Sky Blue)
+        </div>
+        <div style="margin-bottom: 16px;">
+          <span class="color-swatch color-accent"></span>
+          <strong>Accent:</strong> #8b5cf6 (Violet)
+        </div>
+        <div style="margin-bottom: 16px;">
+          <span class="color-swatch color-bg"></span>
+          <strong>Background:</strong> #f8fafc (Slate 50)
+        </div>
+        <div style="margin-bottom: 16px;">
+          <span class="color-swatch color-surface"></span>
+          <strong>Surface:</strong> #ffffff (White)
+        </div>
+      </div>
+    </div>
+
+    <!-- Typography -->
+    <div class="panel new-design" style="margin-top: 32px;">
+      <h2>Typography System</h2>
+      <div style="margin-top: 24px;">
+        <h1 style="font-size: 32px; margin-bottom: 16px;">Heading 1 (32px, Bold)</h1>
+        <h2 style="font-size: 24px; margin-bottom: 16px;">Heading 2 (24px, Semi-bold)</h2>
+        <h3 style="font-size: 20px; margin-bottom: 16px;">Heading 3 (20px, Semi-bold)</h3>
+        <p style="font-size: 16px; color: #475569; margin-bottom: 16px;">Body Large (16px, Regular) - Inter font family for all UI elements</p>
+        <p style="font-size: 14px; color: #475569; margin-bottom: 16px;">Body (14px, Regular) - Clean and readable</p>
+        <p style="font-size: 12px; color: #94a3b8;">Body Small (12px, Regular) - For captions and hints</p>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Note:</strong> This is a visual preview. The actual implementation will maintain all existing functionality while updating the visual design to match this modern aesthetic. Playfair Display will still be used for book titles/content, but Inter will be the primary UI font.
+    </div>
+  </div>
+</body>
+</html>
+
+

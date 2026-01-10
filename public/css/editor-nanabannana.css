@@ -1,0 +1,978 @@
+/* =====================================================
+   NANABANNANA EDITOR - COSMIC GLASS DESIGN SYSTEM
+   ===================================================== */
+
+:root {
+    /* Colors - "Cosmic Deep" */
+    --nana-bg: #0f172a;
+    /* Deep slate background */
+    --nana-bg-secondary: #1e293b;
+
+    /* Glass Surfaces */
+    --nana-surface: rgba(30, 41, 59, 0.7);
+    --nana-surface-hover: rgba(51, 65, 85, 0.8);
+    --nana-surface-active: rgba(71, 85, 105, 0.9);
+    --nana-glass-border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* Accents */
+    --nana-primary: #818cf8;
+    /* Indigo/Purple glow */
+    --nana-primary-glow: 0 0 20px rgba(129, 140, 248, 0.4);
+    --nana-accent: #38bdf8;
+    /* Cyan highlight */
+
+    /* Text */
+    --nana-text-main: #f8fafc;
+    --nana-text-muted: #94a3b8;
+
+    /* Layout */
+    --nana-sidebar-width: 340px;
+    --nana-rail-width: 80px;
+    --nana-header-height: 60px;
+
+    /* Effects */
+    --nana-blur: blur(12px);
+    --nana-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+    --nana-radius-l: 24px;
+    --nana-radius-m: 16px;
+    --nana-radius-s: 8px;
+    --nana-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =====================================================
+   GLOBAL EDITOR RESETS & LAYOUT
+   ===================================================== */
+.editor-view {
+    background: var(--nana-bg);
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 20%),
+        radial-gradient(circle at 90% 80%, rgba(56, 189, 248, 0.15) 0%, transparent 20%);
+    color: var(--nana-text-main);
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    display: flex !important;
+    /* Force flex */
+    flex-direction: column;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============/* =========================================
+   1. Theme Variables & Strict Grid
+   ========================================= */
+:root {
+    /* Colors */
+    --nana-bg: #0f172a;
+    --nana-surface: rgba(255, 255, 255, 0.05);
+    /* Lighter touch */
+    --nana-surface-hover: rgba(255, 255, 255, 0.1);
+    --nana-surface-active: rgba(99, 102, 241, 0.15);
+    /* Primary tint */
+    --nana-border: rgba(255, 255, 255, 0.08);
+    --nana-border-focus: rgba(99, 102, 241, 0.5);
+    --nana-primary: #6366f1;
+    --nana-text-main: #f8fafc;
+    --nana-text-muted: #94a3b8;
+    --nana-danger: #ef4444;
+
+    /* Strict Spacing Scale (Pixel Perfect) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+
+    /* Dimensions */
+    --header-height: 56px;
+    --rail-width: 64px;
+    --drawer-width: 320px;
+    --inspector-width: 300px;
+    --toolbar-height: 48px;
+
+    /* Effects */
+    --nana-radius: 12px;
+    --nana-radius-sm: 8px;
+    --nana-blur: 20px;
+    --nana-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+    --nana-glow: 0 0 0 1px var(--nana-border-focus), 0 0 16px -4px var(--nana-primary);
+}
+
+/* =========================================
+   2. Editor Global Reset
+   ========================================= */
+.editor-view * {
+    box-sizing: border-box;
+}
+
+.editor-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--nana-bg);
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 25%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 25%);
+    color: var(--nana-text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+
+/* =========================================
+   3. Floating Header (Strict Alignment)
+   ========================================= */
+.modern-header {
+    height: var(--header-height);
+    padding: 0 var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--nana-border);
+    background: rgba(15, 23, 42, 0.6);
+    /* Semi-transparent */
+    backdrop-filter: blur(var(--nana-blur));
+    -webkit-backdrop-filter: blur(var(--nana-blur));
+    z-index: 50;
+}
+
+.header-left,
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: 100%;
+}
+
+.header-title-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.modern-header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+.template-badge {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    background: rgba(129, 140, 248, 0.2);
+    color: #a5b4fc;
+    border: 1px solid rgba(129, 140, 248, 0.3);
+    border-radius: 20px;
+    margin-left: 12px;
+}
+
+.header-right {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--nana-text-muted);
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--nana-radius-s);
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--nana-transition);
+}
+
+.btn-ghost:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-generate {
+    background: linear-gradient(135deg, var(--nana-primary), #4f46e5);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: var(--nana-radius-m);
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    background-size: 200% auto;
+    transition: var(--nana-transition);
+}
+
+.btn-generate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+    background-position: right center;
+}
+
+/* ============/* =========================================
+   4. Smart Rail (Navigation)
+   ========================================= */
+.sidebar-rail {
+    width: var(--rail-width);
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(var(--nana-blur));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-3) 0;
+    border-right: 1px solid var(--nana-border);
+    gap: var(--space-2);
+    z-index: 40;
+}
+
+.rail-item {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--nana-radius-sm);
+    cursor: pointer;
+    color: var(--nana-text-muted);
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.rail-item:hover {
+    background: var(--nana-surface-hover);
+    color: var(--nana-text-main);
+}
+
+.rail-item.active {
+    background: var(--nana-surface-active);
+    color: var(--nana-primary);
+    box-shadow: inset 0 0 0 1px var(--nana-border-focus);
+}
+
+.rail-icon {
+    font-size: 20px;
+    margin-bottom: 2px;
+    filter: grayscale(100%);
+    opacity: 0.8;
+}
+
+.rail-item.active .rail-icon {
+    filter: none;
+    opacity: 1;
+}
+
+.rail-label {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+.rail-spacer {
+    flex: 1;
+}
+
+/* =========================================
+   5. Sidebar Drawer (Glass Panel)
+   ========================================= */
+.sidebar-drawer {
+    width: 0;
+    /* Hidden by default state */
+    background: rgba(30, 41, 59, 0.7);
+    /* Slightly lighter than bg */
+    backdrop-filter: blur(var(--nana-blur));
+    border-right: 1px solid var(--nana-border);
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    z-index: 30;
+}
+
+/* Drawer open state - handled via JS adding a class or just checking :has or sibling state.
+   For now, we'll assume the layout grid handles it or we set width manually. 
+   Actually, the previous layout used flex-grow or fixed width. Let's enforce it: */
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: var(--drawer-width);
+    opacity: 1;
+}
+
+.tab-content {
+    display: none;
+    width: 0;
+    opacity: 0;
+}
+
+.sidebar-drawer:has(.tab-content.active) {
+    width: var(--drawer-width);
+}
+
+.drawer-header {
+    height: 64px;
+    /* Taller than global header for emphasis */
+    padding: 0 var(--space-4);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-bottom: 1px solid var(--nana-border);
+    flex-shrink: 0;
+}
+
+.drawer-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--nana-text-main);
+}
+
+.drawer-header p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.drawer-body.no-padding {
+    padding: 0;
+}
+
+/* Drawer UI Elements */
+.btn-outline-primary {
+    width: 100%;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--nana-text-muted);
+    color: var(--nana-text-main);
+    border-radius: var(--nana-radius-m);
+    cursor: pointer;
+    transition: var(--nana-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-outline-primary:hover {
+    background: rgba(129, 140, 248, 0.1);
+    border-color: var(--nana-primary);
+    color: var(--nana-primary);
+}
+
+.selected-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+}
+
+/* C. STAGE (Center Canvas) */
+.editor-stage {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background-image:
+        radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+    overflow: hidden;
+}
+
+/* Floating Pill Toolbar (Top/Bottom Center) */
+.stage-toolbar.floating-pill {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--nana-surface);
+    backdrop-filter: blur(20px);
+    padding: 8px;
+    border-radius: 100px;
+    border: var(--nana-glass-border);
+    box-shadow: var(--nana-shadow);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 80;
+}
+
+.btn-tool {
+    background: transparent;
+    border: none;
+    color: var(--nana-text-muted);
+    padding: 10px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: var(--nana-transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-tool:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-tool.active {
+    background: white;
+    color: black;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-tool-accent {
+    color: var(--nana-accent);
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 8px;
+}
+
+.page-count {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: var(--nana-text-muted);
+    margin: 0 12px;
+}
+
+/* Stage Canvas Wrapper */
+.stage-canvas-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    perspective: 1200px;
+    padding: 80px 40px;
+    /* Space for loose toolbars */
+}
+
+/* Book Preview Styling */
+.page-preview,
+.cover-preview {
+    background: white;
+    /* Actual paper color */
+    box-shadow:
+        0 20px 50px -10px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
+    /* Subtle border */
+    border-radius: 4px;
+    transition: transform 0.4s ease;
+    position: relative;
+    /* Ensure text is dark on the white paper pages by default */
+    color: #1a1a1a;
+}
+
+/* =========================================
+   6. Main Stage & Floating Toolbar
+   ========================================= */
+.editor-stage {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.02) 0%, transparent 60%);
+}
+
+.stage-canvas-wrapper {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8);
+    /* 3D book needs its own space */
+}
+
+.stage-toolbar {
+    position: absolute;
+    bottom: var(--space-6);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(var(--nana-blur));
+    -webkit-backdrop-filter: blur(var(--nana-blur));
+    height: var(--toolbar-height);
+    padding: 0 var(--space-3);
+    border-radius: 999px;
+    /* Pill shape */
+    border: 1px solid var(--nana-border);
+    box-shadow: var(--nana-shadow);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    z-index: 100;
+}
+
+.btn-tool {
+    height: 32px;
+    padding: 0 var(--space-3);
+    border: none;
+    background: transparent;
+    color: var(--nana-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 99px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-tool:hover {
+    color: var(--nana-text-main);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-tool.active {
+    background: var(--nana-primary);
+    color: white;
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+}
+
+.btn-tool-accent {
+    color: #a78bfa !important;
+    /* Pastel violet */
+}
+
+.btn-tool-accent:hover {
+    background: rgba(167, 139, 250, 0.15);
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--nana-border);
+    margin: 0 2px;
+}
+
+/* =========================================
+   7. Buttons & Inputs (Strict System)
+   ========================================= */
+.btn {
+    height: 36px;
+    padding: 0 var(--space-4);
+    border-radius: var(--nana-radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--nana-primary);
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.btn-primary:hover {
+    background: var(--nana-primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--nana-text-muted);
+}
+
+.btn-ghost:hover {
+    color: var(--nana-text-main);
+    background: var(--nana-surface);
+}
+
+.btn-icon-back {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--nana-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--nana-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon-back:hover {
+    background: var(--nana-surface);
+    color: var(--nana-text-main);
+}
+
+.btn-text-small {
+    background: none;
+    border: none;
+    font-size: 11px;
+    color: var(--nana-text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.btn-text-small:hover {
+    color: var(--nana-primary);
+    text-decoration: underline;
+}
+
+.modern-input,
+.modern-select {
+    height: 36px;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--nana-border);
+    border-radius: var(--nana-radius-sm);
+    padding: 0 12px;
+    color: var(--nana-text-main);
+    font-size: 13px;
+    font-family: inherit;
+    transition: 0.2s;
+}
+
+.modern-input:focus,
+.modern-select:focus {
+    outline: none;
+    border-color: var(--nana-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* Stage Navigator (Bottom) */
+.stage-navigator {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--nana-surface);
+    backdrop-filter: blur(20px);
+    padding: 12px 24px;
+    border-radius: 24px;
+    border: var(--nana-glass-border);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    z-index: 80;
+}
+
+.nav-arrow {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--nana-transition);
+}
+
+.nav-arrow:hover {
+    background: white;
+    color: black;
+}
+
+.page-thumbnails-track {
+    display: flex;
+    gap: 12px;
+    max-width: 400px;
+    overflow-x: auto;
+    padding: 4px;
+}
+
+.page-thumbnail-mini {
+    width: 32px;
+    height: 32px;
+    background: #334155;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.page-thumbnail-mini.active {
+    border-color: var(--nana-accent);
+    box-shadow: 0 0 10px var(--nana-accent);
+}
+
+
+/* D. SETTINGS INSPECTOR (Right sidebar) */
+.settings-sidebar {
+    width: 300px;
+    background: var(--nana-bg-secondary);
+    border-left: var(--nana-glass-border);
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-header {
+    padding: 24px;
+    border-bottom: var(--nana-glass-border);
+}
+
+.settings-header h3 {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--nana-text-muted);
+}
+
+.settings-scroll-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+/* Card Style Settings */
+.setting-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--nana-radius-m);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.setting-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.setting-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting-icon {
+    font-size: 16px;
+}
+
+.setting-title h4 {
+    font-size: 0.9rem;
+    color: var(--nana-text-main);
+    margin: 0;
+}
+
+.setting-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Form Elements */
+.modern-input,
+.modern-select {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    width: 100%;
+    font-family: inherit;
+    transition: var(--nana-transition);
+}
+
+.modern-input:focus,
+.modern-select:focus {
+    outline: none;
+    border-color: var(--nana-primary);
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.modern-color-input {
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #334155;
+    transition: .4s;
+    border-radius: 20px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: var(--nana-primary);
+}
+
+input:checked+.slider:before {
+    transform: translateX(20px);
+}/* =========================================
+   10. MODAL COMPONENT (Added for Gallery)
+   ========================================= */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: rgba(15, 23, 42, 0.85);
+    /* Darker backdrop */
+    backdrop-filter: blur(5px);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background-color: #1e293b;
+    /* Dark slate */
+    color: #f8fafc;
+    margin: auto;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close-btn {
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: #fff;
+}
+
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Gallery Items */
+.gallery-item-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 2px #6366f1;
+    /* Primary color focus */
+}

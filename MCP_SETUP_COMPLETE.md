@@ -110,3 +110,9 @@ Everything is configured and ready. Just restart Cursor and start using MCP feat
 **Configuration File**: `~/.cursor/mcp.json`
 **Test Directory**: `tests/`
 
+
+
+
+
+
+

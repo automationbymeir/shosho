@@ -318,3 +318,9 @@ function addAutoCaptionButton(photoElement, photo) {
 
 **Note**: Some MCP servers require additional setup (API keys, tokens, etc.). Start with the ready-to-use servers (Filesystem, SQLite, Puppeteer) and add others as needed.
 
+
+
+
+
+
+

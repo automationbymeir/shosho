@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced 3D Book Preview</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/book-3d-enhanced.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .preview-section {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .preview-section h2 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 0.5rem;
+    }
+    .preview-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+      padding: 2rem;
+    }
+    .template-gallery-demo {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      padding: 2rem;
+    }
+    .template-card-demo {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .template-card-demo:hover {
+      transform: translateY(-4px);
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center; color: #2c3e50; margin-bottom: 3rem;">Enhanced 3D Book Visualization Preview</h1>
+
+  <!-- Template Gallery Cards -->
+  <div class="preview-section">
+    <h2>1. Template Gallery Cards</h2>
+    <div class="template-gallery-demo">
+      <div class="template-card-demo">
+        <div class="template-preview" style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+          <div class="template-book-demo" style="--cover-color: #6366f1;">
+            <div class="template-stage">
+              <div class="template-spine"></div>
+              <div class="template-cover">
+                <span class="template-decoration">📸</span>
+              </div>
+              <div class="template-pages"></div>
+            </div>
+          </div>
+        </div>
+        <div class="template-info" style="margin-top: 1rem;">
+          <h3 style="margin: 0.5rem 0;">Modern Photography</h3>
+          <span style="color: #64748b; font-size: 0.875rem;">Minimal</span>
+        </div>
+      </div>
+
+      <div class="template-card-demo">
+        <div class="template-preview" style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+          <div class="template-book-demo" style="--cover-color: #10b981;">
+            <div class="template-stage">
+              <div class="template-spine"></div>
+              <div class="template-cover">
+                <span class="template-decoration">🌿</span>
+              </div>
+              <div class="template-pages"></div>
+            </div>
+          </div>
+        </div>
+        <div class="template-info" style="margin-top: 1rem;">
+          <h3 style="margin: 0.5rem 0;">Botanical</h3>
+          <span style="color: #64748b; font-size: 0.875rem;">Nature</span>
+        </div>
+      </div>
+
+      <div class="template-card-demo">
+        <div class="template-preview" style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+          <div class="template-book-demo" style="--cover-color: #f59e0b;">
+            <div class="template-stage">
+              <div class="template-spine"></div>
+              <div class="template-cover">
+                <span class="template-decoration">✨</span>
+              </div>
+              <div class="template-pages"></div>
+            </div>
+          </div>
+        </div>
+        <div class="template-info" style="margin-top: 1rem;">
+          <h3 style="margin: 0.5rem 0;">Vintage</h3>
+          <span style="color: #64748b; font-size: 0.875rem;">Classic</span>
+        </div>
+      </div>
+    </div>
+    <p style="color: #64748b; margin-top: 1rem;"><em>Hover over the cards to see the 3D tilt animation</em></p>
+  </div>
+
+  <!-- Cover Preview -->
+  <div class="preview-section">
+    <h2>2. Cover Preview (Front Cover)</h2>
+    <div class="preview-container">
+      <div class="cover-preview is-cover-3d" style="width: 400px; height: 500px; position: relative;">
+        <div class="book3d-cover-root" style="--book-thickness: 28px; --cover-color: #1a1a2e;">
+          <div class="book3d-cover-stage">
+            <div class="book3d-cover-spine"></div>
+            <div class="book3d-cover-foreedge"></div>
+            <div class="book3d-cover-bottom"></div>
+            <div class="book3d-cover-face" style="background: #1a1a2e;">
+              <div class="book3d-cover-inner">
+                <div class="cover-photo-placeholder" style="width: 100%; height: 55%; margin-bottom: 1.5rem; border-radius: 6px; border: 3px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3);">
+                  Photo
+                </div>
+                <div>
+                  <div class="cover-title" style="color: #ffffff; font-size: 36px; font-family: 'Playfair Display', serif;">
+                    My Photo Book
+                  </div>
+                  <div class="cover-subtitle" style="color: rgba(255,255,255,0.8); margin-top: 0.5rem;">
+                    A Collection of Memories
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>3D cover with spine, page edges, and realistic shadows</em></p>
+  </div>
+
+  <!-- Open Book Spread -->
+  <div class="preview-section">
+    <h2>3. Open Book Spread (Pages Editor)</h2>
+    <div class="preview-container">
+      <div class="page-preview is-book-spread" style="width: 800px; height: 550px; position: relative;">
+        <div class="book3d" style="--book-thickness: 32px; --cover-color: #2c3e50;">
+          <div class="book3d-stage">
+            <div class="book3d-body">
+              <div class="book3d-spine"></div>
+              <div class="book3d-foreedge"></div>
+              <div class="book3d-bottom"></div>
+              
+              <div class="book3d-spread">
+                <!-- Left Page -->
+                <div class="book3d-page is-active">
+                  <div class="layout-grid layout-single" style="position: absolute; inset: 0; padding: 1.5rem; display: flex; align-items: center; justify-content: center; background: #fdfbf7;">
+                    <div style="text-align: center; color: #94a3b8;">
+                      <div style="font-size: 3rem; margin-bottom: 1rem;">📷</div>
+                      <div>Left Page Content</div>
+                    </div>
+                  </div>
+                  <span class="page-number" style="left: 16px;">1</span>
+                </div>
+                
+                <!-- Gutter -->
+                <div class="book3d-gutter"></div>
+                
+                <!-- Right Page -->
+                <div class="book3d-page">
+                  <div class="layout-grid layout-single" style="position: absolute; inset: 0; padding: 1.5rem; display: flex; align-items: center; justify-content: center; background: #fdfbf7;">
+                    <div style="text-align: center; color: #94a3b8;">
+                      <div style="font-size: 3rem; margin-bottom: 1rem;">🖼️</div>
+                      <div>Right Page Content</div>
+                    </div>
+                  </div>
+                  <span class="page-number" style="right: 16px;">2</span>
+                </div>
+              </div>
+              
+              <!-- Progress indicator -->
+              <div class="book3d-progress">
+                Pages 1–2
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>3D spread view with spine, page edges, gutter, and realistic depth</em></p>
+  </div>
+
+  <!-- Back Cover -->
+  <div class="preview-section">
+    <h2>4. Back Cover Preview</h2>
+    <div class="preview-container">
+      <div class="cover-preview is-cover-3d" style="width: 400px; height: 500px; position: relative;">
+        <div class="book3d-cover-root is-back" style="--book-thickness: 28px; --cover-color: #1a1a2e;">
+          <div class="book3d-cover-stage">
+            <div class="book3d-cover-spine"></div>
+            <div class="book3d-cover-foreedge"></div>
+            <div class="book3d-cover-bottom"></div>
+            <div class="book3d-cover-face" style="background: #1a1a2e;">
+              <div class="book3d-cover-inner" style="justify-content: center;">
+                <div class="back-cover-text" style="color: rgba(255,255,255,0.9); font-size: 1.1rem; line-height: 1.6; max-width: 80%; text-align: center;">
+                  Thank you for viewing this photo book
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>Back cover with flipped perspective (spine on the right)</em></p>
+  </div>
+
+  <!-- Page Template Picker -->
+  <div class="preview-section">
+    <h2>5. Page Template Picker</h2>
+    <div class="template-gallery-demo">
+      <div class="template-card-demo">
+        <div class="page-template-preview" style="background: #f8fafc; min-height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+          <div class="page-template-mini-book" style="border-color: #6366f1; background: #ffffff;">
+            <div class="page-template-mini-spine" style="background: #6366f1;"></div>
+            <div class="page-template-mini-pages" style="background: #fdfbf7;"></div>
+          </div>
+        </div>
+        <div style="margin-top: 1rem;">
+          <h4 style="margin: 0.5rem 0;">Classic</h4>
+          <p style="color: #64748b; font-size: 0.875rem; margin: 0;">Minimal design</p>
+        </div>
+      </div>
+
+      <div class="template-card-demo">
+        <div class="page-template-preview" style="background: #f8fafc; min-height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+          <div class="page-template-mini-book" style="border-color: #10b981; background: #f0fdf4;">
+            <div class="page-template-mini-spine" style="background: #10b981;"></div>
+            <div class="page-template-mini-pages" style="background: #fdfbf7;"></div>
+          </div>
+        </div>
+        <div style="margin-top: 1rem;">
+          <h4 style="margin: 0.5rem 0;">Botanical</h4>
+          <p style="color: #64748b; font-size: 0.875rem; margin: 0;">Nature theme</p>
+        </div>
+      </div>
+    </div>
+    <p style="color: #64748b; margin-top: 1rem;"><em>Mini 3D books in the template picker modal</em></p>
+  </div>
+
+  <div style="text-align: center; margin-top: 4rem; padding: 2rem; background: white; border-radius: 12px;">
+    <h3 style="color: #2c3e50;">Enhanced 3D Book Features</h3>
+    <ul style="text-align: left; display: inline-block; color: #64748b;">
+      <li>Realistic spine with curved lighting gradients</li>
+      <li>Page stack edges with individual page lines</li>
+      <li>Dynamic book thickness based on page count</li>
+      <li>Template colors applied to 3D elements</li>
+      <li>Smooth hover animations</li>
+      <li>Realistic shadows and depth</li>
+      <li>Responsive design for mobile devices</li>
+    </ul>
+  </div>
+
+</body>
+</html>
+
+
+

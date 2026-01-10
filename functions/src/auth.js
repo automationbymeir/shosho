@@ -1,6 +1,7 @@
 const {google} = require("googleapis");
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
+const {FieldValue} = require("firebase-admin/firestore");
 
 // OAuth2 Configuration
 // These should be set in Firebase Functions config or environment variables
@@ -49,12 +50,30 @@ function getOauthConfig() {
     runtimeCfg.google?.clientSecret ||
     cfg.google?.client_secret ||
     cfg.google?.clientSecret;
+  // Fix for local emulator testing
+  // Check multiple environment variables that might indicate emulator usage
+  const isEmulator = process.env.FUNCTIONS_EMULATOR === "true" ||
+    process.env.FUNCTIONS_EMULATOR === true ||
+    !!process.env.FIREBASE_EMULATOR_HUB;
+
+  console.log(`[DEBUG_AUTH] isEmulator detection: ${isEmulator}. ` +
+    `Env Keys: ${Object.keys(process.env).filter((k) => k.includes("EMULATOR")).join(", ")}`);
+
+  // Use localhost:5001 to match typical browser context
+  const defaultRedirect = isEmulator ?
+    "http://localhost:5001/shoso-photobook/us-central1/oauthCallback" :
+    "https://shoso-photobook.web.app/oauth/callback";
+
+  if (isEmulator) {
+    console.log("Running in emulator mode, using local redirect URI:", defaultRedirect);
+  }
+
   const redirectUri = envRedirectUri ||
     runtimeCfg.google?.redirect_uri ||
     runtimeCfg.google?.redirectUri ||
     cfg.google?.redirect_uri ||
     cfg.google?.redirectUri ||
-    "https://shoso-photobook.web.app/oauth/callback";
+    defaultRedirect;
 
   return {clientId, clientSecret, redirectUri};
 }
@@ -89,21 +108,27 @@ async function getOAuth2Client(userId) {
 
     if (tokenDoc.exists) {
       const tokens = tokenDoc.data();
+      console.log(`[DEBUG_AUTH] Token found for userId: ${userId}`);
       oauth2Client.setCredentials(tokens);
 
       // Check if token needs refresh
       if (tokens.expiry_date && tokens.expiry_date < Date.now()) {
+        console.log(`[DEBUG_AUTH] Token for userId: ${userId} is expired, attempting refresh.`);
         try {
           const {credentials} = await oauth2Client.refreshAccessToken();
           await db.collection("oauth_tokens").doc(userId).set(credentials, {merge: true});
           oauth2Client.setCredentials(credentials);
+          console.log(`[DEBUG_AUTH] Token for userId: ${userId} refreshed successfully.`);
         } catch (error) {
           console.error("Error refreshing token:", error);
           // Token refresh failed, user needs to re-authorize
           return null;
         }
+      } else {
+        console.log(`[DEBUG_AUTH] Token for userId: ${userId} is still valid.`);
       }
     } else {
+      console.log(`[DEBUG_AUTH] No token found for userId: ${userId}`);
       return null; // No tokens stored
     }
   }
@@ -149,9 +174,11 @@ async function getAuthorizationUrl(userId) {
  * @return {Promise<Object>} Result of callback handling
  */
 async function handleCallback(query) {
+  console.log("[DEBUG_AUTH] handleCallback INVOKED. Query:", JSON.stringify(query));
   const {code, state} = query;
 
   if (!code) {
+    console.log("[DEBUG_AUTH] No authorization code received.");
     return {
       success: false,
       message: "No authorization code received",
@@ -161,15 +188,18 @@ async function handleCallback(query) {
   const userId = state; // User ID passed in state
 
   if (!userId) {
+    console.log("[DEBUG_AUTH] No user ID in state.");
     return {
       success: false,
       message: "No user ID in state",
     };
   }
+  console.log(`[DEBUG_AUTH] Processing callback for userId: ${userId}`);
 
   try {
     const {clientId, clientSecret, redirectUri} = getOauthConfig();
     if (!clientId || !clientSecret) {
+      console.error("[DEBUG_AUTH] Server OAuth config missing.");
       return {
         success: false,
         message: "Server OAuth config missing (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).",
@@ -182,10 +212,15 @@ async function handleCallback(query) {
     );
 
     const {tokens} = await oauth2Client.getToken(code);
+    console.log(`[DEBUG_AUTH] Received tokens for userId: ${userId}`);
 
     // Store tokens in Firestore
     const db = admin.firestore();
-    await db.collection("oauth_tokens").doc(userId).set(tokens);
+    await db.collection("oauth_tokens").doc(userId).set({
+      ...tokens, // Spread the tokens object
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    console.log(`[DEBUG_AUTH] Tokens saved for userId: ${userId}`);
 
     return {
       success: true,

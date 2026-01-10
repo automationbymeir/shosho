@@ -267,3 +267,9 @@ If a test fails, ask:
 
 **Note**: Make sure your app is running (`npm run serve`) before running tests via Puppeteer MCP.
 
+
+
+
+
+
+

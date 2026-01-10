@@ -287,8 +287,12 @@ async function fetchImageAsBuffer(photo, accessToken, requirements = {}) {
     const base64Data = photo.editedImageData.split(",")[1];
     const buffer = Buffer.from(base64Data, "base64");
     console.log(`✓ Using editedImageData: ${buffer.length} bytes`);
-    if (meetsMinPixels(buffer, "editedImageData")) return buffer;
-    console.log("↪ Falling back to original image to avoid resolution loss.");
+    // Always prefer user edits, even if lower resolution.
+    // Users expect the PDF to match what they edited in the app.
+    if (!meetsMinPixels(buffer, "editedImageData")) {
+      console.log("⚠ editedImageData is below target print resolution; using it anyway to preserve edits.");
+    }
+    return buffer;
   }
 
   // Priority 2: Other edited data
@@ -296,8 +300,10 @@ async function fetchImageAsBuffer(photo, accessToken, requirements = {}) {
     const base64Data = photo.editedData.split(",")[1];
     const buffer = Buffer.from(base64Data, "base64");
     console.log(`✓ Using editedData: ${buffer.length} bytes`);
-    if (meetsMinPixels(buffer, "editedData")) return buffer;
-    console.log("↪ Falling back to original image to avoid resolution loss.");
+    if (!meetsMinPixels(buffer, "editedData")) {
+      console.log("⚠ editedData is below target print resolution; using it anyway to preserve edits.");
+    }
+    return buffer;
   }
 
   // Priority 3: Thumbnail data URL (fallback only)
@@ -407,6 +413,95 @@ function calculateFitDimensions(imageWidth, imageHeight, maxWidth, maxHeight) {
     width: Math.max(1, finalWidth),
     height: Math.max(1, finalHeight),
   };
+}
+
+/**
+ * Calculate "cover" placement (fill container, crop overflow) while preserving aspect ratio.
+ * @param {number} imageWidth
+ * @param {number} imageHeight
+ * @param {number} containerWidth
+ * @param {number} containerHeight
+ * @return {{x: number, y: number, width: number, height: number}}
+ */
+function calculateCoverPlacement(imageWidth, imageHeight, containerWidth, containerHeight) {
+  const scale = Math.max(containerWidth / imageWidth, containerHeight / imageHeight);
+  const width = imageWidth * scale;
+  const height = imageHeight * scale;
+  const x = (containerWidth - width) / 2;
+  const y = (containerHeight - height) / 2;
+  return {x, y, width, height};
+}
+
+/**
+ * Decode a base64 data URL into a Buffer (JPEG/PNG).
+ * @param {string} dataUrl
+ * @return {{buffer: Buffer, mime: string}|null}
+ */
+function decodeImageDataUrl(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== "string") return null;
+  const m = dataUrl.match(/^data:(image\/(?:jpeg|png));base64,(.+)$/i);
+  if (!m) return null;
+  try {
+    const mime = m[1].toLowerCase();
+    const buffer = Buffer.from(m[2], "base64");
+    if (!buffer || buffer.length === 0) return null;
+    return {buffer, mime};
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Draw a full-bleed background image for a page if present.
+ * @param {PDFDocument} doc
+ * @param {{width: number, height: number}} pageSize
+ * @param {Object} page
+ * @return {boolean} true if background image was drawn
+ */
+async function drawPageBackgroundImage(doc, pageSize, page) {
+  try {
+    const sizeOf = require("image-size").default || require("image-size");
+
+    // Prefer persisted URL (survives project saves). Fallback to inline data URL.
+    let buffer = null;
+
+    const url = page?.backgroundImageUrl;
+    if (url && typeof url === "string" && /^https?:\/\//i.test(url)) {
+      try {
+        const resp = await fetch(url);
+        if (resp.ok) {
+          buffer = await resp.buffer();
+        } else {
+          console.log(`✗ Background image fetch failed (${resp.status})`);
+        }
+      } catch (e) {
+        console.log(`✗ Background image fetch error: ${e.message || e}`);
+      }
+    }
+
+    if (!buffer) {
+      const decoded = decodeImageDataUrl(page?.backgroundImageData);
+      buffer = decoded?.buffer || null;
+    }
+
+    if (!buffer) return false;
+
+    const dim = sizeOf(buffer);
+    if (!dim?.width || !dim?.height) return false;
+
+    // Draw image to cover the entire page (crop overflow).
+    const placement = calculateCoverPlacement(dim.width, dim.height, pageSize.width, pageSize.height);
+    doc.save();
+    doc.image(buffer, placement.x, placement.y, {
+      width: placement.width,
+      height: placement.height,
+    });
+    doc.restore();
+    return true;
+  } catch (e) {
+    console.log(`✗ Failed to draw background image: ${e.message || e}`);
+    return false;
+  }
 }
 
 /**
@@ -682,9 +777,80 @@ function drawThemeBackground(doc, pageSize, designData, bookData, type = "conten
         .fillColor(accentHex, 0.08)
         .fill();
     doc.restore();
+  } else if (themeName.includes("noir") || themeName.includes("film")) {
+    // Noir Filmstrip: subtle film-strip framing + sprocket holes
+    const stripW = 44;
+    const holeW = 16;
+    const holeH = 10;
+    const holeGap = 18;
+    const holeInset = 14;
+
+    doc.save();
+    // Side strips
+    doc.rect(0, 0, stripW, h).fillColor("#000000", 0.22).fill();
+    doc.rect(w - stripW, 0, stripW, h).fillColor("#000000", 0.22).fill();
+
+    // Top/bottom bars for a cinematic matte
+    doc.rect(0, 0, w, 28).fillColor("#000000", 0.18).fill();
+    doc.rect(0, h - 28, w, 28).fillColor("#000000", 0.18).fill();
+
+    // Sprocket holes
+    doc.fillColor("#F5F7FA", 0.10);
+    for (let y = 28 + 12; y < h - 28 - 12; y += holeH + holeGap) {
+      // Left holes
+      doc.rect(holeInset, y, holeW, holeH).fill();
+      // Right holes
+      doc.rect(w - holeInset - holeW, y, holeW, holeH).fill();
+    }
+    doc.restore();
+  } else if (themeName.includes("bauhaus")) {
+    // Bauhaus Pop: bold geometric shapes with playful color blocking
+    const c1 = accentHex;
+    const c2 = secondaryHex;
+
+    doc.save();
+    // Soft diagonal block
+    doc.moveTo(0, h * 0.18)
+        .lineTo(w * 0.68, 0)
+        .lineTo(w, 0)
+        .lineTo(0, h * 0.42)
+        .fillColor(c1, 0.10)
+        .fill();
+
+    // Big circle bottom-right
+    const r = Math.min(w, h) * 0.18;
+    doc.circle(w * 0.82, h * 0.78, r)
+        .fillColor(c2, 0.10)
+        .fill();
+
+    // Small square accents
+    doc.rect(w * 0.08, h * 0.72, 26, 26).fillColor(c2, 0.10).fill();
+    doc.rect(w * 0.16, h * 0.12, 18, 18).fillColor(c1, 0.10).fill();
+    doc.restore();
   }
 
   doc.restore(); // restore initial background save()
+}
+
+/**
+ * Pick built-in PDFKit fonts based on template id.
+ * We can't use browser fonts here; these are PDFKit's built-ins.
+ * @param {Object} designData
+ * @return {{regular: string, bold: string, italic: string}}
+ */
+function getPdfLatinFonts(designData) {
+  const id = String(designData?.data?.id || "").toLowerCase();
+  if (id.includes("archive") || id.includes("typewriter")) {
+    return {regular: "Courier", bold: "Courier-Bold", italic: "Courier-Oblique"};
+  }
+  if (id.includes("noir") || id.includes("film")) {
+    return {regular: "Helvetica", bold: "Helvetica-Bold", italic: "Helvetica-Oblique"};
+  }
+  if (id.includes("bauhaus") || id.includes("modern") || id.includes("geometric")) {
+    return {regular: "Helvetica", bold: "Helvetica-Bold", italic: "Helvetica-Oblique"};
+  }
+  // Default: classic serif
+  return {regular: "Times-Roman", bold: "Times-Bold", italic: "Times-Italic"};
 }
 
 /**
@@ -792,6 +958,7 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
   console.log("\n=== CREATING COVER PAGE ===");
 
   const designData = getActiveDesignData(null, bookData);
+  const latinFonts = getPdfLatinFonts(designData);
 
   // Add page
   doc.addPage({size: [pageSize.width, pageSize.height], margin: 0});
@@ -885,7 +1052,7 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
     const titleColor = bookData.coverTextColor || "#333333";
     const titleSize = bookData.coverTitleSize || 36;
     const preparedTitle = preparePdfText(titleText, {
-      latinFont: "Times-Bold",
+      latinFont: latinFonts.bold,
       hebrewFont: HEBREW_FONT_BOLD,
     });
 
@@ -916,7 +1083,7 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
       const subtitle = bookData.coverSubtitle || bookData.cover?.subtitle;
       const subtitleY = titleY + titleSize + 15;
       const preparedSubtitle = preparePdfText(subtitle, {
-        latinFont: "Helvetica",
+        latinFont: latinFonts.regular,
         hebrewFont: HEBREW_FONT_REGULAR,
       });
 
@@ -949,6 +1116,7 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
   console.log(`Page backgroundColor: ${page.backgroundColor || "none"}`);
 
   const designData = getActiveDesignData(page, bookData);
+  const latinFonts = getPdfLatinFonts(designData);
   console.log(`Design data source: ${designData.source}`);
   if (designData.page) {
     console.log(`Design data page backgroundColor: ${designData.page.backgroundColor || "none"}`);
@@ -957,8 +1125,11 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
   // Add page
   doc.addPage({size: [pageSize.width, pageSize.height], margin: 0});
 
-  // Draw sophisticated background
-  drawThemeBackground(doc, pageSize, designData, bookData, "content");
+  // Draw background image (if any), otherwise template/theme vector background.
+  const bgImageDrawn = await drawPageBackgroundImage(doc, pageSize, page);
+  if (!bgImageDrawn) {
+    drawThemeBackground(doc, pageSize, designData, bookData, "content");
+  }
 
   // Draw decorations
   drawDecorations(doc, pageSize, designData);
@@ -1083,7 +1254,7 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
 
     console.log(`Adding caption: "${page.caption}" - Color: ${captionColor} - Size: ${captionSize}`);
     const preparedCaption = preparePdfText(page.caption, {
-      latinFont: "Times-Italic",
+      latinFont: latinFonts.italic,
       hebrewFont: HEBREW_FONT_REGULAR,
     });
     doc.fontSize(captionSize)
@@ -1101,7 +1272,7 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
   // Add page number (small, discrete)
   if (page.showPageNumber !== false) {
     doc.fontSize(9)
-        .font("Helvetica")
+        .font(latinFonts.regular)
         .fillColor("#999999")
         .text(pageNumber.toString(), 20, pageSize.height - 30, {
           width: pageSize.width - 40,
@@ -1123,6 +1294,7 @@ function createBackCoverPage(doc, bookData, pageSize) {
   console.log("\n=== CREATING BACK COVER ===");
 
   const designData = getActiveDesignData(null, bookData);
+  const latinFonts = getPdfLatinFonts(designData);
   console.log(`Design data source: ${designData.source}`);
 
   const bgColor = bookData.backCover?.backgroundColor ||
@@ -1142,7 +1314,7 @@ function createBackCoverPage(doc, bookData, pageSize) {
 
     console.log(`Adding back cover text: "${backCoverText}" - Color: ${textColor}`);
     const preparedBackText = preparePdfText(backCoverText, {
-      latinFont: "Helvetica",
+      latinFont: latinFonts.regular,
       hebrewFont: HEBREW_FONT_REGULAR,
     });
     doc.fontSize(12)
@@ -1221,9 +1393,28 @@ async function generatePdfDirectly(userId, bookData) {
   });
   registerPdfFonts(doc);
 
-  // Collect PDF data
-  const chunks = [];
-  doc.on("data", (chunk) => chunks.push(chunk));
+  // Stream PDF to Drive to avoid buffering huge PDFs in memory.
+  const {PassThrough} = require("stream");
+  const pdfStream = new PassThrough();
+  let totalBytes = 0;
+  doc.on("data", (chunk) => {
+    totalBytes += chunk.length;
+  });
+  doc.pipe(pdfStream);
+
+  // Start Drive upload immediately; the stream will be written as pages are generated.
+  const fileName = `${bookData.title || "Photo Book"}.pdf`;
+  const driveUploadPromise = drive.files.create({
+    requestBody: {
+      name: fileName,
+      mimeType: "application/pdf",
+    },
+    media: {
+      mimeType: "application/pdf",
+      body: pdfStream,
+    },
+    fields: "id, webViewLink, webContentLink",
+  });
 
   // Create pages in order: Cover -> Content -> Back Cover
   await createCoverPage(doc, bookData, pageSize, accessToken);
@@ -1244,32 +1435,15 @@ async function generatePdfDirectly(userId, bookData) {
 
   createBackCoverPage(doc, bookData, pageSize);
 
-  // Finalize PDF
-  const pdfBuffer = await new Promise((resolve, reject) => {
-    doc.on("end", () => {
-      const buffer = Buffer.concat(chunks);
-      resolve(buffer);
-    });
+  // Finalize PDF + wait for upload to finish
+  const file = await new Promise((resolve, reject) => {
     doc.on("error", reject);
+    driveUploadPromise.then(resolve).catch(reject);
     doc.end();
   });
 
-  const pdfSizeMB = (pdfBuffer.length / 1024 / 1024).toFixed(2);
-  console.log(`\n✓ PDF generated: ${pdfBuffer.length} bytes (${pdfSizeMB} MB)`);
-
-  // Upload to Google Drive
-  const fileName = `${bookData.title || "Photo Book"}.pdf`;
-  const file = await drive.files.create({
-    requestBody: {
-      name: fileName,
-      mimeType: "application/pdf",
-    },
-    media: {
-      mimeType: "application/pdf",
-      body: require("stream").Readable.from(pdfBuffer),
-    },
-    fields: "id, webViewLink, webContentLink",
-  });
+  const pdfSizeMB = (totalBytes / 1024 / 1024).toFixed(2);
+  console.log(`\n✓ PDF generated (streamed): ${totalBytes} bytes (${pdfSizeMB} MB)`);
 
   const fileId = file.data.id;
 

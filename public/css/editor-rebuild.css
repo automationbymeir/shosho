@@ -1,0 +1,499 @@
+/* ==========================================================================
+   NANABANNANA DESIGN SYSTEM - REBUILD v2.0
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. TOKENS & VARIABLES
+   -------------------------------------------------------------------------- */
+:root {
+    /* -- Colors: Cosmic Glass Theme -- */
+    --nana-bg: #0f172a;
+    /* Slate 900 */
+    --nana-bg-rgb: 15, 23, 42;
+    --nana-surface: rgba(255, 255, 255, 0.03);
+    --nana-surface-hover: rgba(255, 255, 255, 0.08);
+    --nana-surface-active: rgba(99, 102, 241, 0.15);
+    /* Indigo tint */
+
+    --nana-border: rgba(255, 255, 255, 0.08);
+    --nana-border-light: rgba(255, 255, 255, 0.12);
+    --nana-border-focus: #6366f1;
+
+    --nana-primary: #6366f1;
+    /* Indigo 500 */
+    --nana-primary-hover: #4f46e5;
+    /* Indigo 600 */
+    --nana-text-main: #f8fafc;
+    /* Slate 50 */
+    --nana-text-muted: #94a3b8;
+    /* Slate 400 */
+    --nana-text-dim: #64748b;
+    /* Slate 500 */
+
+    --nana-danger: #ef4444;
+
+    /* -- Spacing Scale (Strict 4px Grid) -- */
+    --s-1: 4px;
+    --s-2: 8px;
+    --s-3: 12px;
+    --s-4: 16px;
+    --s-5: 20px;
+    --s-6: 24px;
+    --s-8: 32px;
+    --s-10: 40px;
+    --s-12: 48px;
+    --s-16: 64px;
+
+    /* -- Dimensions -- */
+    --w-rail: 64px;
+    --w-drawer: 320px;
+    --w-inspector: 300px;
+    --h-header: 56px;
+    --h-toolbar: 48px;
+
+    /* -- Effects -- */
+    --nana-radius: 12px;
+    --nana-radius-sm: 8px;
+    --nana-radius-pill: 9999px;
+    --nana-blur: 20px;
+    --nana-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.3);
+    --nana-glow: 0 0 0 1px var(--nana-primary);
+
+    /* -- Typography -- */
+    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-serif: 'Playfair Display', serif;
+}
+
+/* --------------------------------------------------------------------------
+   2. GLOBAL RESET (Scoped to .editor-view-rebuild)
+   -------------------------------------------------------------------------- */
+.editor-view-rebuild {
+    font-family: var(--font-main);
+    color: var(--nana-text-main);
+    background-color: var(--nana-bg);
+    /* Subtle consistent gradient */
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 25%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 25%);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+
+    /* Layout Lock */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+}
+
+.editor-view-rebuild * {
+    box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   3. PRIMITIVE COMPONENTS
+   -------------------------------------------------------------------------- */
+
+/* -- Flex Helpers -- */
+.row {
+    display: flex;
+    align-items: center;
+}
+
+.col {
+    display: flex;
+    flex-direction: column;
+}
+
+.gap-1 {
+    gap: var(--s-1);
+}
+
+.gap-2 {
+    gap: var(--s-2);
+}
+
+.gap-3 {
+    gap: var(--s-3);
+}
+
+.gap-4 {
+    gap: var(--s-4);
+}
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.flex-1 {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+}
+
+/* -- Glass Panels -- */
+.glass-panel {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(var(--nana-blur));
+    -webkit-backdrop-filter: blur(var(--nana-blur));
+    border: 1px solid var(--nana-border);
+}
+
+/* -- Buttons -- */
+.btn-reset {
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    cursor: pointer;
+    color: inherit;
+}
+
+.btn-nana {
+    height: 36px;
+    padding: 0 var(--s-4);
+    border-radius: var(--nana-radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.btn-nana-primary {
+    background: var(--nana-primary);
+    color: white;
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+}
+
+.btn-nana-primary:hover {
+    background: var(--nana-primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-nana-ghost {
+    background: transparent;
+    color: var(--nana-text-muted);
+}
+
+.btn-nana-ghost:hover {
+    color: var(--nana-text-main);
+    background: var(--nana-surface-hover);
+}
+
+.btn-nana-icon {
+    width: 36px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+.icon-box {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* -- Text -- */
+.text-h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--nana-text-main);
+    line-height: 1.2;
+}
+
+.text-h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--nana-text-main);
+}
+
+.text-h3 {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--nana-text-main);
+}
+
+.text-body {
+    font-size: 13px;
+    color: var(--nana-text-muted);
+}
+
+.text-caption {
+    font-size: 11px;
+    color: var(--nana-text-dim);
+}
+
+/* --------------------------------------------------------------------------
+   4. LAYOUT REGIONS
+   -------------------------------------------------------------------------- */
+
+/* -- Header -- */
+.rebuild-header {
+    height: var(--h-header);
+    border-bottom: 1px solid var(--nana-border);
+    padding: 0 var(--s-4);
+    z-index: 50;
+    flex-shrink: 0;
+}
+
+/* -- Main Grid: Rail | Stage | Inspector -- */
+.rebuild-main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+}
+
+/* -- Smart Rail -- */
+.rebuild-rail {
+    width: var(--w-rail);
+    border-right: 1px solid var(--nana-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--s-4) 0;
+    gap: var(--s-4);
+    z-index: 40;
+    /* Glass Effect included in glass-panel class */
+}
+
+/* -- Rail Item -- * */
+.rail-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--nana-radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--nana-text-muted);
+    transition: 0.2s;
+    background: transparent;
+    cursor: pointer;
+    border: none;
+}
+
+.rail-btn:hover {
+    background: var(--nana-surface-hover);
+    color: var(--nana-text-main);
+}
+
+.rail-btn.active {
+    background: var(--nana-surface-active);
+    color: var(--nana-primary);
+    box-shadow: inset 0 0 0 1px var(--nana-border-focus);
+}
+
+.rail-btn span {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.rail-btn label {
+    font-size: 9px;
+    margin-top: 2px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* -- Drawer (Slide-out) -- */
+.rebuild-drawer {
+    width: 0;
+    /* Hidden state */
+    display: flex;
+    /* Flex but width 0 hides content */
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid var(--nana-border);
+    transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    background: rgba(15, 23, 42, 0.8);
+    /* Slightly more opaque */
+    z-index: 30;
+}
+
+.rebuild-drawer.is-open {
+    width: var(--w-drawer);
+}
+
+.drawer-content {
+    width: var(--w-drawer);
+    /* Fixed inner width to prevent squishing */
+    height: 100%;
+    display: none;
+    /* Toggled by JS ID */
+    flex-direction: column;
+}
+
+.drawer-content.active {
+    display: flex;
+}
+
+.drawer-header {
+    height: 56px;
+    padding: 0 var(--s-4);
+    border-bottom: 1px solid var(--nana-border);
+    justify-content: center;
+}
+
+.drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--s-4);
+}
+
+.drawer-body.no-pad {
+    padding: 0;
+}
+
+/* -- Stage -- */
+.rebuild-stage {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    /* Gradient Background */
+    background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 60%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    /* Lowest level */
+}
+
+/* The actual container for the 3D book or Flat Canvas */
+#photoBookContainer,
+#designCanvasContainer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 2000px;
+    z-index: 1;
+}
+
+/* Ensure the 3D book internal structure isn't broken */
+#photoBookContainer * {
+    /* We might need to un-reset some things if the legacy code relies on default box-model,
+       but usually border-box is safer. We'll monitor this. */
+}
+
+/* Ensure canvas does not escape */
+#photoBookContainer canvas {
+    outline: none;
+    z-index: 1 !important;
+}
+
+/* -- Floating Toolbar -- */
+.floating-toolbar {
+    position: absolute;
+    bottom: var(--s-8);
+    left: 50%;
+    transform: translateX(-50%);
+    height: var(--h-toolbar);
+    border-radius: var(--nana-radius-pill);
+    padding: 0 var(--s-2);
+    z-index: 9999;
+    /* Max Z-Index */
+}
+
+/* -- Inspector (Right) -- */
+.rebuild-inspector {
+    width: var(--w-inspector);
+    border-left: 1px solid var(--nana-border);
+    display: flex;
+    flex-direction: column;
+    z-index: 40;
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.inspector-header {
+    height: 56px;
+    border-bottom: 1px solid var(--nana-border);
+    padding: 0 var(--s-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.inspector-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--s-4);
+}
+
+/* -- Settings Cards -- */
+.setting-group {
+    background: var(--nana-surface);
+    border: 1px solid var(--nana-border);
+    border-radius: var(--nana-radius);
+    padding: var(--s-3);
+    margin-bottom: var(--s-4);
+}
+
+/* -- Legacy Input Overrides -- */
+.rebuild-inspector input[type="text"],
+.rebuild-inspector input[type="number"],
+.rebuild-inspector select {
+    width: 100%;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--nana-border);
+    border-radius: 6px;
+    color: var(--nana-text-main);
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+.rebuild-inspector input:focus,
+.rebuild-inspector select:focus {
+    outline: none;
+    border-color: var(--nana-primary);
+}
+
+/* Grid for Photos */
+.photo-grid,
+.photo-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s-2);
+    padding: var(--s-3);
+}
+
+.grid-item {
+    aspect-ratio: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.grid-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.grid-item:hover {
+    box-shadow: 0 0 0 2px var(--nana-primary);
+}

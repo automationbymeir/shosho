@@ -1,0 +1,362 @@
+/*
+ * Shoso Support Chat Widget
+ * - AI support bot (calls Cloud Function: supportChat)
+ * - Escalation to human agent (calls: supportRequestAgent)
+ * - Polls for agent replies (calls: supportGetMessages)
+ */
+
+(function () {
+  "use strict";
+
+  const PROJECT_ID = "shoso-photobook";
+  const REGION = "us-central1";
+
+  const BASE_URL = (window.location.hostname === "localhost")
+    ? `http://127.0.0.1:5001/${PROJECT_ID}/${REGION}`
+    : `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
+
+  const ENDPOINTS = {
+    chat: `${BASE_URL}/supportChat`,
+    requestAgent: `${BASE_URL}/supportRequestAgent`,
+    getMessages: `${BASE_URL}/supportGetMessages`,
+  };
+
+  const STORAGE_KEYS = {
+    sessionId: "shoso_support_session_id",
+    ticketId: "shoso_support_ticket_id",
+  };
+
+  function uuid() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function getSessionId() {
+    try {
+      const existing = localStorage.getItem(STORAGE_KEYS.sessionId);
+      if (existing) return existing;
+      const id = uuid();
+      localStorage.setItem(STORAGE_KEYS.sessionId, id);
+      return id;
+    } catch {
+      return uuid();
+    }
+  }
+
+  function getTicketId() {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.ticketId);
+    } catch {
+      return null;
+    }
+  }
+
+  function setTicketId(ticketId) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.ticketId, ticketId);
+    } catch {
+      // ignore
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text == null ? "" : String(text);
+    return div.innerHTML;
+  }
+
+  function injectStyles() {
+    if (document.getElementById("shoso-support-style")) return;
+
+    const style = document.createElement("style");
+    style.id = "shoso-support-style";
+    style.textContent = `
+      .shoso-support-bubble{position:fixed;right:18px;bottom:18px;z-index:99999;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;}
+      .shoso-support-btn{display:flex;align-items:center;gap:10px;background:#111827;color:#fff;border:none;border-radius:9999px;padding:12px 16px;cursor:pointer;box-shadow:0 10px 25px rgba(0,0,0,.18);}
+      .shoso-support-btn span{font-weight:600;font-size:14px;}
+      .shoso-support-panel{position:fixed;right:18px;bottom:74px;width:360px;max-width:calc(100vw - 36px);height:480px;max-height:calc(100vh - 120px);background:#fff;border:1px solid rgba(15,23,42,.12);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.2);overflow:hidden;display:none;z-index:99999;}
+      .shoso-support-panel.open{display:flex;flex-direction:column;}
+      .shoso-support-header{display:flex;align-items:center;justify-content:space-between;padding:12px 12px;border-bottom:1px solid rgba(15,23,42,.08);background:#0f172a;color:#fff;}
+      .shoso-support-title{display:flex;flex-direction:column;gap:2px;}
+      .shoso-support-title b{font-size:14px;}
+      .shoso-support-title small{opacity:.8;font-size:12px;}
+      .shoso-support-close{background:transparent;border:none;color:#fff;font-size:22px;line-height:1;cursor:pointer;padding:2px 6px;}
+      .shoso-support-messages{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px;background:#f8fafc;}
+      .shoso-msg{max-width:85%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.35;white-space:pre-wrap;}
+      .shoso-msg.user{align-self:flex-end;background:#111827;color:#fff;border-bottom-right-radius:6px;}
+      .shoso-msg.assistant{align-self:flex-start;background:#fff;color:#0f172a;border:1px solid rgba(15,23,42,.08);border-bottom-left-radius:6px;}
+      .shoso-msg.agent{align-self:flex-start;background:#ecfeff;color:#0f172a;border:1px solid rgba(6,182,212,.25);border-bottom-left-radius:6px;}
+      .shoso-support-footer{border-top:1px solid rgba(15,23,42,.08);padding:10px;background:#fff;display:flex;flex-direction:column;gap:8px;}
+      .shoso-support-inputrow{display:flex;gap:8px;}
+      .shoso-support-input{flex:1;border:1px solid rgba(15,23,42,.14);border-radius:12px;padding:10px 12px;font-size:13px;outline:none;}
+      .shoso-support-send{background:#0f172a;color:#fff;border:none;border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:600;}
+      .shoso-support-actions{display:flex;gap:8px;justify-content:space-between;align-items:center;}
+      .shoso-support-link{background:transparent;border:none;color:#0f172a;text-decoration:underline;cursor:pointer;font-size:12px;padding:0;}
+      .shoso-support-agentbox{display:none;gap:8px;flex-direction:column;border:1px dashed rgba(15,23,42,.25);border-radius:12px;padding:10px;}
+      .shoso-support-agentbox.open{display:flex;}
+      .shoso-support-note{font-size:12px;color:#475569;}
+      .shoso-support-small{font-size:12px;color:#64748b;}
+      @media (max-width: 420px){.shoso-support-panel{width:calc(100vw - 36px);height:70vh;}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function buildUI() {
+    injectStyles();
+
+    const bubble = document.createElement("div");
+    bubble.className = "shoso-support-bubble";
+
+    const panel = document.createElement("div");
+    panel.className = "shoso-support-panel";
+
+    const header = document.createElement("div");
+    header.className = "shoso-support-header";
+    header.innerHTML = `
+      <div class="shoso-support-title">
+        <b>Shoso Support</b>
+        <small>AI help + human agent (up to 24h)</small>
+      </div>
+      <button class="shoso-support-close" aria-label="Close">×</button>
+    `;
+
+    const messages = document.createElement("div");
+    messages.className = "shoso-support-messages";
+
+    const footer = document.createElement("div");
+    footer.className = "shoso-support-footer";
+    footer.innerHTML = `
+      <div class="shoso-support-actions">
+        <button class="shoso-support-link" type="button" data-action="walkthrough">Walk me through the app</button>
+        <button class="shoso-support-link" type="button" data-action="agent">Talk to an agent</button>
+      </div>
+      <div class="shoso-support-agentbox" id="shosoSupportAgentBox">
+        <div class="shoso-support-note"><b>Human support:</b> a reply may take up to 24 hours.</div>
+        <input class="shoso-support-input" id="shosoSupportEmail" type="email" placeholder="Your email (required)" autocomplete="email" />
+        <input class="shoso-support-input" id="shosoSupportSummary" type="text" placeholder="What do you need help with? (optional)" />
+        <button class="shoso-support-send" id="shosoSupportSubmitAgent" type="button">Send to human agent</button>
+        <div class="shoso-support-small" id="shosoSupportAgentStatus" style="display:none;"></div>
+      </div>
+      <div class="shoso-support-inputrow">
+        <input class="shoso-support-input" id="shosoSupportInput" type="text" placeholder="Ask a question…" />
+        <button class="shoso-support-send" id="shosoSupportSend" type="button">Send</button>
+      </div>
+      <div class="shoso-support-small">Tip: type “help” for a guided walkthrough.</div>
+    `;
+
+    const openBtn = document.createElement("button");
+    openBtn.className = "shoso-support-btn";
+    openBtn.type = "button";
+    openBtn.innerHTML = `<span>Help</span>`;
+
+    bubble.appendChild(openBtn);
+    panel.appendChild(header);
+    panel.appendChild(messages);
+    panel.appendChild(footer);
+
+    document.body.appendChild(bubble);
+    document.body.appendChild(panel);
+
+    return { panel, openBtn, header, messages, footer };
+  }
+
+  function scrollToBottom(container) {
+    try {
+      container.scrollTop = container.scrollHeight;
+    } catch {
+      // ignore
+    }
+  }
+
+  function addMessage(container, role, text) {
+    const el = document.createElement("div");
+    const cls = role === "user" ? "user" : (role === "agent" ? "agent" : "assistant");
+    el.className = `shoso-msg ${cls}`;
+    el.innerHTML = escapeHtml(text || "");
+    container.appendChild(el);
+    scrollToBottom(container);
+  }
+
+  async function postJson(url, body) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data && data.error ? data.error : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  async function fetchMessages(ticketId, sessionId) {
+    const url = new URL(ENDPOINTS.getMessages);
+    if (ticketId) url.searchParams.set("ticketId", ticketId);
+    if (!ticketId && sessionId) url.searchParams.set("sessionId", sessionId);
+    url.searchParams.set("limit", "200");
+
+    const res = await fetch(url.toString(), { method: "GET" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  function startPolling({ container }) {
+    let lastSig = "";
+
+    async function tick() {
+      const ticketId = getTicketId();
+      const sessionId = getSessionId();
+      if (!ticketId && !sessionId) return;
+
+      try {
+        const data = await fetchMessages(ticketId, sessionId);
+        if (!data || !data.success || !Array.isArray(data.messages)) return;
+
+        const sig = JSON.stringify(data.messages.map((m) => [m.role, m.text, m.createdAt]));
+        if (sig === lastSig) return;
+        lastSig = sig;
+
+        container.innerHTML = "";
+        data.messages.forEach((m) => addMessage(container, m.role, m.text));
+      } catch {
+        // ignore polling errors
+      }
+    }
+
+    // [DEBUG] Polling disabled to clear logs
+    // tick();
+    // tick();
+    // setInterval(tick, 300000);
+  }
+
+  function init() {
+    const { panel, openBtn, header, messages, footer } = buildUI();
+
+    const closeBtn = header.querySelector(".shoso-support-close");
+    const input = footer.querySelector("#shosoSupportInput");
+    const sendBtn = footer.querySelector("#shosoSupportSend");
+    const agentBtn = footer.querySelector("[data-action='agent']");
+    const walkthroughBtn = footer.querySelector("[data-action='walkthrough']");
+
+    const agentBox = footer.querySelector("#shosoSupportAgentBox");
+    const agentEmail = footer.querySelector("#shosoSupportEmail");
+    const agentSummary = footer.querySelector("#shosoSupportSummary");
+    const agentSubmit = footer.querySelector("#shosoSupportSubmitAgent");
+    const agentStatus = footer.querySelector("#shosoSupportAgentStatus");
+
+    function open() {
+      panel.classList.add("open");
+      if (messages.childElementCount === 0) {
+        addMessage(messages, "assistant", "Hi! I can help you use Shoso. Ask me anything, or type ‘help’ for a walkthrough.");
+      }
+      input.focus();
+    }
+
+    function close() {
+      panel.classList.remove("open");
+    }
+
+    openBtn.addEventListener("click", () => {
+      if (panel.classList.contains("open")) close();
+      else open();
+    });
+
+    closeBtn.addEventListener("click", close);
+
+    walkthroughBtn.addEventListener("click", async () => {
+      open();
+      input.value = "help";
+      sendBtn.click();
+    });
+
+    agentBtn.addEventListener("click", () => {
+      agentBox.classList.toggle("open");
+      if (agentBox.classList.contains("open")) {
+        agentEmail.focus();
+      }
+    });
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+
+      addMessage(messages, "user", text);
+
+      try {
+        const sessionId = getSessionId();
+        const data = await postJson(ENDPOINTS.chat, {
+          sessionId,
+          message: text,
+          pageUrl: window.location.href,
+        });
+
+        if (data && data.reply) {
+          addMessage(messages, "assistant", data.reply);
+        } else {
+          addMessage(messages, "assistant", "I couldn’t generate a response right now.");
+        }
+      } catch (e) {
+        addMessage(messages, "assistant", `Error: ${e.message}`);
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    agentSubmit.addEventListener("click", async () => {
+      const email = agentEmail.value.trim();
+      const summary = agentSummary.value.trim();
+
+      agentStatus.style.display = "block";
+      agentStatus.textContent = "Sending…";
+
+      try {
+        const sessionId = getSessionId();
+        const data = await postJson(ENDPOINTS.requestAgent, {
+          sessionId,
+          userEmail: email,
+          summary: summary || null,
+          pageUrl: window.location.href,
+        });
+
+        if (data && data.success && data.ticketId) {
+          setTicketId(data.ticketId);
+          agentStatus.textContent = "Sent. A human agent may take up to 24 hours to reply.";
+          addMessage(messages, "assistant", data.message || "Sent to a human agent (reply may take up to 24 hours).");
+          agentBox.classList.remove("open");
+        } else {
+          agentStatus.textContent = "Failed to send.";
+        }
+      } catch (e) {
+        agentStatus.textContent = `Error: ${e.message}`;
+      }
+    });
+
+    // Start polling so agent replies appear in the chat.
+    startPolling({ container: messages });
+
+    // Auto-open on pages that contain a ?support=1 flag
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("support") === "1") open();
+    } catch {
+      // ignore
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+
+
+

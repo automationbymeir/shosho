@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Info – Shoso</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/styles.css" />
+  <!-- Mobile redirect (sends mobile devices to /mobile/*) -->
+  <script src="/js/mobile-redirect.js"></script>
+  <style>
+    .info-wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px; }
+    .info-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 18px; }
+    .info-title { font-family: var(--font-serif); margin: 0 0 6px; }
+    .info-sub { color: var(--color-text-light); margin: 0 0 14px; }
+    .info-body { color: var(--color-text); line-height: 1.6; }
+    .info-actions { display:flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <div class="info-wrap">
+    <div class="info-card">
+      <h1 class="info-title" id="infoTitle">Info</h1>
+      <p class="info-sub" id="infoSubtitle">This page is a placeholder for now.</p>
+      <div class="info-body" id="infoBody">
+        Loading…
+      </div>
+      <div class="info-actions">
+        <a class="btn btn-secondary" href="/Landing.html">← Back to Landing</a>
+        <a class="btn btn-secondary" href="/index.html">Open Editor</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const qs = new URLSearchParams(window.location.search);
+      const p = (qs.get('p') || 'info').toLowerCase();
+
+      const titleMap = {
+        about: 'About Shoso',
+        blog: 'Blog',
+        careers: 'Careers',
+        contact: 'Contact',
+        help: 'Help Center',
+        shipping: 'Shipping Info',
+        returns: 'Returns',
+        faq: 'FAQ',
+        privacy: 'Privacy Policy',
+        terms: 'Terms of Service',
+        cookies: 'Cookie Policy',
+        social: 'Social',
+      };
+
+      const bodyMap = {
+        about: 'We\'re building an AI-powered photo book creator. This page will be filled in soon.',
+        blog: 'Blog content coming soon.',
+        careers: 'Open roles will be posted here soon.',
+        contact: 'Contact options coming soon. For now, please reach out via your preferred channel.',
+        help: 'Help content coming soon.',
+        shipping: 'Shipping details coming soon.',
+        returns: 'Returns policy coming soon.',
+        faq: 'FAQs coming soon.',
+        privacy: 'Privacy Policy coming soon.',
+        terms: 'Terms of Service coming soon.',
+        cookies: 'Cookie Policy coming soon.',
+        social: 'Our social links will be added here soon.',
+      };
+
+      const title = titleMap[p] || 'Info';
+      const body = bodyMap[p] || 'This page is not available yet.';
+
+      const titleEl = document.getElementById('infoTitle');
+      const subEl = document.getElementById('infoSubtitle');
+      const bodyEl = document.getElementById('infoBody');
+
+      if (titleEl) titleEl.textContent = title;
+      if (subEl) subEl.textContent = 'Coming soon (placeholder)';
+      if (bodyEl) bodyEl.innerHTML = '<p>' + body.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p><p class="info-sub">Ref: <code>' + p + '</code></p>';
+    })();
+  </script>
+</body>
+</html>
+
+
+
+
+
+

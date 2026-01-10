@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagonal Overlay Fix Test</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/book-3d-enhanced.css">
+  <style>
+    body {
+      padding: 2rem;
+      background: #f5f5f5;
+    }
+    .test-section {
+      margin-bottom: 3rem;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    .page-preview {
+      width: 800px;
+      height: 550px;
+      margin: 2rem auto;
+      border: 2px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <h1>Diagonal Overlay Bug Fix Test</h1>
+  
+  <div class="test-section">
+    <h2>Test 1: Page Preview with 3D Spread (Hover Test)</h2>
+    <p>Hover over the book below. There should be NO diagonal white overlay.</p>
+    <div class="page-preview is-book-spread" style="position: relative;">
+      <div class="book3d" style="--book-thickness: 32px; --cover-color: #2c3e50;">
+        <div class="book3d-stage">
+          <div class="book3d-body">
+            <div class="book3d-spine"></div>
+            <div class="book3d-foreedge"></div>
+            <div class="book3d-bottom"></div>
+            
+            <div class="book3d-spread">
+              <div class="book3d-page is-active">
+                <div style="padding: 2rem; background: #fdfbf7; height: 100%;">
+                  <h3>Left Page</h3>
+                  <p>This content should be fully visible when hovering.</p>
+                </div>
+              </div>
+              <div class="book3d-gutter"></div>
+              <div class="book3d-page">
+                <div style="padding: 2rem; background: #fdfbf7; height: 100%;">
+                  <h3>Right Page</h3>
+                  <p>This content should also be fully visible when hovering.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="color: green; font-weight: bold;">✓ If you can see both pages clearly when hovering, the fix works!</p>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 2: Verify ::before pseudo-element is disabled</h2>
+    <p>Check the browser console for computed styles. The ::before should have display: none.</p>
+    <div id="testResult"></div>
+  </div>
+
+  <script>
+    // Test if ::before is properly disabled
+    const pagePreview = document.querySelector('.page-preview.is-book-spread');
+    if (pagePreview) {
+      const beforeStyle = window.getComputedStyle(pagePreview, '::before');
+      const display = beforeStyle.display;
+      const content = beforeStyle.content;
+      
+      const resultDiv = document.getElementById('testResult');
+      if (display === 'none' || content === 'none' || content === '') {
+        resultDiv.innerHTML = '<p style="color: green;">✓ ::before pseudo-element is properly disabled (display: ' + display + ', content: ' + content + ')</p>';
+      } else {
+        resultDiv.innerHTML = '<p style="color: red;">✗ ::before pseudo-element is still active (display: ' + display + ', content: ' + content + ')</p>';
+      }
+    }
+  </script>
+</body>
+</html>
+
+
+

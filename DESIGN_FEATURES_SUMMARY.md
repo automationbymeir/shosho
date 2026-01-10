@@ -88,3 +88,9 @@ See `DESIGN_MCP_INTEGRATION.md` for:
 
 **Ready to add AI-powered design features to your Photo Book Creator!** 🎨
 
+
+
+
+
+
+

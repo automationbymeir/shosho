@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor Redesign Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@400;500;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* =========================================
+     1. BASE RESET & VARS (Simulating styles.css)
+     ========================================= */
+  :root {
+    --app-header-height: 64px;
+    --rail-width: 72px;
+    --drawer-width: 280px;
+    --right-sidebar-width: 300px;
+    
+    /* Design Offer Palette */
+    --color-brand: #00897B; /* Teal */
+    --color-brand-hover: #00796B;
+    --color-bg-canvas: #F3F4F6;
+    --color-text-dark: #1F2937;
+    --color-text-gray: #6B7280;
+    --color-border-light: #E5E7EB;
+    --font-serif: 'Playfair Display', serif;
+    --font-sans: 'Montserrat', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--font-sans); color: var(--color-text-dark); background: #fff; height: 100vh; overflow: hidden; }
+  button { font-family: inherit; }
+
+  /* =========================================
+     2. HEADER STYLES
+     ========================================= */
+  .modern-header {
+    height: var(--app-header-height);
+    background: #ffffff;
+    border-bottom: 1px solid var(--color-border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    z-index: 50;
+    position: relative;
+  }
+  .header-left, .header-right { display: flex; align-items: center; gap: 16px; }
+  
+  .btn-icon-back {
+    background: none; border: none; cursor: pointer; color: var(--color-text-dark);
+    padding: 8px; border-radius: 50%; transition: background 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-icon-back:hover { background: var(--color-bg-canvas); }
+
+  .header-title-group h1 {
+    font-family: var(--font-serif); font-size: 20px; font-weight: 700; margin: 0; line-height: 1.2;
+  }
+  .template-badge {
+    display: inline-block; font-size: 11px; font-weight: 600; color: #059669;
+    background: #D1FAE5; padding: 2px 8px; border-radius: 12px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .btn-ghost {
+    background: transparent; border: none; font-size: 14px; font-weight: 500;
+    color: var(--color-text-gray); cursor: pointer; padding: 8px 12px; border-radius: 6px;
+  }
+  .btn-ghost:hover { background: var(--color-bg-canvas); color: var(--color-text-dark); }
+
+  .btn-generate {
+    background-color: var(--color-brand); color: white; border: none;
+    padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;
+    cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 137, 123, 0.3); transition: all 0.2s;
+  }
+  .btn-generate:hover { background-color: var(--color-brand-hover); transform: translateY(-1px); }
+
+  /* =========================================
+     3. LAYOUT STRUCTURE
+     ========================================= */
+  .modern-layout {
+    display: flex;
+    height: calc(100vh - var(--app-header-height));
+    overflow: hidden;
+    background-color: var(--color-bg-canvas);
+  }
+
+  /* =========================================
+     4. SIDEBAR RAIL
+     ========================================= */
+  .sidebar-rail {
+    width: var(--rail-width); background: white; border-right: 1px solid var(--color-border-light);
+    display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 12px; z-index: 40;
+  }
+  .rail-item {
+    width: 56px; height: 60px; background: transparent; border: none; border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--color-text-gray); transition: all 0.2s;
+  }
+  .rail-item:hover { background: #F9FAFB; color: var(--color-brand); }
+  .rail-item.active { background: #F0FDFA; color: var(--color-brand); }
+  .rail-icon { font-size: 20px; margin-bottom: 4px; display: block; }
+  .rail-label { font-size: 10px; font-weight: 600; }
+  .rail-spacer { flex: 1; }
+
+  /* =========================================
+     5. SIDEBAR DRAWER (Panels)
+     ========================================= */
+  .sidebar-drawer {
+    width: var(--drawer-width); background: white; border-right: 1px solid var(--color-border-light);
+    display: flex; flex-direction: column;
+  }
+  .drawer-header { padding: 20px; border-bottom: 1px solid var(--color-border-light); }
+  .drawer-header h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--color-text-dark); }
+  .drawer-header p { margin: 4px 0 0; font-size: 13px; color: var(--color-text-gray); }
+  
+  .header-row { display: flex; justify-content: space-between; align-items: center; }
+  .drawer-actions-row { margin-top: 10px; display: flex; gap: 10px; }
+  .btn-text-small { background: none; border: none; font-size: 12px; color: var(--color-brand); cursor: pointer; padding: 0; font-weight: 600; }
+
+  .drawer-body { padding: 20px; overflow-y: auto; flex: 1; }
+  .drawer-body.no-padding { padding: 0; }
+
+  /* Tabs Logic (Visual) */
+  .tab-content { display: none; height: 100%; flex-direction: column; }
+  .tab-content.active { display: flex; }
+
+  /* Mock Content Styles */
+  .btn-outline-primary {
+    border: 1px solid var(--color-brand); color: var(--color-brand); background: transparent;
+    border-radius: 8px; padding: 12px; font-weight: 600; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; gap: 8px; width: 100%;
+  }
+  .btn-outline-primary:hover { background: #F0FDFA; }
+  
+  .info-message {
+    margin-top: 15px; font-size: 13px; color: var(--color-text-gray); text-align: center; line-height: 1.5;
+  }
+
+  .selected-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+  }
+  .grid-placeholder {
+    aspect-ratio: 1; background: #eee; border: 1px solid #fff; position: relative;
+  }
+  .grid-placeholder:hover { opacity: 0.8; cursor: pointer; }
+  .empty-state { padding: 20px; text-align: center; color: #999; font-size: 13px; }
+
+  .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .tool-btn {
+    background: #F9FAFB; border: 1px solid var(--color-border-light); padding: 10px;
+    border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center;
+  }
+  .tool-btn:hover { border-color: var(--color-brand); color: var(--color-brand); }
+
+  /* =========================================
+     6. MAIN EDITOR STAGE
+     ========================================= */
+  .editor-stage {
+    flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  .stage-toolbar.floating-pill {
+    position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+    background: white; padding: 6px 12px; border-radius: 99px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    display: flex; align-items: center; gap: 8px; z-index: 30; border: 1px solid rgba(0,0,0,0.05);
+  }
+
+  .btn-stage-tool {
+    background: transparent; border: none; padding: 8px 12px; border-radius: 20px;
+    display: flex; align-items: center; gap: 6px; color: var(--color-text-dark);
+    font-weight: 500; font-size: 13px; cursor: pointer;
+  }
+  .btn-stage-tool:hover { background: var(--color-bg-canvas); }
+  .btn-stage-tool.accent { color: var(--color-brand); background: #F0FDFA; font-weight: 600; }
+  .btn-stage-tool.accent:hover { background: #CCFBF1; }
+
+  .toolbar-divider { width: 1px; height: 20px; background: var(--color-border-light); margin: 0 4px; }
+
+  .stage-canvas-wrapper {
+    flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto;
+    padding: 80px 40px 100px;
+    background-image: radial-gradient(#E5E7EB 1px, transparent 1px); background-size: 20px 20px;
+  }
+
+  .mock-page-preview {
+    width: 600px; height: 400px; background: white; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .mock-photo-slot {
+    width: 80%; height: 80%; border: 2px dashed #E5E7EB; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; color: #9CA3AF;
+  }
+
+  .stage-navigator {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 16px; z-index: 30;
+  }
+  .nav-arrow {
+    width: 36px; height: 36px; border-radius: 50%; background: white; border: 1px solid var(--color-border-light);
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .page-thumbnails-track {
+    display: flex; gap: 8px; padding: 6px; background: white;
+    border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid var(--color-border-light);
+  }
+  .thumb { width: 30px; height: 30px; background: #eee; border-radius: 4px; cursor: pointer; }
+  .thumb.active { background: var(--color-brand); }
+
+  /* =========================================
+     7. RIGHT SIDEBAR (Settings)
+     ========================================= */
+  .settings-sidebar {
+    width: var(--right-sidebar-width); background: white; border-left: 1px solid var(--color-border-light);
+    display: flex; flex-direction: column;
+  }
+  .settings-header { padding: 20px; border-bottom: 1px solid var(--color-border-light); }
+  .settings-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  
+  .settings-scroll-content {
+    padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .setting-card {
+    background: white; border: 1px solid var(--color-border-light);
+    border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .setting-card-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+  }
+  .setting-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+  
+  /* Toggle Switch */
+  .toggle-switch { position: relative; width: 36px; height: 20px; display: inline-block; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #E5E7EB; transition: .3s; border-radius: 34px;
+  }
+  .slider:before {
+    position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px;
+    background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  input:checked + .slider { background-color: var(--color-brand); }
+  input:checked + .slider:before { transform: translateX(16px); }
+
+  /* Controls */
+  .modern-select, .modern-input {
+    width: 100%; padding: 8px 12px; border: 1px solid var(--color-border-light);
+    border-radius: 8px; font-size: 13px; background: #F9FAFB; outline: none; margin-top: 4px;
+  }
+  .modern-select:focus, .modern-input:focus { border-color: var(--color-brand); background: white; }
+  
+  .control-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .color-preview {
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid #ddd;
+    background: #ffffff; cursor: pointer;
+  }
+  .btn-small {
+    padding: 6px 12px; border: 1px solid var(--color-border-light); background: white;
+    border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+  .btn-small:hover { background: #f3f4f6; }
+</style>
+</head>
+<body>
+
+  <header class="modern-header">
+    <div class="header-left">
+      <button class="btn-icon-back">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <div class="header-title-group">
+        <h1>Photo Book Creator</h1>
+        <span class="template-badge">Vintage Botanical</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-ghost">New album</button>
+      <button class="btn-ghost">Save</button>
+      <button class="btn-ghost">Profile</button>
+      <button class="btn-generate">Generate Book</button>
+    </div>
+  </header>
+
+  <div class="modern-layout">
+    
+    <aside class="sidebar-rail">
+      <button class="rail-item active" onclick="switchMockTab('picker', this)">
+        <span class="rail-icon">🖼️</span>
+        <span class="rail-label">Photos</span>
+      </button>
+      <button class="rail-item" onclick="switchMockTab('selected', this)">
+        <span class="rail-icon">❤️</span>
+        <span class="rail-label">Selected</span>
+      </button>
+      <button class="rail-item" onclick="switchMockTab('design', this)">
+        <span class="rail-icon">🎨</span>
+        <span class="rail-label">Design</span>
+      </button>
+      <div class="rail-spacer"></div>
+      <button class="rail-item">
+        <span class="rail-icon">📅</span>
+        <span class="rail-label">Templates</span>
+      </button>
+    </aside>
+
+    <aside class="sidebar-drawer">
+      
+      <div class="tab-content active" id="tab-picker">
+        <div class="drawer-header">
+          <h3>Library</h3>
+          <p>Select photos for your book</p>
+        </div>
+        <div class="drawer-body">
+          <button class="btn-outline-primary">
+            <span>☁️</span> Open Google Photos
+          </button>
+          <div class="info-message">
+            Connect your Google Photos account to start selecting memories for your book.
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-selected">
+        <div class="drawer-header">
+          <div class="header-row">
+            <h3>Selected</h3>
+            <span style="font-size:12px; background:#eee; padding:2px 6px; border-radius:10px;">12</span>
+          </div>
+          <div class="drawer-actions-row">
+             <button class="btn-text-small">Clear</button>
+             <button class="btn-text-small">Shuffle</button>
+          </div>
+        </div>
+        <div class="drawer-body no-padding">
+           <div class="selected-grid">
+             <div class="grid-placeholder" style="background:#FFCDD2;"></div>
+             <div class="grid-placeholder" style="background:#C8E6C9;"></div>
+             <div class="grid-placeholder" style="background:#BBDEFB;"></div>
+             <div class="grid-placeholder" style="background:#E1BEE7;"></div>
+             <div class="grid-placeholder" style="background:#FFE0B2;"></div>
+             <div class="grid-placeholder" style="background:#D7CCC8;"></div>
+             <div class="grid-placeholder" style="background:#F0F4C3;"></div>
+             <div class="grid-placeholder" style="background:#B2DFDB;"></div>
+             <div class="grid-placeholder" style="background:#CFD8DC;"></div>
+           </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-design">
+        <div class="drawer-header">
+           <h3>Design Tools</h3>
+           <p>Edit photo properties</p>
+        </div>
+        <div class="drawer-body">
+           <div class="tool-grid">
+              <div class="tool-btn">✨ Filter</div>
+              <div class="tool-btn">✂️ Crop</div>
+              <div class="tool-btn">🖌️ Brush</div>
+              <div class="tool-btn">📝 Text</div>
+           </div>
+           <div style="background:#F9FAFB; padding:20px; border-radius:8px; border:1px dashed #ddd; text-align:center; color:#999; font-size:12px; margin-top:16px;">
+              Canvas Preview Area
+           </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <main class="editor-stage">
+      
+      <div class="stage-toolbar floating-pill">
+        <button class="btn-stage-tool" title="Add Page">
+           <span>➕ Add</span>
+        </button>
+        <button class="btn-stage-tool" title="Duplicate">
+           <span>📄 Duplicate</span>
+        </button>
+        <div class="toolbar-divider"></div>
+        <button class="btn-stage-tool accent">
+           <span>🪄 Auto-Arrange</span>
+        </button>
+        <div class="toolbar-divider"></div>
+        <div style="display:flex; align-items:center; gap:8px; font-size:12px; color:#666;">
+           <span>🔍</span>
+           <input type="range" style="width:60px;">
+        </div>
+      </div>
+
+      <div class="stage-canvas-wrapper">
+         <div class="mock-page-preview">
+            <div class="mock-photo-slot">
+               <span>Photo Slot 1</span>
+            </div>
+            <div style="position:absolute; bottom:10px; width:100%; text-align:center; font-size:12px; color:#aaa;">Page 1</div>
+         </div>
+      </div>
+
+      <div class="stage-navigator">
+         <button class="nav-arrow">◀</button>
+         <div class="page-thumbnails-track">
+            <div class="thumb active"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+         </div>
+         <button class="nav-arrow">▶</button>
+      </div>
+    </main>
+
+    <aside class="settings-sidebar">
+       <div class="settings-header">
+         <h3>Page Settings</h3>
+       </div>
+
+       <div class="settings-scroll-content">
+         
+         <div class="setting-card">
+           <div class="setting-card-header">
+             <div class="setting-title">
+                <span>◫</span> <h4>Layout</h4>
+             </div>
+             <label class="toggle-switch">
+               <input type="checkbox" checked>
+               <span class="slider"></span>
+             </label>
+           </div>
+           <select class="modern-select">
+             <option>Single Photo</option>
+             <option>Two Horizontal</option>
+             <option>Four Grid</option>
+           </select>
+         </div>
+
+         <div class="setting-card">
+            <div class="setting-card-header">
+             <div class="setting-title">
+                <span>🎨</span> <h4>Background</h4>
+             </div>
+             <label class="toggle-switch">
+               <input type="checkbox" checked>
+               <span class="slider"></span>
+             </label>
+           </div>
+           <div class="control-row">
+             <div class="color-preview"></div>
+             <span style="font-size:12px; color:#666;">#FFFFFF</span>
+           </div>
+           <div class="control-row" style="margin-top:12px;">
+              <button class="btn-small">Upload Image</button>
+              <button class="btn-small" style="color:#d32f2f; border-color:#ffcdd2;">Remove</button>
+           </div>
+         </div>
+
+         <div class="setting-card">
+           <div class="setting-card-header">
+             <div class="setting-title">
+                 <span>📝</span> <h4>Caption</h4>
+             </div>
+             <label class="toggle-switch">
+               <input type="checkbox" checked>
+               <span class="slider"></span>
+             </label>
+           </div>
+           <input type="text" class="modern-input" placeholder="Add a caption...">
+         </div>
+
+       </div>
+    </aside>
+
+  </div>
+
+<script>
+  function switchMockTab(tabId, el) {
+    // 1. Deactivate all rail items
+    document.querySelectorAll('.rail-item').forEach(item => item.classList.remove('active'));
+    // 2. Activate clicked item
+    el.classList.add('active');
+    
+    // 3. Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    // 4. Show target tab content
+    document.getElementById('tab-' + tabId).classList.add('active');
+  }
+</script>
+
+</body>
+</html>

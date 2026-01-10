@@ -1,0 +1,2421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shoso - Turn Your Photos Into Beautiful Printed Books</title>
+  <meta name="description" content="Create stunning photo books in minutes with AI-powered story detection. Transform your memories into professionally printed keepsakes.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.svg">
+  
+  <!-- Mobile redirect (sends mobile devices to /mobile/*) -->
+  <script src="/js/mobile-redirect.js"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ============================================
+       CSS RESET & BASE
+       ============================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --color-primary: #8b5cf6;
+      --color-primary-dark: #7c3aed;
+      --color-primary-light: #a78bfa;
+      --color-secondary: #0ea5e9;
+      --color-accent: #f59e0b;
+      --color-dark: #0f172a;
+      --color-dark-soft: #1e293b;
+      --color-text: #334155;
+      --color-text-light: #64748b;
+      --color-text-lighter: #94a3b8;
+      --color-bg: #ffffff;
+      --color-bg-soft: #f8fafc;
+      --color-bg-muted: #f1f5f9;
+      --color-border: #e2e8f0;
+      
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+      
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+      --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+      
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--color-text);
+      background: var(--color-bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* ============================================
+       UTILITIES
+       ============================================ */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .container-narrow {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .text-center { text-align: center; }
+    .text-gradient {
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
+    .ui-icon {
+      width: 20px;
+      height: 20px;
+      display: block;
+      flex: 0 0 auto;
+    }
+
+    .has-tooltip {
+      position: relative;
+    }
+
+    .has-tooltip::before,
+    .has-tooltip::after {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 9999;
+    }
+
+    .has-tooltip::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 6px);
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-bottom-color: rgba(15, 23, 42, 0.95);
+    }
+
+    .has-tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 16px);
+      transform: translate(-50%, -4px);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 10px;
+      white-space: nowrap;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .has-tooltip:hover::before,
+    .has-tooltip:hover::after,
+    .has-tooltip:focus-visible::before,
+    .has-tooltip:focus-visible::after {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .icon-only {
+      gap: 0 !important;
+    }
+
+    /* ============================================
+       BUTTONS
+       ============================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: var(--radius-full);
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      color: white;
+      box-shadow: 0 4px 14px -3px rgba(139, 92, 246, 0.5);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px -4px rgba(139, 92, 246, 0.6);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: var(--color-dark);
+      border: 2px solid var(--color-border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+
+    .btn-large {
+      padding: 18px 36px;
+      font-size: 17px;
+    }
+
+    .btn-icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    .btn.icon-only {
+      padding: 0;
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-full);
+    }
+
+    .btn.btn-large.icon-only {
+      width: 60px;
+      height: 60px;
+    }
+
+    .btn.icon-only .ui-icon,
+    .btn.icon-only .btn-icon {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* ============================================
+       NAVIGATION
+       ============================================ */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--color-dark);
+    }
+
+    .nav-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .nav-link {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--color-text);
+      transition: color 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--color-primary);
+    }
+
+    .nav-logo.icon-only {
+      gap: 0;
+    }
+
+    .nav-link.icon-only {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-full);
+      transition: all 0.2s;
+    }
+
+    .nav-link.icon-only:hover {
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-mobile-toggle {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    /* ============================================
+       HERO SECTION
+       ============================================ */
+    .hero {
+      padding: 140px 0 80px;
+      background: linear-gradient(180deg, var(--color-bg-soft) 0%, var(--color-bg) 100%);
+      overflow: hidden;
+    }
+
+    .hero-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .hero-content {
+      max-width: 560px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(14, 165, 233, 0.1) 100%);
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-primary);
+      margin-bottom: 24px;
+    }
+
+    .hero-badge-icon {
+      width: 16px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-badge-icon svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .hero-title {
+      font-family: var(--font-serif);
+      font-size: 56px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--color-dark);
+      margin-bottom: 24px;
+    }
+
+    .hero-description {
+      font-size: 19px;
+      color: var(--color-text-light);
+      margin-bottom: 36px;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+    }
+
+    .hero-stat {
+      text-align: left;
+    }
+
+    .hero-stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-dark);
+    }
+
+    .hero-stat-label {
+      font-size: 13px;
+      color: var(--color-text-lighter);
+    }
+
+    .hero-visual {
+      position: relative;
+    }
+
+    .hero-image-main {
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-2xl);
+      transform: perspective(1000px) rotateY(-5deg) rotateX(2deg);
+      transition: transform 0.5s ease;
+    }
+
+    .hero-image-main:hover {
+      transform: perspective(1000px) rotateY(-2deg) rotateX(1deg);
+    }
+
+    .hero-float-card {
+      position: absolute;
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      padding: 16px;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .hero-float-card-1 {
+      top: 20%;
+      left: -60px;
+      animation-delay: 0s;
+    }
+
+    .hero-float-card-2 {
+      bottom: 15%;
+      right: -40px;
+      animation-delay: 2s;
+    }
+
+    .hero-float-card-3 {
+      top: 60%;
+      left: -40px;
+      animation-delay: 4s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .float-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .float-card-icon.purple { background: rgba(139, 92, 246, 0.1); color: var(--color-primary); }
+    .float-card-icon.blue { background: rgba(14, 165, 233, 0.1); color: var(--color-secondary); }
+    .float-card-icon.amber { background: rgba(245, 158, 11, 0.1); color: var(--color-accent); }
+
+    .float-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-dark);
+    }
+
+    .float-card-subtitle {
+      font-size: 11px;
+      color: var(--color-text-lighter);
+    }
+
+    /* ============================================
+       LOGOS SECTION
+       ============================================ */
+    .logos {
+      padding: 60px 0;
+      background: var(--color-bg);
+      border-top: 1px solid var(--color-border);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .logos-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-lighter);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logos-grid {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 60px;
+      flex-wrap: wrap;
+      opacity: 0.6;
+    }
+
+    .logo-item {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--color-text-light);
+    }
+
+    /* ============================================
+       FEATURES SECTION
+       ============================================ */
+    .features {
+      padding: 120px 0;
+      background: var(--color-bg);
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 64px;
+    }
+
+    .section-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--color-bg-muted);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-primary);
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: var(--font-serif);
+      font-size: 42px;
+      font-weight: 700;
+      color: var(--color-dark);
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    .section-description {
+      font-size: 18px;
+      color: var(--color-text-light);
+      line-height: 1.7;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+    }
+
+    .feature-card {
+      background: var(--color-bg-soft);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
+    }
+
+    .feature-card:hover {
+      background: white;
+      border-color: var(--color-border);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-4px);
+    }
+
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .feature-icon.purple {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
+      color: var(--color-primary);
+    }
+
+    .feature-icon.blue {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(14, 165, 233, 0.05) 100%);
+      color: var(--color-secondary);
+    }
+
+    .feature-icon.amber {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+      color: var(--color-accent);
+    }
+
+    .feature-icon.green {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%);
+      color: #22c55e;
+    }
+
+    .feature-icon.pink {
+      background: linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(236, 72, 153, 0.05) 100%);
+      color: #ec4899;
+    }
+
+    .feature-icon.indigo {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%);
+      color: #6366f1;
+    }
+
+    .feature-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-dark);
+      margin-bottom: 10px;
+    }
+
+    .feature-description {
+      font-size: 14px;
+      color: var(--color-text-light);
+      line-height: 1.6;
+    }
+
+    /* ============================================
+       HOW IT WORKS SECTION
+       ============================================ */
+    .how-it-works {
+      padding: 120px 0;
+      background: var(--color-dark);
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .how-it-works::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      opacity: 0.5;
+    }
+
+    .how-it-works .section-title {
+      color: white;
+    }
+
+    .how-it-works .section-description {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .steps-container {
+      position: relative;
+      z-index: 1;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+      margin-top: 64px;
+    }
+
+    .step-card {
+      text-align: center;
+      position: relative;
+    }
+
+    .step-number {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 auto 20px;
+    }
+
+    .step-image {
+      width: 100%;
+      height: 180px;
+      border-radius: var(--radius-lg);
+      object-fit: cover;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .step-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .step-description {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.6;
+    }
+
+    .step-connector {
+      position: absolute;
+      top: 24px;
+      left: calc(50% + 30px);
+      width: calc(100% - 60px);
+      height: 2px;
+      background: linear-gradient(90deg, var(--color-primary), transparent);
+    }
+
+    .step-card:last-child .step-connector {
+      display: none;
+    }
+
+    /* ============================================
+       SHOWCASE SECTION
+       ============================================ */
+    .showcase {
+      padding: 120px 0;
+      background: var(--color-bg-soft);
+    }
+
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .showcase-images {
+      position: relative;
+    }
+
+    .showcase-image-main {
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-2xl);
+    }
+
+    .showcase-image-float {
+      position: absolute;
+      width: 200px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      border: 4px solid white;
+    }
+
+    .showcase-image-float-1 {
+      bottom: -30px;
+      right: -30px;
+    }
+
+    .showcase-image-float-2 {
+      top: 40px;
+      left: -30px;
+    }
+
+    .showcase-content {
+      max-width: 480px;
+    }
+
+    .showcase-title {
+      font-family: var(--font-serif);
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--color-dark);
+      margin-bottom: 20px;
+      line-height: 1.2;
+    }
+
+    .showcase-description {
+      font-size: 17px;
+      color: var(--color-text-light);
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+
+    .showcase-features {
+      list-style: none;
+      margin-bottom: 32px;
+    }
+
+    .showcase-feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .showcase-feature-icon {
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .showcase-feature-icon svg {
+      width: 14px;
+      height: 14px;
+      color: white;
+    }
+
+    .showcase-feature-text {
+      font-size: 15px;
+      color: var(--color-text);
+    }
+
+    /* ============================================
+       GALLERY SECTION
+       ============================================ */
+    .gallery {
+      padding: 120px 0;
+      background: var(--color-bg);
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 250px);
+      gap: 16px;
+      margin-top: 48px;
+    }
+
+    .gallery-item {
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+
+    .gallery-item:hover img {
+      transform: scale(1.05);
+    }
+
+    .gallery-item-large {
+      grid-column: span 2;
+      grid-row: span 2;
+    }
+
+    .gallery-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      display: flex;
+      align-items: flex-end;
+      padding: 20px;
+    }
+
+    .gallery-item:hover .gallery-overlay {
+      opacity: 1;
+    }
+
+    .gallery-caption {
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* ============================================
+       TESTIMONIALS SECTION
+       ============================================ */
+    .testimonials {
+      padding: 120px 0;
+      background: linear-gradient(135deg, var(--color-bg-soft) 0%, var(--color-bg) 100%);
+    }
+
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      margin-top: 48px;
+    }
+
+    .testimonial-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      box-shadow: var(--shadow-md);
+      transition: all 0.3s ease;
+    }
+
+    .testimonial-card:hover {
+      box-shadow: var(--shadow-xl);
+      transform: translateY(-4px);
+    }
+
+    .testimonial-stars {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      color: var(--color-accent);
+    }
+
+    .testimonial-text {
+      font-size: 15px;
+      color: var(--color-text);
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .testimonial-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .testimonial-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--color-dark);
+    }
+
+    .testimonial-role {
+      font-size: 13px;
+      color: var(--color-text-lighter);
+    }
+
+    /* ============================================
+       PRICING SECTION
+       ============================================ */
+    .pricing {
+      padding: 120px 0;
+      background: var(--color-bg);
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      margin-top: 48px;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .pricing-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: 40px 32px;
+      border: 2px solid var(--color-border);
+      text-align: center;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .pricing-card:hover {
+      border-color: var(--color-primary-light);
+    }
+
+    .pricing-card.featured {
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-xl);
+      transform: scale(1.05);
+    }
+
+    .pricing-badge {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      color: white;
+      padding: 6px 20px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .pricing-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-dark);
+      margin-bottom: 8px;
+    }
+
+    .pricing-description {
+      font-size: 14px;
+      color: var(--color-text-light);
+      margin-bottom: 24px;
+    }
+
+    .pricing-price {
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--color-dark);
+      margin-bottom: 8px;
+    }
+
+    .pricing-price span {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--color-text-lighter);
+    }
+
+    .pricing-period {
+      font-size: 14px;
+      color: var(--color-text-lighter);
+      margin-bottom: 32px;
+    }
+
+    .pricing-features {
+      list-style: none;
+      text-align: left;
+      margin-bottom: 32px;
+    }
+
+    .pricing-feature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      font-size: 14px;
+      color: var(--color-text);
+      border-bottom: 1px solid var(--color-bg-muted);
+    }
+
+    .pricing-feature:last-child {
+      border-bottom: none;
+    }
+
+    .pricing-feature-icon {
+      width: 20px;
+      height: 20px;
+      background: rgba(34, 197, 94, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #22c55e;
+      flex-shrink: 0;
+    }
+
+    .pricing-card .btn {
+      width: 100%;
+    }
+
+    /* ============================================
+       CTA SECTION
+       ============================================ */
+    .cta {
+      padding: 120px 0;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      color: white;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 50%);
+      animation: pulse-bg 15s ease-in-out infinite;
+    }
+
+    @keyframes pulse-bg {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.1); opacity: 0.3; }
+    }
+
+    .cta-content {
+      position: relative;
+      z-index: 1;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .cta-title {
+      font-family: var(--font-serif);
+      font-size: 42px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      line-height: 1.2;
+    }
+
+    .cta-description {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 36px;
+      line-height: 1.7;
+    }
+
+    .cta .btn-primary {
+      background: white;
+      color: var(--color-primary);
+      box-shadow: 0 4px 14px -3px rgba(0, 0, 0, 0.3);
+    }
+
+    .cta .btn-primary:hover {
+      background: var(--color-bg-soft);
+    }
+
+    /* ============================================
+       FOOTER
+       ============================================ */
+    .footer {
+      padding: 80px 0 40px;
+      background: var(--color-dark);
+      color: white;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 60px;
+      margin-bottom: 60px;
+    }
+
+    .footer-brand {
+      max-width: 300px;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .footer-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .footer-description {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+
+    .footer-social {
+      display: flex;
+      gap: 12px;
+    }
+
+    .footer-social-link {
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .footer-social-link:hover {
+      background: var(--color-primary);
+    }
+
+    .footer-column-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-link {
+      display: block;
+      padding: 8px 0;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      transition: color 0.2s;
+    }
+
+    .footer-link:hover {
+      color: white;
+    }
+
+    .footer-link.icon-only {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.75);
+      transition: all 0.2s;
+    }
+
+    .footer-link.icon-only:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: white;
+    }
+
+    .footer-link.icon-only .ui-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .footer-legal a.icon-only {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.75);
+      transition: all 0.2s;
+    }
+
+    .footer-legal a.icon-only:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: white;
+    }
+
+    .footer-bottom {
+      padding-top: 40px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-copyright {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .footer-legal {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-legal a {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.5);
+      transition: color 0.2s;
+    }
+
+    .footer-legal a:hover {
+      color: white;
+    }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 1024px) {
+      .hero-inner {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .hero-content {
+        max-width: 100%;
+      }
+
+      .hero-actions {
+        justify-content: center;
+      }
+
+      .hero-stats {
+        justify-content: center;
+      }
+
+      .hero-visual {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .hero-float-card {
+        display: none;
+      }
+
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .steps-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .step-connector {
+        display: none;
+      }
+
+      .showcase-grid {
+        grid-template-columns: 1fr;
+        gap: 48px;
+      }
+
+      .showcase-images {
+        order: -1;
+      }
+
+      .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: auto;
+      }
+
+      .gallery-item-large {
+        grid-column: span 2;
+      }
+
+      .testimonials-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pricing-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+      }
+
+      .pricing-card.featured {
+        transform: none;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+      }
+
+      .nav-mobile-toggle {
+        display: block;
+      }
+
+      .hero {
+        padding: 120px 0 60px;
+      }
+
+      .hero-title {
+        font-size: 36px;
+      }
+
+      .hero-description {
+        font-size: 16px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+
+      .hero-stats {
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .hero-stat {
+        text-align: center;
+      }
+
+      .section-title {
+        font-size: 32px;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .steps-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .gallery-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .gallery-item-large {
+        grid-column: span 1;
+      }
+
+      .cta-title {
+        font-size: 32px;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .footer-bottom {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body id="top">
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="container">
+      <div class="nav-inner">
+        <a href="/Landing.html#top" class="nav-logo icon-only has-tooltip" aria-label="Shoso home" data-tooltip="Home">
+          <div class="nav-logo-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <span class="sr-only">Shoso</span>
+        </a>
+        
+        <div class="nav-links">
+          <a href="#features" class="nav-link icon-only has-tooltip" aria-label="Features" data-tooltip="Features">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+              <path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z"/>
+            </svg>
+            <span class="sr-only">Features</span>
+          </a>
+          <a href="#how-it-works" class="nav-link icon-only has-tooltip" aria-label="How It Works" data-tooltip="How It Works">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polygon points="10,8 17,12 10,16" fill="currentColor" stroke="none"/>
+            </svg>
+            <span class="sr-only">How It Works</span>
+          </a>
+          <a href="#gallery" class="nav-link icon-only has-tooltip" aria-label="Gallery" data-tooltip="Gallery">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="5" width="18" height="14" rx="2"/>
+              <circle cx="8.5" cy="10" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+            <span class="sr-only">Gallery</span>
+          </a>
+          <a href="#pricing" class="nav-link icon-only has-tooltip" aria-label="Pricing" data-tooltip="Pricing">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="5" width="20" height="14" rx="2"/>
+              <line x1="2" y1="10" x2="22" y2="10"/>
+              <line x1="6" y1="15.5" x2="10" y2="15.5"/>
+            </svg>
+            <span class="sr-only">Pricing</span>
+          </a>
+        </div>
+        
+        <div class="nav-actions">
+          <a href="/index.html" class="nav-link icon-only has-tooltip" aria-label="Sign In" data-tooltip="Sign In">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span class="sr-only">Sign In</span>
+          </a>
+          <a href="/index.html" class="btn btn-primary icon-only has-tooltip" aria-label="Get Started Free" data-tooltip="Get Started Free">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2l2.5 6L21 10l-6.5 2L12 18l-2.5-6L3 10l6.5-2L12 2z"/>
+              <path d="M5 20l1 2 1-2 2-1-2-1-1-2-1 2-2 1 2 1z"/>
+            </svg>
+            <span class="sr-only">Get Started Free</span>
+          </a>
+        </div>
+
+        <button class="nav-mobile-toggle has-tooltip" type="button" aria-label="Menu" data-tooltip="Menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-inner">
+        <div class="hero-content">
+          <div class="hero-badge">
+            <span class="hero-badge-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+              </svg>
+            </span>
+            Introducing Memory Director — AI-Powered Storytelling
+          </div>
+          
+          <h1 class="hero-title">
+            Turn Your Photos Into <span class="text-gradient">Beautiful Printed Books</span>
+          </h1>
+          
+          <p class="hero-description">
+            Create stunning photo books in minutes, not hours. Our AI analyzes your photos, detects stories, and organizes them into chapters automatically. Just upload, customize, and print.
+          </p>
+          
+          <div class="hero-actions">
+            <a href="/index.html" class="btn btn-primary btn-large icon-only has-tooltip" aria-label="Start Creating Free" data-tooltip="Start Creating Free">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2l2.5 6L21 10l-6.5 2L12 18l-2.5-6L3 10l6.5-2L12 2z"/>
+                <path d="M13 11l9-3-3 9-3-3-3 3-2-2 3-3-1-1z"/>
+              </svg>
+              <span class="sr-only">Start Creating Free</span>
+            </a>
+            <a href="#how-it-works" class="btn btn-secondary btn-large icon-only has-tooltip" aria-label="See How It Works" data-tooltip="See How It Works">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polygon points="10,8 17,12 10,16" fill="currentColor" stroke="none"/>
+              </svg>
+              <span class="sr-only">See How It Works</span>
+            </a>
+          </div>
+          
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <div class="hero-stat-value">50K+</div>
+              <div class="hero-stat-label">Books Created</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-value">4.9★</div>
+              <div class="hero-stat-label">Customer Rating</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-value">2 min</div>
+              <div class="hero-stat-label">Avg. Creation Time</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="hero-visual">
+          <img 
+            src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop" 
+            alt="Beautiful photo book with travel memories"
+            class="hero-image-main"
+          >
+          
+          <div class="hero-float-card hero-float-card-1">
+            <div class="float-card-icon purple">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+              </svg>
+            </div>
+            <div class="float-card-title">AI Story Detection</div>
+            <div class="float-card-subtitle">Auto-organized chapters</div>
+          </div>
+          
+          <div class="hero-float-card hero-float-card-2">
+            <div class="float-card-icon blue">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
+            <div class="float-card-title">300 DPI Quality</div>
+            <div class="float-card-subtitle">Print-ready output</div>
+          </div>
+          
+          <div class="hero-float-card hero-float-card-3">
+            <div class="float-card-icon amber">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+            </div>
+            <div class="float-card-title">Made with Love</div>
+            <div class="float-card-subtitle">Your memories, preserved</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Logos Section -->
+  <section class="logos">
+    <div class="container">
+      <div class="logos-title">Trusted by photographers and families worldwide</div>
+      <div class="logos-grid">
+        <div class="logo-item">Google Photos</div>
+        <div class="logo-item">Dropbox</div>
+        <div class="logo-item">iCloud</div>
+        <div class="logo-item">Lightroom</div>
+        <div class="logo-item">Instagram</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+          </svg>
+          Features
+        </div>
+        <h2 class="section-title">Everything You Need to Create Stunning Photo Books</h2>
+        <p class="section-description">
+          Powerful features that make creating photo books effortless, from AI-powered organization to professional-quality printing.
+        </p>
+      </div>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+              <path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">AI Story Detection</h3>
+          <p class="feature-description">
+            Our AI analyzes your photos' metadata to automatically detect trips, events, and stories — organizing them into chapters.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon blue">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="20" rx="2.18"/>
+              <line x1="7" y1="2" x2="7" y2="22"/>
+              <line x1="17" y1="2" x2="17" y2="22"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Spread-Based Editor</h3>
+          <p class="feature-description">
+            See exactly how your book will look when opened. Edit facing pages together for perfect visual harmony.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon green">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">300 DPI Print Quality</h3>
+          <p class="feature-description">
+            Every photo is optimized for professional printing. We'll even warn you if a photo's resolution is too low.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon amber">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Google Photos Integration</h3>
+          <p class="feature-description">
+            Connect directly to Google Photos. Select albums or individual photos without downloading anything.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon pink">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">AI Caption Generation</h3>
+          <p class="feature-description">
+            Let AI write elegant captions for your photos based on dates, locations, and context. Edit or keep as-is.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon indigo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Premium Templates</h3>
+          <p class="feature-description">
+            Choose from dozens of professionally designed templates, or start from scratch with our flexible editor.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-badge" style="background: rgba(255,255,255,0.1); color: white;">
+          How It Works
+        </div>
+        <h2 class="section-title">Create Your Photo Book in 4 Simple Steps</h2>
+        <p class="section-description">
+          From selecting photos to holding your printed book — it's never been easier.
+        </p>
+      </div>
+      
+      <div class="steps-container">
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-connector"></div>
+            <div class="step-number">1</div>
+            <img 
+              src="https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&h=300&fit=crop" 
+              alt="Select photos"
+              class="step-image"
+            >
+            <h3 class="step-title">Select Your Photos</h3>
+            <p class="step-description">
+              Connect to Google Photos or upload directly. Choose the memories you want to preserve.
+            </p>
+          </div>
+          
+          <div class="step-card">
+            <div class="step-connector"></div>
+            <div class="step-number">2</div>
+            <img 
+              src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop" 
+              alt="AI organizes your story"
+              class="step-image"
+            >
+            <h3 class="step-title">AI Detects Your Story</h3>
+            <p class="step-description">
+              Our AI analyzes dates and locations, automatically organizing photos into meaningful chapters.
+            </p>
+          </div>
+          
+          <div class="step-card">
+            <div class="step-connector"></div>
+            <div class="step-number">3</div>
+            <img 
+              src="https://images.unsplash.com/photo-1542744094-3a31f272c490?w=400&h=300&fit=crop" 
+              alt="Customize your book"
+              class="step-image"
+            >
+            <h3 class="step-title">Customize & Preview</h3>
+            <p class="step-description">
+              Fine-tune layouts, add captions, choose covers. See exactly how your book will look.
+            </p>
+          </div>
+          
+          <div class="step-card">
+            <div class="step-number">4</div>
+            <img 
+              src="https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=300&fit=crop" 
+              alt="Receive your printed book"
+              class="step-image"
+            >
+            <h3 class="step-title">Print & Deliver</h3>
+            <p class="step-description">
+              Order professional prints delivered to your door, or download the PDF to print yourself.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Showcase Section -->
+  <section class="showcase">
+    <div class="container">
+      <div class="showcase-grid">
+        <div class="showcase-images">
+          <img 
+            src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=600&h=500&fit=crop" 
+            alt="Couple looking at photo book"
+            class="showcase-image-main"
+          >
+          <img 
+            src="https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=300&h=200&fit=crop" 
+            alt="Travel memories"
+            class="showcase-image-float showcase-image-float-1"
+          >
+          <img 
+            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=200&fit=crop" 
+            alt="Family portrait"
+            class="showcase-image-float showcase-image-float-2"
+          >
+        </div>
+        
+        <div class="showcase-content">
+          <h2 class="showcase-title">Memory Director: Your Photos Tell a Story</h2>
+          <p class="showcase-description">
+            Our revolutionary AI doesn't just organize photos — it understands the narrative. Wedding? Vacation? Birthday? Memory Director detects the story arc and creates chapters that flow naturally.
+          </p>
+          
+          <ul class="showcase-features">
+            <li class="showcase-feature">
+              <div class="showcase-feature-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <span class="showcase-feature-text">Automatic chapter detection based on dates & locations</span>
+            </li>
+            <li class="showcase-feature">
+              <div class="showcase-feature-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <span class="showcase-feature-text">Smart photo pairing for visually balanced spreads</span>
+            </li>
+            <li class="showcase-feature">
+              <div class="showcase-feature-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <span class="showcase-feature-text">AI-generated captions that capture the moment</span>
+            </li>
+            <li class="showcase-feature">
+              <div class="showcase-feature-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <span class="showcase-feature-text">Cinematic preview mode to experience your story</span>
+            </li>
+          </ul>
+          
+          <a href="/index.html" class="btn btn-primary icon-only has-tooltip" aria-label="Try Memory Director" data-tooltip="Try Memory Director">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+              <path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z"/>
+            </svg>
+            <span class="sr-only">Try Memory Director</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gallery Section -->
+  <section class="gallery" id="gallery">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-badge">Gallery</div>
+        <h2 class="section-title">Books Made by Our Community</h2>
+        <p class="section-description">
+          Real photo books created by real customers. Get inspired by their stories.
+        </p>
+      </div>
+      
+      <div class="gallery-grid">
+        <div class="gallery-item gallery-item-large">
+          <img 
+            src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&h=600&fit=crop" 
+            alt="Nature photography book"
+          >
+          <div class="gallery-overlay">
+            <span class="gallery-caption">Mountain Adventures — By Sarah K.</span>
+          </div>
+        </div>
+        
+        <div class="gallery-item">
+          <img 
+            src="https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&h=300&fit=crop" 
+            alt="Wedding photo book"
+          >
+          <div class="gallery-overlay">
+            <span class="gallery-caption">Our Wedding Day</span>
+          </div>
+        </div>
+        
+        <div class="gallery-item">
+          <img 
+            src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=300&fit=crop" 
+            alt="Travel photo book"
+          >
+          <div class="gallery-overlay">
+            <span class="gallery-caption">European Summer</span>
+          </div>
+        </div>
+        
+        <div class="gallery-item">
+          <img 
+            src="https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?w=400&h=300&fit=crop" 
+            alt="Family photo book"
+          >
+          <div class="gallery-overlay">
+            <span class="gallery-caption">Family Reunion 2024</span>
+          </div>
+        </div>
+        
+        <div class="gallery-item">
+          <img 
+            src="https://images.unsplash.com/photo-1504805572947-34fad45aed93?w=400&h=300&fit=crop" 
+            alt="Graduation photo book"
+          >
+          <div class="gallery-overlay">
+            <span class="gallery-caption">Class of 2024</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials Section -->
+  <section class="testimonials">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-badge">Testimonials</div>
+        <h2 class="section-title">Loved by Thousands</h2>
+        <p class="section-description">
+          See what our customers say about their Shoso photo books.
+        </p>
+      </div>
+      
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="testimonial-stars">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">
+            "The AI story detection is like magic. It organized 500 photos from our Italy trip into perfect chapters. What would have taken me hours took 2 minutes."
+          </p>
+          <div class="testimonial-author">
+            <img 
+              src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop" 
+              alt="Rachel M."
+              class="testimonial-avatar"
+            >
+            <div>
+              <div class="testimonial-name">Rachel M.</div>
+              <div class="testimonial-role">Travel Blogger</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="testimonial-card">
+          <div class="testimonial-stars">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">
+            "I've used other photo book services before, but Shoso is on another level. The print quality is incredible and the spreads look exactly like the preview."
+          </p>
+          <div class="testimonial-author">
+            <img 
+              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop" 
+              alt="David Chen"
+              class="testimonial-avatar"
+            >
+            <div>
+              <div class="testimonial-name">David Chen</div>
+              <div class="testimonial-role">Professional Photographer</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="testimonial-card">
+          <div class="testimonial-stars">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">
+            "Made a book of my daughter's first year. My parents cried when they got it. The quality is museum-worthy and it was so easy to create. Highly recommend!"
+          </p>
+          <div class="testimonial-author">
+            <img 
+              src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop" 
+              alt="Emily Rodriguez"
+              class="testimonial-avatar"
+            >
+            <div>
+              <div class="testimonial-name">Emily Rodriguez</div>
+              <div class="testimonial-role">New Mom</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Section -->
+  <section class="pricing" id="pricing">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-badge">Pricing</div>
+        <h2 class="section-title">Simple, Transparent Pricing</h2>
+        <p class="section-description">
+          Create your book for free. Only pay when you're ready to print.
+        </p>
+      </div>
+      
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-name">Digital Only</div>
+          <div class="pricing-description">Perfect for sharing online</div>
+          <div class="pricing-price">$0 <span>/ book</span></div>
+          <div class="pricing-period">Always free</div>
+          
+          <ul class="pricing-features">
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Unlimited photo books
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              AI story detection
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Download PDF
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Share via link
+            </li>
+          </ul>
+          
+          <a href="/index.html" class="btn btn-secondary icon-only has-tooltip" aria-label="Get Started Free" data-tooltip="Get Started Free">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2l2.5 6L21 10l-6.5 2L12 18l-2.5-6L3 10l6.5-2L12 2z"/>
+              <path d="M6 22l1-2 1 2"/>
+            </svg>
+            <span class="sr-only">Get Started Free</span>
+          </a>
+        </div>
+        
+        <div class="pricing-card featured">
+          <div class="pricing-badge">Most Popular</div>
+          <div class="pricing-name">Softcover Print</div>
+          <div class="pricing-description">Beautiful quality, great value</div>
+          <div class="pricing-price">$29 <span>/ book</span></div>
+          <div class="pricing-period">+ shipping</div>
+          
+          <ul class="pricing-features">
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Everything in Digital
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Premium matte paper
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Up to 100 pages
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Multiple sizes available
+            </li>
+          </ul>
+          
+          <a href="/payment.html?plan=softcover&redirect=%2Findex.html" class="btn btn-primary icon-only has-tooltip" aria-label="Create & Print" data-tooltip="Create & Print">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9V2h12v7"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8" rx="1"/>
+            </svg>
+            <span class="sr-only">Create &amp; Print</span>
+          </a>
+        </div>
+        
+        <div class="pricing-card">
+          <div class="pricing-name">Hardcover Premium</div>
+          <div class="pricing-description">Heirloom quality</div>
+          <div class="pricing-price">$59 <span>/ book</span></div>
+          <div class="pricing-period">+ shipping</div>
+          
+          <ul class="pricing-features">
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Everything in Softcover
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Hardcover binding
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Lay-flat pages
+            </li>
+            <li class="pricing-feature">
+              <div class="pricing-feature-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              Gift-ready packaging
+            </li>
+          </ul>
+          
+          <a href="/payment.html?plan=hardcover&redirect=%2Findex.html" class="btn btn-secondary icon-only has-tooltip" aria-label="Create Premium Book" data-tooltip="Create Premium Book">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              <path d="M9 6h8"/>
+              <path d="M9 10h8"/>
+            </svg>
+            <span class="sr-only">Create Premium Book</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta">
+    <div class="container">
+      <div class="cta-content">
+        <h2 class="cta-title">Ready to Turn Your Memories Into a Beautiful Book?</h2>
+        <p class="cta-description">
+          Join thousands of happy customers who've preserved their most precious moments with Shoso. Start creating your photo book today — it's free.
+        </p>
+        <a href="/index.html" class="btn btn-primary btn-large icon-only has-tooltip" aria-label="Start Creating Free" data-tooltip="Start Creating Free">
+          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2l2.5 6L21 10l-6.5 2L12 18l-2.5-6L3 10l6.5-2L12 2z"/>
+            <path d="M13 11l9-3-3 9-3-3-3 3-2-2 3-3-1-1z"/>
+          </svg>
+          <span class="sr-only">Start Creating Free</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-logo">
+            <div class="footer-logo-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+            </div>
+            Shoso
+          </div>
+          <p class="footer-description">
+            Create stunning photo books with AI-powered story detection. Transform your memories into professionally printed keepsakes.
+          </p>
+          <div class="footer-social">
+            <a href="/info.html?p=social" class="footer-social-link" aria-label="Social (coming soon)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+              </svg>
+            </a>
+            <a href="/info.html?p=social" class="footer-social-link" aria-label="Social (coming soon)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+            </a>
+            <a href="/info.html?p=social" class="footer-social-link" aria-label="Social (coming soon)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+        
+        <div class="footer-column">
+          <h4 class="footer-column-title">Product</h4>
+          <ul class="footer-links">
+            <li>
+              <a href="/Landing.html#features" class="footer-link icon-only has-tooltip" aria-label="Features" data-tooltip="Features">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+                  <path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z"/>
+                </svg>
+                <span class="sr-only">Features</span>
+              </a>
+            </li>
+            <li>
+              <a href="/index.html" class="footer-link icon-only has-tooltip" aria-label="Templates" data-tooltip="Templates">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="8" height="8" rx="2"/>
+                  <rect x="13" y="3" width="8" height="8" rx="2"/>
+                  <rect x="3" y="13" width="8" height="8" rx="2"/>
+                  <rect x="13" y="13" width="8" height="8" rx="2"/>
+                </svg>
+                <span class="sr-only">Templates</span>
+              </a>
+            </li>
+            <li>
+              <a href="/Landing.html#pricing" class="footer-link icon-only has-tooltip" aria-label="Pricing" data-tooltip="Pricing">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/>
+                  <line x1="2" y1="10" x2="22" y2="10"/>
+                  <line x1="6" y1="15.5" x2="10" y2="15.5"/>
+                </svg>
+                <span class="sr-only">Pricing</span>
+              </a>
+            </li>
+            <li>
+              <a href="/Landing.html#features" class="footer-link icon-only has-tooltip" aria-label="Print Quality" data-tooltip="Print Quality">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 9V2h12v7"/>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                  <rect x="6" y="14" width="12" height="8" rx="1"/>
+                </svg>
+                <span class="sr-only">Print Quality</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+        
+        <div class="footer-column">
+          <h4 class="footer-column-title">Company</h4>
+          <ul class="footer-links">
+            <li>
+              <a href="/info.html?p=about" class="footer-link icon-only has-tooltip" aria-label="About Us" data-tooltip="About Us">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="10" x2="12" y2="16"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <span class="sr-only">About Us</span>
+              </a>
+            </li>
+            <li>
+              <a href="/info.html?p=blog" class="footer-link icon-only has-tooltip" aria-label="Blog" data-tooltip="Blog">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 20h9"/>
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                </svg>
+                <span class="sr-only">Blog</span>
+              </a>
+            </li>
+            <li>
+              <a href="/info.html?p=careers" class="footer-link icon-only has-tooltip" aria-label="Careers" data-tooltip="Careers">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="7" width="18" height="14" rx="2"/>
+                  <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+                </svg>
+                <span class="sr-only">Careers</span>
+              </a>
+            </li>
+            <li>
+              <a href="/info.html?p=contact" class="footer-link icon-only has-tooltip" aria-label="Contact" data-tooltip="Contact">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/>
+                  <path d="M22 6l-10 7L2 6"/>
+                </svg>
+                <span class="sr-only">Contact</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+        
+        <div class="footer-column">
+          <h4 class="footer-column-title">Support</h4>
+          <ul class="footer-links">
+            <li>
+              <a href="/info.html?p=help" class="footer-link icon-only has-tooltip" aria-label="Help Center" data-tooltip="Help Center">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2.5-2.5 2-2.5 4"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span class="sr-only">Help Center</span>
+              </a>
+            </li>
+            <li>
+              <a href="/info.html?p=shipping" class="footer-link icon-only has-tooltip" aria-label="Shipping Info" data-tooltip="Shipping Info">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 7h11v10H3z"/>
+                  <path d="M14 10h4l3 3v4h-7z"/>
+                  <circle cx="7.5" cy="19" r="1.5"/>
+                  <circle cx="17.5" cy="19" r="1.5"/>
+                </svg>
+                <span class="sr-only">Shipping Info</span>
+              </a>
+            </li>
+            <li>
+              <a href="/info.html?p=returns" class="footer-link icon-only has-tooltip" aria-label="Returns" data-tooltip="Returns">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 12a9 9 0 0 1 15-6"/>
+                  <polyline points="18 3 18 9 12 9"/>
+                  <path d="M21 12a9 9 0 0 1-15 6"/>
+                  <polyline points="6 21 6 15 12 15"/>
+                </svg>
+                <span class="sr-only">Returns</span>
+              </a>
+            </li>
+            <li>
+              <a href="/info.html?p=faq" class="footer-link icon-only has-tooltip" aria-label="FAQ" data-tooltip="FAQ">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2.5-2.5 2-2.5 4"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span class="sr-only">FAQ</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <div class="footer-copyright">
+          © 2024 Shoso. All rights reserved.
+        </div>
+        <div class="footer-legal">
+          <a href="/info.html?p=privacy" class="icon-only has-tooltip" aria-label="Privacy Policy" data-tooltip="Privacy Policy">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            <span class="sr-only">Privacy Policy</span>
+          </a>
+          <a href="/info.html?p=terms" class="icon-only has-tooltip" aria-label="Terms of Service" data-tooltip="Terms of Service">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2v6h6"/>
+              <path d="M8 13h8"/>
+              <path d="M8 17h8"/>
+            </svg>
+            <span class="sr-only">Terms of Service</span>
+          </a>
+          <a href="/info.html?p=cookies" class="icon-only has-tooltip" aria-label="Cookie Policy" data-tooltip="Cookie Policy">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.5 13a7.5 7.5 0 1 1-7.5-7.5c.3 1.8 1.7 3.2 3.5 3.5.3 1.8 1.7 3.2 3.5 3.5.2 1.3.7 2.4 2 2.5z"/>
+              <circle cx="9" cy="12" r="1"/>
+              <circle cx="12.5" cy="15.5" r="1"/>
+              <circle cx="12.5" cy="10" r="1"/>
+            </svg>
+            <span class="sr-only">Cookie Policy</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Support Chat Widget (AI + Human escalation) -->
+  <script src="/js/support-chat.js"></script>
+
+</body>
+</html>

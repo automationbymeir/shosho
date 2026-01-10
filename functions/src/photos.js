@@ -2,37 +2,74 @@ const fetch = require("node-fetch");
 const auth = require("./auth");
 
 /**
+ * Normalize Google Photos baseUrl by removing only the trailing resize suffix.
+ * Example: https://.../abc=w800-h800 -> https://.../abc
+ *
+ * Some URLs can contain '=' for other reasons (query params), so avoid splitting
+ * on the first '='. We strip only if the trailing segment looks like a resize
+ * directive (w/h/s + digits).
+ *
+ * @param {string} u
+ * @return {string}
+ */
+function normalizeGooglePhotoBaseUrl(u) {
+  if (!u || typeof u !== "string") return u;
+  const idx = u.lastIndexOf("=");
+  if (idx < 0) return u;
+  const suffix = u.slice(idx + 1);
+  if (/^(w|h|s)\d/i.test(suffix)) return u.slice(0, idx);
+  return u;
+}
+
+/**
  * Create a Google Photos Picker session
  * @param {string} userId - Firebase user ID
  * @return {Promise<Object>} Session information
  */
 async function createPickerSession(userId) {
+  console.log(`[DEBUG_AUTH] createPickerSession called for userId: ${userId}`);
   console.log("=== createPickerSession START ===");
 
   try {
     const oauth2Client = await auth.getOAuth2Client(userId);
 
     if (!oauth2Client) {
+      console.log(`[DEBUG_AUTH] No OAuth access for userId: ${userId}, returning auth URL`);
       console.log("No OAuth access, returning auth URL");
       return auth.getAuthorizationUrl(userId);
     }
 
+    console.log(`[DEBUG_AUTH] OAuth client retrieved for userId: ${userId}, creating session...`);
+
     const accessToken = oauth2Client.credentials.access_token;
     console.log("Have access token, length:", accessToken ? accessToken.length : 0);
 
-    const response = await fetch("https://photospicker.googleapis.com/v1/sessions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 15000); // 15s timeout
+
+    let response;
+    try {
+      console.log("Calling Google Picker API...");
+      response = await fetch("https://photospicker.googleapis.com/v1/sessions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const code = response.status;
     const content = await response.text();
     console.log("Response code:", code);
     console.log("Response content:", content.substring(0, 500));
+
 
     if (code !== 200) {
       console.log("createPickerSession error:", content);
@@ -200,7 +237,11 @@ async function fetchThumbnailBatch(userId, baseUrls) {
     const baseUrl = baseUrls[i];
     try {
       // Add size parameter for thumbnail
-      const url = baseUrl + "=w200-h200";
+      // Use larger thumbnails so the app UI looks sharp (album grid + MD spreads).
+      // Some saved projects may already have size parameters appended (e.g. "=w1200-h1200").
+      // Normalize before appending our preferred thumb size.
+      const normalizedBaseUrl = normalizeGooglePhotoBaseUrl(baseUrl);
+      const url = `${normalizedBaseUrl}=w800-h800`;
 
       // Fetch with OAuth token
       const response = await fetch(url, {
@@ -217,6 +258,8 @@ async function fetchThumbnailBatch(userId, baseUrls) {
 
         // Return as data URI so browser can display without auth
         thumbnails.push({
+          // Keep the caller's original baseUrl as the key so the client can map correctly
+          // even if it stored a URL with size params.
           baseUrl: baseUrl,
           thumbnailUrl: `data:${mimeType};base64,${b64}`,
           success: true,
@@ -238,8 +281,53 @@ async function fetchThumbnailBatch(userId, baseUrls) {
   };
 }
 
+/**
+ * Fetch a single high-res image as a data URI to bypass CORS
+ * @param {string} userId
+ * @param {string} url
+ * @return {Promise<Object>}
+ */
+async function fetchHighResImage(userId, url) {
+  const oauth2Client = await auth.getOAuth2Client(userId);
+
+  if (!oauth2Client) {
+    return {success: false, error: "No auth"};
+  }
+
+  const accessToken = oauth2Client.credentials.access_token;
+
+  try {
+    // Normalize and add 'd' (download/original) or large dimensions
+    // =d typically downloads original. =w2048-h2048 is safe high res.
+    const normalized = normalizeGooglePhotoBaseUrl(url);
+    const fetchUrl = `${normalized}=w2048-h2048`;
+
+    const response = await fetch(fetchUrl, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+      },
+    });
+
+    if (response.status === 200) {
+      const buffer = await response.buffer();
+      const b64 = buffer.toString("base64");
+      const mimeType = response.headers.get("content-type") || "image/jpeg";
+      return {
+        success: true,
+        dataUri: `data:${mimeType};base64,${b64}`,
+      };
+    } else {
+      return {success: false, error: `Upstream ${response.status}`};
+    }
+  } catch (e) {
+    return {success: false, error: e.toString()};
+  }
+}
+
 module.exports = {
   createPickerSession,
   checkPickerSession,
   fetchThumbnailBatch,
+  fetchHighResImage,
 };

@@ -1,6 +1,7 @@
 // ============================================
 // PHOTO BOOK CREATOR - MAIN APPLICATION
 // ============================================
+console.log("app.js loaded - Immediate execution start");
 
 // ============================================
 // STATE MANAGEMENT
@@ -137,8 +138,44 @@ const state = {
     // Default background for newly-created pages (can be set before any pages exist)
     defaultPageBackgroundColor: null,
     user: null,
-    currentTheme: 'classic'
+    currentTheme: 'classic',
+    currentPageIndex: -1
 };
+
+// ============================================
+// FIREBASE FUNCTIONS UTILS (Moved to top to prevent TDZ errors)
+// ============================================
+const functions = firebase.functions();
+
+// For local development, use emulator:
+if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    functions.useEmulator("localhost", 5001);
+}
+
+async function callFunction(name, data = {}, timeoutMs = 60000) {
+    try {
+        console.log("Calling function", name, "User:", firebase.auth().currentUser?.uid);
+        const callable = functions.httpsCallable(name);
+        // Add client-side timeout to prevent infinite hang (default 60s)
+        const result = await Promise.race([
+            callable(data),
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`Function call timed out after ${timeoutMs / 1000}s`)), timeoutMs))
+        ]);
+        return result.data;
+    } catch (error) {
+        console.error(`Error calling function ${name}:`, error);
+
+        // Handle connection refused error specifically
+        if (error.message && (error.message.includes('internal') || error.message.includes('network'))) {
+            if (window.location.hostname === "localhost") {
+                console.warn("It looks like the Firebase emulators might not be running.");
+                alert(`Connection Error: Ensure Firebase Emulators are starting by running 'npm run serve' in your terminal.\n\nError details: ${error.message}`);
+            }
+        }
+
+        throw error;
+    }
+}
 
 // ============================================
 // COLOR UTILITY FUNCTIONS
@@ -363,9 +400,6 @@ function getDraftFromStorage() {
     }
 }
 
-// ============================================
-// NEW ALBUM (RESET) FLOW
-// ============================================
 function getDefaultClassicCoverState() {
     return {
         photo: null,
@@ -549,35 +583,97 @@ function isPhotosAuthRequiredError(err) {
     return msg.includes('PHOTOS_AUTH_REQUIRED') || msg.toLowerCase().includes('user not authorized');
 }
 
+
+function showAuthFallbackModal(authUrl) {
+    let modal = document.getElementById('auth-fallback-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'auth-fallback-modal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;justify-content:center;align-items:center;flex-direction:column;color:white;text-align:center;font-family:sans-serif;';
+        modal.innerHTML = `
+            <div style="background:#fff;color:#333;padding:30px;border-radius:12px;max-width:400px;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+                <h3 style="margin-top:0;font-size:20px;">Authorization Required</h3>
+                <p style="margin:15px 0;">We need your permission to access Google Photos.</p>
+                <a id="auth-fallback-link" href="${authUrl}" target="_blank" style="display:inline-block;background:#1a73e8;color:white;padding:12px 24px;text-decoration:none;border-radius:4px;font-weight:bold;margin:10px 0;font-size:16px;">Click here to Authorize</a>
+                <p style="font-size:0.9em;color:#666;margin-top:15px;">After authorizing, close the new tab. This window will detect the change automatically.</p>
+                <div style="margin-top:20px;border-top:1px solid #eee;padding-top:15px;">
+                     <button onclick="document.getElementById('auth-fallback-modal').remove()" style="background:none;border:none;text-decoration:underline;cursor:pointer;color:#888;">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    } else {
+        const link = modal.querySelector('#auth-fallback-link');
+        if (link) link.href = authUrl;
+        modal.style.display = 'flex';
+    }
+}
+
+function hideAuthFallbackModal() {
+    const modal = document.getElementById('auth-fallback-modal');
+    if (modal) modal.remove();
+}
+
 async function requestGooglePhotosAuthorization(purpose = 'access your Google Photos') {
     try {
         const res = await callFunction('getAuthUrl');
         if (res?.authUrl) {
-            window.open(res.authUrl, '_blank', 'noopener,noreferrer');
+            console.log("Got auth URL, attempting open and showing fallback:", res.authUrl);
+
+            // 1. Try to open automatically (might be blocked)
+            // 1. Try to open automatically (might be blocked)
+            try {
+                const popup = window.open(res.authUrl, '_blank', 'noopener,noreferrer');
+                if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                    console.warn("Popup blocked or closed immediately.");
+                }
+            } catch (popupError) {
+                console.warn("window.open failed:", popupError);
+            }
+
+            // 2. Always show the fallback modal to ensure the user can proceed if popup is blocked
+            //    or if they just missed it. It will be dismissed automatically by waitForGooglePhotosAuthorization.
+            showAuthFallbackModal(res.authUrl);
+
             return true;
         }
     } catch (e) {
         console.warn('Failed to get auth URL:', e);
+        alert('Failed to initiate authorization: ' + (e.message || e));
     }
     return false;
 }
 
-async function waitForGooglePhotosAuthorization(testBaseUrl, timeoutMs = 60000) {
+async function waitForGooglePhotosAuthorization(testBaseUrl, timeoutMs = 120000) { // Increased timeout
     const start = Date.now();
     const u = normalizeBaseUrl(testBaseUrl);
-    if (!u) return true;
+    if (!u) {
+        hideAuthFallbackModal();
+        return true;
+    }
 
+    console.log("Waiting for authorization...");
     while (Date.now() - start < timeoutMs) {
+        // Check if modal still exists (if user cancelled, stop waiting)
+        if (!document.getElementById('auth-fallback-modal')) {
+            console.log("Auth wait cancelled by user.");
+            return false;
+        }
+
         try {
             const res = await callFunction('fetchThumbnailBatch', { baseUrls: [u] });
             if (res?.success && Array.isArray(res?.thumbnails) && res.thumbnails.some(t => t && t.thumbnailUrl)) {
+                console.log("Authorization successful!");
+                hideAuthFallbackModal();
                 return true;
             }
-        } catch {
+        } catch (e) {
             // ignore; retry
         }
-        await sleep(2000);
+        await sleep(3000);
     }
+    console.warn("Authorization timed out.");
+    hideAuthFallbackModal();
     return false;
 }
 
@@ -794,14 +890,22 @@ async function fetchThumbnailMapInBatches(baseUrls, opts = {}) {
 }
 
 async function tryRestoreDraftIfNeeded() {
+    console.log("tryRestoreDraftIfNeeded calling getDraftFromStorage...");
     const draft = getDraftFromStorage();
-    if (!draft) return false;
+    if (!draft) {
+        console.log("tryRestoreDraftIfNeeded: No draft found.");
+        return false;
+    }
 
     // If we have a saved project ID, prefer that path (loadProject handles view + persistence).
-    if (draft.activeProjectId) return false;
+    if (draft.activeProjectId) {
+        console.log("tryRestoreDraftIfNeeded: Draft has activeProjectId, skipping restore (should use loadProject).");
+        return false;
+    }
 
     // Restore Memory Director draft
     if (draft.memoryDirector) {
+        console.log("tryRestoreDraftIfNeeded: Restoring Memory Director draft.");
         try {
             mdState.active = true;
             mdState.settings = draft.memoryDirector.settings || mdState.settings;
@@ -899,7 +1003,7 @@ async function tryRestoreDraftIfNeeded() {
             // Restore content
             state.cover = c.cover || state.cover;
             state.backCover = c.backCover || getDefaultClassicBackCoverState();
-            
+
             // Update back cover UI from restored state
             if (typeof updateBackCoverFromState === 'function') {
                 updateBackCoverFromState();
@@ -967,12 +1071,19 @@ async function tryRestoreDraftIfNeeded() {
 }
 
 function waitForTemplatesReady(timeoutMs = 2000) {
+    console.log(`waitForTemplatesReady called with timeout ${timeoutMs}ms`);
     return new Promise((resolve) => {
         const start = Date.now();
         const tick = () => {
             const ok = (typeof window.PHOTO_BOOK_TEMPLATES !== 'undefined' || typeof PHOTO_BOOK_TEMPLATES !== 'undefined');
-            if (ok) return resolve(true);
-            if (Date.now() - start >= timeoutMs) return resolve(false);
+            if (ok) {
+                console.log("waitForTemplatesReady: Templates found!");
+                return resolve(true);
+            }
+            if (Date.now() - start >= timeoutMs) {
+                console.warn("waitForTemplatesReady: Timed out waiting for templates.");
+                return resolve(false);
+            }
             setTimeout(tick, 50);
         };
         tick();
@@ -980,6 +1091,10 @@ function waitForTemplatesReady(timeoutMs = 2000) {
 }
 
 let didAutoRestoreLastProject = false;
+
+// Expose state for debugging
+window.state = state;
+console.log('AppJS: Initializing, state exposed to window', state);
 
 // ============================================
 // MEMORY DIRECTOR STATE & FUNCTIONS
@@ -1482,8 +1597,8 @@ function showMDPdfResult(result) {
     // Always surface something (even if backend returned unexpected payload)
     console.log("Memory Director PDF result:", result);
 
-            const pdfUrl = result?.pdfUrl;
-            const pdfDownloadUrl = result?.pdfDownloadUrl || result?.pdfUrl;
+    const pdfUrl = result?.pdfUrl;
+    const pdfDownloadUrl = result?.pdfDownloadUrl || result?.pdfUrl;
 
     if (!pdfUrl) {
         alert("PDF generation finished but no pdfUrl was returned. Check function logs.");
@@ -1513,11 +1628,11 @@ function showMDPdfResult(result) {
         if (msg) msg.textContent = "PDF ready!";
     }
 
-            // Enable “Send to printing” now that we have a PDF
-            const sendBtn = document.getElementById('sendToPrintBtn');
-            if (sendBtn) sendBtn.style.display = 'inline-flex';
+    // Enable “Send to printing” now that we have a PDF
+    const sendBtn = document.getElementById('sendToPrintBtn');
+    if (sendBtn) sendBtn.style.display = 'inline-flex';
 
-            document.getElementById("resultModal").classList.add("active");
+    document.getElementById("resultModal").classList.add("active");
 }
 
 function showMDResolutionWarnings(warnings, onClose) {
@@ -1636,6 +1751,19 @@ function openCinematicPreview() {
 // NOTE: index.html uses inline onclick/onchange handlers, which only reliably
 // see values attached to window (not top-level const/let bindings).
 try {
+    // Core App State & Functions - Explicitly exposed for template-gallery.js
+    window.state = state;
+    window.applyTemplate = applyTemplate;
+    window.initializeEditor = initializeEditor;
+    window.renderCurrentPage = renderCurrentPage;
+    window.updateCoverPreview = updateCoverPreview;
+    window.updateBackCoverPreview = updateBackCoverPreview;
+    console.log('[DEBUG-App] Core globals exposed successfully');
+} catch (e) {
+    console.error("Failed to attach Core App globals:", e);
+}
+
+try {
     window.mdState = mdState;
     window.initMemoryDirector = initMemoryDirector;
     window.showMemoryDirectorView = showMemoryDirectorView;
@@ -1650,6 +1778,7 @@ try {
     window.generateMDBook = generateMDBook;
     window.openCinematicPreview = openCinematicPreview;
     window.setMDPaperTexture = setMDPaperTexture;
+    console.log('[DEBUG-App] Memory Director globals exposed successfully');
 } catch (e) {
     console.warn("Failed to attach Memory Director globals:", e);
 }
@@ -1666,17 +1795,22 @@ function applyTemplate(template) {
     state.selectedTemplate = template;
     state.currentTheme = template.id;
 
+    // Persist template properties to state for PDF Generator
+    state.template = template.id;
+    state.decorations = template.decorations || { enabled: false };
+    state.borderStyle = template.illustrations?.border || 'none';
+
     // Get root element for CSS variables
     const root = document.documentElement;
 
     // === Apply Colors ===
     const colors = template.colors || {};
-    
+
     // Primary/Cover color
     const primaryColor = colors.accentColor || colors.coverColor || '#6366f1';
     root.style.setProperty('--color-primary', primaryColor);
     root.style.setProperty('--cover-color', primaryColor);
-    
+
     // Calculate RGB for shadows/glows
     const rgb = hexToRgb(primaryColor);
     if (rgb) {
@@ -1714,7 +1848,7 @@ function applyTemplate(template) {
     const coverTitleColorText = document.getElementById('coverTitleColorText');
     const backCoverTextColor = document.getElementById('backCoverTextColor');
     const backCoverTextColorText = document.getElementById('backCoverTextColorText');
-    
+
     if (coverBgColor) coverBgColor.value = primaryColor;
     if (coverBgColorText) coverBgColorText.value = primaryColor;
     if (backCoverBgColor) backCoverBgColor.value = primaryColor;
@@ -1737,7 +1871,7 @@ function applyTemplate(template) {
     // Set title font dropdown if it exists
     const coverTitleFont = document.getElementById('coverTitleFont');
     const titleFontValue = typography.titleFont || typography.headingFont || 'Playfair Display';
-    
+
     if (coverTitleFont) {
         const options = coverTitleFont.options;
         for (let i = 0; i < options.length; i++) {
@@ -1791,9 +1925,13 @@ function applyTemplate(template) {
         renderCurrentPage();
     }
 
-    // Update cover preview
-    updateCoverPreview();
-    updateBackCoverPreview();
+    // Update cover preview to apply template assets (overlays, borders)
+    if (typeof updateCoverPreview === 'function') {
+        updateCoverPreview();
+    }
+    if (typeof updateBackCoverPreview === 'function') {
+        updateBackCoverPreview();
+    }
 
     console.log('Template applied:', {
         name: template.name,
@@ -1918,18 +2056,30 @@ function applyTemplateToUI(template) {
         templateIndicator.style.color = coverTextColor;
     }
 
-    // Style active tab with template color
-    const activeTabs = editorView.querySelectorAll('.tab.active, .editor-tab.active');
-    activeTabs.forEach(tab => {
-        tab.style.backgroundColor = primaryColor;
-        tab.style.borderColor = primaryColor;
-    });
+    // Ensure cover assets are updated for the new template
+    if (typeof updateCoverPreview === 'function') {
+        updateCoverPreview();
+    }
+
 
     // Update 3D book spine colors
-    const spines = document.querySelectorAll('.book3d-spine, .book3d-cover-spine');
-    spines.forEach(spine => {
-        spine.style.setProperty('--cover-color', primaryColor);
-    });
+    try {
+        const spines = document.querySelectorAll('.book3d-cover-spine');
+        if (spines.length > 0) {
+            spines.forEach(spine => {
+                spine.style.setProperty('--cover-color', primaryColor);
+            });
+        }
+    } catch (e) {
+        console.error('Error updating spines:', e);
+    }
+
+    if (typeof renderCurrentPage !== 'undefined') {
+        console.log('AppJS: applyTemplateToUI calling renderCurrentPage');
+        renderCurrentPage();
+    } else {
+        console.error('AppJS: renderCurrentPage is undefined');
+    }
 }
 
 function applyTheme(themeId) {
@@ -1996,35 +2146,7 @@ function applyThemeToPages(theme) {
     // The theme colors and illustrations will be used in renderCurrentPage()
 }
 
-// ============================================
-// FIREBASE FUNCTIONS
-// ============================================
-const functions = firebase.functions();
 
-// For local development, use emulator:
-if (window.location.hostname === "localhost") {
-    functions.useEmulator("localhost", 5001);
-}
-
-async function callFunction(name, data = {}) {
-    try {
-        const callable = functions.httpsCallable(name);
-        const result = await callable(data);
-        return result.data;
-    } catch (error) {
-        console.error(`Error calling function ${name}:`, error);
-
-        // Handle connection refused error specifically
-        if (error.message && (error.message.includes('internal') || error.message.includes('network'))) {
-            if (window.location.hostname === "localhost") {
-                console.warn("It looks like the Firebase emulators might not be running.");
-                alert(`Connection Error: Ensure Firebase Emulators are starting by running 'npm run serve' in your terminal.\n\nError details: ${error.message}`);
-            }
-        }
-
-        throw error;
-    }
-}
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -2071,15 +2193,48 @@ function escapeHtml(text) {
 // AUTHENTICATION
 // ============================================
 async function signInWithGoogle() {
+    // FAILSAFE: Ensure we are not on 127.0.0.1 before trying auth
+    if (window.location.hostname === '127.0.0.1') {
+        const port = window.location.port ? ':' + window.location.port : '';
+        let search = window.location.search;
+
+        // Pass the selected template in the URL to survive the redirect (localStorage is not shared)
+        if (state.selectedTemplate && state.selectedTemplate.id) {
+            const separator = search ? '&' : '?';
+            search += `${separator}restoreTemplate=${encodeURIComponent(state.selectedTemplate.id)}`;
+            console.log('Appending restoreTemplate to redirect URL:', state.selectedTemplate.id);
+        }
+
+        const newUrl = 'http://localhost' + port + window.location.pathname + search + window.location.hash;
+        console.warn('Redirecting from 127.0.0.1 to localhost for Firebase Auth compatibility...');
+        window.location.href = newUrl;
+        return;
+    }
+
+    if (window.location.hostname === 'localhost') {
+        console.warn('Localhost detected: Using Anonymous Auth to avoid Popup/Redirect loops.');
+        try {
+            await firebase.auth().signInAnonymously();
+            return;
+        } catch (error) {
+            console.error('Anonymous auth failed:', error);
+        }
+    }
+
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.addScope('https://www.googleapis.com/auth/photospicker.mediaitems.readonly');
         provider.addScope('https://www.googleapis.com/auth/presentations');
         provider.addScope('https://www.googleapis.com/auth/drive');
-        await firebase.auth().signInWithPopup(provider);
+        try {
+            await firebase.auth().signInWithPopup(provider);
+        } catch (error) {
+            console.warn('Popup failed, trying redirect...', error);
+            await firebase.auth().signInWithRedirect(provider);
+        }
     } catch (error) {
         console.error('Sign-in error:', error);
-        alert('Failed to sign in. Please try again.');
+        alert('Failed to sign in. Please try again.\n\nError: ' + error.message);
     }
 }
 
@@ -2094,82 +2249,134 @@ async function signOut() {
 // ============================================
 // INITIALIZATION
 // ============================================
+
+function checkLocalhostRedirect() {
+    if (window.location.hostname === '127.0.0.1') {
+        const port = window.location.port ? ':' + window.location.port : '';
+        const newUrl = 'http://localhost' + port + window.location.pathname + window.location.search + window.location.hash;
+        console.warn('Redirecting from 127.0.0.1 to localhost for Firebase Auth compatibility...');
+        window.location.href = newUrl;
+        return true;
+    }
+    return false;
+}
+
+// Refactored auth handler
+async function handleUserAuth(user) {
+    state.user = user;
+    if (user) {
+        console.log("User signed in:", user.uid);
+        // Hide login screen
+        const loginScreen = document.getElementById('loginScreen');
+        if (loginScreen) loginScreen.style.display = 'none';
+
+        // Auto-restore last opened saved album on refresh.
+        // If the user never saved / never loaded an album before, there is nothing to restore.
+        // CHECK: If user already picked a template (e.g. before logging in?), don't overwrite it.
+        if (!didAutoRestoreLastProject && !state.selectedTemplate) {
+            didAutoRestoreLastProject = true;
+            const lastId = getLastProjectIdFromStorage();
+            if (lastId) {
+                await waitForTemplatesReady(2500);
+                await loadProject(lastId, { suppressErrors: true, closeModal: false });
+                if (!state.activeProjectId) {
+                    await tryRestoreDraftIfNeeded();
+                }
+            } else {
+                await tryRestoreDraftIfNeeded();
+            }
+        }
+    }
+}
+
 async function initialize() {
+    if (checkLocalhostRedirect()) return;
+
+    // CHECK URL FOR RESTORED TEMPLATE (passed during localhost redirect)
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const restoreId = params.get('restoreTemplate');
+        if (restoreId) {
+            console.log('Restoring template from URL:', restoreId);
+            // Wait for templates to be ready, then select
+            waitForTemplatesReady().then(() => {
+                if (typeof selectTemplate !== 'undefined') {
+                    selectTemplate(restoreId);
+                }
+            });
+            // Set a temporary flag so the view switcher doesn't default to gallery immediately
+            state.selectedTemplate = { id: restoreId, _pendingRestore: true };
+        }
+    } catch (e) {
+        console.warn('Error checking restoreTemplate:', e);
+    }
+
     try {
         console.log("Initializing app...");
 
         // Set up auth state listener and require Google sign-in
         firebase.auth().onAuthStateChanged(async (user) => {
-            state.user = user;
-            if (user) {
-                console.log("User signed in:", user.uid);
-                // Hide login screen
-                document.getElementById('loginScreen').style.display = 'none';
-
-                // Auto-restore last opened saved album on refresh.
-                // If the user never saved / never loaded an album before, there is nothing to restore.
-                if (!didAutoRestoreLastProject) {
-                    didAutoRestoreLastProject = true;
-                    const lastId = getLastProjectIdFromStorage();
-                    if (lastId) {
-                        // Wait briefly for templates to load so we can apply the saved template cleanly.
-                        await waitForTemplatesReady(2500);
-                        await loadProject(lastId, { suppressErrors: true, closeModal: false });
-                        // If that project no longer exists / can't be loaded, fall back to draft.
-                        if (!state.activeProjectId) {
-                            await tryRestoreDraftIfNeeded();
-                        }
-                    } else {
-                        // No saved project pointer — try restoring an unsaved draft so refresh
-                        // doesn't dump the user back to the gallery.
-                        await tryRestoreDraftIfNeeded();
-                    }
-                }
-            } else {
-                console.log("User not signed in, showing login screen");
-                // Show login screen as overlay
-                document.getElementById('loginScreen').style.display = 'flex';
-
-                // Don't keep "resume album" pointers across sign-out.
-                state.activeProjectId = null;
-                state.activeProjectType = null;
-                state.activeProjectTitle = null;
-                clearActiveProjectFromStorage();
-            }
+            await handleUserAuth(user);
         });
 
         // Show template gallery if no template selected
-        if (!state.selectedTemplate) {
-            const galleryView = document.getElementById('templateGalleryView');
-            const editorView = document.getElementById('editorView');
-            const mdView = document.getElementById('memoryDirectorView');
-            if (galleryView) galleryView.style.display = 'block';
-            if (editorView) editorView.style.display = 'none';
-            if (mdView) mdView.style.display = 'none';
-        } else {
-            const galleryView = document.getElementById('templateGalleryView');
-            const editorView = document.getElementById('editorView');
-            const mdView = document.getElementById('memoryDirectorView');
-            if (galleryView) galleryView.style.display = 'none';
-            if (editorView) editorView.style.display = 'block';
-            if (mdView) mdView.style.display = 'none';
-            // Apply template styling to editor
-            if (typeof applyTemplateToUI !== 'undefined') {
-                applyTemplateToUI(state.selectedTemplate);
+        // Wait a tick to let stored project load if happening
+        setTimeout(() => {
+            if (!state.selectedTemplate && !state.activeProjectId) {
+                const galleryView = document.getElementById('templateGalleryView');
+                const editorView = document.getElementById('editorView');
+                const mdView = document.getElementById('memoryDirectorView');
+                if (galleryView) galleryView.style.display = 'block';
+                if (editorView) editorView.style.display = 'none';
+                if (mdView) mdView.style.display = 'none';
+            } else if (state.selectedTemplate) {
+                const galleryView = document.getElementById('templateGalleryView');
+                const editorView = document.getElementById('editorView');
+                const mdView = document.getElementById('memoryDirectorView');
+                if (galleryView) galleryView.style.display = 'none';
+                if (editorView) editorView.style.display = 'block';
+                if (mdView) mdView.style.display = 'none';
+                // Apply template styling to editor
+                if (typeof applyTemplateToUI !== 'undefined') {
+                    applyTemplateToUI(state.selectedTemplate);
+                }
             }
-        }
+        }, 100);
 
-        // Initialize UI
-        updateCoverPreview();
-        updateBackCoverPreview();
-        initResizableSidebar();
-        initAlbumViewSizeControls();
-        initPagePreviewZoomControls();
+
+
+        // Global error handler for debugging
+        window.onerror = function (msg, url, line, col, error) {
+            console.error("Global Error Caught:", msg, url, line, col, error);
+            // Make it visible in DOM for browser agent
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'fixed';
+            errDiv.style.top = '0';
+            errDiv.style.left = '0';
+            errDiv.style.background = 'red';
+            errDiv.style.color = 'white';
+            errDiv.style.zIndex = '99999';
+            errDiv.style.padding = '10px';
+            errDiv.innerText = "JS Error: " + msg;
+            document.body.appendChild(errDiv);
+        };
+
+        // Initialize UI (wrap in try-catch to prevent initialization failures)
+        try { updateCoverPreview(); } catch (e) { console.warn('updateCoverPreview failed during init:', e); }
+        try { updateBackCoverPreview(); } catch (e) { console.warn('updateBackCoverPreview failed during init:', e); }
+        try { initResizableSidebar(); } catch (e) { console.warn('initResizableSidebar failed:', e); }
+        try { initAlbumViewSizeControls(); } catch (e) { console.warn('initAlbumViewSizeControls failed:', e); }
+        try { initPagePreviewZoomControls(); } catch (e) { console.warn('initPagePreviewZoomControls failed:', e); }
+
+        // Initialize new cover enhancements (subtitle, fonts, photo slot)
+        try { setupCoverEnhancements(); } catch (e) { console.warn('setupCoverEnhancements failed:', e); }
 
         // Initialize design editor
-        if (typeof designEditor !== 'undefined') {
-            designEditor.init('designCanvasContainer');
-        }
+        try {
+            if (typeof designEditor !== 'undefined') {
+                designEditor.init('designCanvasContainer');
+            }
+        } catch (e) { console.warn('designEditor init failed:', e); }
 
         // Persist an unsaved draft when refreshing / closing the tab.
         // This is intentionally lightweight (no big base64 thumbnails).
@@ -2182,6 +2389,27 @@ async function initialize() {
         });
 
         console.log("App initialized successfully");
+
+        // Listen for Auth Success from Popup (fixes COOP/blocked window access)
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'GOOGLE_PHOTOS_AUTH_SUCCESS') {
+                console.log("Received Auth Success from Popup:", event.data);
+                if (state.sessionId) {
+                    console.log("Triggering session check...");
+                    checkSession();
+                } else {
+                    // Use a small delay to allow state updates if we are in the middle of creating one
+                    setTimeout(() => {
+                        const btn = document.getElementById('pickerBtn');
+                        if (btn && btn.innerText.includes('Creating')) {
+                            // If we were stuck creating, maybe try re-triggering or just waiting
+                            console.log("Auth success received while creating session.");
+                        }
+                    }, 1000);
+                }
+            }
+        });
+
     } catch (error) {
         console.error('Initialization error:', error);
         alert("Error loading app. Please refresh.");
@@ -2198,6 +2426,25 @@ async function loadPicker() {
     btn.disabled = true;
     btn.innerHTML = '⏳ Creating Session...';
     statusMsg.innerHTML = '';
+
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        console.warn("User not signed in when clicking loadPicker. Redirecting to sign in...");
+        try {
+            await signInWithGoogle();
+            // If sign-in succeeded, user is now populated. We should recurse to continue!
+            if (firebase.auth().currentUser) {
+                console.log("Sign-in successful, retrying loadPicker automatically...");
+                return loadPicker();
+            }
+        } catch (e) {
+            console.error("Sign in failed:", e);
+            btn.disabled = false;
+            btn.innerHTML = '🖼️ Open Google Photos Picker';
+        }
+        return;
+    }
+
 
     try {
         console.log("Requesting Picker Session...");
@@ -2586,7 +2833,8 @@ function updateSelectedPhotosUI() {
     const list = document.getElementById('selectedPhotosList');
     const count = document.getElementById('selectedCount');
     const showMoreBtn = document.getElementById('selectedShowMoreBtn');
-    count.textContent = state.selectedPhotos.length;
+    if (count) count.textContent = state.selectedPhotos.length;
+    if (!list) return;
 
     if (state.selectedPhotos.length === 0) {
         list.innerHTML = '<div class="empty-state">No photos selected</div>';
@@ -2594,29 +2842,20 @@ function updateSelectedPhotosUI() {
         return;
     }
 
-    // Collapsed strip: show a limited number of thumbnails and a “Show more” button.
-    const STRIP_MAX = 12;
-    const visible = state.selectedPhotos.slice(0, STRIP_MAX);
-    const remaining = Math.max(0, state.selectedPhotos.length - visible.length);
-
-    list.innerHTML = visible.map((photo, index) => {
+    // Render full grid in the sidebar (no longer just a strip)
+    list.innerHTML = state.selectedPhotos.map((photo, index) => {
         const thumbUrl = photo.thumbnailUrl && photo.thumbnailUrl.startsWith('data:') ? photo.thumbnailUrl : null;
-        return `<div class="selected-strip-item" title="Selected photo ${index + 1}" onclick="openSelectedPhotosModal()">
+        return `<div class="grid-item" title="Photo ${index + 1}">
           ${thumbUrl
-            ? `<img src="${thumbUrl}" alt="Selected photo ${index + 1}">`
-            : `<div class="thumbnail-placeholder">${index + 1}</div>`
-          }
+                ? `<img src="${thumbUrl}" alt="Photo ${index + 1}">`
+                : `<div class="thumbnail-placeholder">${index + 1}</div>`
+            }
+            <button class="remove-btn" onclick="removeSelectedPhoto(${index})" title="Remove">×</button>
         </div>`;
     }).join('');
 
-    if (remaining > 0) {
-        list.insertAdjacentHTML('beforeend', `<div class="selected-strip-more" onclick="openSelectedPhotosModal()" title="Show all selected photos">+${remaining}</div>`);
-    }
-
-    if (showMoreBtn) {
-        showMoreBtn.style.display = remaining > 0 ? 'inline-flex' : 'none';
-        showMoreBtn.textContent = `Show more (${state.selectedPhotos.length})`;
-    }
+    // We no longer need the "Show more" button pattern for the rail view
+    if (showMoreBtn) showMoreBtn.style.display = 'none';
 }
 
 function removeSelectedPhoto(index) {
@@ -2667,8 +2906,8 @@ function renderSelectedPhotosModal() {
         return `
           <div class="selected-photo-item">
             ${thumbUrl
-              ? `<img src="${thumbUrl}" alt="Photo ${index + 1}">`
-              : `<div class="thumbnail-placeholder">${index + 1}</div>`
+                ? `<img src="${thumbUrl}" alt="Photo ${index + 1}">`
+                : `<div class="thumbnail-placeholder">${index + 1}</div>`
             }
             <button class="remove-btn" onclick="removeSelectedPhoto(${index})" title="Remove">&times;</button>
           </div>
@@ -2681,16 +2920,32 @@ document.getElementById('selectedPhotosModal')?.addEventListener('click', functi
     if (e.target === this) closeSelectedPhotosModal();
 });
 
+
 // ============================================
-// TABS & NAVIGATION
+// TABS & NAVIGATION (UPDATED FOR REDESIGN)
 // ============================================
 function switchTab(tabName) {
-    document.querySelectorAll('.sidebar .tab').forEach(tab =>
+    // Legacy support
+    document.querySelectorAll('.sidebar .tab, .sidebar-rail .tab').forEach(tab =>
         tab.classList.toggle('active', tab.dataset.tab === tabName)
     );
     document.querySelectorAll('.tab-content').forEach(content =>
         content.classList.toggle('active', content.id === tabName + '-tab')
     );
+
+    // Redesign Support (Editorial Swiss System)
+    // 1. Update Navigation Rail Buttons
+    document.querySelectorAll('.rebuild-rail .rail-btn').forEach(btn =>
+        btn.classList.toggle('active', btn.dataset.tab === tabName)
+    );
+
+    // 2. Update Drawer Content Visibility
+    // Since index.html has IDs like 'photos-tab' and 'design-tab' inside the drawer,
+    // and multiple .drawer-content elements, we toggle them.
+    document.querySelectorAll('.rebuild-drawer .drawer-content').forEach(content => {
+        const isActive = content.id === tabName + '-tab';
+        content.classList.toggle('active', isActive);
+    });
 
     // If switching to design tab, ensure canvas is visible
     if (tabName === 'design' && typeof designEditor !== 'undefined') {
@@ -2702,13 +2957,81 @@ function switchTab(tabName) {
     }
 }
 
+// Global Navigation Helpers for Toolbar
+window.goToCover = function () {
+    if (typeof state !== 'undefined') {
+        state.currentPageIndex = -1;
+        renderCurrentPage();
+        updatePageIndicator();
+    }
+};
+
+window.goToBackCover = function () {
+    if (typeof state !== 'undefined' && state.pages) {
+        state.currentPageIndex = state.pages.length;
+        renderCurrentPage();
+        updatePageIndicator();
+    }
+};
+
+
+// Redirect old tab names to new merged 'photos' tab
+// Note: We are patching the global function here.
+const rawSwitchTab = switchTab;
+switchTab = function (tabName) {
+    if (tabName === 'picker' || tabName === 'selected') {
+        tabName = 'photos';
+    }
+    rawSwitchTab(tabName);
+};
+
 function switchEditorTab(tabName) {
     document.querySelectorAll('.editor-tab').forEach(tab =>
         tab.classList.toggle('active', tab.dataset.editortab === tabName)
     );
-    document.querySelectorAll('.editor-content').forEach(content =>
-        content.classList.toggle('active', content.id === tabName + '-editor')
-    );
+
+    // Show/hide editor content sections
+    document.querySelectorAll('.editor-content').forEach(content => {
+        const isActive = content.id === tabName + '-editor';
+        content.classList.toggle('active', isActive);
+        // Explicitly set display to override any inline styles from HTML
+        // CSS uses display: flex for .editor-content.active
+        if (isActive) {
+            content.style.display = 'flex';
+        } else {
+            content.style.display = 'none';
+        }
+    });
+
+    // Update settings panel visibility
+    const settingsPanels = {
+        'cover': 'cover-settings-panel',
+        'pages': 'pages-settings-panel',
+        'backcover': 'backcover-settings-panel'
+    };
+
+    Object.keys(settingsPanels).forEach(key => {
+        const panel = document.getElementById(settingsPanels[key]);
+        if (panel) {
+            panel.style.display = key === tabName ? 'block' : 'none';
+        }
+    });
+
+    // Update header title
+    const headerTitle = document.getElementById('settingsHeaderTitle');
+    if (headerTitle) {
+        const titles = {
+            'cover': 'Cover Settings',
+            'pages': 'Page Settings',
+            'backcover': 'Back Cover Settings'
+        };
+        headerTitle.textContent = titles[tabName] || 'Settings';
+    }
+
+    // If switching to pages tab, ensure page is rendered
+    if (tabName === 'pages') {
+        renderCurrentPage();
+    }
 }
 
 // ============================================
@@ -2716,7 +3039,7 @@ function switchEditorTab(tabName) {
 // ============================================
 function updateCoverPreview() {
     ensure3DCoverPreview('front');
-    
+
     const title = document.getElementById('coverTitle')?.value || 'My Photo Book';
     const titleSize = document.getElementById('coverTitleSize')?.value || 36;
     const titleColor = document.getElementById('coverTitleColor')?.value || '#ffffff';
@@ -2739,7 +3062,7 @@ function updateCoverPreview() {
     // Update range value displays
     const titleSizeVal = document.getElementById('coverTitleSizeVal');
     if (titleSizeVal) titleSizeVal.textContent = titleSize + 'px';
-    
+
     const subtitleSizeVal = document.getElementById('coverSubtitleSizeVal');
     if (subtitleSizeVal) subtitleSizeVal.textContent = (subtitleSize || 14) + 'px';
 
@@ -2761,44 +3084,86 @@ function updateCoverPreview() {
         subtitlePreview.style.opacity = '0.85';
     }
 
-    // Update cover background and decorative border color
-    const coverPreview = document.getElementById('coverPreview');
-    if (coverPreview) {
-        sync3DThicknessVars();
-        // Update cover color CSS variable for spine
-        const root = coverPreview.querySelector('.book3d-cover-root');
-        if (root) {
-            const coverColor = state?.selectedTemplate?.colors?.accentColor || bgColor || '#2c3e50';
-            root.style.setProperty('--cover-color', coverColor);
-        }
+    // Custom Template Assets (Botanical, etc.)
+    // We ideally want to target the VISIBLE 3D cover in #pagePreview, not just the hidden legacy one
+    const visibleCoverRoot = document.querySelector('#pagePreview .book3d-cover-root');
+    const legacyCoverPreview = document.getElementById('coverPreview');
+
+    // List of covers to update (visible + legacy)
+    const coverRoots = [];
+    if (visibleCoverRoot) coverRoots.push(visibleCoverRoot);
+    if (legacyCoverPreview) {
+        const root = legacyCoverPreview.querySelector('.book3d-cover-root') || legacyCoverPreview;
+        coverRoots.push(root);
     }
 
-    // In 3D mode the background belongs to the 3D face (not the outer container),
-    // otherwise you get a big diagonal wedge when the face is inset/rotated.
-    const coverFace = coverPreview?.querySelector('.book3d-cover-face');
-    if (coverFace) {
-        coverPreview.style.backgroundColor = 'transparent';
-        coverPreview.style.backgroundImage = 'none';
-        coverFace.style.backgroundColor = bgColor;
-        coverFace.style.backgroundImage = 'none';
-        
-        // Toggle embossed border
-        if (showBorder) {
+    coverRoots.forEach(root => {
+        const coverColor = state?.selectedTemplate?.colors?.accentColor || bgColor || '#2c3e50';
+        root.style.setProperty('--cover-color', coverColor);
+
+        // Find the face to apply assets to
+        // In the visible 3D book, it is .book3d-cover-face
+        const coverFace = root.querySelector('.book3d-cover-face') || root;
+
+        if (coverFace) {
+            // Reset
+            coverFace.style.backgroundColor = bgColor;
+            coverFace.style.backgroundImage = 'none';
+            coverFace.style.border = '';
+            coverFace.style.boxShadow = '';
             coverFace.classList.remove('no-border');
-        } else {
-            coverFace.classList.add('no-border');
+
+            // Remove old overlays
+            const existingOverlay = coverFace.querySelector('.template-overlay');
+            if (existingOverlay) existingOverlay.remove();
+
+            // Custom Template Assets (Botanical, etc.)
+            const templateId = state.selectedTemplate?.id || '';
+            const accent = state.selectedTemplate?.colors?.accentColor || '#97BC62';
+
+            if (templateId.includes('botanical')) {
+                // 1. Organic Border
+                coverFace.style.border = `4px double ${accent}`;
+                coverFace.style.boxShadow = `inset 0 0 0 8px ${bgColor}, inset 0 0 0 10px ${accent}`;
+                coverFace.classList.add('no-border');
+
+                // 2. Leaf/Nature Overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'template-overlay botanical-leaf-overlay';
+                overlay.style.position = 'absolute';
+                overlay.style.inset = '0';
+                overlay.style.pointerEvents = 'none';
+                overlay.style.zIndex = '5';
+                overlay.style.opacity = '1.0';
+                overlay.innerHTML = `
+                     <svg viewBox="0 0 400 600" preserveAspectRatio="none" style="width:100%; height:100%;">
+                         <path d="M 0 600 C 100 500 150 550 200 600" fill="none" stroke="${accent}" stroke-width="20" stroke-opacity="0.4"/>
+                         <path d="M -50 600 Q 150 400 350 550" fill="none" stroke="${accent}" stroke-width="3" opacity="0.8"/>
+                         <path d="M 300 550 Q 320 520 350 500" fill="none" stroke="${accent}" stroke-width="3" opacity="0.6"/>
+                         <text x="20" y="550" font-size="80" fill="${accent}" opacity="0.8">🌿</text>
+                     </svg>
+                 `;
+                coverFace.appendChild(overlay);
+            }
         }
-    } else if (coverPreview) {
-        coverPreview.style.backgroundColor = bgColor;
-        coverPreview.style.backgroundImage = 'none'; // CRITICAL: Clear any texture/gradient
-    }
+    });
+
+    // Handle Title/Subtitle Text Updates for LEGACY hidden preview only (since 3D one is DOM-generated)
+    // Actually, we might need to update text on the 3D one too if this function is called on input change?
+    // standard `renderCurrentPage` handles the text content for the 3D view.
+    // This function focuses on decorating it.
+
+    const coverPreview = document.getElementById('coverPreview');
     if (coverPreview) coverPreview.style.color = titleColor; // For the decorative border
 
-    const hasBorder = document.getElementById('coverPhotoBorder').checked;
+    const coverPhotoBorderEl = document.getElementById('coverPhotoBorder');
+    const hasBorder = coverPhotoBorderEl ? coverPhotoBorderEl.checked : false;
     if (hasBorder) {
+        const coverBorderColorEl = document.getElementById('coverBorderColor');
+        const coverBorderWeightEl = document.getElementById('coverBorderWeight');
         state.cover.photoBorder = {
-            color: document.getElementById('coverBorderColor').value,
-            weight: parseInt(document.getElementById('coverBorderWeight').value)
+            color: coverBorderColorEl ? coverBorderColorEl.value : '#000000',
+            weight: coverBorderWeightEl ? parseInt(coverBorderWeightEl.value) : 2
         };
 
         // Apply border to photo placeholder if photo exists
@@ -2818,16 +3183,20 @@ function updateCoverPreview() {
 function selectCoverPhoto() {
     state.photoPickerCallback = (photo) => {
         state.cover.photo = photo;
-        const slot = document.getElementById('coverPhotoSlot');
-        const thumbUrl = photo.thumbnailUrl && photo.thumbnailUrl.startsWith('data:') ? photo.thumbnailUrl : null;
-        slot.innerHTML = thumbUrl
-            ? `<img src="${thumbUrl}" alt="Cover photo">`
-            : '<div class="thumbnail-placeholder">Cover Photo</div>';
+        updateCoverFromState();
+        try { updateCoverPreview(); } catch (e) { /* ignore */ }
     };
-    if (state.selectedPhotos.length > 0) {
+
+    // If we have photos, use internal picker. If not, try to load from Google.
+    if (state.selectedPhotos && state.selectedPhotos.length > 0) {
         openPhotoPicker();
     } else {
-        alert("Please select photos from Google Photos first.");
+        // No photos selected? Trigger the main picker flow to help the user.
+        if (typeof loadPicker === 'function') {
+            loadPicker();
+        } else {
+            alert("Please select photos from Google Photos first.");
+        }
     }
 }
 
@@ -2844,13 +3213,13 @@ let backCoverAlign = 'center';
 function setBackCoverAlign(align) {
     backCoverAlign = align;
     state.backCover.textAlign = align;
-    
+
     // Update button states
     document.querySelectorAll('#backcover-editor .btn-alignment, [data-alignment]').forEach(btn => {
         const btnAlign = btn.dataset.alignment;
         btn.classList.toggle('active', btnAlign === align);
     });
-    
+
     updateBackCoverPreview();
 }
 
@@ -2880,7 +3249,7 @@ function syncBackCoverBgColor() {
 
 function updateBackCoverPreview() {
     ensure3DCoverPreview('back');
-    
+
     // Get all values from inputs (with fallbacks)
     const text = document.getElementById('backCoverText')?.value || 'Thank you for viewing this photo book';
     const subtitle = document.getElementById('backCoverSubtitle')?.value || '';
@@ -2947,21 +3316,21 @@ function updateBackCoverPreview() {
     const el = document.getElementById('backCoverPreview');
     if (el) {
         sync3DThicknessVars();
-        
+
         // Update cover color CSS variable for spine
         const root = el.querySelector('.book3d-cover-root');
         if (root) {
             const coverColor = state?.selectedTemplate?.colors?.accentColor || bgColor || '#2c3e50';
             root.style.setProperty('--cover-color', coverColor);
         }
-        
+
         const face = el.querySelector('.book3d-cover-face');
         if (face) {
             el.style.backgroundColor = 'transparent';
             el.style.backgroundImage = 'none';
             face.style.backgroundColor = bgColor;
             face.style.backgroundImage = 'none';
-            
+
             // Toggle embossed border
             if (showBorder) {
                 face.classList.remove('no-border');
@@ -2986,12 +3355,12 @@ function updateBackCoverPreview() {
  */
 function updateBackCoverFromState() {
     const bc = state.backCover || {};
-    
+
     const setText = (id, value) => {
         const el = document.getElementById(id);
         if (el) el.value = value || '';
     };
-    
+
     const setCheck = (id, value) => {
         const el = document.getElementById(id);
         if (el) el.checked = !!value;
@@ -3004,18 +3373,18 @@ function updateBackCoverFromState() {
     setText('backCoverTextColor', bc.textColor || '#ffffff');
     setText('backCoverTextColorText', bc.textColor || '#ffffff');
     setText('backCoverTextFont', bc.textFont || 'Inter');
-    
+
     const textSizeEl = document.getElementById('backCoverTextSize');
     if (textSizeEl) textSizeEl.value = bc.textSize || 18;
-    
+
     const subtitleSizeEl = document.getElementById('backCoverSubtitleSize');
     if (subtitleSizeEl) subtitleSizeEl.value = bc.subtitleSize || 12;
-    
+
     setCheck('backCoverShowBorder', bc.showBorder !== false);
     setCheck('backCoverShowLogo', bc.showLogo || false);
-    
+
     backCoverAlign = bc.textAlign || 'center';
-    
+
     // Update alignment buttons
     document.querySelectorAll('#backcover-editor .btn-alignment, [data-alignment]').forEach(btn => {
         const btnAlign = btn.dataset.alignment;
@@ -3062,7 +3431,7 @@ function ensure3DCoverPreview(which) {
 
     const newRoot = document.createElement('div');
     newRoot.className = 'book3d-cover-root' + (isBack ? ' is-back' : ' is-front');
-    
+
     // Set cover color CSS variable
     const bgColor = isBack ? state?.backCover?.backgroundColor : state?.cover?.backgroundColor;
     const coverColor = state?.selectedTemplate?.colors?.accentColor || bgColor || '#2c3e50';
@@ -3218,18 +3587,46 @@ function deletePage() {
 }
 
 function prevPage() {
+    // Nav logic updated for Cover (-1)
+    if (state.currentPageIndex === 0 || state.currentPageIndex === 1) {
+        // Go to Cover
+        state.currentPageIndex = -1;
+        renderCurrentPage();
+        updatePageIndicator();
+        return;
+    }
     // In the book-like preview, we flip by spread (2 pages) to mimic turning a sheet.
     const base = Math.floor((state.currentPageIndex || 0) / 2) * 2;
     const targetBase = base - 2;
-    if (targetBase < 0) return;
+    if (targetBase < 0) {
+        state.currentPageIndex = -1;
+        renderCurrentPage();
+        updatePageIndicator();
+        return;
+    }
     animateBookSpreadFlip(-1, targetBase);
 }
 
 function nextPage() {
+    // Nav logic updated for Back Cover (> length)
+    if (state.currentPageIndex === -1) {
+        state.currentPageIndex = 0;
+        renderCurrentPage();
+        updatePageIndicator();
+        return;
+    }
+
     // In the book-like preview, we flip by spread (2 pages) to mimic turning a sheet.
     const base = Math.floor((state.currentPageIndex || 0) / 2) * 2;
     const targetBase = base + 2;
-    if (targetBase > state.pages.length - 1) return;
+
+    if (targetBase > state.pages.length - 1) {
+        // Go to Back Cover
+        state.currentPageIndex = state.pages.length;
+        renderCurrentPage();
+        updatePageIndicator();
+        return;
+    }
     animateBookSpreadFlip(1, targetBase);
 }
 
@@ -3269,118 +3666,79 @@ function highlightCurrentThumbnail() {
 }
 
 function updatePageIndicator() {
-    document.getElementById('currentPageNum').textContent = state.pages.length > 0 ? state.currentPageIndex + 1 : 0;
-    document.getElementById('totalPages').textContent = state.pages.length;
+    if (state.currentPageIndex < 0) {
+        document.getElementById('currentPageNum').textContent = "Cover";
+        document.getElementById('totalPages').textContent = state.pages.length;
+    } else if (state.currentPageIndex >= state.pages.length) {
+        document.getElementById('currentPageNum').textContent = "Back";
+        document.getElementById('totalPages').textContent = state.pages.length;
+    } else {
+        document.getElementById('currentPageNum').textContent = state.pages.length > 0 ? state.currentPageIndex + 1 : 0;
+        document.getElementById('totalPages').textContent = state.pages.length;
+    }
 }
 
 // ============================================
 // Template/theme visual preview helpers (HTML/SVG)
 // ============================================
-function renderTemplateThemeOverlay(themeId, colors) {
-    const id = String(themeId || '').toLowerCase();
-    const accent = colors?.accent || colors?.accentColor || colors?.secondary || colors?.primary || '#97BC62';
-    const secondary = colors?.secondary || colors?.borderColor || colors?.textColor || '#777777';
-
-    // We use SVG overlays so the editor preview matches the PDF generator's visual language.
-    // (Background curve, subtle geometry, filmstrip framing, etc.)
-    if (id.includes('botanical') || id.includes('nature')) {
-        // Organic bottom curve (matches pdf-generator drawThemeBackground botanical branch)
-        return `
-          <div class="page-theme-overlay" style="position:absolute; inset:0; pointer-events:none; z-index:0; overflow:hidden;">
-            <svg viewBox="0 0 800 600" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%;">
-              <path d="M 0 600 L 0 500 Q 200 450 400 500 T 800 520 L 800 600 Z" fill="${accent}" fill-opacity="0.08"></path>
-            </svg>
-          </div>
-        `;
-    }
-
-    if (id.includes('modern') || id.includes('geometric')) {
-        return `
-          <div class="page-theme-overlay" style="position:absolute; inset:0; pointer-events:none; z-index:0; overflow:hidden;">
-            <svg viewBox="0 0 800 600" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%;">
-              <polygon points="0,600 800,420 800,600" fill="${accent}" fill-opacity="0.10"></polygon>
-              <polygon points="0,0 240,0 0,120" fill="${secondary}" fill-opacity="0.05"></polygon>
-            </svg>
-          </div>
-        `;
-    }
-
-    if (id.includes('noir') || id.includes('film')) {
-        // Simplified filmstrip vibe (PDF has sprocket holes; we keep it light for DOM preview)
-        return `
-          <div class="page-theme-overlay" style="position:absolute; inset:0; pointer-events:none; z-index:0; overflow:hidden;">
-            <svg viewBox="0 0 800 600" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%;">
-              <rect x="0" y="0" width="44" height="600" fill="#000000" fill-opacity="0.22"></rect>
-              <rect x="756" y="0" width="44" height="600" fill="#000000" fill-opacity="0.22"></rect>
-              <rect x="0" y="0" width="800" height="28" fill="#000000" fill-opacity="0.18"></rect>
-              <rect x="0" y="572" width="800" height="28" fill="#000000" fill-opacity="0.18"></rect>
-            </svg>
-          </div>
-        `;
-    }
-
-    if (id.includes('bauhaus')) {
-        return `
-          <div class="page-theme-overlay" style="position:absolute; inset:0; pointer-events:none; z-index:0; overflow:hidden;">
-            <svg viewBox="0 0 800 600" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%;">
-              <polygon points="0,108 544,0 800,0 0,252" fill="${accent}" fill-opacity="0.10"></polygon>
-              <circle cx="656" cy="468" r="108" fill="${secondary}" fill-opacity="0.10"></circle>
-              <rect x="64" y="432" width="26" height="26" fill="${secondary}" fill-opacity="0.10"></rect>
-              <rect x="128" y="72" width="18" height="18" fill="${accent}" fill-opacity="0.10"></rect>
-            </svg>
-          </div>
-        `;
-    }
-
-    return '';
-}
-
-function renderDecorationSvg(decoration, color, opacity = 0.15, size = 56) {
-    const dec = String(decoration || '');
-    const lower = dec.toLowerCase();
-
-    // Leaf-ish decorations (🌿 🍃 🌱 🌾 etc.)
-    const isLeaf = dec === '🌿' || dec === '🍃' || dec === '🌱' || dec === '🌾' || lower.includes('leaf') || lower.includes('botanical');
-    if (isLeaf) {
-        return `
-          <svg width="${size}" height="${size}" viewBox="-40 -40 80 80" aria-hidden="true">
-            <path d="M 0 40 C 40 40 40 -20 0 -40 C -40 -20 -40 40 0 40 Z" fill="${color}" fill-opacity="${opacity}"></path>
-            <path d="M 0 40 L 0 -40" stroke="${color}" stroke-opacity="${opacity}" stroke-width="2" fill="none"></path>
-          </svg>
-        `;
-    }
-
-    if (dec === '◆' || lower.includes('diamond')) {
-        return `
-          <svg width="${size}" height="${size}" viewBox="-40 -40 80 80" aria-hidden="true">
-            <path d="M 0 -40 L 24 0 L 0 40 L -24 0 Z" fill="${color}" fill-opacity="${opacity}"></path>
-          </svg>
-        `;
-    }
-
-    if (dec === '●' || lower.includes('circle')) {
-        return `
-          <svg width="${size}" height="${size}" viewBox="-40 -40 80 80" aria-hidden="true">
-            <circle cx="0" cy="0" r="20" fill="${color}" fill-opacity="${opacity}"></circle>
-          </svg>
-        `;
-    }
-
-    if (dec === '◼' || lower.includes('square')) {
-        return `
-          <svg width="${size}" height="${size}" viewBox="-40 -40 80 80" aria-hidden="true">
-            <rect x="-20" y="-20" width="40" height="40" fill="${color}" fill-opacity="${opacity}"></rect>
-          </svg>
-        `;
-    }
-
-    // Fallback: keep the original text-based decoration
-    return `<div style="font-size: 2rem; opacity: ${opacity}; color: ${color};">${escapeHtml(dec)}</div>`;
-}
-
 function renderCurrentPage() {
     const preview = document.getElementById('pagePreview');
-    if (state.pages.length === 0) {
+
+    if (!preview) {
+        console.error("renderCurrentPage: #pagePreview not found!");
+        return;
+    }
+
+    // Thickness scales with number of spreads (sheets)
+    const totalPages = state.pages?.length || 0;
+    const sheets = Math.ceil(totalPages / 2);
+    const thicknessPx = Math.max(14, Math.min(64, Math.round(12 + sheets * 1.35)));
+
+    // CHECK FOR COVER OR BACK COVER
+    // ============================================
+    if (state.currentPageIndex < 0) {
+        // FRONT COVER
+        const coverColor = state?.selectedTemplate?.colors?.accentColor || document.getElementById('coverBgColor')?.value || '#2c3e50';
+        preview.classList.remove('is-book-spread');
+        preview.classList.add('is-cover-view');
+
+        preview.innerHTML = `
+    <div class="book3d-cover-root" style="--book-thickness: ${thicknessPx}px; --cover-color: ${coverColor}; width: 62%; height: 62%; margin: auto; inset: 0;">
+        <div class="book3d-cover-stage" style="transform: rotateX(10deg) rotateY(-15deg);">
+            <div class="book3d-cover-face">
+                <div class="book3d-cover-inner">
+                    <div class="cover-photo-slot" onclick="selectPhotoForCover()" style="width: 90%; height: 70%; background: #eee; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 2px dashed #ccc; cursor: pointer; overflow: hidden; position: relative; z-index: 20;">
+                        ${state.cover?.photoUrl ? `<img src="${state.cover.photoUrl}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="color:#999; font-size:12px;">+ Add Cover Photo</span>'}
+                    </div>
+                    <h1 style="font-size: 3em; color: white; font-family: ${state.cover?.titleFont || 'inherit'};">${state.cover?.title || 'My Photo Book'}</h1>
+                    <h3 style="font-size: 1.5em; color: white; opacity: 0.8; margin-top: 5px; font-family: ${state.cover?.subtitleFont || 'inherit'};">${state.cover?.subtitle || 'Add a subtitle'}</h3>
+                </div>
+            </div>
+            <div class="book3d-cover-spine"></div>
+            <div class="book3d-cover-foreedge"></div>
+            <div class="book3d-cover-bottom"></div>
+        </div>
+        </div>`;
+
+        // Show Cover Settings, Hide others
+        const coverPanel = document.getElementById('cover-settings-panel');
+        const pagePanel = document.getElementById('pages-settings-panel');
+        const backPanel = document.getElementById('backcover-settings-panel');
+        if (coverPanel) coverPanel.style.display = 'block';
+        if (pagePanel) pagePanel.style.display = 'none';
+        if (backPanel) backPanel.style.display = 'none';
+
+        // Ensure toolbar is visible
+        const toolbar = document.querySelector('.floating-toolbar');
+        if (toolbar) toolbar.style.display = 'flex';
+
+        // CRITICAL: Apply template assets and sync latest state to the fresh DOM
+        updateCoverPreview();
+
+        return;
+    }
+
+    if (totalPages === 0) {
         preview.innerHTML = '<div class="empty-state">No pages yet. Select photos and click "Auto-Arrange"</div>';
         return;
     }
@@ -3390,39 +3748,86 @@ function renderCurrentPage() {
     const leftIndex = base;
     const rightIndex = base + 1;
 
-    // Thickness scales with number of spreads (sheets)
-    const totalPages = state.pages.length;
-    const sheets = Math.ceil(totalPages / 2);
-    const thicknessPx = Math.max(14, Math.min(64, Math.round(12 + sheets * 1.35)));
+    if (state.currentPageIndex >= totalPages) {
+        // BACK COVER
+        const coverColor = state?.selectedTemplate?.colors?.accentColor || document.getElementById('coverBgColor')?.value || '#2c3e50';
+        preview.classList.remove('is-book-spread');
+        preview.classList.add('is-cover-view');
 
+        preview.innerHTML = `
+    <div class="book3d-cover-root is-back" style="--book-thickness: ${thicknessPx}px; --cover-color: ${coverColor}; width: 62%; height: 62%; margin: auto; inset: 0;">
+        <div class="book3d-cover-stage" style="transform: rotateX(10deg) rotateY(15deg);">
+            <div class="book3d-cover-face">
+                <div class="book3d-cover-inner">
+                    <div style="font-size: 1.2em; color: white; opacity: 0.8; font-family: ${state.cover?.subtitleFont || 'inherit'}; margin-top: 20px;">${state.backCover?.text || 'The End'}</div>
+                </div>
+            </div>
+            <div class="book3d-cover-spine"></div>
+            <div class="book3d-cover-foreedge"></div>
+            <div class="book3d-cover-bottom"></div>
+        </div>
+        </div>`;
+
+        // Show Back Cover Settings
+        const coverPanel = document.getElementById('cover-settings-panel');
+        const pagePanel = document.getElementById('pages-settings-panel');
+        const backPanel = document.getElementById('backcover-settings-panel');
+        if (coverPanel) coverPanel.style.display = 'none';
+        if (pagePanel) pagePanel.style.display = 'none';
+        if (backPanel) backPanel.style.display = 'block';
+
+        // Ensure toolbar is visible
+        const toolbar = document.querySelector('.floating-toolbar');
+        if (toolbar) toolbar.style.display = 'flex';
+
+        // Apply assets to back cover too (spine interactions etc)
+        updateCoverPreview();
+
+        return;
+    }
+
+    // NORMAL SPREAD RENDER - Settings Panels
+    const coverPanel = document.getElementById('cover-settings-panel');
+    const pagePanel = document.getElementById('pages-settings-panel');
+    const backPanel = document.getElementById('backcover-settings-panel');
+    if (coverPanel) coverPanel.style.display = 'none';
+    if (pagePanel) pagePanel.style.display = 'block';
+    if (backPanel) backPanel.style.display = 'none';
+
+    // Ensure toolbar is visible
+    const toolbar = document.querySelector('.floating-toolbar');
+    if (toolbar) toolbar.style.display = 'flex';
+
+    // NORMAL SPREAD RENDER
+    preview.classList.remove('is-cover-view');
     preview.classList.add('is-book-spread');
     preview.style.setProperty('--book-thickness', `${thicknessPx}px`);
 
     // Get cover color for spine
-    const coverColor = state?.selectedTemplate?.colors?.accentColor || 
-                       document.getElementById('coverBgColor')?.value || 
-                       '#2c3e50';
+    const coverColor = state?.selectedTemplate?.colors?.accentColor ||
+        document.getElementById('coverBgColor')?.value ||
+        '#2c3e50';
 
     const pagesLeft = Math.max(0, totalPages - (base + 2));
     const spreadLabel = `Pages ${leftIndex + 1}${rightIndex < totalPages ? `–${rightIndex + 1}` : ''} · ${pagesLeft} left`;
 
     preview.innerHTML = `
-      <div class="book3d" style="--book-thickness: ${thicknessPx}px; --cover-color: ${coverColor};">
+    <div class="book3d" style="--book-thickness: ${thicknessPx}px; --cover-color: ${coverColor}; width: 62%; height: 62%; margin: auto; inset: 0; position: absolute;">
         <div class="book3d-stage">
-          <div class="book3d-body">
-            <div class="book3d-spine"></div>
-            <div class="book3d-foreedge"></div>
-            <div class="book3d-bottom"></div>
+            <div class="book3d-body">
+                <div class="book3d-spine"></div>
+                <div class="book3d-foreedge"></div>
+                <div class="book3d-bottom"></div>
 
-            <div class="book3d-spread">
-              <div class="book3d-page book3d-page-left ${state.currentPageIndex === leftIndex ? 'is-active' : ''}" data-page-index="${leftIndex}"></div>
-              <div class="book3d-gutter"></div>
-              <div class="book3d-page book3d-page-right ${state.currentPageIndex === rightIndex ? 'is-active' : ''}" data-page-index="${rightIndex}"></div>
+                <div class="book3d-spread">
+                    <div class="book3d-page book3d-page-left ${state.currentPageIndex === leftIndex ? 'is-active' : ''}" data-page-index="${leftIndex}"></div>
+                    <div class="book3d-gutter"></div>
+                    <div class="book3d-page book3d-page-right ${state.currentPageIndex === rightIndex ? 'is-active' : ''}" data-page-index="${rightIndex}"></div>
+                </div>
+
+                <div class="book3d-progress">${escapeHtml(spreadLabel)}</div>
+                <div class="book3d-flip-layer" aria-hidden="true"></div>
             </div>
-
-            <div class="book3d-progress">${escapeHtml(spreadLabel)}</div>
-            <div class="book3d-flip-layer" aria-hidden="true"></div>
-          </div>
         </div>
       </div>
     `;
@@ -3453,14 +3858,49 @@ function renderCurrentPage() {
     // Sync controls to the active page
     const page = state.pages[state.currentPageIndex];
     if (!page) return;
+
+    // Update Side Switcher Buttons
+    const sideSwitcher = document.getElementById('pageSideSwitcher');
+    if (sideSwitcher) {
+        if (state.currentPageIndex < 0 || state.currentPageIndex >= state.pages.length) {
+            sideSwitcher.style.display = 'none';
+        } else {
+            const base = Math.floor(state.currentPageIndex / 2) * 2;
+            const leftIndex = base;
+            const rightIndex = base + 1;
+            const hasRight = rightIndex < state.pages.length;
+
+            sideSwitcher.style.display = 'flex';
+
+            const btnLeft = document.getElementById('btnSideLeft');
+            const btnRight = document.getElementById('btnSideRight');
+
+            if (btnLeft) {
+                btnLeft.classList.toggle('active', state.currentPageIndex === leftIndex);
+                btnLeft.disabled = false;
+            }
+            if (btnRight) {
+                btnRight.classList.toggle('active', state.currentPageIndex === rightIndex);
+                btnRight.disabled = !hasRight;
+            }
+        }
+    }
+
     const template = page.templateData || state.selectedTemplate;
     const theme = template || (page.theme ? state.config.THEMES[page.theme] : null) || state.config.THEMES[state.currentTheme] || state.config.THEMES['classic'];
     const bgColor = page.backgroundColor || (template ? template.colors.pageBackground : theme.colors.bg);
 
-    document.getElementById('pageLayout').value = page.layout;
-    document.getElementById('pageBgColor').value = page.backgroundColor || bgColor;
-    document.getElementById('pageCaption').value = page.caption || '';
-    document.getElementById('showPageNumber').checked = page.showPageNumber;
+    const pageLayoutEl = document.getElementById('pageLayout');
+    if (pageLayoutEl) pageLayoutEl.value = page.layout;
+
+    const pageBgColorEl = document.getElementById('pageBgColor');
+    if (pageBgColorEl) pageBgColorEl.value = page.backgroundColor || bgColor;
+
+    const pageCaptionEl = document.getElementById('pageCaption');
+    if (pageCaptionEl) pageCaptionEl.value = page.caption || '';
+
+    const showPageNumberEl = document.getElementById('showPageNumber');
+    if (showPageNumberEl) showPageNumberEl.checked = page.showPageNumber;
 
     const bgStatus = document.getElementById('pageBgImageStatus');
     if (bgStatus) {
@@ -3482,12 +3922,15 @@ function renderCurrentPage() {
         label.textContent = pageTplName ? pageTplName : (bookTplName ? `${bookTplName} (book default)` : 'None');
     }
 
+    const pageBorderEl = document.getElementById('pageBorder');
     if (page.photoBorder) {
-        document.getElementById('pageBorder').checked = true;
-        document.getElementById('pageBorderColor').value = page.photoBorder.color;
-        document.getElementById('pageBorderWeight').value = page.photoBorder.weight;
+        if (pageBorderEl) pageBorderEl.checked = true;
+        const pageBorderColorEl = document.getElementById('pageBorderColor');
+        if (pageBorderColorEl) pageBorderColorEl.value = page.photoBorder.color;
+        const pageBorderWeightEl = document.getElementById('pageBorderWeight');
+        if (pageBorderWeightEl) pageBorderWeightEl.value = page.photoBorder.weight;
     } else {
-        document.getElementById('pageBorder').checked = false;
+        if (pageBorderEl) pageBorderEl.checked = false;
     }
 }
 
@@ -3499,6 +3942,44 @@ function applyBackgroundToPageElement(el, pageIndex) {
     const bgColor = page.backgroundColor || (template ? template.colors.pageBackground : theme.colors.bg);
     el.style.backgroundColor = bgColor;
     applyPageBackgroundStyles(el, page, bgColor);
+}
+
+/**
+ * Helper to render decorations (SVGs or Unicode)
+ */
+function renderDecorationSvg(dec, color, opacity, size) {
+    if (!dec) return '';
+
+    // Check if it's an SVG icon name in the global Icons object
+    let svgContent = '';
+    if (typeof Icons !== 'undefined' && Icons[dec]) {
+        svgContent = Icons[dec];
+    } else if (dec.startsWith('<svg')) {
+        // Direct SVG string
+        svgContent = dec;
+    } else {
+        // Assume Unicode/Emoji
+        return `<div style="
+            width: ${size}px; 
+            height: ${size}px; 
+            font-size: ${size * 0.7}px; 
+            color: ${color}; 
+            opacity: ${opacity}; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+        ">${dec}</div>`;
+    }
+
+    return `<div style="
+        width: ${size}px; 
+        height: ${size}px; 
+        color: ${color}; 
+        opacity: ${opacity}; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+    ">${svgContent}</div>`;
 }
 
 function renderSinglePageHtml(pageIndex, opts = {}) {
@@ -3519,35 +4000,40 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
     let slotsHtml = '';
     for (let i = 0; i < slots; i++) {
         const photo = page.photos[i];
-        const hasPhoto = photo && photo.thumbnailUrl && photo.thumbnailUrl.startsWith('data:');
-        const hasPhotoData = photo && (photo.baseUrl || photo.id);
+
+        // Fix: Use edited data if available, otherwise thumbnail
+        const displayUrl = photo ? (photo.editedData || photo.thumbnailUrl) : null;
+
+        // Check if we have a valid image to display (must be data URI for security/CORS in this context usually)
+        // But for editedData it's always a data URI.
+        const hasPhoto = displayUrl && displayUrl.startsWith('data:');
+
+        const hasPhotoData = photo && (photo.editedData || photo.baseUrl || photo.id);
         const isSelected = isActive && (state.currentPageIndex === pageIndex) && (state.selectedPhotoSlot === i);
         const alignment = photo?.alignment || 'center';
         const objectPos = alignment === 'left' ? '0% 50%' : (alignment === 'right' ? '100% 50%' : '50% 50%');
         const draggable = isActive && hasPhotoData ? 'true' : 'false';
         const replaceClick = (isActive && hasPhotoData)
-            ? `onclick="handleReplacePhotoClick(${i}, event)"`
+            ? `onclick="showPhotoOptions(${i}, event)"`
             : '';
 
         slotsHtml += `
-      <div class="layout-slot slot-${i} ${hasPhotoData ? 'has-photo' : ''} ${isSelected ? 'selected' : ''}"
-           data-slot-index="${i}"
-           draggable="${draggable}"
+    <div class="layout-slot slot-${i} ${hasPhotoData ? 'has-photo' : ''} ${isSelected ? 'selected' : ''}"
+data-slot-index="${i}"
+draggable="${draggable}"
            ${replaceClick}>
-        ${hasPhoto
-                ? `<img src="${photo.thumbnailUrl}" alt="" draggable="false" style="object-position:${objectPos};">`
+    ${hasPhoto
+                ? `<img src="${displayUrl}" alt="" draggable="false" style="object-position:${objectPos};">`
                 : (hasPhotoData
                     ? `<div class="thumbnail-placeholder">Photo ${i + 1}</div>`
                     : `<div class="empty-slot" onclick="activatePage(${pageIndex}); selectPhotoForSlot(${i})">Click to add photo</div>`
                 )
             }
-        <span class="slot-number">${i + 1}</span>
+<span class="slot-number">${i + 1}</span>
         ${hasPhotoData ? `
-          <button class="edit-photo-btn" onclick="activatePage(${pageIndex}); selectPhotoSlot(${i}); event.stopPropagation();" title="Edit photo" aria-label="Edit photo">
-            ✏️
-          </button>
           <span class="alignment-indicator" title="Alignment: ${alignment}">${alignment === 'left' ? '⬅' : alignment === 'right' ? '➡' : '⬌'}</span>
-        ` : ''}
+        ` : ''
+            }
       </div>
     `;
     }
@@ -3568,20 +4054,21 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
             ? (template.colors.accentColor || template.colors.textColor || '#333333')
             : (theme.colors.primary || '#333333');
         decorationsHtml = `
-          <div class="page-decorations" style="position:absolute; inset:0; pointer-events:none; z-index:1;">
-            ${decorations.map((dec, i) => {
-                const positions = [
-                    { top: '10%', left: '5%', rotate: '0deg' },
-                    { top: '10%', right: '5%', rotate: '90deg' },
-                    { bottom: '10%', left: '5%', rotate: '-90deg' },
-                    { bottom: '10%', right: '5%', rotate: '180deg' }
-                ];
-                const pos = positions[i % positions.length];
-                const svg = renderDecorationSvg(dec, decorationsColor, 0.15, 56);
-                return `<div style="position:absolute; ${pos.top ? `top:${pos.top};` : ''} ${pos.left ? `left:${pos.left};` : ''} ${pos.right ? `right:${pos.right};` : ''} ${pos.bottom ? `bottom:${pos.bottom};` : ''} transform: rotate(${pos.rotate}); transform-origin: center; width: 56px; height: 56px;">${svg}</div>`;
-            }).join('')}
+    <div class="page-decorations" style="position:absolute; inset:0; pointer-events:none; z-index:1;">
+        ${decorations.map((dec, i) => {
+            const positions = [
+                { top: '10%', left: '5%', rotate: '0deg' },
+                { top: '10%', right: '5%', rotate: '90deg' },
+                { bottom: '10%', left: '5%', rotate: '-90deg' },
+                { bottom: '10%', right: '5%', rotate: '180deg' }
+            ];
+            const pos = positions[i % positions.length];
+            const svg = renderDecorationSvg(dec, decorationsColor, 0.15, 56);
+            return `<div style="position:absolute; ${pos.top ? `top:${pos.top};` : ''} ${pos.left ? `left:${pos.left};` : ''} ${pos.right ? `right:${pos.right};` : ''} ${pos.bottom ? `bottom:${pos.bottom};` : ''} transform: rotate(${pos.rotate}); transform-origin: center; width: 56px; height: 56px;">${svg}</div>`;
+        }).join('')
+            }
           </div>
-        `;
+    `;
     }
 
     // In the 3D book spread preview we keep the surface clean (no big diagonal overlays),
@@ -3593,12 +4080,12 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
 
     return `
       ${themeOverlayHtml}
-      <div class="layout-grid ${layoutClass}" id="${gridId}" style="position: relative; z-index: 2;">
-        ${slotsHtml}
-      </div>
+<div class="layout-grid ${layoutClass}" id="${gridId}" style="position: relative; z-index: 2;">
+    ${slotsHtml}
+</div>
       ${decorationsHtml}
       ${page.caption ? `<div class="page-caption" style="color: ${captionColor};">${escapeHtml(page.caption)}</div>` : ''}
-    `;
+`;
 }
 
 let __bookFlipInProgress = false;
@@ -3640,7 +4127,7 @@ function animateBookSpreadFlip(direction, targetBaseIndex) {
     // Clear any prior overlay
     flipLayer.innerHTML = '';
     flipLayer.insertAdjacentHTML('beforeend', `
-      <div class="book3d-sheet ${sheetClass}">
+    <div class="book3d-sheet ${sheetClass}">
         <div class="book3d-sheet-face front">${frontHtml}</div>
         <div class="book3d-sheet-face back">${backHtml}</div>
       </div>
@@ -3714,7 +4201,7 @@ function renderPageTemplatePicker() {
         const accentColor = tpl.preview?.accentColor || tpl.colors?.accentColor || tpl.colors?.textColor || '#2C3E50';
         const isActive = activeId ? (tpl.id === activeId) : (tpl.id === bookId);
         return `
-          <div class="page-template-card ${isActive ? 'active' : ''}" onclick="applyTemplateToCurrentPage('${tpl.id}')">
+    <div class="page-template-card ${isActive ? 'active' : ''}" onclick="applyTemplateToCurrentPage('${tpl.id}')">
             <div class="page-template-preview" style="background:${coverColor};">
               <div class="page-template-mini-book" style="background:${coverColor}; border-color:${accentColor};">
                 <div class="page-template-mini-spine" style="background:${accentColor};"></div>
@@ -3726,7 +4213,7 @@ function renderPageTemplatePicker() {
               <p class="page-template-desc">${escapeHtml(tpl.description || tpl.category || '')}</p>
             </div>
           </div>
-        `;
+    `;
     }).join('');
 }
 
@@ -3793,14 +4280,22 @@ document.getElementById('pageTemplateModal')?.addEventListener('click', function
 
 function updatePageLayout() {
     if (state.pages.length === 0) return;
-    state.pages[state.currentPageIndex].layout = document.getElementById('pageLayout').value;
-    renderCurrentPage();
+    const pageLayoutEl = document.getElementById('pageLayout');
+    if (pageLayoutEl) {
+        state.pages[state.currentPageIndex].layout = pageLayoutEl.value;
+        renderCurrentPage();
+    }
 }
 
 function updatePageBackground() {
     if (state.pages.length === 0) return;
-    const bgColor = document.getElementById('pageBgColor').value;
-    state.pages[state.currentPageIndex].backgroundColor = bgColor;
+    const pageBgColorEl = document.getElementById('pageBgColor');
+    let bgColor = '#ffffff';
+
+    if (pageBgColorEl) {
+        bgColor = pageBgColorEl.value;
+        state.pages[state.currentPageIndex].backgroundColor = bgColor;
+    }
 
     // Apply to preview immediately
     const pagePreview = document.querySelector('#pagePreview .book3d-page.is-active') || document.getElementById('pagePreview');
@@ -3884,6 +4379,169 @@ async function updatePageBackgroundImage(event) {
     }
 }
 
+// ============================================
+// BACKGROUND GALLERY LOGIC
+// ============================================
+
+function openBackgroundGallery() {
+    const modal = document.getElementById('backgroundGalleryModal');
+    if (!modal) return;
+    modal.classList.add('active');
+    renderBackgroundGalleryItems();
+}
+
+function closeBackgroundGallery() {
+    const modal = document.getElementById('backgroundGalleryModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function renderBackgroundGalleryItems(items = null) {
+    const grid = document.getElementById('backgroundGalleryGrid');
+    if (!grid) return;
+
+    // Use passed items or fallback to global window.BACKGROUND_TEXTURES
+    const textures = items || window.BACKGROUND_TEXTURES || [];
+
+    if (textures.length === 0) {
+        grid.innerHTML = '<p>No backgrounds available.</p>';
+        return;
+    }
+
+    grid.innerHTML = textures.map(bg => {
+        // Check if it's a "Theme" (has theme object) or just a background
+        const isTheme = !!bg.theme;
+        const typeLabel = isTheme ? 'Design Template' : (bg.category || 'Background');
+        const themePreview = isTheme
+            ? `<div style="display:flex; gap:4px; margin-top:4px;">
+                 <div style="width:16px; height:16px; background:${bg.theme.colors.primary}; border-radius:50%;"></div>
+                 <div style="width:16px; height:16px; background:${bg.theme.colors.secondary}; border-radius:50%;"></div>
+                 <div style="width:16px; height:16px; background:${bg.theme.colors.bg}; border:1px solid #ddd; border-radius:50%;"></div>
+                 <div style="font-size:10px; line-height:16px; margin-left:4px; color:#666;">${bg.theme.fonts.serif.split(',')[0].replace(/['"]/g, '')}</div>
+               </div>`
+            : '';
+
+        return `
+        <div class="gallery-item-card" onclick="selectBackgroundFromGallery('${bg.id}')" style="cursor: pointer; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s;">
+            <div style="height: 120px; overflow: hidden; background: #eee; position:relative;">
+                <img src="${bg.thumbnail}" alt="${bg.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                ${isTheme ? '<div style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.9); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">TEMPLATE</div>' : ''}
+            </div>
+            <div style="padding: 10px;">
+                <div style="font-weight: 600; font-size: 14px;">${bg.name}</div>
+                <div style="font-size: 11px; color: #666;">${typeLabel}</div>
+                ${themePreview}
+            </div>
+        </div>
+    `}).join('');
+}
+
+async function searchDesignApi() {
+    const grid = document.getElementById('backgroundGalleryGrid');
+    if (grid) grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px;">Searching design database... 🤖</div>';
+
+    // Simulate network delay
+    await new Promise(r => setTimeout(r, 1500));
+
+    // Mock results simulating "Brave Search / Coolors MCP"
+    const mockResults = [
+        {
+            id: 'ai-generated-1',
+            name: 'Sunset Minimal',
+            category: 'AI Generated',
+            thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=300&q=80',
+            url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80',
+            theme: {
+                colors: { primary: '#FF7E5F', secondary: '#FEB47B', bg: '#FFF5F0', text: '#2D1E1E' },
+                fonts: { serif: "'Playfair Display', serif", sans: "'Montserrat', sans-serif" }
+            }
+        },
+        {
+            id: 'ai-generated-2',
+            name: 'Oceanic Blue',
+            category: 'AI Generated',
+            thumbnail: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=300&q=80',
+            url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=1600&q=80',
+            theme: {
+                colors: { primary: '#006994', secondary: '#48A9C5', bg: '#F0F8FF', text: '#002233' },
+                fonts: { serif: "'Merriweather', serif", sans: "'Open Sans', sans-serif" }
+            }
+        },
+        {
+            id: 'ai-generated-3',
+            name: 'Urban Architecture',
+            category: 'Inspiration',
+            thumbnail: 'https://images.unsplash.com/photo-1486718448742-163732cd1544?auto=format&fit=crop&w=300&q=80',
+            url: 'https://images.unsplash.com/photo-1486718448742-163732cd1544?auto=format&fit=crop&w=1600&q=80',
+            theme: {
+                colors: { primary: '#2C3E50', secondary: '#95A5A6', bg: '#ECF0F1', text: '#2C3E50' },
+                fonts: { serif: "'Roboto', sans-serif", sans: "'Lato', sans-serif" } // Modern look, sans as serif slot
+            }
+        }
+    ];
+
+    // Merge with existing for the view, or just show results
+    // We'll prepend them to the existing list for a "richer" feel, or just show them.
+    // Let's just show them to be clear "Search Results" came back.
+    renderBackgroundGalleryItems(mockResults);
+
+    // Hack: Add instances to global list so selection works by ID lookup
+    if (!window.BACKGROUND_TEXTURES) window.BACKGROUND_TEXTURES = [];
+    mockResults.forEach(r => {
+        if (!window.BACKGROUND_TEXTURES.find(e => e.id === r.id)) {
+            window.BACKGROUND_TEXTURES.push(r);
+        }
+    });
+}
+
+function selectBackgroundFromGallery(id) {
+    const textures = window.BACKGROUND_TEXTURES || [];
+    const bg = textures.find(t => t.id === id);
+    if (!bg) return;
+
+    if (state.pages.length === 0) return;
+
+    const page = state.pages[state.currentPageIndex];
+
+    // Use absolute URL for the background functionality
+    const absUrl = new URL(bg.url, window.location.href).href;
+
+    // Apply Background
+    page.backgroundImageUrl = absUrl;
+    page.backgroundImageData = null; // clear any uploaded data
+    page.backgroundImageName = bg.name; // metadata
+
+    // Check if it's a Full Theme Template
+    if (bg.theme) {
+        console.log("Applying theme:", bg.theme);
+
+        // 1. Update State Theme Config (localized to page if we supported per-page themes, but global for now)
+        // Ideally we should have per-page theme overrides. 
+        // For now, let's update the page's themeColors property which sanitizePageForStorage supports
+        page.themeColors = bg.theme.colors;
+
+        // Also update the global theme cursor if valid, or just apply styles manually
+        // We'll apply styles directly to the DOM elements of the current page
+    }
+
+    // Update UI
+    const bgStatus = document.getElementById('pageBgImageStatus');
+    if (bgStatus) bgStatus.textContent = `Selected: ${bg.name}`;
+
+    renderCurrentPage();
+
+    // If it's a theme, we might need to re-render more than just the canvas if we changed global fonts
+    // For now, let's notify the user via console or UI
+
+    closeBackgroundGallery();
+}
+
+// Expose to window for HTML attributes
+window.openBackgroundGallery = openBackgroundGallery;
+window.closeBackgroundGallery = closeBackgroundGallery;
+window.renderBackgroundGalleryItems = renderBackgroundGalleryItems;
+window.selectBackgroundFromGallery = selectBackgroundFromGallery;
+window.searchDesignApi = searchDesignApi;
+
 function applyPageBackgroundStyles(element, page, fallbackBgColor) {
     if (!element) return;
     const url = page?.backgroundImageUrl;
@@ -3959,22 +4617,31 @@ async function fileToCompressedJpegDataUrl(file, opts = {}) {
 
 function updatePageCaption() {
     if (state.pages.length === 0) return;
-    state.pages[state.currentPageIndex].caption = document.getElementById('pageCaption').value;
-    renderCurrentPage();
+    const pageCaptionEl = document.getElementById('pageCaption');
+    if (pageCaptionEl) {
+        state.pages[state.currentPageIndex].caption = pageCaptionEl.value;
+        renderCurrentPage();
+    }
 }
 
 function updatePageNumber() {
     if (state.pages.length === 0) return;
-    state.pages[state.currentPageIndex].showPageNumber = document.getElementById('showPageNumber').checked;
+    const showPageNumberEl = document.getElementById('showPageNumber');
+    if (showPageNumberEl) {
+        state.pages[state.currentPageIndex].showPageNumber = showPageNumberEl.checked;
+    }
 }
 
 function updatePageBorder() {
     if (state.pages.length === 0) return;
-    const hasBorder = document.getElementById('pageBorder').checked;
+    const pageBorderEl = document.getElementById('pageBorder');
+    const hasBorder = pageBorderEl ? pageBorderEl.checked : false;
     if (hasBorder) {
+        const pageBorderColorEl = document.getElementById('pageBorderColor');
+        const pageBorderWeightEl = document.getElementById('pageBorderWeight');
         state.pages[state.currentPageIndex].photoBorder = {
-            color: document.getElementById('pageBorderColor').value,
-            weight: parseInt(document.getElementById('pageBorderWeight').value)
+            color: pageBorderColorEl ? pageBorderColorEl.value : '#cccccc',
+            weight: pageBorderWeightEl ? parseInt(pageBorderWeightEl.value) : 1
         };
     } else {
         state.pages[state.currentPageIndex].photoBorder = null;
@@ -4015,28 +4682,132 @@ function selectPhotoSlot(slotIndex) {
     const photo = page.photos[slotIndex];
     if (photo && (photo.baseUrl || photo.id)) {
         state.selectedPhotoSlot = slotIndex;
-        renderCurrentPage();
+        // Track for the "Apply Design" button
+        state.editingPhotoIndex = slotIndex;
 
-        // Open design editor with this photo
-        openDesignEditor(slotIndex);
+        console.log(`Selected slot ${slotIndex} for editing.`);
+
+        // Set global editing state for applyDesignToPhoto
+        currentEditingPhotoIndex = slotIndex;
+        currentEditingPageIndex = state.currentPageIndex;
+
+        // Load into Design Editor
+        // Prefer edited data, then high-res base URL, then thumbnail
+        const imgUrl = photo.editedData || photo.baseUrl || photo.thumbnailUrl;
+
+        // CRITICAL FIX: Switch tab FIRST to ensure canvas container is visible and has dimensions
+        switchTab('design');
+
+        if (window.designEditor && imgUrl) {
+            // Wait for tab switch animation/render to complete
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    // Force resize now that it's visible
+                    if (window.designEditor.resizeCanvas) window.designEditor.resizeCanvas();
+
+                    // Load the image with Cloud Proxy fallback
+                    const primaryUrl = photo.editedData || photo.baseUrl;
+                    const fallbackUrl = photo.thumbnailUrl;
+
+                    // Helper to load
+                    const load = (u, fb) => window.designEditor.loadImage(u, fb)
+                        .then(() => console.log("Image loaded from", u === primaryUrl ? "primary" : "proxy/fallback"))
+                        .catch(err => {
+                            alert("Failed to load photo: " + err.message);
+                        });
+
+                    // If we have a baseUrl, try to fetch high-res via proxy to avoid 403
+                    if (primaryUrl && !photo.editedData) {
+                        console.log("Fetching high-res via proxy...");
+                        callFunction('fetchHighResImage', { url: primaryUrl })
+                            .then(result => {
+                                if (result && result.success && result.dataUri) {
+                                    console.log("Proxy fetch success, loading Base64...");
+                                    load(result.dataUri, fallbackUrl);
+                                } else {
+                                    console.warn("Proxy fetch failed, using fallback:", result);
+                                    load(fallbackUrl, null);
+                                }
+                            })
+                            .catch(e => {
+                                console.error("Proxy error:", e);
+                                load(fallbackUrl, null);
+                            });
+                    } else {
+                        // Edited data or no baseUrl, just load normally
+                        load(primaryUrl || fallbackUrl, fallbackUrl);
+                    }
+                }, 150); // Increased delay slightly to be safe
+            });
+        } else if (!imgUrl) {
+            console.error("No image URL found for slot", slotIndex, photo);
+            alert("This photo slot has no valid image URL to edit.");
+        }
+
+        renderCurrentPage(); // Highlight selection
     } else {
-        // If no photo, open picker
+        // Empty slot - open picker
+        state.selectedPhotoSlot = slotIndex;
+        // Legacy flow (if somehow reached here via direct call)
         selectPhotoForSlot(slotIndex);
     }
 }
 
-function handleReplacePhotoClick(slotIndex, event) {
-    try {
-        if (event) event.stopPropagation();
-    } catch (e) { /* ignore */ }
+// Replaces handleReplacePhotoClick with a menu option
+function showPhotoOptions(slotIndex, event) {
+    if (event) event.stopPropagation();
 
-    // Don't open picker if the user was dragging.
-    if (document.querySelector('.layout-slot[style*="opacity: 0.5"]')) {
-        return;
+    // Create modal if not exists
+    let modal = document.getElementById('photoOptionsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'photoOptionsModal';
+        modal.className = 'modal';
+        modal.style.zIndex = '30000'; // Higher than everything
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 300px; text-align: center;">
+                <h3 style="margin-top:0;">Photo Options</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;">
+                    <button id="poDesignBtn" class="btn btn-primary" style="justify-content: center;">
+                        <span class="icon">🎨</span> Design / Edit
+                    </button>
+                    <button id="poReplaceBtn" class="btn btn-secondary" style="justify-content: center;">
+                        <span class="icon">🔄</span> Replace Photo
+                    </button>
+                </div>
+                <button class="btn btn-small" onclick="closePhotoOptions()">Cancel</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
     }
 
-    // Replace is always optional: we only trigger it on an explicit click.
-    selectPhotoForSlot(slotIndex);
+    // Bind events dynamically to current slot
+    const designBtn = document.getElementById('poDesignBtn');
+    const replaceBtn = document.getElementById('poReplaceBtn');
+
+    designBtn.onclick = () => {
+        closePhotoOptions();
+        activatePage(state.currentPageIndex);
+        selectPhotoSlot(slotIndex); // Switches to design tab
+    };
+
+    replaceBtn.onclick = () => {
+        closePhotoOptions();
+        activatePage(state.currentPageIndex);
+        selectPhotoForSlot(slotIndex); // Opens picker
+    };
+
+    modal.classList.add('active');
+}
+
+function closePhotoOptions() {
+    const modal = document.getElementById('photoOptionsModal');
+    if (modal) modal.classList.remove('active');
+}
+
+// Legacy handler kept for compatibility if needed, but redirects to options now
+function handleReplacePhotoClick(slotIndex, event) {
+    showPhotoOptions(slotIndex, event);
 }
 
 async function openDesignEditor(slotIndex) {
@@ -4170,6 +4941,53 @@ async function openDesignEditor(slotIndex) {
     }
 }
 
+
+async function applyDesignToPhoto() {
+    if (!window.designEditor) return;
+
+    // Save image to data URL (JPEG for smaller size, 0.85 quality)
+    try {
+        const editedDataUrl = await window.designEditor.exportImage('jpeg', 0.85);
+        if (!editedDataUrl) throw new Error('Export returned empty data');
+
+        const page = state.pages[state.currentPageIndex];
+        const photo = page.photos[currentEditingPhotoIndex];
+
+        if (!photo) {
+            throw new Error('No photo active in slot');
+        }
+
+        // Save edited data
+        photo.editedData = editedDataUrl;
+        photo.lastEdited = Date.now();
+
+        console.log('Saved edited photo for slot', currentEditingPhotoIndex);
+        showStatus('Design saved to photo!', 'success');
+
+        // Re-render to show updated look (if any layout changes, though filters are internal to data now)
+        renderCurrentPage();
+
+    } catch (e) {
+        console.error('Failed to apply design:', e);
+        alert('Failed to save design: ' + e.message);
+    }
+}
+
+// Update UI label for sliders
+function updateAdjustmentLabel(type, value) {
+    // Label span is .slider-value inside .slider-header
+    // We need to find the specific one. 
+    // Best way is to pass the input element `this` and look at siblings
+    // But since we are restricted to app.js, we assume IDs will be added to index.html
+    const labelId = `val-${type}`;
+    const label = document.getElementById(labelId);
+    if (label) label.textContent = value + '%';
+
+    // Also call editor
+    if (window.designEditor) {
+        window.designEditor.setAdjustment(type, value);
+    }
+}
 function setPhotoAlignment(alignment) {
     if (state.selectedPhotoSlot === null || state.pages.length === 0) {
         alert('Please select a photo slot first');
@@ -4287,7 +5105,7 @@ function openPhotoPicker() {
         grid.innerHTML = state.selectedPhotos.map((photo, index) => {
             const thumbUrl = photo.thumbnailUrl && photo.thumbnailUrl.startsWith('data:') ? photo.thumbnailUrl : null;
             return `<div class="photo-item" onclick="pickPhoto(${index})">
-        ${thumbUrl
+    ${thumbUrl
                     ? `<img src="${thumbUrl}" alt="Photo ${index + 1}">`
                     : `<div class="thumbnail-placeholder">${index + 1}</div>`
                 }
@@ -4321,19 +5139,21 @@ document.getElementById('photoPickerModal').addEventListener('click', function (
 // PROJECT SAVE/LOAD
 // ============================================
 async function saveProject() {
-    const defaultName = document.getElementById('bookTitle').value || 'My Photo Book';
+    const bookTitleEl = document.getElementById('bookTitle');
+    const defaultName = bookTitleEl ? bookTitleEl.value || 'My Photo Book' : 'My Photo Book';
     const projectName = prompt('Enter project name:', defaultName);
 
     if (!projectName) return;
 
-    document.getElementById('bookTitle').value = projectName;
+    if (bookTitleEl) bookTitleEl.value = projectName;
 
+    const pageFormatEl = document.getElementById('pageFormat');
     const projectData = {
         // If we already have a saved album open, overwrite it instead of creating a new one.
         id: state.activeProjectId || undefined,
         projectType: 'classic',
         title: projectName,
-        pageFormat: document.getElementById('pageFormat').value,
+        pageFormat: pageFormatEl ? pageFormatEl.value : 'square-8x8',
         cover: state.cover,
         backCover: state.backCover,
         pages: state.pages,
@@ -4442,6 +5262,10 @@ async function saveMemoryDirectorProject() {
 }
 
 function showLoadDialog() {
+    if (!firebase.auth().currentUser) {
+        alert("Please wait for sign-in to complete, or sign in manually to load projects.");
+        return;
+    }
     document.getElementById('loadProjectModal').classList.add('active');
     loadProjectsList();
 }
@@ -4500,13 +5324,201 @@ async function loadBookpodShippingOptions() {
             return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
         }).join('');
         // Prefer preserving selection; default to "2" if present.
+        // Prefer preserving selection; default to "2" if present.
         const hasCurrent = Array.from(methodSel.options).some(o => o.value === current);
         const hasHome = Array.from(methodSel.options).some(o => o.value === '2');
         methodSel.value = hasCurrent ? current : (hasHome ? '2' : methodSel.options[0]?.value);
+
+        // Trigger UI update
+        toggleBookpodPickupUI(methodSel.value);
     }
 
     if (hint) {
         hint.textContent = options.note || 'Shipping methods loaded.';
+    }
+}
+
+function toggleBookpodPickupUI(methodId) {
+    const section = document.getElementById('bpPickupPointSection');
+    // ID 1 is usually "Pickup point delivery" for HFD/BookPod
+    if (section) {
+        if (String(methodId) === '1') {
+            section.style.display = 'block';
+            // Auto-load if city is filled and list is empty
+            const city = document.getElementById('bpShipCity')?.value;
+            const select = document.getElementById('bpPickupPointSelect');
+            if (city && select && select.options.length <= 1) {
+                loadBookpodPickupPoints();
+            }
+        } else {
+            section.style.display = 'none';
+        }
+    }
+    previewBookpodOrder(); // Update preview price if needed (logic not fully here but good practice)
+}
+
+async function loadBookpodPickupPoints() {
+    const city = document.getElementById('bpShipCity')?.value;
+    const address1 = document.getElementById('bpShipAddress1')?.value;
+    const statusEl = document.getElementById('bpPickupStatus');
+    const select = document.getElementById('bpPickupPointSelect');
+
+    if (!city) {
+        alert('Please enter a City first to find pickup points.');
+        return;
+    }
+
+    if (statusEl) statusEl.textContent = 'Searching points in ' + city + '...';
+    select.innerHTML = '<option>Loading...</option>';
+    select.disabled = true;
+
+    try {
+        const result = await callFunction('bookpodSearchPickupPoints', {
+            address: { city, address1, country: 'Israel' } // Default to Israel for HFD
+        });
+
+        select.innerHTML = '<option value="">-- Select a Point --</option>';
+        select.disabled = false;
+
+        if (result && result.success && Array.isArray(result.pickupPoints)) {
+            if (result.pickupPoints.length === 0) {
+                if (statusEl) statusEl.textContent = 'No points found near ' + city;
+                return;
+            }
+
+            result.pickupPoints.forEach(p => {
+                // e.g. p.name, p.city, p.street, p.id
+                const label = `${p.city} - ${p.name} (${p.street})`;
+                const opt = document.createElement('option');
+                opt.value = JSON.stringify({ id: p.id, name: p.name, city: p.city }); // Store simplified object
+                opt.textContent = label;
+                select.appendChild(opt);
+            });
+            if (statusEl) statusEl.textContent = `Found ${result.pickupPoints.length} points.`;
+        } else {
+            if (statusEl) statusEl.textContent = 'Failed to load points.';
+        }
+    } catch (e) {
+        console.error(e);
+        if (statusEl) statusEl.textContent = 'Error: ' + e.message;
+        select.disabled = false;
+    }
+}
+
+async function submitBookpodOrder() {
+    const btn = document.querySelector('#bookpodOrderModal .btn-primary'); // "Create Order" button
+    const methodId = document.getElementById('bpShipMethod')?.value;
+
+    // Validate
+    const required = ['bpShipName', 'bpShipPhone', 'bpShipCity', 'bpShipAddress1']; // Basic set
+    for (const id of required) {
+        const val = document.getElementById(id)?.value;
+        if (!val || !val.trim()) {
+            alert('Please fill in all shipping fields.');
+            return;
+        }
+    }
+
+    let pickupPoint = null;
+    if (String(methodId) === '1') {
+        const ppVal = document.getElementById('bpPickupPointSelect')?.value;
+        if (!ppVal) {
+            alert('Please select a Pickup Point.');
+            return;
+        }
+        try {
+            pickupPoint = JSON.parse(ppVal);
+        } catch (e) { console.error('Invalid pickup point val', ppVal); }
+    }
+
+    if (!confirm('Ready to submit order to BookPod? This will generate the PDF and send the order.')) return;
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Generating & Submitting...';
+    }
+
+    try {
+        // We need to generate a PDF first, or have one ready via Memory Director.
+        // For this flow, we assume we might need to regenerate or use existing logic.
+        // Actually, bookpodSubmitPrintJob handles PDF generation internally if we pass bookData!
+        // We just need a dummy PDF URL or let the function handle it.
+        // Update: bookpodSubmitPrintJob expects `pdfDownloadUrl` (content) and `bookData`.
+
+        // 1. Generate Content PDF (Client side trigger or Reuse Memory Director ID?)
+        // The Cloud Function `bookpodSubmitPrintJob` takes `pdfDownloadUrl`.
+        // We should ideally generate the high-res PDF now.
+        // For now, let's assume we use the Print Ready Generator.
+
+        // Quick hack: Use a placeholder or trigger generation.
+        // REALITY: We need to call `generateMemoryDirectorPdf` first to get a URL, 
+        // OR pass a flag to `bookpodSubmitPrintJob` to do it.
+        // Let's call `generateMemoryDirectorPdf` here to be safe and get a fresh URL.
+
+        // Create a sanitized payload to avoid circular references and ensure key props are passed
+        const safeBookData = {
+            pages: state.pages,
+            cover: state.cover,
+            // Pass template-specifics explicitly as backend expects them at root or mapped from cover
+            decorations: state.decorations || state.selectedTemplate?.decorations,
+            borderStyle: state.borderStyle || state.selectedTemplate?.illustrations?.border,
+            template: state.template || state.selectedTemplate?.id || "custom",
+            // Pass other necessary state configs
+            pageFormat: state.pageFormat || "square-10x10",
+            title: state.activeProjectTitle || state.cover?.title || "My Photo Book"
+        };
+
+        showStatus('Generating PDF for print...', 'info');
+        const pdfRes = await callFunction('generateMemoryDirectorPdf', { bookData: safeBookData });
+        if (!pdfRes || !pdfRes.success || !pdfRes.pdfDownloadUrl) {
+            throw new Error('Failed to generate PDF: ' + (pdfRes?.error || 'Unknown error'));
+        }
+
+        const pdfUrl = pdfRes.pdfDownloadUrl || pdfRes.pdfUrl; // Prefer download URL
+
+        showStatus('Submitting order to BookPod...', 'info');
+
+        const shippingDetails = {
+            name: document.getElementById('bpShipName').value,
+            phone: document.getElementById('bpShipPhone').value,
+            email: document.getElementById('bpShipEmail').value,
+            city: document.getElementById('bpShipCity').value,
+            address1: document.getElementById('bpShipAddress1').value,
+            address2: document.getElementById('bpShipAddress2').value || '',
+            postalCode: document.getElementById('bpShipPostalCode').value || '',
+            country: document.getElementById('bpShipCountry').value || 'Israel',
+            shippingMethod: Number(methodId)
+        };
+
+        const orderDraft = {
+            shippingDetails,
+            shippingMethod: Number(methodId),
+            pickupPoint,
+            quantity: 1, // Start with 1
+            totalprice: 99 // Placeholder price
+        };
+
+        const result = await callFunction('bookpodSubmitPrintJob', {
+            bookData: state,
+            pdfDownloadUrl: pdfUrl,
+            orderDraft
+        });
+
+        if (result && result.success) {
+            alert('Order Created Successfully!\nOrder ID: ' + (result.bookpodOrder?.id || 'Unknown'));
+            closeBookpodOrderModal();
+        } else {
+            throw new Error(result?.error || 'Order submission failed.');
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert('Error: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Create Order';
+        }
     }
 }
 
@@ -4592,6 +5604,44 @@ async function createBookpodOrderPrep() {
     alert('Create order is not enabled yet. This modal currently only previews the order + available shipping methods.');
 }
 
+async function downloadPdfOnly() {
+    const user = state.user || firebase.auth().currentUser;
+    if (!user) {
+        alert('Please sign in to generate a PDF.');
+        return;
+    }
+
+    if (!state.pages || state.pages.length === 0) {
+        alert('Your book is empty! Please add some photos and pages first.');
+        return;
+    }
+
+    if (!confirm('Generate high-resolution PDF preview? This may take a minute.')) return;
+
+    showProgress('Generating PDF...', 'Combining photos and layout...', 20);
+
+    try {
+        // Use 600s (10 min) timeout for PDF generation as it involves heavy image processing
+        const pdfRes = await callFunction('generateMemoryDirectorPdf', { bookData: state }, 600000);
+
+        if (!pdfRes || !pdfRes.success || !pdfRes.pdfDownloadUrl) {
+            throw new Error('Failed to generate PDF: ' + (pdfRes?.error || 'Unknown error'));
+        }
+
+        const pdfUrl = pdfRes.pdfDownloadUrl;
+
+        hideProgress();
+
+        // Open PDF in new tab
+        window.open(pdfUrl, '_blank');
+
+    } catch (e) {
+        console.error('PDF Generation Failed:', e);
+        hideProgress();
+        showError('PDF Generation Failed: ' + e.message);
+    }
+}
+
 async function loadProjectsList() {
     const list = document.getElementById('projectsList');
     list.innerHTML = '<div class="loading">Loading projects...</div>';
@@ -4618,9 +5668,14 @@ async function loadProjectsList() {
     }
 }
 
-async function loadProject(projectId, opts = {}) {
-    const { suppressErrors = false, closeModal = true } = opts || {};
+async function loadProject(projectId, options = {}) {
+    console.log(`loadProject called for ID: ${projectId}`, options);
+    const { suppressErrors = false, closeModal = true } = options;
 
+    if (!projectId) {
+        console.error("loadProject: No projectId provided");
+        return;
+    }
     if (closeModal) closeLoadModal();
     showProgress('Loading project...', 'Fetching project data...', 10);
 
@@ -4647,8 +5702,11 @@ async function loadProject(projectId, opts = {}) {
             state.activeProjectTitle = data.title || state.activeProjectTitle || null;
             persistActiveProjectToStorage();
 
-            document.getElementById('bookTitle').value = data.title || 'My Photo Book';
-            document.getElementById('pageFormat').value = data.pageFormat || 'square-8x8';
+            // Update book title and page format if elements exist (they may not exist in all views)
+            const bookTitleEl = document.getElementById('bookTitle');
+            if (bookTitleEl) bookTitleEl.value = data.title || 'My Photo Book';
+            const pageFormatEl = document.getElementById('pageFormat');
+            if (pageFormatEl) pageFormatEl.value = data.pageFormat || 'square-8x8';
             // Restore BookPod print settings (prep)
             if (data.bookpodPrint && typeof data.bookpodPrint === 'object') {
                 state.bookpodPrint = { ...state.bookpodPrint, ...data.bookpodPrint };
@@ -4666,7 +5724,7 @@ async function loadProject(projectId, opts = {}) {
 
             state.cover = data.cover || state.cover;
             state.backCover = data.backCover || getDefaultClassicBackCoverState();
-            
+
             // Update back cover UI from restored state
             if (typeof updateBackCoverFromState === 'function') {
                 updateBackCoverFromState();
@@ -4776,15 +5834,35 @@ async function loadProject(projectId, opts = {}) {
                 }
             }
 
-            updateSelectedPhotosUI();
-            updateCoverFromState();
-            updateBackCoverPreview();
-            renderPageThumbnails();
-            renderCurrentPage();
-            updatePageIndicator();
+            // Ensure we are in the classic editor view first
+            if (typeof showEditorView !== 'undefined') {
+                showEditorView();
+            } else {
+                const galleryView = document.getElementById('templateGalleryView');
+                const editorView = document.getElementById('editorView');
+                const mdView = document.getElementById('memoryDirectorView');
+                if (galleryView) galleryView.style.display = 'none';
+                if (editorView) editorView.style.display = 'block';
+                if (mdView) mdView.style.display = 'none';
+            }
 
-            // Ensure we are in the classic editor view
-            if (typeof showEditorView !== 'undefined') showEditorView();
+            // Update UI - these functions may fail if elements don't exist, which is OK
+            try { updateSelectedPhotosUI(); } catch (e) { console.warn('updateSelectedPhotosUI failed:', e); }
+            try { updateCoverFromState(); } catch (e) { console.warn('updateCoverFromState failed:', e); }
+            try { updateBackCoverPreview(); } catch (e) { console.warn('updateBackCoverPreview failed:', e); }
+            try { renderPageThumbnails(); } catch (e) { console.warn('renderPageThumbnails failed:', e); }
+
+            // Switch to pages tab if there are pages to show (do this before rendering)
+            if (state.pages && state.pages.length > 0 && typeof switchEditorTab !== 'undefined') {
+                try {
+                    switchEditorTab('pages');
+                } catch (e) {
+                    console.warn('switchEditorTab failed:', e);
+                }
+            }
+
+            try { renderCurrentPage(); } catch (e) { console.warn('renderCurrentPage failed:', e); }
+            try { updatePageIndicator(); } catch (e) { console.warn('updatePageIndicator failed:', e); }
 
             hideProgress();
             // alert(`Project "${data.title || 'Untitled'}" loaded successfully!`);
@@ -4919,43 +5997,214 @@ async function loadMemoryDirectorProjectData(data) {
 }
 
 function updateCoverFromState() {
-    document.getElementById('coverTitle').value = state.cover.title || 'My Photo Book';
-    document.getElementById('coverTitleSize').value = state.cover.titleSize || 36;
-    document.getElementById('coverTitleSizeVal').textContent = (state.cover.titleSize || 36) + 'px';
-    document.getElementById('coverTitleColor').value = state.cover.titleColor || '#ffffff';
-    document.getElementById('coverTitleFont').value = state.cover.titleFont || 'Playfair Display';
-    
+    const coverTitleEl = document.getElementById('coverTitle');
+    if (coverTitleEl) coverTitleEl.value = state.cover.title || 'My Photo Book';
+
+    const coverTitleSizeEl = document.getElementById('coverTitleSize');
+    if (coverTitleSizeEl) coverTitleSizeEl.value = state.cover.titleSize || 36;
+
+    const coverTitleSizeValEl = document.getElementById('coverTitleSizeVal');
+    if (coverTitleSizeValEl) coverTitleSizeValEl.textContent = (state.cover.titleSize || 36) + 'px';
+
+    const coverTitleColorEl = document.getElementById('coverTitleColor');
+    if (coverTitleColorEl) coverTitleColorEl.value = state.cover.titleColor || '#ffffff';
+
+    const coverTitleFontEl = document.getElementById('coverTitleFont');
+    if (coverTitleFontEl) coverTitleFontEl.value = state.cover.titleFont || 'Playfair Display';
+
     const subtitleEl = document.getElementById('coverSubtitle');
     if (subtitleEl) subtitleEl.value = state.cover.subtitle || '';
-    
+
     const subtitleSizeEl = document.getElementById('coverSubtitleSize');
     if (subtitleSizeEl) subtitleSizeEl.value = state.cover.subtitleSize || 14;
-    
+
     const subtitleSizeValEl = document.getElementById('coverSubtitleSizeVal');
     if (subtitleSizeValEl) subtitleSizeValEl.textContent = (state.cover.subtitleSize || 14) + 'px';
-    
+
     const showBorderEl = document.getElementById('coverShowBorder');
     if (showBorderEl) showBorderEl.checked = state.cover.showBorder !== false;
-    document.getElementById('coverSubtitle').value = state.cover.subtitle || '';
-    document.getElementById('coverBgColor').value = state.cover.backgroundColor || '#1a1a2e';
 
+    const coverBgColorEl = document.getElementById('coverBgColor');
+    if (coverBgColorEl) coverBgColorEl.value = state.cover.backgroundColor || '#1a1a2e';
+
+    const coverPhotoBorderEl = document.getElementById('coverPhotoBorder');
     if (state.cover.photoBorder) {
-        document.getElementById('coverPhotoBorder').checked = true;
-        document.getElementById('coverBorderColor').value = state.cover.photoBorder.color || '#000000';
-        document.getElementById('coverBorderWeight').value = state.cover.photoBorder.weight || 2;
+        if (coverPhotoBorderEl) coverPhotoBorderEl.checked = true;
+        const coverBorderColorEl = document.getElementById('coverBorderColor');
+        if (coverBorderColorEl) coverBorderColorEl.value = state.cover.photoBorder.color || '#000000';
+        const coverBorderWeightEl = document.getElementById('coverBorderWeight');
+        if (coverBorderWeightEl) coverBorderWeightEl.value = state.cover.photoBorder.weight || 2;
     } else {
-        document.getElementById('coverPhotoBorder').checked = false;
+        if (coverPhotoBorderEl) coverPhotoBorderEl.checked = false;
     }
 
     updateCoverPreview();
 
     const slot = document.getElementById('coverPhotoSlot');
-    if (state.cover.photo && state.cover.photo.thumbnailUrl) {
+    if (slot && state.cover.photo && state.cover.photo.thumbnailUrl) {
         slot.innerHTML = `<img src="${state.cover.photo.thumbnailUrl}" alt="Cover photo">`;
-    } else {
+        slot.onclick = selectCoverPhoto;
+        slot.style.cursor = 'pointer';
+    } else if (slot) {
         slot.innerHTML = '<span>Click to add cover photo</span>';
+        slot.onclick = selectCoverPhoto;
+        slot.style.cursor = 'pointer';
     }
 }
+
+function selectCoverPhoto() {
+    state.photoPickerCallback = (photo) => {
+        state.cover.photo = {
+            ...photo,
+            alignment: 'center'
+        };
+        updateCoverFromState();
+        // Also update the 3D book cover preview if visible
+        // Also update the 3D book cover preview if visible
+        try { updateCoverPreview(); } catch (e) {/* ignore */ }
+    };
+    openPhotoPicker();
+}
+
+function autoLayoutCurrentPage() {
+    console.log("Auto Layout clicked. State:", { pages: state.pages ? state.pages.length : 'null', index: state.currentPageIndex, selectedPhotos: state.selectedPhotos ? state.selectedPhotos.length : 0 });
+
+    // Auto-Fill Logic: If no pages but we have selected photos, create pages automatically
+    if ((!state.pages || state.pages.length === 0) && state.selectedPhotos && state.selectedPhotos.length > 0) {
+        showStatus(`Auto-creating pages from ${state.selectedPhotos.length} photos...`, 'info');
+
+        const PHOTOS_PER_PAGE = 4;
+        const photos = [...state.selectedPhotos]; // copy
+        let photosProcessed = 0;
+
+        while (photosProcessed < photos.length) {
+            // Create a new page
+            addPage();
+            const pageIndex = state.pages.length - 1;
+            const page = state.pages[pageIndex];
+
+            // Get chunk of photos for this page
+            const chunk = photos.slice(photosProcessed, photosProcessed + PHOTOS_PER_PAGE);
+            page.photos = chunk.map(p => ({ ...p })); // Assign photos
+
+            // Set layout based on count with randomization
+            const count = chunk.length;
+            if (count === 1) {
+                page.layout = 'single';
+            } else if (count === 2) {
+                // Randomly choose horizontal or vertical
+                page.layout = Math.random() > 0.5 ? 'two-horizontal' : 'two-vertical';
+            } else if (count === 3) {
+                // Randomly choose left or right large
+                page.layout = Math.random() > 0.5 ? 'three-left' : 'three-right';
+            } else if (count === 4) {
+                page.layout = 'four-grid';
+            } else if (count === 5) {
+                page.layout = 'collage-5';
+            } else if (count >= 6) {
+                page.layout = 'collage-6';
+            }
+
+            photosProcessed += count;
+        }
+
+        state.currentPageIndex = 0;
+        console.log(`Auto-created ${state.pages.length} pages.`);
+
+        // Refresh UI
+        updatePageIndicator();
+        renderCurrentPage();
+        renderPageThumbnails();
+
+        showStatus(`Automatically created ${state.pages.length} pages.`, 'success');
+        return;
+    }
+
+    if (!state.pages || state.pages.length === 0) {
+        console.warn("Auto Layout: No pages found in state.");
+        showStatus("No pages found to layout. Please add photos first.", 'warning');
+        return;
+    }
+
+    // Check if we are on the cover
+    if (state.currentPageIndex < 0 || state.currentPageIndex >= state.pages.length) {
+        showStatus("Auto-layout applies to inner pages only.", 'warning');
+        return;
+    }
+
+    const page = state.pages[state.currentPageIndex];
+    if (!page) return;
+
+    // Count non-empty photos
+    const photoCount = page.photos.filter(p => p && (p.baseUrl || p.id)).length;
+
+    if (photoCount === 0) {
+        showStatus("Please add photos to this page before using Auto Layout.", 'warning');
+        return;
+    }
+    let newLayout = 'single';
+
+    switch (photoCount) {
+        case 0:
+        case 1:
+            newLayout = 'single';
+            break;
+        case 2:
+            newLayout = 'two-horizontal'; // Could randomize between horizontal/vertical
+            break;
+        case 3:
+            newLayout = 'three-left'; // Could randomize
+            break;
+        case 4:
+            newLayout = 'four-grid';
+            break;
+        case 5:
+            newLayout = 'collage-5';
+            break;
+        case 6:
+        default:
+            newLayout = 'collage-6'; // Max supported or 6+
+            break;
+    }
+
+    // Ensure state reflects the change
+    page.layout = newLayout;
+
+    // Update UI dropdown if present
+    const layoutSelect = document.getElementById('pageLayout');
+    if (layoutSelect) {
+        layoutSelect.value = newLayout;
+    }
+
+    renderCurrentPage();
+    console.log(`Auto-layout applied: ${newLayout} for ${photoCount} photos.`);
+    showStatus(`Applied layout: ${newLayout}`, 'success');
+}
+
+function switchPageSide(side) {
+    if (!state.pages || state.pages.length === 0) return;
+    if (state.currentPageIndex < 0) return; // Cover
+
+    const base = Math.floor(state.currentPageIndex / 2) * 2;
+    const leftIndex = base;
+    const rightIndex = base + 1;
+
+    if (side === 'left') {
+        if (state.currentPageIndex !== leftIndex) {
+            state.currentPageIndex = leftIndex;
+            renderCurrentPage();
+        }
+    } else if (side === 'right') {
+        // Only if right page exists
+        if (rightIndex < state.pages.length) {
+            if (state.currentPageIndex !== rightIndex) {
+                state.currentPageIndex = rightIndex;
+                renderCurrentPage();
+            }
+        }
+    }
+}
+
 
 function closeLoadModal() {
     document.getElementById('loadProjectModal').classList.remove('active');
@@ -5029,7 +6278,7 @@ async function refreshProfileAlbums() {
             list.innerHTML = result.projects.map(project => {
                 const date = new Date(project.lastModified).toLocaleDateString();
                 return `
-                    <div class="project-item" onclick="openAlbumFromProfile('${project.id}')">
+    <div class="project-item" onclick="openAlbumFromProfile('${project.id}')">
                         <div>
                             <div style="font-weight:600;">${escapeHtml(project.name)}</div>
                             <div style="color: var(--color-text-light); font-size: 0.85rem;">${date}</div>
@@ -5039,7 +6288,7 @@ async function refreshProfileAlbums() {
                             <button class="btn btn-small" style="border-color: var(--color-danger); color: var(--color-danger);" onclick="deleteAlbumFromProfile('${project.id}')">Delete</button>
                         </div>
                     </div>
-                `;
+    `;
             }).join('');
         } else {
             list.innerHTML = '<div class="empty-state">No saved albums found</div>';
@@ -5151,16 +6400,16 @@ async function refreshPurchases() {
             const subtitle = [when, amount, p.provider ? `via ${p.provider}` : null].filter(Boolean).join(' • ');
 
             return `
-                <div class="purchase-item">
-                    <div class="purchase-meta">
-                        <div>
-                            <div class="purchase-title">${escapeHtml(title)}</div>
-                            <div class="purchase-subtitle">${escapeHtml(subtitle)}</div>
-                        </div>
-                        <div class="purchase-badge">${escapeHtml(p.status || 'unknown')}</div>
-                    </div>
+    <div class="purchase-item">
+        <div class="purchase-meta">
+            <div>
+                <div class="purchase-title">${escapeHtml(title)}</div>
+                <div class="purchase-subtitle">${escapeHtml(subtitle)}</div>
+            </div>
+            <div class="purchase-badge">${escapeHtml(p.status || 'unknown')}</div>
+        </div>
                 </div>
-            `;
+    `;
         }).join('');
     } catch (e) {
         const msg = e.message || e.code || 'INTERNAL';
@@ -5252,9 +6501,11 @@ function collectBookData() {
     const template = state.selectedTemplate;
     const currentTheme = template || (state.config.THEMES[state.currentTheme] || state.config.THEMES['classic']);
 
+    const bookTitleEl = document.getElementById('bookTitle');
+    const pageFormatEl = document.getElementById('pageFormat');
     return {
-        title: state.cover.title || document.getElementById('bookTitle').value || 'My Photo Book',
-        pageFormat: document.getElementById('pageFormat').value || 'square-8x8',
+        title: state.cover.title || (bookTitleEl ? bookTitleEl.value : null) || 'My Photo Book',
+        pageFormat: (pageFormatEl ? pageFormatEl.value : null) || 'square-8x8',
         coverPhoto: coverPhoto,
         coverBackground: state.cover.backgroundColor || (template ? template.cover.backgroundColor : currentTheme.colors.bg),
         coverTextColor: state.cover.titleColor || (template ? template.cover.titleColor : currentTheme.colors.primary),
@@ -5263,7 +6514,7 @@ function collectBookData() {
         coverSubtitle: state.cover.subtitle || '',
         coverSubtitleSize: state.cover.subtitleSize || 14,
         coverShowBorder: state.cover.showBorder !== false,
-        
+
         // Enhanced back cover data with full parity
         backCover: {
             text: state.backCover.text || 'Thank you for viewing this photo book',
@@ -5277,7 +6528,7 @@ function collectBookData() {
             showBorder: state.backCover.showBorder !== false,
             showLogo: state.backCover.showLogo || false
         },
-        
+
         theme: state.currentTheme || 'classic',
         template: templateData ? templateData.id : (state.currentTheme || null),
         templateData: templateData || null,
@@ -5316,16 +6567,16 @@ function __syncAlbumConfigModalFromUI() {
     const acBpBleed = get('acBpBleed');
     const acBpSizeCm = get('acBpSizeCm');
 
-    if (acBookTitle && bookTitle) acBookTitle.value = bookTitle.value || '';
-    if (acPageFormat && pageFormat) acPageFormat.value = pageFormat.value || 'square-8x8';
-    if (acAutoLayout && autoLayout) acAutoLayout.value = autoLayout.value || 'random';
+    if (acBookTitle && bookTitle) acBookTitle.value = bookTitle?.value || '';
+    if (acPageFormat && pageFormat) acPageFormat.value = pageFormat?.value || 'square-8x8';
+    if (acAutoLayout && autoLayout) acAutoLayout.value = autoLayout?.value || 'random';
 
-    if (acBpPrintColor && bpPrintColor) acBpPrintColor.value = bpPrintColor.value || 'color';
-    if (acBpSheetType && bpSheetType) acBpSheetType.value = bpSheetType.value || 'white80';
-    if (acBpLaminationType && bpLaminationType) acBpLaminationType.value = bpLaminationType.value || 'none';
-    if (acBpReadingDirection && bpReadingDirection) acBpReadingDirection.value = bpReadingDirection.value || 'right';
-    if (acBpBleed && bpBleed) acBpBleed.checked = !!bpBleed.checked;
-    if (acBpSizeCm && bpSizeCm) acBpSizeCm.value = bpSizeCm.value || '15x22';
+    if (acBpPrintColor && bpPrintColor) acBpPrintColor.value = bpPrintColor?.value || 'color';
+    if (acBpSheetType && bpSheetType) acBpSheetType.value = bpSheetType?.value || 'white80';
+    if (acBpLaminationType && bpLaminationType) acBpLaminationType.value = bpLaminationType?.value || 'none';
+    if (acBpReadingDirection && bpReadingDirection) acBpReadingDirection.value = bpReadingDirection?.value || 'right';
+    if (acBpBleed && bpBleed) acBpBleed.checked = !!bpBleed?.checked;
+    if (acBpSizeCm && bpSizeCm) acBpSizeCm.value = bpSizeCm?.value || '15x22';
 }
 
 function __applyAlbumConfigModalToUI() {
@@ -5351,16 +6602,85 @@ function __applyAlbumConfigModalToUI() {
     const acBpBleed = get('acBpBleed');
     const acBpSizeCm = get('acBpSizeCm');
 
-    if (bookTitle && acBookTitle) bookTitle.value = acBookTitle.value || 'My Photo Book';
-    if (pageFormat && acPageFormat) pageFormat.value = acPageFormat.value || 'square-8x8';
-    if (autoLayout && acAutoLayout) autoLayout.value = acAutoLayout.value || 'random';
+    if (bookTitle && acBookTitle) bookTitle.value = acBookTitle?.value || 'My Photo Book';
+    if (pageFormat && acPageFormat) pageFormat.value = acPageFormat?.value || 'square-8x8';
+    if (autoLayout && acAutoLayout) autoLayout.value = acAutoLayout?.value || 'random';
+    /**
+     * Updates the layout of the current page based on user selection
+     * @param {string} layoutName - The layout identifier (e.g., 'two-horizontal')
+     */
+    function updatePageLayout(layoutName) {
+        if (!state.pages || state.pages.length === 0 || state.currentPageIndex < 0) {
+            return; // No valid page to update
+        }
 
-    if (bpPrintColor && acBpPrintColor) bpPrintColor.value = acBpPrintColor.value || 'color';
-    if (bpSheetType && acBpSheetType) bpSheetType.value = acBpSheetType.value || 'white80';
-    if (bpLaminationType && acBpLaminationType) bpLaminationType.value = acBpLaminationType.value || 'none';
-    if (bpReadingDirection && acBpReadingDirection) bpReadingDirection.value = acBpReadingDirection.value || 'right';
-    if (bpBleed && acBpBleed) bpBleed.checked = !!acBpBleed.checked;
-    if (bpSizeCm && acBpSizeCm) bpSizeCm.value = acBpSizeCm.value || '15x22';
+        const page = state.pages[state.currentPageIndex];
+        page.layout = layoutName;
+        console.log(`Manual layout update: ${layoutName}`);
+        renderCurrentPage();
+    }
+
+    /**
+     * Applies the current design (edits/filters) from the Design Editor
+     * to the currently selected photo in the book.
+     */
+    function applyDesignToPhoto() {
+        // 1. Export the image from the design editor (canvas)
+        const editedDataUrl = window.designEditor.exportImage('png', 0.9);
+
+        // 2. Identify where this photo belongs
+        // We need to know which page and which slot we were editing.
+        // Assuming 'state.selectedPhotoSlot' tracks the index of the photo being edited on the current page.
+        const pageIndex = state.currentPageIndex;
+        if (pageIndex < 0 || !state.pages[pageIndex]) {
+            alert("Please select a page first.");
+            return;
+        }
+
+        const page = state.pages[pageIndex];
+        // If we don't track the exact slot, we might need a mechanism. 
+        // For now, let's assume the user clicked "Edit" on a specific photo, 
+        // and we stored that index in 'state.editingPhotoIndex'.
+        // If not, we might need to add that tracking. Let's check if 'state.editingPhotoIndex' exists or add it.
+
+        // fallback: if we don't have a specific slot, warn the user.
+        if (typeof state.editingPhotoIndex === 'undefined' || state.editingPhotoIndex === null) {
+            // Attempt to find the photo that matches the source, or if there's only 1 photo, use it.
+            if (page.photos.length === 1) {
+                state.editingPhotoIndex = 0;
+            } else {
+                alert("Could not determine which photo to apply edits to. Please click 'Edit' on a specific photo first.");
+                return;
+            }
+        }
+
+        // 3. Update the photo object with the edited version
+        // We save it as 'editedData' so we preserve the original 'baseUrl' or 'thumbnailUrl'.
+        if (page.photos[state.editingPhotoIndex]) {
+            page.photos[state.editingPhotoIndex].editedData = editedDataUrl;
+            console.log(`Applied design to page ${pageIndex}, photo ${state.editingPhotoIndex}`);
+
+            // 4. Render the page to show the changes
+            renderCurrentPage();
+
+            // 5. Notify user
+            // subtle toast or just log
+            const applyBtn = document.querySelector("#designInspirationContent + .modal-footer .btn-primary") || document.activeElement;
+            const originalText = applyBtn.innerHTML;
+            applyBtn.innerHTML = "Saved! ✓";
+            setTimeout(() => applyBtn.innerHTML = originalText, 1500);
+        }
+    }
+
+    // Ensure 'state.editingPhotoIndex' is tracked when opening the editor.
+    // We need to find where photos are clicked to edit. checking 'renderCurrentPage' might reveal this.
+
+    if (bpPrintColor && acBpPrintColor) bpPrintColor.value = acBpPrintColor?.value || 'color';
+    if (bpSheetType && acBpSheetType) bpSheetType.value = acBpSheetType?.value || 'white80';
+    if (bpLaminationType && acBpLaminationType) bpLaminationType.value = acBpLaminationType?.value || 'none';
+    if (bpReadingDirection && acBpReadingDirection) bpReadingDirection.value = acBpReadingDirection?.value || 'right';
+    if (bpBleed && acBpBleed) bpBleed.checked = !!acBpBleed?.checked;
+    if (bpSizeCm && acBpSizeCm) bpSizeCm.value = acBpSizeCm?.value || '15x22';
 
     // Ensure the editor reflects the selected page format
     try {
@@ -5411,8 +6731,12 @@ window.closeAlbumConfigModal = closeAlbumConfigModal;
 window.openAlbumConfigAndGenerate = openAlbumConfigAndGenerate;
 
 function openBookpodDeliveryConfigModal() {
+    console.log('openBookpodDeliveryConfigModal called');
     const modal = document.getElementById('bookpodDeliveryConfigModal');
-    if (!modal) return Promise.resolve('skip');
+    if (!modal) {
+        console.error('bookpodDeliveryConfigModal NOT FOUND in DOM');
+        return Promise.resolve('skip');
+    }
 
     // Prefill from existing draft if any
     try {
@@ -5540,7 +6864,7 @@ function acBpApplyOrderDraftToModal(draft) {
     // Pickup point selection
     const sel = get('acBpPickupPoint');
     if (sel) {
-        sel.innerHTML = '<option value=\"\">Search to load pickup points…</option>';
+        sel.innerHTML = '<option value="">Search to load pickup points…</option>';
         if (draft?.pickupPoint) {
             const opt = document.createElement('option');
             opt.value = JSON.stringify(draft.pickupPoint);
@@ -5611,7 +6935,7 @@ async function acBpSearchPickupPoints() {
         const points = (res && res.success && Array.isArray(res.pickupPoints)) ? res.pickupPoints : [];
         sel.innerHTML = '';
         if (points.length === 0) {
-            sel.innerHTML = '<option value=\"\">No pickup points found</option>';
+            sel.innerHTML = '<option value="">No pickup points found</option>';
             if (status) status.textContent = res?.message || 'No pickup points found.';
             return;
         }
@@ -5619,7 +6943,7 @@ async function acBpSearchPickupPoints() {
         points.forEach((p) => {
             const opt = document.createElement('option');
             opt.value = JSON.stringify(p);
-            const dist = (typeof p.distanceKm === 'number') ? ` • ${p.distanceKm.toFixed(1)}km` : '';
+            const dist = (typeof p.distanceKm === 'number') ? ` • ${p.distanceKm.toFixed(1)} km` : '';
             opt.textContent = `${p.name || p.label || 'Pickup point'} — ${[p.city, p.street, p.house].filter(Boolean).join(' ')}${dist}`;
             sel.appendChild(opt);
         });
@@ -5627,7 +6951,7 @@ async function acBpSearchPickupPoints() {
         if (status) status.textContent = `Loaded ${points.length} pickup points.`;
     } catch (e) {
         console.warn('Pickup point search failed:', e);
-        sel.innerHTML = '<option value=\"\">Failed to load pickup points</option>';
+        sel.innerHTML = '<option value="">Failed to load pickup points</option>';
         if (status) status.textContent = `Failed to load pickup points: ${e.message || e.code || 'INTERNAL'}`;
     } finally {
         sel.disabled = false;
@@ -5684,7 +7008,7 @@ async function sendToBookpodPrinting() {
 
         const orderNo = res?.bookpodOrder?.order_no;
         if (orderNo) {
-            alert(`Sent to BookPod successfully. Order: ${orderNo}`);
+            alert(`Sent to BookPod successfully.Order: ${orderNo}`);
         } else {
             alert('Sent to BookPod successfully.');
         }
@@ -5702,14 +7026,34 @@ async function generateBook() {
         console.log('=== generateBook START ===');
 
         showProgress('Preparing to create your photo book...', 'Checking Google Photos authorization…', 3);
-        const authed = await ensureGooglePhotosAuthorizedInteractive('generate your photo book PDF', 60000);
+        let authed = false;
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('Localhost detected: Bypassing Google Photos auth for testing.');
+            authed = true;
+            // Ensure we have a user object even if auth is bypassed
+            if (!firebase.auth().currentUser) {
+                console.log('No user found on localhost, creating mock user...');
+                state.user = { uid: 'dev-mode-user', displayName: 'Developer', email: 'dev@local.host' };
+            }
+        } else {
+            authed = await ensureGooglePhotosAuthorizedInteractive('generate your photo book PDF', 60000);
+        }
+
         if (!authed) {
             hideProgress();
             alert('Google Photos authorization is required to load your saved photos. Please complete the authorization in the opened tab, then click “Generate Book” again.');
             return;
         }
 
-        const bookData = collectBookData();
+        let bookData;
+        try {
+            bookData = collectBookData();
+        } catch (e) {
+            console.error('Error collecting book data:', e);
+            hideProgress();
+            alert('Error preparing book data: ' + (e.message || 'Unknown error'));
+            return;
+        }
         console.log('Book data collected:', bookData.pages.length, 'pages');
 
         showProgress('Preparing to create your photo book...', 'Initializing...', 5);
@@ -5791,6 +7135,10 @@ async function generateBook() {
                 if (sendBtn) sendBtn.style.display = 'inline-flex';
 
                 document.getElementById('resultModal').classList.add('active');
+
+                // Force layout flush to ensure visibility
+                void document.getElementById('resultModal').offsetWidth;
+                console.log('Result modal displayed');
             } else if (result && result.presentationId) {
                 // Legacy Slides flow (if ever re-enabled)
                 state.generatedPresentationId = result.presentationId;
@@ -5976,7 +7324,7 @@ async function searchDesignInspiration() {
         if (target) {
             target.innerHTML =
                 `<div style="padding: 1rem; text-align: center; color: var(--color-error);">
-                    <p style="margin-bottom: 0.75rem;">Failed to search: ${error.message}</p>
+    <p style="margin-bottom: 0.75rem;">Failed to search: ${error.message}</p>
                 </div>`;
         }
     }
@@ -6059,7 +7407,7 @@ function applyColorPaletteFromString(colorsJson) {
 
     // Create a new theme from the palette
     const newTheme = {
-        name: `Custom Palette ${new Date().toLocaleTimeString()}`,
+        name: `Custom Palette ${new Date().toLocaleTimeString()} `,
         colors: {
             primary: colors[0] || '#1E3932',
             secondary: colors[1] || '#D4AF37',
@@ -6074,7 +7422,7 @@ function applyColorPaletteFromString(colorsJson) {
     };
 
     // Add to themes config
-    const themeId = `custom-${Date.now()}`;
+    const themeId = `custom - ${Date.now()} `;
     state.config.THEMES[themeId] = newTheme;
 
     // Apply the theme
@@ -6102,12 +7450,12 @@ function addThemeToUI(themeId, theme) {
     // Create 3D book preview
     const preview = document.createElement('div');
     preview.className = 'book-3d-preview';
-    preview.id = `preview-${themeId}`;
+    preview.id = `preview - ${themeId} `;
 
     const bookCover = document.createElement('div');
     bookCover.className = 'book-cover-3d';
     bookCover.style.background = theme.colors.bg;
-    bookCover.style.border = `2px solid ${theme.colors.primary}`;
+    bookCover.style.border = `2px solid ${theme.colors.primary} `;
 
     const bookSpine = document.createElement('div');
     bookSpine.className = 'book-spine-3d';
@@ -6191,8 +7539,27 @@ async function saveEditedPhoto() {
 
 // Initialize editor (called from template gallery)
 function initializeEditor() {
-    updateCoverPreview();
-    updateBackCoverPreview();
+    // Initialize editor tabs - set cover as default
+    if (document.querySelector('.editor-tab[data-editortab="cover"]')) {
+        switchEditorTab('cover');
+    }
+
+    // Wait a bit for DOM to be ready, then update previews
+    setTimeout(() => {
+        const coverTitle = document.getElementById('coverTitle');
+        const coverShowBorder = document.getElementById('coverShowBorder');
+        if (coverTitle && coverShowBorder) {
+            updateCoverPreview();
+        }
+
+        if (backCoverText) {
+            updateBackCoverPreview();
+        }
+
+        // Setup title sync and other enhancements *after* template has been applied
+        setupCoverEnhancements();
+    }, 100);
+
     initResizableSidebar();
 
     // Apply template styling if template is selected
@@ -6231,4 +7598,139 @@ window.applyTemplateToUI = applyTemplateToUI;
 // ============================================
 // INITIALIZATION ON LOAD
 // ============================================
-document.addEventListener('DOMContentLoaded', initialize);
+// DOMContentLoaded listener removed (duplicate of line 6731)
+
+/* ADD TO BOTTOM */
+
+// === REDESIGN COMPATIBILITY LAYER ===
+// This ensures the new Rail Navigation updates visually when tabs are switched
+const originalSwitchTab = window.switchTab;
+
+window.switchTab = function (tabName) {
+    // Call the original logic to handle content showing/hiding
+    if (originalSwitchTab) originalSwitchTab(tabName);
+
+    // Update the new visual rail items
+    document.querySelectorAll('.rail-item').forEach(item => {
+        // Remove active class from all
+        item.classList.remove('active');
+        // Add active class if this button matches the selected tab
+        if (item.getAttribute('data-tab') === tabName) {
+            item.classList.add('active');
+        }
+    });
+};
+
+// Ensure layout locks logic if needed (optional)
+// Initialize defaults when editor view is shown
+if (document.getElementById('editorView')) {
+    switchTab('picker');
+}
+
+// ============================================
+// NEW COVER ENHANCEMENTS
+// ============================================
+
+function selectPhotoForCover() {
+    // Reuse existing picker logic by temporarily overriding the callback
+    const originalCallback = state.photoPickerCallback;
+
+    state.photoPickerCallback = (photo) => {
+        if (!photo) return;
+        // Prefer edited data, then thumbnail data URL
+        const url = photo.editedData || photo.thumbnailUrl;
+        if (url) {
+            state.cover.photoUrl = url;
+            renderCurrentPage();
+        }
+        document.getElementById('photoPickerModal').classList.remove('active');
+        // Restore original callback just in case
+        state.photoPickerCallback = originalCallback;
+    };
+    openPhotoPicker();
+}
+
+function setupCoverEnhancements() {
+    // Subtitle
+    const subInput = document.getElementById('coverSubtitle');
+    if (subInput) {
+        subInput.value = state.cover.subtitle || '';
+        subInput.addEventListener('input', (e) => {
+            state.cover.subtitle = e.target.value;
+            renderCurrentPage();
+        });
+    }
+
+    // Title Sync (Header <-> Sidebar <-> State) using Event Delegation
+    // This allows it to work even if elements are re-rendered (e.g. by template application)
+    document.addEventListener('input', (e) => {
+        // Debug Title Sync
+        if (e.target && (e.target.id === 'bookTitle' || e.target.id === 'coverTitle')) {
+            console.log('Title Sync Input Detected:', e.target.id, e.target.value);
+            const val = e.target.value;
+            // Update State
+            state.cover.title = val;
+            state.activeProjectTitle = val;
+
+            // Sync other inputs
+            const otherId = e.target.id === 'bookTitle' ? 'coverTitle' : 'bookTitle';
+            const other = document.getElementById(otherId);
+            if (other && other.value !== val) other.value = val;
+
+            // Update 3D Preview (debounced if needed, but direct is fine for now)
+            renderCurrentPage();
+        }
+    });
+
+    // Title Font
+    const titleFontInput = document.getElementById('coverTitleFont');
+    if (titleFontInput) {
+        titleFontInput.value = state.cover.titleFont || 'Playfair Display';
+        titleFontInput.addEventListener('change', (e) => {
+            state.cover.titleFont = e.target.value;
+            renderCurrentPage();
+        });
+    }
+
+    // Subtitle Font
+    const subFontInput = document.getElementById('coverSubtitleFont');
+    if (subFontInput) {
+        subFontInput.value = state.cover.subtitleFont || 'Playfair Display';
+        subFontInput.addEventListener('change', (e) => {
+            state.cover.subtitleFont = e.target.value;
+            renderCurrentPage();
+        });
+    }
+
+    // Back Cover Font
+    const backFontInput = document.getElementById('backCoverFont');
+    if (backFontInput) {
+        backFontInput.value = state.backCover.textFont || 'Inter';
+        backFontInput.addEventListener('change', (e) => {
+            state.backCover.textFont = e.target.value;
+            renderCurrentPage();
+        });
+    }
+}
+
+// Export for HTML access
+window.selectPhotoForCover = selectPhotoForCover;
+window.autoLayoutCurrentPage = autoLayoutCurrentPage;
+window.renderDecorationSvg = renderDecorationSvg;
+window.state = state;
+
+// ============================================\n// ORDER PRINT FLOW (Classic Editor)\n// ============================================\nwindow.openBookpodOrderModal = async function() {\n    // 1. Open Delivery Config First\n    const action = await openBookpodDeliveryConfigModal();\n    if (action === 'cancel') return;\n\n    // 2. Capture draft details for the generation step\n    const draft = acBpReadOrderDraftFromModal();\n    if (draft) {\n        state.bookpodOrderDraft = draft;\n    }\n\n    // 3. Generate Book (PDF)\n    await generateBook();\n};\n\n// Initialize App\ndocument.addEventListener('DOMContentLoaded', initialize);
+
+// Backup event listener for Auto Layout to ensure it's bound
+document.addEventListener('DOMContentLoaded', () => {
+    const autoLayoutBtn = document.getElementById('autoLayout');
+    if (autoLayoutBtn) {
+        autoLayoutBtn.addEventListener('click', (e) => {
+            console.log("Auto Layout button clicked (via listener)");
+            if (!autoLayoutBtn.onclick) {
+                console.warn("Auto Layout onclick was missing, attaching manually.");
+                autoLayoutCurrentPage();
+            }
+        });
+    }
+});

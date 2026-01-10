@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor Page Redesign - Detailed Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      line-height: 1.6;
+    }
+
+    /* Modern Design System */
+    :root {
+      --color-bg: #f8fafc;
+      --color-surface: #ffffff;
+      --color-primary: #6366f1;
+      --color-primary-dark: #4f46e5;
+      --color-text-main: #0f172a;
+      --color-text-light: #475569;
+      --color-border: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      border-bottom: 1px solid var(--color-border);
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      color: var(--color-text-light);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .btn-icon:hover {
+      background: var(--color-bg);
+      color: var(--color-text-main);
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-text-main);
+    }
+
+    .template-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, #818cf8 100%);
+      color: white;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 12px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid var(--color-border);
+      background: white;
+      color: var(--color-text-main);
+    }
+
+    .btn:hover {
+      background: var(--color-bg);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--color-primary-dark);
+    }
+
+    .btn-small {
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    /* Main Container */
+    .main-container {
+      display: flex;
+      height: calc(100vh - 64px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: white;
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: row;
+    }
+
+    .sidebar-tabs {
+      width: 120px;
+      padding: 16px 8px;
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tab {
+      padding: 12px 16px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-text-light);
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      background: var(--color-bg);
+      color: var(--color-text-main);
+    }
+
+    .tab.active {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .tab-content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Photos Tab */
+    .picker-section {
+      text-align: center;
+    }
+
+    .picker-section p {
+      color: var(--color-text-light);
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    /* Selected Tab */
+    .selected-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .zoom-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .zoom-control input[type="range"] {
+      flex: 1;
+      height: 4px;
+    }
+
+    .zoom-label {
+      font-size: 12px;
+      color: var(--color-text-light);
+      min-width: 45px;
+      text-align: right;
+    }
+
+    .selected-photos-list {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+      min-height: 80px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .selected-photo-thumb {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-sm);
+      object-fit: cover;
+      border: 2px solid white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .empty-state {
+      color: var(--color-text-light);
+      font-size: 14px;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .design-inspiration-section {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .design-inspiration-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-primary);
+      margin-bottom: 8px;
+    }
+
+    .design-inspiration-section p {
+      font-size: 13px;
+      color: var(--color-text-light);
+      margin-bottom: 12px;
+    }
+
+    .design-inspiration-section input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    /* Design Tab */
+    .design-editor-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .design-toolbar h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .design-toolbar p {
+      font-size: 13px;
+      color: var(--color-text-light);
+      margin-bottom: 24px;
+    }
+
+    .tool-section {
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .tool-section:last-child {
+      border-bottom: none;
+    }
+
+    .tool-section h4 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-text-light);
+      margin-bottom: 12px;
+    }
+
+    .tool-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .tool-btn {
+      padding: 10px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .tool-btn:hover {
+      background: var(--color-bg);
+      border-color: var(--color-primary);
+    }
+
+    .actions-group-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .actions-group-container .btn {
+      flex: 1;
+      min-width: 100px;
+    }
+
+    .actions-group-container .btn-primary {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    /* Resize Handle */
+    .resize-handle {
+      width: 4px;
+      background: var(--color-border);
+      cursor: col-resize;
+      position: relative;
+    }
+
+    .resize-handle:hover {
+      background: var(--color-primary);
+    }
+
+    /* Editor Main Area */
+    .editor {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-bg);
+      overflow-y: auto;
+    }
+
+    /* Settings Panel (Hidden by default) */
+    .settings-panel {
+      display: none;
+      background: white;
+      border-bottom: 1px solid var(--color-border);
+      padding: 16px 32px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .setting-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .setting-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-light);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .setting-group input,
+    .setting-group select {
+      padding: 8px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+    }
+
+    /* Editor Tabs */
+    .editor-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px;
+      background: white;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .editor-tab {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-light);
+      transition: all 0.2s;
+    }
+
+    .editor-tab:hover {
+      background: var(--color-bg);
+    }
+
+    .editor-tab.active {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    /* Editor Content */
+    .editor-content {
+      flex: 1;
+      padding: 32px;
+      display: none;
+      overflow-y: auto;
+    }
+
+    .editor-content.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Cover Editor */
+    .cover-settings {
+      display: flex;
+      gap: 48px;
+      max-width: 1400px;
+      width: 100%;
+      align-items: flex-start;
+    }
+
+    .cover-preview {
+      width: 600px;
+      height: 800px;
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .cover-photo-placeholder {
+      width: 100%;
+      height: 60%;
+      background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-light);
+      cursor: pointer;
+      border: 2px dashed var(--color-border);
+    }
+
+    .cover-title {
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--color-text-main);
+      text-align: center;
+    }
+
+    .cover-controls {
+      width: 400px;
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--color-border);
+    }
+
+    .cover-controls h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .control-group {
+      margin-bottom: 20px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-light);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .control-group input[type="text"],
+    .control-group input[type="number"],
+    .control-group select,
+    .control-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+    }
+
+    .range-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .range-control input[type="range"] {
+      flex: 1;
+      height: 6px;
+    }
+
+    .range-value {
+      min-width: 50px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-light);
+    }
+
+    .inline-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .inline-controls input[type="color"] {
+      width: 50px;
+      height: 42px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+
+    .checkbox-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .checkbox-control input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    /* Pages Editor */
+    .pages-toolbar {
+      background: white;
+      border-radius: var(--radius-md);
+      padding: 16px 24px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--color-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      max-width: 1400px;
+      width: 100%;
+    }
+
+    .pages-toolbar-left {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pages-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .page-indicator {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-light);
+    }
+
+    .auto-arrange-cta {
+      background: white;
+      border-radius: var(--radius-md);
+      padding: 16px 24px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      max-width: 1400px;
+      width: 100%;
+    }
+
+    .auto-arrange-sub {
+      font-size: 13px;
+      color: var(--color-text-light);
+    }
+
+    .page-navigator {
+      background: white;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      max-width: 1400px;
+      width: 100%;
+    }
+
+    .nav-btn {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+
+    .page-thumbnails {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      overflow-x: auto;
+    }
+
+    .page-thumbnail {
+      width: 40px;
+      height: 40px;
+      background: var(--color-bg);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .page-thumbnail.active {
+      border-color: var(--color-primary);
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .page-editor-area {
+      display: flex;
+      gap: 32px;
+      max-width: 1400px;
+      width: 100%;
+      align-items: flex-start;
+    }
+
+    .page-preview {
+      width: 800px;
+      height: 600px;
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-light);
+    }
+
+    .page-controls {
+      width: 340px;
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--color-border);
+      position: sticky;
+      top: 24px;
+    }
+
+    /* Back Cover Editor */
+    .back-cover-controls {
+      width: 400px;
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--color-border);
+    }
+
+    .alignment-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-alignment {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-alignment:hover {
+      border-color: var(--color-primary);
+      background: var(--color-bg);
+    }
+
+    .btn-alignment.active {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: white;
+    }
+
+    .btn-alignment svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .page-editor-area {
+        flex-direction: column;
+      }
+
+      .page-controls {
+        width: 100%;
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <button class="btn-icon">← Back</button>
+      <h1>Photo Book Creator</h1>
+      <span class="template-badge">Classic Minimal</span>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-small">New album</button>
+      <button class="btn btn-small">Save</button>
+      <button class="btn btn-small">Load</button>
+      <button class="btn btn-small">Profile</button>
+      <button class="btn btn-primary">Generate Book</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-tabs">
+        <button class="tab active">Photos</button>
+        <button class="tab">Selected (0)</button>
+        <button class="tab">Design</button>
+      </div>
+
+      <!-- Photos Tab -->
+      <div class="tab-content active">
+        <div class="picker-section">
+          <p>Select photos from your library</p>
+          <button class="btn btn-primary" style="width: 100%;">Open Google Photos</button>
+        </div>
+      </div>
+
+      <!-- Selected Tab -->
+      <div class="tab-content">
+        <div class="selected-actions">
+          <div class="zoom-control">
+            <span>🔍</span>
+            <input type="range" min="80" max="240" value="120">
+            <span class="zoom-label">120px</span>
+          </div>
+          <button class="btn btn-small">Clear</button>
+          <button class="btn btn-small">Shuffle</button>
+        </div>
+        <div class="selected-photos-list">
+          <div class="empty-state">No photos selected</div>
+        </div>
+        <div style="margin-top: 16px;">
+          <button class="btn btn-small btn-secondary" style="width: 100%;">Show more</button>
+        </div>
+
+        <!-- Design Inspiration -->
+        <div class="design-inspiration-section">
+          <h3>🎨 Design Inspiration</h3>
+          <p>Search for design trends and color palette ideas</p>
+          <input type="text" placeholder="e.g., botanical, modern...">
+          <button class="btn btn-primary" style="width: 100%; margin-top: 8px;">🔍 Search</button>
+        </div>
+      </div>
+
+      <!-- Design Tab -->
+      <div class="tab-content">
+        <div class="design-editor-container">
+          <div class="design-toolbar">
+            <h3>Design Editor</h3>
+            <p>Click the "✏️ Edit" button on any photo in your album pages to edit it here.</p>
+
+            <div class="tool-section">
+              <h4>Tools</h4>
+              <div class="tool-controls">
+                <button class="tool-btn">Brush</button>
+                <button class="tool-btn">Text</button>
+                <button class="tool-btn">Shape</button>
+                <button class="tool-btn">Crop</button>
+              </div>
+            </div>
+
+            <div class="tool-section">
+              <h4>Image Filters</h4>
+              <div class="tool-controls">
+                <button class="tool-btn">Vintage</button>
+                <button class="tool-btn">B&W</button>
+                <button class="tool-btn">Bright</button>
+                <button class="tool-btn">Contrast</button>
+              </div>
+            </div>
+
+            <div class="tool-section">
+              <h4>Actions</h4>
+              <div class="actions-group-container">
+                <button class="btn btn-small">↶ Undo</button>
+                <button class="btn btn-small">↷ Redo</button>
+                <button class="btn btn-small">Clear</button>
+                <button class="btn btn-small">Reset</button>
+                <button class="btn btn-primary">Save Edited Photo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Resize Handle -->
+    <div class="resize-handle"></div>
+
+    <!-- Editor Main Area -->
+    <main class="editor">
+      <!-- Settings Panel (Hidden by default) -->
+      <div class="settings-panel" style="display: none;">
+        <div class="setting-group">
+          <label>Title:</label>
+          <input type="text" value="My Photo Book">
+        </div>
+        <div class="setting-group">
+          <label>Format:</label>
+          <select>
+            <option>10" x 10" Square</option>
+          </select>
+        </div>
+        <!-- BookPod settings would go here -->
+      </div>
+
+      <!-- Editor Tabs -->
+      <div class="editor-tabs">
+        <button class="editor-tab active">Cover</button>
+        <button class="editor-tab">Pages</button>
+        <button class="editor-tab">Back Cover</button>
+      </div>
+
+      <!-- Cover Editor -->
+      <div class="editor-content active">
+        <div class="cover-settings">
+          <div class="cover-preview">
+            <div class="cover-photo-placeholder">Click to add cover photo</div>
+            <div class="cover-title">My Photo Book</div>
+          </div>
+          <div class="cover-controls">
+            <h3>Cover Settings</h3>
+            <div class="control-group">
+              <label>Cover Title</label>
+              <input type="text" value="My Photo Book">
+            </div>
+            <div class="control-group">
+              <label>Title Size</label>
+              <div class="range-control">
+                <input type="range" min="18" max="72" value="36">
+                <span class="range-value">36px</span>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Title Color</label>
+              <input type="color" value="#ffffff">
+            </div>
+            <div class="control-group">
+              <label>Title Font</label>
+              <select>
+                <option>Playfair Display</option>
+                <option>Montserrat</option>
+                <option>Lato</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label>Subtitle</label>
+              <input type="text" placeholder="Optional subtitle">
+            </div>
+            <div class="control-group">
+              <label>Subtitle Size</label>
+              <div class="range-control">
+                <input type="range" min="10" max="24" value="14">
+                <span class="range-value">14px</span>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Background Color</label>
+              <input type="color" value="#1a1a2e">
+            </div>
+            <div class="control-group">
+              <label>Photo Border</label>
+              <div class="inline-controls">
+                <input type="checkbox">
+                <input type="color" value="#000000">
+                <input type="number" value="2" min="0" max="10" style="width: 60px;">
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="checkbox-control">
+                <input type="checkbox" checked>
+                <label>Show embossed border</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pages Editor -->
+      <div class="editor-content">
+        <div class="pages-toolbar">
+          <div class="pages-toolbar-left">
+            <button class="btn btn-small">+ Add Page</button>
+            <button class="btn btn-small">Duplicate</button>
+            <button class="btn btn-small">Delete</button>
+          </div>
+          <div class="pages-toolbar-right">
+            <span class="page-indicator">Page 1 of 5</span>
+            <div class="zoom-control">
+              <span>🔍</span>
+              <input type="range" min="50" max="150" value="100">
+              <span class="zoom-label">100%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="auto-arrange-cta">
+          <button class="btn btn-primary">🪄 Auto-Arrange Pages</button>
+          <div class="auto-arrange-sub">Build a book layout from your selected photos</div>
+        </div>
+
+        <div class="page-navigator">
+          <button class="nav-btn">◀</button>
+          <div class="page-thumbnails">
+            <div class="page-thumbnail active">1</div>
+            <div class="page-thumbnail">2</div>
+            <div class="page-thumbnail">3</div>
+            <div class="page-thumbnail">4</div>
+            <div class="page-thumbnail">5</div>
+          </div>
+          <button class="nav-btn">▶</button>
+        </div>
+
+        <div class="page-editor-area">
+          <div class="page-preview">Page Preview (3D Book Spread)</div>
+          <div class="page-controls">
+            <div class="control-group">
+              <label>Template</label>
+              <div class="inline-controls">
+                <span style="flex: 1; font-size: 13px; color: var(--color-text-light);">Default Template</span>
+                <button class="btn btn-small btn-secondary">Change</button>
+                <button class="btn btn-small">Reset</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Layout</label>
+              <select>
+                <option>Single Photo</option>
+                <option>Two Horizontal</option>
+                <option>Two Vertical</option>
+                <option>Four Grid</option>
+                <option>Collage (5 Photos)</option>
+                <option>Collage (6 Photos)</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label>Background</label>
+              <input type="color" value="#ffffff">
+            </div>
+            <div class="control-group">
+              <label>Background Image</label>
+              <div class="inline-controls">
+                <button class="btn btn-small btn-secondary">Upload</button>
+                <button class="btn btn-small">Remove</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Caption</label>
+              <input type="text" placeholder="Optional caption">
+            </div>
+            <div class="control-group">
+              <div class="checkbox-control">
+                <input type="checkbox" checked>
+                <label>Show page number</label>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Photo Border</label>
+              <div class="inline-controls">
+                <input type="checkbox">
+                <input type="color" value="#cccccc">
+                <input type="number" value="1" min="1" max="10" style="width: 60px;">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Back Cover Editor -->
+      <div class="editor-content">
+        <div class="cover-settings">
+          <div class="cover-preview">
+            <div style="text-align: center; color: white; padding: 48px;">
+              <div style="font-size: 18px; margin-bottom: 16px;">Thank you for viewing this photo book</div>
+            </div>
+          </div>
+          <div class="back-cover-controls">
+            <h3>Back Cover Settings</h3>
+            <div class="control-group">
+              <label>Back Cover Text</label>
+              <textarea rows="4">Thank you for viewing this photo book</textarea>
+            </div>
+            <div class="control-group">
+              <label>Subtitle / Additional Text</label>
+              <input type="text" placeholder="e.g., Made with love">
+            </div>
+            <div class="control-group">
+              <label>Text Size</label>
+              <div class="range-control">
+                <input type="range" min="12" max="32" value="18">
+                <span class="range-value">18px</span>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Subtitle Size</label>
+              <div class="range-control">
+                <input type="range" min="10" max="20" value="12">
+                <span class="range-value">12px</span>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Text Font</label>
+              <select>
+                <option>Inter (Sans-serif)</option>
+                <option>Playfair Display (Serif)</option>
+                <option>Montserrat (Modern)</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label>Text Color</label>
+              <div class="inline-controls">
+                <input type="color" value="#ffffff">
+                <input type="text" value="#ffffff" style="flex: 1;">
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Background Color</label>
+              <div class="inline-controls">
+                <input type="color" value="#1a1a2e">
+                <input type="text" value="#1a1a2e" style="flex: 1;">
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Text Alignment</label>
+              <div class="alignment-controls">
+                <button class="btn-alignment">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="15" y2="12"/>
+                    <line x1="3" y1="18" x2="18" y2="18"/>
+                  </svg>
+                </button>
+                <button class="btn-alignment active">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="6" y1="12" x2="18" y2="12"/>
+                    <line x1="4" y1="18" x2="20" y2="18"/>
+                  </svg>
+                </button>
+                <button class="btn-alignment">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="9" y1="12" x2="21" y2="12"/>
+                    <line x1="6" y1="18" x2="21" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="checkbox-control">
+                <input type="checkbox" checked>
+                <label>Show embossed border</label>
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="checkbox-control">
+                <input type="checkbox">
+                <label>Show "Photo Book Creator" branding</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
+
+
