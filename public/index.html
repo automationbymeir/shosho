@@ -1293,24 +1293,17 @@
         <div class="modal-content" style="max-width: 800px; width: 90%;">
           <div class="modal-header">
             <h3>Design Gallery</h3>
-            <div style="flex:1"></div>
-            <button class="btn btn-secondary btn-sm" onclick="searchDesignApi()" title="Simulate MCP Search">
-              ✨ Search with AI
-            </button>
-            <div class="modal-header">
-              <h3>Design Gallery</h3>
-              <div style="display:flex; gap:10px;">
-                <button class="btn btn-primary btn-sm" onclick="searchDesignApi()">
-                  <span class="icon">✨</span> Search with AI
-                </button>
-                <button class="close-btn" onclick="closeBackgroundGallery()">×</button>
-              </div>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-primary btn-sm" onclick="searchDesignApi()">
+                <span class="icon">✨</span> Search with AI
+              </button>
+              <button class="close-btn" onclick="closeBackgroundGallery()">×</button>
             </div>
-            <div class="modal-body">
-              <div id="backgroundGalleryGrid"
-                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; padding: 10px;">
-                <!-- Populated by JS -->
-              </div>
+          </div>
+          <div class="modal-body">
+            <div id="backgroundGalleryGrid"
+              style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; padding: 10px;">
+              <!-- Populated by JS -->
             </div>
           </div>
         </div>
