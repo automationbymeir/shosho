@@ -11,6 +11,7 @@ let slides;
 let projects;
 let designInspiration;
 let aiStory;
+let aiAutoDesign;
 let printPdf;
 let payments;
 let bookpod;
@@ -22,6 +23,7 @@ try {
   projects = require("./src/projects");
   designInspiration = require("./src/design-inspiration");
   aiStory = require("./src/ai-story");
+  aiAutoDesign = require("./src/ai-autodesign");
   printPdf = require("./src/print-ready-pdf-generator");
   payments = require("./src/payments");
   bookpod = require("./src/bookpod");
@@ -564,6 +566,33 @@ exports.generateCaptions = onCall(async (request) => {
   }
 });
 
+// ============================================
+// AI AUTO DESIGN (full album generation)
+// ============================================
+exports.generateAutoDesign = onCall({
+  timeoutSeconds: 120,
+  memory: "1GiB",
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const {photos, lang, seed} = request.data || {};
+  if (!photos || !Array.isArray(photos)) {
+    throw new HttpsError("invalid-argument", "Photos array required");
+  }
+
+  try {
+    if (!aiAutoDesign || typeof aiAutoDesign.generateAutoDesignPlan !== "function") {
+      throw new Error("aiAutoDesign module not available");
+    }
+    return await aiAutoDesign.generateAutoDesignPlan(photos, {lang, seed});
+  } catch (error) {
+    console.error("generateAutoDesign error:", error);
+    throw new HttpsError("internal", error.message || "Auto design failed");
+  }
+});
+
 /**
  * Generate PDF from Memory Director data (spread-based, print-ready)
  */
@@ -598,6 +627,8 @@ exports.generateMemoryDirectorPdf = onCall({
       coverTextStyle: bookData.coverTextStyle || bookData.cover?.textStyleId || "default",
       coverTitleSize: bookData.cover?.titleSize || 36,
       coverPhoto: bookData.cover?.photo || null,
+      coverPhotoShape: bookData.coverPhotoShape || bookData.cover?.photoShape || null,
+      coverPhotoFrameId: bookData.coverPhotoFrameId || bookData.cover?.photoFrameId || null,
       coverBackgroundImageData: bookData.cover?.backgroundImageData || null,
       coverBackgroundImageUrl: bookData.cover?.backgroundImageUrl || null,
       // Template information (critical for decorations and design)

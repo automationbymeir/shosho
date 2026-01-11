@@ -20,6 +20,14 @@ function initTemplateGallery() {
         console.warn('Failed to render Memory Director card:', e);
     }
 
+    // Add AI Auto Design card (new mode)
+    try {
+        const aiCard = createAIAutoDesignCard();
+        if (aiCard) galleryGrid.appendChild(aiCard);
+    } catch (e) {
+        console.warn('Failed to render AI Auto Design card:', e);
+    }
+
     // Get all templates - check both window and global scope
     const templatesObj = window.PHOTO_BOOK_TEMPLATES || PHOTO_BOOK_TEMPLATES || {};
     const templates = Object.values(templatesObj);
@@ -38,7 +46,53 @@ function initTemplateGallery() {
     });
 }
 
+function createAIAutoDesignCard() {
+    const uiLang = (window.getUiLang && window.getUiLang()) || (localStorage.getItem('shoso_ui_lang') || localStorage.getItem('uiLang') || 'en');
+    const isHe = String(uiLang).toLowerCase().startsWith('he');
+    const card = document.createElement('div');
+    card.className = 'template-card memory-director-card';
+    card.style.position = 'relative';
+
+    card.onclick = () => {
+        try {
+            if (window.state) {
+                window.state._aiAutoDesignMode = true;
+            }
+        } catch { /* ignore */ }
+
+        if (typeof window.openAIAutoDesignFlow === 'function') {
+            window.openAIAutoDesignFlow();
+            return;
+        }
+
+        // Fallback: open regular picker flow if app.js helper isn't available
+        try { showPhotoSelectionPopup(); } catch { /* ignore */ }
+    };
+
+    const preview = document.createElement('div');
+    preview.className = 'template-preview md-preview';
+    preview.innerHTML = `
+        <div class="md-preview-icon">${typeof getIcon !== 'undefined' ? getIcon('sparkles', 48) : '✨'}</div>
+        <div class="md-preview-sparkle">${typeof getIcon !== 'undefined' ? getIcon('wand2', 20) : ''}</div>
+    `;
+
+    const info = document.createElement('div');
+    info.className = 'template-info';
+    info.innerHTML = `
+        <h3 class="template-name">${isHe ? 'עיצוב אוטומטי עם AI' : 'AI Auto Design'}</h3>
+        <span class="template-category">${isHe ? 'אלבום מלא בלחיצה אחת' : 'One‑click full album'}</span>
+        <p class="template-description">${isHe ? 'ה‑AI בוחר סגנון, מסדר תמונות, מעצב עמודים, מוסיף כיתובים ומכין אלבום מוכן לעריכה.' : 'AI picks a style, arranges photos, designs pages, adds captions, and builds an editable album.'}</p>
+        <span class="template-badge new">${isHe ? 'חדש' : 'New'}</span>
+    `;
+
+    card.appendChild(preview);
+    card.appendChild(info);
+    return card;
+}
+
 function createMemoryDirectorCard() {
+    const uiLang = (window.getUiLang && window.getUiLang()) || (localStorage.getItem('shoso_ui_lang') || localStorage.getItem('uiLang') || 'en');
+    const isHe = String(uiLang).toLowerCase().startsWith('he');
     const card = document.createElement('div');
     card.className = 'template-card memory-director-card';
     card.style.position = 'relative';
@@ -61,10 +115,10 @@ function createMemoryDirectorCard() {
     const info = document.createElement('div');
     info.className = 'template-info';
     info.innerHTML = `
-        <h3 class="template-name">Memory Director</h3>
-        <span class="template-category">AI Story</span>
-        <p class="template-description">AI-powered story detection</p>
-        <span class="template-badge new">New</span>
+        <h3 class="template-name">${isHe ? 'במאי זיכרונות' : 'Memory Director'}</h3>
+        <span class="template-category">${isHe ? 'סיפור AI' : 'AI Story'}</span>
+        <p class="template-description">${isHe ? 'זיהוי סיפור בעזרת AI' : 'AI-powered story detection'}</p>
+        <span class="template-badge new">${isHe ? 'חדש' : 'New'}</span>
     `;
 
     card.appendChild(preview);
@@ -73,6 +127,8 @@ function createMemoryDirectorCard() {
 }
 
 function createTemplateCard(template) {
+    const uiLang = (window.getUiLang && window.getUiLang()) || (localStorage.getItem('shoso_ui_lang') || localStorage.getItem('uiLang') || 'en');
+    const isHe = String(uiLang).toLowerCase().startsWith('he');
     const card = document.createElement('div');
     card.className = 'template-card';
     card.style.position = 'relative';
@@ -133,15 +189,15 @@ function createTemplateCard(template) {
 
     const name = document.createElement('h3');
     name.className = 'template-name';
-    name.textContent = template.name;
+    name.textContent = (isHe && template.nameHe) ? template.nameHe : template.name;
 
     const category = document.createElement('span');
     category.className = 'template-category';
-    category.textContent = template.category;
+    category.textContent = (isHe && template.categoryHe) ? template.categoryHe : template.category;
 
     const description = document.createElement('p');
     description.className = 'template-description';
-    description.textContent = template.description;
+    description.textContent = (isHe && template.descriptionHe) ? template.descriptionHe : template.description;
 
     info.appendChild(name);
     info.appendChild(category);
@@ -168,10 +224,15 @@ function selectTemplate(templateId) {
         console.log(`[DEBUG-Template] Setting selectedTemplate on shared state: ${template.name} (${template.id})`);
         appState.selectedTemplate = template;
         appState.currentTheme = templateId;
+        // Selecting a normal template should exit AI Auto Design mode.
+        appState._aiAutoDesignMode = false;
     } else {
         console.warn(`[DEBUG-Template] State not found, falling back to window.selectedTemplate`);
         window.selectedTemplate = template;
     }
+
+    // Persist selection so redirect-based auth doesn't lose it
+    try { localStorage.setItem('shoso_selected_template_id', templateId); } catch { /* ignore */ }
 
     // Show animated popup for Google Photos selection
     showPhotoSelectionPopup();
@@ -226,11 +287,11 @@ function showPhotoSelectionPopup() {
     popup.innerHTML = `
         <div class="photo-selection-popup-content">
             <div class="photo-selection-popup-icon">📸</div>
-            <h2>Select Photos from Google Photos</h2>
-            <p>Choose photos from your Google Photos library to create your photo book</p>
+            <h2>בחר תמונות מגוגל תמונות</h2>
+            <p>בחר תמונות מהספרייה שלך בגוגל תמונות כדי ליצור אלבום</p>
             <div class="photo-selection-popup-actions">
                 <button class="btn btn-primary" onclick="openPhotoSelectionAndEditor()">Open Google Photos</button>
-                <button class="btn btn-secondary" onclick="skipPhotoSelection()">Skip for Now</button>
+                <button class="btn btn-secondary" onclick="skipPhotoSelection()">דלג</button>
             </div>
         </div>
     `;

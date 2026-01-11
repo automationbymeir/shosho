@@ -25,7 +25,7 @@
 
   <!-- Styles -->
   <link rel="stylesheet" href="/css/styles.css?v=fix_buttons_v1">
-  <link rel="stylesheet" href="/css/modal.css">
+  <link rel="stylesheet" href="/css/modal.css?v=v2_gallery_header_wrap">
   <!-- Enhanced 3D Book Styles -->
   <link rel="stylesheet" href="/css/book-3d-enhanced.css">
   <link rel="stylesheet" href="/css/book-loader.css">
@@ -76,7 +76,7 @@
       }
       window.addEventListener('resize', forceLayout);
       window.addEventListener('load', forceLayout);
-      setInterval(forceLayout, 500); // Polling layout fix
+      // setInterval(forceLayout, 500); // Polling layout fix REMOVED (caused UI bounce)
     })();
   </script>
 
@@ -87,8 +87,8 @@
   <script src="/__/firebase/init.js"></script>
 
   <!-- Templates Data -->
-  <script src="/data/templates.js"></script>
-  <script src="/data/backgrounds.js?v=v2_patterns"></script>
+  <script src="/data/templates.js?v=v3_he_gallery_labels"></script>
+  <script src="/data/backgrounds.js?v=v5_image_frames_more"></script>
 </head>
 
 <body>
@@ -117,7 +117,9 @@
         <div class="gallery-header-actions">
           <button class="btn btn-secondary" onclick="setUiLanguage('en')" data-i18n="lang_en">EN</button>
           <button class="btn btn-secondary" onclick="setUiLanguage('he')" data-i18n="lang_he">עברית</button>
-          <button class="btn btn-secondary" onclick="setUiDirection((document.documentElement.getAttribute('dir') || 'ltr') === 'rtl' ? 'ltr' : 'rtl')" data-i18n="toggle_rtl">RTL</button>
+          <button class="btn btn-secondary"
+            onclick="setUiDirection((document.documentElement.getAttribute('dir') || 'ltr') === 'rtl' ? 'ltr' : 'rtl')"
+            data-i18n="toggle_rtl">RTL</button>
           <button class="btn btn-secondary" onclick="showLoadDialog()" data-i18n="load_project">Load Project</button>
           <button class="btn btn-secondary" onclick="showProfileModal()" data-i18n="profile">Profile</button>
         </div>
@@ -287,7 +289,7 @@
                   d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17" />
               </svg>
             </span>
-            Preview PDF
+            <span data-i18n="preview_pdf">Preview PDF</span>
           </button>
           <button class="btn-header btn-header-ghost" onclick="showProfileModal()" title="User Profile">
             <span class="icon">
@@ -306,7 +308,7 @@
                 <rect x="6" y="14" width="12" height="8" />
               </svg>
             </span>
-            Order Print
+            <span data-i18n="order_print">Order Print</span>
           </button>
         </div>
       </header>
@@ -678,7 +680,8 @@
               <div class="setting-group group-title">
                 <label class="setting-label">Book Title</label>
                 <div style="display:flex; gap:8px;">
-                  <input type="text" id="coverTitle" placeholder="Enter title..." data-i18n-placeholder="cover_title_placeholder" class="edo-input" style="flex:1;">
+                  <input type="text" id="coverTitle" placeholder="Enter title..."
+                    data-i18n-placeholder="cover_title_placeholder" class="edo-input" style="flex:1;">
                   <div class="color-picker-wrapper"
                     style="width:36px; height:36px; padding:0; border-radius:4px; overflow:hidden; border:1px solid #ddd;">
                     <input type="color" id="coverTitleColor" value="#ffffff" oninput="updateCoverPreview()"
@@ -698,8 +701,8 @@
               <div class="setting-group group-subtitle" style="margin-top: 10px;">
                 <label class="setting-label" data-i18n="subtitle">Subtitle</label>
                 <div style="display:flex; gap:8px;">
-                  <input type="text" id="coverSubtitle" placeholder="Enter subtitle..." data-i18n-placeholder="cover_subtitle_placeholder" class="edo-input"
-                    style="flex:1;">
+                  <input type="text" id="coverSubtitle" placeholder="Enter subtitle..."
+                    data-i18n-placeholder="cover_subtitle_placeholder" class="edo-input" style="flex:1;">
                   <div class="color-picker-wrapper"
                     style="width:36px; height:36px; padding:0; border-radius:4px; overflow:hidden; border:1px solid #ddd;">
                     <input type="color" id="coverSubtitleColor" value="#ffffff" oninput="updateCoverPreview()"
@@ -777,10 +780,10 @@
                 <label class="setting-label" style="min-width:80px;" data-i18n="corners">Corners</label>
                 <select id="globalCornerRadiusCover" class="form-select flex-expand"
                   onchange="updateGlobalPhotoStyle('globalCornerRadiusCover')">
-                  <option value="0">Sharp (0px)</option>
-                  <option value="8">Rounded (8px)</option>
-                  <option value="16">Soft (16px)</option>
-                  <option value="24">Circular (24px)</option>
+                  <option value="0" data-i18n="corner_sharp_0">Sharp (0px)</option>
+                  <option value="8" data-i18n="corner_rounded_8">Rounded (8px)</option>
+                  <option value="16" data-i18n="corner_soft_16">Soft (16px)</option>
+                  <option value="24" data-i18n="corner_circular_24">Circular (24px)</option>
                 </select>
               </div>
             </div>
@@ -791,10 +794,10 @@
               <!-- Left/Right Page Selection -->
               <div id="pageSideSwitcher" class="setting-group group-page-side"
                 style="display:none; flex-direction:row; gap:5px; margin-bottom:15px; width:100%;">
-                <button id="btnSideLeft" class="btn btn-sm" style="flex:1;" onclick="switchPageSide('left')">Left
-                  Page</button>
-                <button id="btnSideRight" class="btn btn-sm" style="flex:1;" onclick="switchPageSide('right')">Right
-                  Page</button>
+                <button id="btnSideLeft" class="btn btn-sm" style="flex:1;" onclick="switchPageSide('left')"><span
+                    data-i18n="left_page">Left Page</span></button>
+                <button id="btnSideRight" class="btn btn-sm" style="flex:1;" onclick="switchPageSide('right')"><span
+                    data-i18n="right_page">Right Page</span></button>
               </div>
 
               <div class="setting-group group-bg-color flex-group">
@@ -829,45 +832,46 @@
                 </div>
               </div>
               <div class="setting-group group-page-layout">
-                <label class="setting-label">Page Layout</label>
+                <label class="setting-label" data-i18n="page_layout">Page Layout</label>
                 <select id="pageLayout" class="edo-select" onchange="updatePageLayout(this.value)">
-                  <option value="single">Single Photo</option>
-                  <option value="two-horizontal">Two Horizontal</option>
-                  <option value="two-vertical">Two Vertical</option>
-                  <option value="three-left">Three (Large Left)</option>
-                  <option value="three-right">Three (Large Right)</option>
-                  <option value="four-grid">Four Grid</option>
-                  <option value="collage-5">Collage (5 Photos)</option>
-                  <option value="collage-6">Collage (6 Photos)</option>
+                  <option value="single" data-i18n="layout_single_photo">Single Photo</option>
+                  <option value="two-horizontal" data-i18n="layout_two_horizontal">Two Horizontal</option>
+                  <option value="two-vertical" data-i18n="layout_two_vertical">Two Vertical</option>
+                  <option value="three-left" data-i18n="layout_three_left">Three (Large Left)</option>
+                  <option value="three-right" data-i18n="layout_three_right">Three (Large Right)</option>
+                  <option value="four-grid" data-i18n="layout_four_grid">Four Grid</option>
+                  <option value="collage-5" data-i18n="layout_collage_5">Collage (5 Photos)</option>
+                  <option value="collage-6" data-i18n="layout_collage_6">Collage (6 Photos)</option>
                 </select>
               </div>
 
               <div class="setting-group group-spacing">
-                <label class="setting-label">Photo Spacing</label>
+                <label class="setting-label" data-i18n="photo_spacing">Photo Spacing</label>
                 <div class="slider-control">
                   <div class="slider-header">
-                    <span class="slider-label">Gap</span>
-                    <span class="slider-value">12px</span>
+                    <span class="slider-label" data-i18n="gap">Gap</span>
+                    <span class="slider-value" id="pagePhotoSpacingVal">12px</span>
                   </div>
-                  <input type="range" class="slider-track" min="0" max="40" value="12">
+                  <input type="range" id="pagePhotoSpacing" class="slider-track" min="0" max="40" value="12"
+                    oninput="updatePagePhotoSpacing(this.value)">
                 </div>
               </div>
 
               <!-- NEW: Global Corner Radius (Page Settings) -->
               <div class="setting-group group-corners" style="margin-top: 10px;">
-                <label class="setting-label">Global Corners</label>
+                <label class="setting-label" data-i18n="corner_style">Global Corners</label>
                 <div class="slider-control">
                   <div class="slider-header">
-                    <span class="slider-label">Radius</span>
+                    <span class="slider-label" data-i18n="radius">Radius</span>
                   </div>
                   <select id="globalCornerRadius" class="edo-select"
                     onchange="updateGlobalPhotoStyle('globalCornerRadius')">
-                    <option value="0">Square (0px)</option>
-                    <option value="4">Subtle (4px)</option>
-                    <option value="8">Rounded (8px)</option>
-                    <option value="12">Soft (12px)</option>
-                    <option value="16">Modern (16px)</option>
-                    <option value="24">Circular (24px)</option>
+                    <option value="0" data-i18n="corner_square_0">Square (0px)</option>
+                    <option value="4" data-i18n="corner_subtle_4">Subtle (4px)</option>
+                    <option value="8" data-i18n="corner_rounded_8">Rounded (8px)</option>
+                    <option value="12" data-i18n="corner_soft_12">Soft (12px)</option>
+                    <option value="16" data-i18n="corner_modern_16">Modern (16px)</option>
+                    <option value="24" data-i18n="corner_circular_24">Circular (24px)</option>
                   </select>
                 </div>
               </div>
@@ -876,19 +880,19 @@
             <!-- Back Cover Settings -->
             <div id="backcover-settings-panel" class="editor-settings-panel" style="display:none;">
               <div class="setting-group">
-                <label class="setting-label">Closing Text</label>
-                <textarea id="backCoverText" class="edo-textarea" rows="3" oninput="updateBackCoverPreview()">Thank you
-for viewing this photo book</textarea>
+                <label class="setting-label" data-i18n="backcover_closing_text">Closing Text</label>
+                <textarea id="backCoverText" class="edo-textarea" rows="3"
+                  oninput="updateBackCoverPreview()">Thank you for viewing this photo book</textarea>
               </div>
 
               <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label">Subtitle (optional)</label>
+                <label class="setting-label" data-i18n="backcover_subtitle_optional">Subtitle (optional)</label>
                 <input type="text" id="backCoverSubtitle" class="edo-input" placeholder="Add a subtitle..."
                   oninput="updateBackCoverPreview()">
               </div>
 
               <div class="setting-group group-bg-color flex-group" style="margin-top: 10px;">
-                <label class="setting-label">Background Color</label>
+                <label class="setting-label" data-i18n="background_color">Background Color</label>
                 <div class="color-input-pair" style="display:flex; gap:8px; flex:1;">
                   <input type="color" id="backCoverBgColor" value="#1a1a2e" oninput="syncBackCoverBgColor()">
                   <input type="text" id="backCoverBgColorText" class="edo-input" value="#1a1a2e"
@@ -898,30 +902,33 @@ for viewing this photo book</textarea>
 
               <!-- Back Cover Background Image -->
               <div class="setting-group group-bg-image flex-group align-start" style="margin-top: 10px;">
-                <label class="setting-label" style="min-width: 80px; margin-top: 5px;">Background Image</label>
+                <label class="setting-label" style="min-width: 80px; margin-top: 5px;"
+                  data-i18n="background_image">Background Image</label>
                 <div class="controls-expand" style="display: flex; gap: 8px; flex-direction: column;">
                   <button class="btn btn-secondary btn-sm" onclick="triggerBackCoverBackgroundImageUpload()"
                     style="width:100%">
-                    Upload Image...
+                    <span data-i18n="upload_image">Upload Image...</span>
                   </button>
                   <input type="file" id="backCoverBgImageFile" accept="image/jpeg, image/png" style="display: none;"
                     onchange="updateBackCoverBackgroundImage(event)">
-                  <div id="backCoverBgImageStatus" style="font-size: 11px; color: #666; margin-top: 2px;">No image set
+                  <div id="backCoverBgImageStatus" style="font-size: 11px; color: #666; margin-top: 2px;"><span
+                      data-i18n="no_image_set">No image set</span>
                   </div>
                   <button class="btn btn-ghost btn-xs" onclick="clearBackCoverBackgroundImage()"
                     style="align-self: flex-start; color: #dc3545;">
-                    Remove Image
+                    <span data-i18n="remove_image">Remove Image</span>
                   </button>
                   <!-- Design Gallery Button -->
                   <button class="btn btn-secondary btn-sm" onclick="openBackgroundGallery()"
                     style="width:100%; margin-top: 5px;">
-                    <span class="icon icon-sm" style="margin-right:4px;">🎨</span> Design Gallery
+                    <span class="icon icon-sm" style="margin-right:4px;">🎨</span> <span
+                      data-i18n="design_gallery">Design Gallery</span>
                   </button>
                 </div>
               </div>
 
               <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label">Typography Style</label>
+                <label class="setting-label" data-i18n="typography_style">Typography Style</label>
                 <select id="backCoverTextStyleSelect" class="edo-select" onchange="updateBackCoverPreview()">
                   <option value="default">Default</option>
                 </select>
@@ -958,10 +965,10 @@ for viewing this photo book</textarea>
               </div>
 
               <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label">Text Size</label>
+                <label class="setting-label" data-i18n="text_size">Text Size</label>
                 <div class="slider-control">
                   <div class="slider-header">
-                    <span class="slider-label">Size</span>
+                    <span class="slider-label" data-i18n="size">Size</span>
                     <span class="slider-value" id="backCoverTextSizeVal">18px</span>
                   </div>
                   <input type="range" id="backCoverTextSize" class="slider-track" min="10" max="48" value="18"
@@ -970,10 +977,10 @@ for viewing this photo book</textarea>
               </div>
 
               <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label">Subtitle Size</label>
+                <label class="setting-label" data-i18n="subtitle_size">Subtitle Size</label>
                 <div class="slider-control">
                   <div class="slider-header">
-                    <span class="slider-label">Size</span>
+                    <span class="slider-label" data-i18n="size">Size</span>
                     <span class="slider-value" id="backCoverSubtitleSizeVal">12px</span>
                   </div>
                   <input type="range" id="backCoverSubtitleSize" class="slider-track" min="8" max="32" value="12"
@@ -1132,6 +1139,12 @@ for viewing this photo book</textarea>
                   <input type="range" id="saturationSlider" class="slider-track" min="0" max="200" value="100"
                     oninput="updateAdjustmentLabel('saturation', this.value)">
                 </div>
+              </div>
+
+              <!-- Image Frames (for page photos) -->
+              <div class="design-section" id="designStudioImageFramesSection">
+                <div class="design-section-title">Image Frames</div>
+                <div id="designStudioImageFrames"></div>
               </div>
 
               <!-- Tools Placeholders (Brush etc) -->
@@ -1715,7 +1728,7 @@ for viewing this photo book</textarea>
 
   <!-- Data Scripts -->
 
-  <script src="data/textStyles.js"></script> <!-- NEW -->
+  <script src="data/textStyles.js?v=v2_he_gallery_labels"></script> <!-- NEW -->
 
   <!-- Design Gallery Modal (Backgrounds, Frames, & Text) -->
   <div id="backgroundGalleryModal" class="modal">
@@ -1723,9 +1736,14 @@ for viewing this photo book</textarea>
       <div class="modal-header">
         <h2>Design Gallery</h2>
         <div class="gallery-tabs">
-          <button class="gallery-tab active" onclick="switchGalleryTab('textures')">Paper & Textures</button>
-          <button class="gallery-tab" onclick="switchGalleryTab('frames')">Page Frames</button>
-          <button class="gallery-tab" onclick="switchGalleryTab('typography')">Typography</button> <!-- NEW -->
+          <button class="gallery-tab active" data-gallery-tab="textures" onclick="switchGalleryTab('textures')">Paper &
+            Textures</button>
+          <button class="gallery-tab" data-gallery-tab="frames" onclick="switchGalleryTab('frames')">Page
+            Frames</button>
+          <button class="gallery-tab" data-gallery-tab="imageFrames" onclick="switchGalleryTab('imageFrames')">Image
+            Frames</button>
+          <button class="gallery-tab" data-gallery-tab="typography"
+            onclick="switchGalleryTab('typography')">Typography</button> <!-- NEW -->
         </div>
 
         <!-- Search with AI Button (Restored) -->
@@ -1733,7 +1751,8 @@ for viewing this photo book</textarea>
           <span class="icon">✨</span> Search with AI
         </button>
 
-        <button class="close-btn" type="button" aria-label="Close Design Gallery" onclick="closeBackgroundGallery()">&times;</button>
+        <button class="close-btn" type="button" aria-label="Close Design Gallery"
+          onclick="closeBackgroundGallery()">&times;</button>
       </div>
 
       <!-- AI Search Input Container (Hidden by default) -->
@@ -1779,10 +1798,10 @@ for viewing this photo book</textarea>
   <script src="/js/icons.js"></script>
 
   <!-- Main Application Script -->
-  <script src="/js/app.js?v=v64_full_he_translate7"></script>
+  <script src="/js/app.js?v=v84_dropdown_bounce_fix"></script>
 
   <!-- Template Gallery Script -->
-  <script src="/js/template-gallery.js"></script>
+  <script src="/js/template-gallery.js?v=v5_picker_fix"></script>
 
   <!-- Support Chat Widget (AI + Human escalation) -->
   <!-- <script src="/js/support-chat.js"></script> -->

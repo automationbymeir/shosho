@@ -7,9 +7,12 @@ const TEXT_STYLES = [
     {
         id: 'style-retro-pop',
         name: 'Retro Pop',
+        nameHe: 'רטרו פופ',
         category: 'Fun',
+        categoryHe: 'כיפי',
         cssClass: 'text-style-retro-pop', // We will inject CSS or inline styles dynamically
         previewText: 'Retro',
+        previewTextHe: 'רטרו',
         style: {
             fontFamily: 'Montserrat',
             fontWeight: '900',
@@ -27,9 +30,12 @@ const TEXT_STYLES = [
     {
         id: 'style-neon-glow',
         name: 'Neon Global',
+        nameHe: 'ניאון',
         category: 'Modern',
+        categoryHe: 'מודרני',
         cssClass: 'text-style-neon',
         previewText: 'Neon',
+        previewTextHe: 'ניאון',
         style: {
             fontFamily: 'Courier New',
             fontWeight: 'bold',
@@ -47,8 +53,11 @@ const TEXT_STYLES = [
     {
         id: 'style-elegant-gold',
         name: 'Elegant Gold',
+        nameHe: 'זהב אלגנטי',
         category: 'Elegant',
+        categoryHe: 'אלגנטי',
         previewText: 'Luxe',
+        previewTextHe: 'יוקרה',
         style: {
             fontFamily: 'Playfair Display',
             fontWeight: '700',
@@ -72,8 +81,11 @@ const TEXT_STYLES = [
     {
         id: 'style-vintage-type',
         name: 'Vintage Type',
+        nameHe: 'כתב וינטג׳',
         category: 'Vintage',
+        categoryHe: 'וינטג׳',
         previewText: 'Type',
+        previewTextHe: 'כתב',
         style: {
             fontFamily: 'Special Elite', // Need to ensure font is loaded or fallback
             fontWeight: 'normal',
@@ -90,8 +102,11 @@ const TEXT_STYLES = [
     {
         id: 'style-comic-fun',
         name: 'Comic Book',
+        nameHe: 'קומיקס',
         category: 'Fun',
+        categoryHe: 'כיפי',
         previewText: 'BAM!',
+        previewTextHe: 'בום!',
         style: {
             fontFamily: 'Bangers, Impact, sans-serif',
             color: '#FFD700',
@@ -110,8 +125,11 @@ const TEXT_STYLES = [
     {
         id: 'style-minimal-shadow',
         name: 'Soft Shadow',
+        nameHe: 'צל רך',
         category: 'Minimal',
+        categoryHe: 'מינימלי',
         previewText: 'Soft',
+        previewTextHe: 'רך',
         style: {
             fontFamily: 'Inter',
             fontWeight: '600',
@@ -129,8 +147,11 @@ const TEXT_STYLES = [
     {
         id: 'style-bold-serif',
         name: 'Bold Serif',
+        nameHe: 'סריף מודגש',
         category: 'Elegant',
+        categoryHe: 'אלגנטי',
         previewText: 'Serif',
+        previewTextHe: 'סריף',
         style: {
             fontFamily: 'DM Serif Display',
             fontWeight: '700',
@@ -142,8 +163,11 @@ const TEXT_STYLES = [
     {
         id: 'style-stamp',
         name: 'Rubber Stamp',
+        nameHe: 'חותמת גומי',
         category: 'Vintage',
+        categoryHe: 'וינטג׳',
         previewText: 'STAMP',
+        previewTextHe: 'חותמת',
         style: {
             fontFamily: 'Inter',
             fontWeight: '800',
@@ -165,8 +189,11 @@ const TEXT_STYLES = [
     {
         id: 'style-outline',
         name: 'Outline',
+        nameHe: 'קו מתאר',
         category: 'Modern',
+        categoryHe: 'מודרני',
         previewText: 'Outline',
+        previewTextHe: 'מתאר',
         style: {
             fontFamily: 'Inter',
             fontWeight: '900',
@@ -183,8 +210,11 @@ const TEXT_STYLES = [
     {
         id: 'style-gradient-blue',
         name: 'Ocean Gradient',
+        nameHe: 'גרדיאנט אוקיינוס',
         category: 'Modern',
+        categoryHe: 'מודרני',
         previewText: 'Ocean',
+        previewTextHe: 'אוקיינוס',
         style: {
             fontFamily: 'DM Sans',
             fontWeight: '800',
@@ -201,8 +231,11 @@ const TEXT_STYLES = [
     {
         id: 'style-handwritten',
         name: 'Handwritten Note',
+        nameHe: 'פתק בכתב יד',
         category: 'Fun',
+        categoryHe: 'כיפי',
         previewText: 'Note',
+        previewTextHe: 'פתק',
         style: {
             fontFamily: 'DM Sans',
             fontWeight: '600',
@@ -215,8 +248,11 @@ const TEXT_STYLES = [
     {
         id: 'style-minimal-caps',
         name: 'Minimal Caps',
+        nameHe: 'אותיות גדולות מינימליות',
         category: 'Minimal',
+        categoryHe: 'מינימלי',
         previewText: 'CAPS',
+        previewTextHe: 'גדולות',
         style: {
             fontFamily: 'Inter',
             fontWeight: '700',

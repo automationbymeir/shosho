@@ -539,9 +539,6 @@ function showTemplateGallery() {
 
     // Ensure gallery is initialized
     initTemplateGallery();
-
-    // Also ensuring repair button is present
-    injectRepairPermissionsButton();
 }
 
 /**
@@ -614,61 +611,7 @@ function selectGalleryTemplate(template) {
     if (typeof renderCurrentPage === 'function') renderCurrentPage();
 }
 
-/**
- * Inject a "Repair Permissions" button into the header if missing.
- */
-function injectRepairPermissionsButton() {
-    // Look for .header-right in the editor view
-    const headerRight = document.querySelector('.header-right');
-    if (!headerRight) return;
-
-    if (document.getElementById('btnRepairPermissions')) return; // Already exists
-
-    const btn = document.createElement('button');
-    btn.id = 'btnRepairPermissions';
-    btn.className = 'btn-header btn-header-ghost';
-    btn.style.cssText = 'color: #ef4444; border-color: #ef4444; display: inline-flex; margin-right: 8px;';
-    btn.title = "Repair Google Photos Connection";
-    btn.innerHTML = `
-        <span class="icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-        </span>
-        Repair Connection
-    `;
-
-    btn.onclick = async () => {
-        const ok = confirm("This will re-connect to Google Photos to fix loading issues. Continue?");
-        if (!ok) return;
-
-        try {
-            if (typeof requestGooglePhotosAuthorization === 'function') {
-                await requestGooglePhotosAuthorization();
-                // After auth, try to refresh images
-                if (typeof rehydrateThumbnailsFromBaseUrls === 'function') {
-                    await rehydrateThumbnailsFromBaseUrls();
-                }
-                alert("Connection repaired! Images should load now.");
-            } else {
-                alert("Repair function not found. Please reload.");
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Failed to repair: " + e.message);
-        }
-    };
-
-    // Insert as first item
-    headerRight.insertBefore(btn, headerRight.firstChild);
-}
-
-// Auto-inject on load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectRepairPermissionsButton);
-} else {
-    injectRepairPermissionsButton();
-}
+// Repair Connection button removed per request.
 
 
 /**
@@ -811,6 +754,42 @@ const I18N = {
         align_left: 'Left',
         align_center: 'Center',
         align_right: 'Right',
+        page_layout: 'Page Layout',
+        layout_single_photo: 'Single Photo',
+        layout_two_horizontal: 'Two Horizontal',
+        layout_two_vertical: 'Two Vertical',
+        layout_three_left: 'Three (Large Left)',
+        layout_three_right: 'Three (Large Right)',
+        layout_four_grid: 'Four Grid',
+        layout_collage_5: 'Collage (5 Photos)',
+        layout_collage_6: 'Collage (6 Photos)',
+        photo_spacing: 'Photo Spacing',
+        gap: 'Gap',
+        corner_style: 'Global Corners',
+        radius: 'Radius',
+        backcover_closing_text: 'Closing Text',
+        backcover_subtitle_optional: 'Subtitle (optional)',
+        background_color: 'Background Color',
+        background_image: 'Background Image',
+        upload_image: 'Upload Image...',
+        no_image_set: 'No image set',
+        remove_image: 'Remove Image',
+        design_gallery: 'Design Gallery',
+        typography_style: 'Typography Style',
+        text_size: 'Text Size',
+        subtitle_size: 'Subtitle Size',
+        corner_square_0: 'Square (0px)',
+        corner_subtle_4: 'Subtle (4px)',
+        corner_rounded_8: 'Rounded (8px)',
+        corner_soft_12: 'Soft (12px)',
+        corner_modern_16: 'Modern (16px)',
+        corner_circular_24: 'Circular (24px)',
+        corner_sharp_0: 'Sharp (0px)',
+        corner_soft_16: 'Soft (16px)',
+        preview_pdf: 'Preview PDF',
+        order_print: 'Order Print',
+        left_page: 'Left Page',
+        right_page: 'Right Page',
         confirm_delete_page: 'Delete this page?',
         page_cover: 'Cover',
         page_back: 'Back',
@@ -823,7 +802,7 @@ const I18N = {
         toggle_rtl: 'RTL',
         load_project: 'טען פרויקט',
         profile: 'פרופיל',
-        open_design_gallery: 'פתח גלריית עיצוב',
+        open_design_gallery: 'פתח את גלריית העיצובים',
         cover: 'כריכה',
         back_cover: 'גב',
         prev_page: 'עמוד קודם',
@@ -847,6 +826,42 @@ const I18N = {
         align_left: 'שמאל',
         align_center: 'מרכז',
         align_right: 'ימין',
+        page_layout: 'עימוד',
+        layout_single_photo: 'תמונה אחת בעמוד',
+        layout_two_horizontal: 'שתיים בעמוד - אופקי',
+        layout_two_vertical: 'שתיים בעמוד - אנכי',
+        layout_three_left: 'שלוש בעמוד - גדול משמאל',
+        layout_three_right: 'שלוש בעמוד - גדול מימין',
+        layout_four_grid: 'ארבע בעמוד - רשת',
+        layout_collage_5: "קולאז׳ - 5 תמונות",
+        layout_collage_6: "קולאז׳ - 6 תמונות",
+        photo_spacing: 'מרווח בין תמונות',
+        gap: 'רווח',
+        corner_style: 'סגנון פינות',
+        radius: 'רדיוס',
+        backcover_closing_text: 'טקסט לסיום',
+        backcover_subtitle_optional: 'כותרת משנה (אופציונלי)',
+        background_color: 'צבע רקע',
+        background_image: 'תמונת רקע',
+        upload_image: 'העלה תמונה…',
+        no_image_set: 'לא הוגדרה תמונה',
+        remove_image: 'הסר תמונה',
+        design_gallery: 'גלריית העיצובים',
+        typography_style: 'סגנון טיפוגרפיה',
+        text_size: 'גודל טקסט',
+        subtitle_size: 'גודל כותרת משנה',
+        corner_square_0: 'חד (0px)',
+        corner_subtle_4: 'עדין (4px)',
+        corner_rounded_8: 'מעוגל (8px)',
+        corner_soft_12: 'רך (12px)',
+        corner_modern_16: 'מודרני (16px)',
+        corner_circular_24: 'עגול (24px)',
+        corner_sharp_0: 'חד (0px)',
+        corner_soft_16: 'רך (16px)',
+        preview_pdf: 'תצוגה מקדימה',
+        order_print: 'הזמן אלבום מודפס',
+        left_page: 'עמוד שמאל',
+        right_page: 'עמוד ימין',
         confirm_delete_page: 'למחוק את העמוד הזה?',
         page_cover: 'כריכה',
         page_back: 'גב',
@@ -923,6 +938,9 @@ function __i18nTranslateString(s) {
 
     if (lang !== 'he') return raw;
 
+    // Keep the font name intact
+    if (/^open\s+sans$/i.test(trimmed)) return raw;
+
     const dynamic = __i18nTranslateDynamicHebrew(trimmed);
     if (dynamic) return raw.replace(trimmed, dynamic);
 
@@ -984,9 +1002,26 @@ function __i18nTranslateString(s) {
         'Background Image': 'תמונת רקע',
         'Upload Image...': 'העלה תמונה…',
         'Remove Image': 'הסר תמונה',
-        'Design Gallery': 'גלריית עיצוב',
-        'Open Design Gallery': 'פתח גלריית עיצוב',
+        'Design Gallery': 'גלריית העיצובים',
+        'Open Design Gallery': 'פתח את גלריית העיצובים',
+        'Image Frames': 'מסגרות לתמונה',
         'Typography Style': 'סגנון טיפוגרפיה',
+        'Apply All': 'החל על הכל',
+        'Apply all': 'החל על הכל',
+        'All': 'הכל',
+        'Full Theme': 'תבנית מלאה',
+        'Texture Only': 'טקסטורה בלבד',
+        'TEMPLATE': 'תבנית',
+        'Loading text styles...': 'טוען סגנונות טקסט…',
+        'No frames available.': 'אין מסגרות זמינות.',
+        'No backgrounds available.': 'אין רקעים זמינים.',
+        'Design applied to all pages!': 'העיצוב הוחל על כל העמודים!',
+        'Frame applied!': 'המסגרת הוחלה!',
+        'Frame applied to all pages!': 'המסגרת הוחלה על כל העמודים!',
+        'Text style applied to Cover!': 'סגנון הטקסט הוחל על הכריכה!',
+        'Text style applied to Back Cover!': 'סגנון הטקסט הוחל על הכריכה האחורית!',
+        'Text style applied!': 'סגנון הטקסט הוחל!',
+        'Select a text slot to apply typography': 'בחר משבצת טקסט כדי להחיל טיפוגרפיה',
 
         // Back cover panel
         'Text Color': 'צבע טקסט',
@@ -1036,8 +1071,8 @@ function __i18nTranslateString(s) {
         'Brightness': 'בהירות',
         'Contrast': 'ניגודיות',
         'Saturation': 'רוויה',
-        'Book Title': 'כותרת הספר',
-        'Book title': 'כותרת הספר',
+        'Book Title': 'כותרת האלבום',
+        'Book title': 'כותרת האלבום',
         'Album configuration': 'הגדרות אלבום',
         'Printing configuration (BookPod — prep)': 'הגדרות הדפסה (BookPod — הכנה)',
         'Shipping details': 'פרטי משלוח',
@@ -1051,9 +1086,11 @@ function __i18nTranslateString(s) {
         'Thank you for viewing this photo book': 'תודה שצפיתם באלבום התמונות הזה',
 
         // Login / marketing strings inside app
-        'Photo Book Creator': 'יוצר אלבומי תמונות',
+        'Photo Book Creator': 'יוצר אלבומים',
         'Create beautiful photo books from your Google Photos': 'צרו אלבומי תמונות יפים מתמונות Google Photos שלכם',
         'Sign in with Google': 'התחבר עם Google',
+        'Open Google Photos': 'פתח את Google Photos',
+        'Open Google Photos Picker': 'פתח את Google Photos Picker',
 
         // Gallery / templates / AI
         'Search with AI': 'חיפוש עם AI',
@@ -1094,12 +1131,46 @@ function __i18nTranslateString(s) {
         'Inspired by 19th-century flora illustrations': 'בהשראת איורי פלורה מהמאה ה‑19',
 
         // Toasts / completion messages
-        'Photo Book Created!': 'הספר נוצר!',
+        'Photo Book': 'אלבום',
+        'photo book': 'אלבום',
+        'My Photo Book': 'אלבום התמונות שלי',
+        'Photo Book Created!': 'האלבום נוצר!',
         'Your photo book is ready.': 'האלבום שלך מוכן.',
         'View': 'צפה',
         'Send to printing': 'שלח להדפסה',
         'PDF exported successfully!': 'ה‑PDF יוצא בהצלחה!',
         'Download PDF': 'הורד PDF',
+        'Open': 'פתח',
+        'Preview PDF': 'תצוגה מקדימה',
+        'Order Print': 'הזמן אלבום מודפס',
+        'Left Page': 'עמוד שמאל',
+        'Right Page': 'עמוד ימין',
+        'Rotate': 'סובב',
+        'Add more photos': 'הוסף תמונות',
+        'Creating Session...': 'טוען...',
+        'Creating Session': 'טוען...',
+        'Page Layout': 'עימוד',
+        'Single Photo': 'תמונה אחת בעמוד',
+        'Two Horizontal': 'שתיים בעמוד - אופקי',
+        'Two Vertical': 'שתיים בעמוד - אנכי',
+        'Three (Large Left)': 'שלוש בעמוד - גדול משמאל',
+        'Three (Large Right)': 'שלוש בעמוד - גדול מימין',
+        'Four Grid': 'ארבע בעמוד - רשת',
+        'Collage (5 Photos)': "קולאז׳ - 5 תמונות",
+        'Collage (6 Photos)': "קולאז׳ - 6 תמונות",
+        'Selected Text': 'עריכת טקסט',
+        'Global Corners': 'סגנון פינות',
+        'Photo Spacing': 'מרווח בין תמונות',
+        'Gap': 'רווח',
+        'Radius': 'רדיוס',
+        'Square (0px)': 'חד (0px)',
+        'Subtle (4px)': 'עדין (4px)',
+        'Rounded (8px)': 'מעוגל (8px)',
+        'Soft (12px)': 'רך (12px)',
+        'Modern (16px)': 'מודרני (16px)',
+        'Circular (24px)': 'עגול (24px)',
+        'Sharp (0px)': 'חד (0px)',
+        'Soft (16px)': 'רך (16px)',
     };
 
     const translated = replaceMap[trimmed];
@@ -1138,6 +1209,8 @@ function __i18nTranslateString(s) {
         'Typography': 'טיפוגרפיה',
         'Sign in with Google': 'התחבר עם Google',
         'Create beautiful photo books from your Google Photos': 'צרו אלבומי תמונות יפים מתמונות Google Photos שלכם',
+        'Open Google Photos': 'פתח את Google Photos',
+        'Open Google Photos Picker': 'פתח את Google Photos Picker',
         'STORY': 'סיפור',
         'Story': 'סיפור',
         'NEW': 'חדש',
@@ -1167,6 +1240,13 @@ function __i18nTranslateString(s) {
 
     // Regex replacements for strings with variable whitespace / mixed nodes
     const regexMap = [
+        // Force “photo book” -> “album” to avoid awkward token mixes like "תמונה ספר"
+        { re: /\bmy\s+photo\s+book\b/gi, to: 'אלבום התמונות שלי' },
+        { re: /\bphoto\s+books\b/gi, to: 'אלבומים' },
+        { re: /\bphoto\s+book\b/gi, to: 'אלבום' },
+        { re: /תמונה\s*ספר/g, to: 'אלבום' },
+        { re: /Open\s+Google\s+Photos\s+Picker/gi, to: 'פתח את Google Photos Picker' },
+        { re: /Open\s+Google\s+Photos/gi, to: 'פתח את Google Photos' },
         { re: /Create\s+beautiful\s+photo\s+books\s+from\s+your\s+Google\s+Photos/gi, to: 'צרו אלבומי תמונות יפים מתמונות Google Photos שלכם' },
         // Some UIs embed these tokens with odd separators; avoid word-boundary misses.
         { re: /new/gi, to: 'חדש' },
@@ -1179,14 +1259,124 @@ function __i18nTranslateString(s) {
         { re: /\bDetected\b/gi, to: 'זוהה' },
         { re: /\bCustomize\b/gi, to: 'התאם' },
         { re: /\bUse\s+This\b/gi, to: 'השתמש בזה' },
-        { re: /Photo\s+Book\s+Created!/gi, to: 'הספר נוצר!' },
+        { re: /Photo\s+Book\s+Created!/gi, to: 'האלבום נוצר!' },
         { re: /Your\s+photo\s+book\s+is\s+ready\./gi, to: 'האלבום שלך מוכן.' },
         { re: /PDF\s+exported\s+successfully!/gi, to: 'ה‑PDF יוצא בהצלחה!' },
         { re: /Download\s+PDF/gi, to: 'הורד PDF' },
     ];
-    regexMap.forEach(({re, to}) => {
+    regexMap.forEach(({ re, to }) => {
         try { out = out.replace(re, to); } catch { /* ignore */ }
     });
+
+    // Token-level translation fallback (covers remaining UI strings without enumerating every sentence)
+    // This runs last so explicit phrase translations above win.
+    try {
+        // Avoid translating URLs / code-like strings
+        const lower = String(out).toLowerCase();
+        const looksLikeUrl = lower.includes('http://') || lower.includes('https://') || lower.includes('://');
+        const looksLikePath = lower.includes('\\\\') || lower.includes('/');
+        const looksLikeAsset =
+            lower.includes('.js') || lower.includes('.css') ||
+            lower.includes('.png') || lower.includes('.jpg') || lower.includes('.jpeg') ||
+            lower.includes('.pdf');
+        if (looksLikeUrl || (looksLikePath && looksLikeAsset)) return out;
+
+        const wordMap = {
+            // Common UI
+            'loading': 'טוען',
+            'load': 'טען',
+            'projects': 'פרויקטים',
+            'project': 'פרויקט',
+            'albums': 'אלבומים',
+            'album': 'אלבום',
+            'photos': 'תמונות',
+            'photo': 'תמונה',
+            'selected': 'נבחרו',
+            'select': 'בחר',
+            'choose': 'בחר',
+            'template': 'תבנית',
+            'templates': 'תבניות',
+            'page': 'עמוד',
+            'pages': 'עמודים',
+            'overview': 'סקירה',
+            'thumbnails': 'תצוגות מקדימות',
+            'settings': 'הגדרות',
+            'tools': 'כלים',
+            'design': 'עיצוב',
+            'gallery': 'גלריה',
+            'typography': 'טיפוגרפיה',
+            'frames': 'מסגרות',
+            'background': 'רקע',
+            'image': 'תמונה',
+            'color': 'צבע',
+            'text': 'טקסט',
+            'title': 'כותרת',
+            'subtitle': 'כותרת משנה',
+            'alignment': 'יישור',
+            'left': 'שמאל',
+            'right': 'ימין',
+            'center': 'מרכז',
+            'size': 'גודל',
+            'angle': 'זווית',
+            'radius': 'רדיוס',
+            'corners': 'פינות',
+            'border': 'מסגרת',
+            'logo': 'לוגו',
+            'upload': 'העלה',
+            'remove': 'הסר',
+            'delete': 'מחק',
+            'edit': 'ערוך',
+            'apply': 'החל',
+            'save': 'שמור',
+            'close': 'סגור',
+            'cancel': 'ביטול',
+            'refresh': 'רענן',
+            'shuffle': 'ערבב',
+            'clear': 'נקה',
+            'generate': 'צור',
+            'export': 'ייצוא',
+            'download': 'הורד',
+            'printing': 'הדפסה',
+            'shipping': 'משלוח',
+            'details': 'פרטים',
+            'method': 'שיטה',
+            'company': 'חברה',
+            'quantity': 'כמות',
+            'invoice': 'חשבונית',
+            'url': 'קישור',
+            'optional': 'אופציונלי',
+            'profile': 'פרופיל',
+
+            // Domain / marketing
+            'book': 'אלבום',
+            'books': 'אלבומים',
+            'created': 'נוצר',
+            'ready': 'מוכן',
+            'story': 'סיפור',
+            'detected': 'זוהה',
+            'new': 'חדש',
+            'minimalist': 'מינימליסטי',
+            'vintage': 'וינטג׳',
+            'nature': 'טבע',
+            'cinematic': 'קולנועי',
+            'graphic': 'גרפי',
+
+            // Brands / tech
+            'google': 'גוגל',
+            'pdf': 'PDF',
+            'ai': 'AI',
+            'open': 'פתח',
+        };
+
+        // Replace whole-word tokens case-insensitively while preserving original punctuation.
+        // We only translate ASCII words; Hebrew/emoji remain unchanged.
+        out = out.replace(/[A-Za-z][A-Za-z']*/g, (w) => {
+            const key = w.toLowerCase();
+            // Don't break font name "Open Sans"
+            if (key === 'open' && /open\s+sans/i.test(out)) return w;
+            return wordMap[key] || w;
+        });
+    } catch { /* ignore */ }
     return out;
 }
 
@@ -1299,6 +1489,12 @@ function setUiLanguage(lang) {
     if (lang === 'he') {
         state.ui.dir = 'rtl';
         localStorage.setItem('shoso_ui_dir', 'rtl');
+        // If the user never edited the default title, localize it
+        try {
+            if (state?.cover && state.cover.title === 'My Photo Book') {
+                state.cover.title = 'אלבום התמונות שלי';
+            }
+        } catch { /* ignore */ }
     } else if (lang === 'en') {
         state.ui.dir = 'ltr';
         localStorage.setItem('shoso_ui_dir', 'ltr');
@@ -1643,7 +1839,7 @@ async function refreshAndFetchThumbnails(items, opts = {}) {
                         sampleError?.message?.includes?.('expired')) {
                         console.error("Token expired or invalid scopes. User needs REPAIR.");
                         // Show the button if it's not already there
-                        if (typeof injectRepairPermissionsButton === 'function') injectRepairPermissionsButton();
+                        // Repair Connection button removed per request.
                     }
                 }
 
@@ -3175,6 +3371,7 @@ function escapeHtml(text) {
 // AUTHENTICATION
 // ============================================
 async function signInWithGoogle() {
+    console.log("[DEBUG_AUTH] signInWithGoogle called");
     // FAILSAFE: Ensure we are not on 127.0.0.1 before trying auth
     if (window.location.hostname === '127.0.0.1') {
         const port = window.location.port ? ':' + window.location.port : '';
@@ -3184,22 +3381,23 @@ async function signInWithGoogle() {
         if (state.selectedTemplate && state.selectedTemplate.id) {
             const separator = search ? '&' : '?';
             search += `${separator}restoreTemplate=${encodeURIComponent(state.selectedTemplate.id)}`;
-            console.log('Appending restoreTemplate to redirect URL:', state.selectedTemplate.id);
+            console.log('[DEBUG_AUTH] Appending restoreTemplate to redirect URL:', state.selectedTemplate.id);
         }
 
         const newUrl = 'http://localhost' + port + window.location.pathname + search + window.location.hash;
-        console.warn('Redirecting from 127.0.0.1 to localhost for Firebase Auth compatibility...');
+        console.warn('[DEBUG_AUTH] Redirecting from 127.0.0.1 to localhost for Firebase Auth compatibility...');
         window.location.href = newUrl;
         return;
     }
 
     if (window.location.hostname === 'localhost') {
-        console.warn('Localhost detected: Using Anonymous Auth to avoid Popup/Redirect loops.');
+        console.warn('[DEBUG_AUTH] Localhost detected: Using Anonymous Auth to avoid Popup/Redirect loops.');
         try {
             await firebase.auth().signInAnonymously();
+            console.log('[DEBUG_AUTH] Anonymous auth successful');
             return;
         } catch (error) {
-            console.error('Anonymous auth failed:', error);
+            console.error('[DEBUG_AUTH] Anonymous auth failed:', error);
         }
     }
 
@@ -3209,14 +3407,29 @@ async function signInWithGoogle() {
         provider.addScope('https://www.googleapis.com/auth/photoslibrary.readonly');
         provider.addScope('https://www.googleapis.com/auth/presentations');
         provider.addScope('https://www.googleapis.com/auth/drive');
+
+        // Prefer popup to avoid full-page reload (which loses selected template / flow state).
+        console.log('[DEBUG_AUTH] Attempting signInWithPopup...');
         try {
-            await firebase.auth().signInWithPopup(provider);
+            const result = await firebase.auth().signInWithPopup(provider);
+            console.log('[DEBUG_AUTH] signInWithPopup success:', result.user ? result.user.uid : 'no user');
         } catch (error) {
-            console.warn('Popup failed, trying redirect...', error);
-            await firebase.auth().signInWithRedirect(provider);
+            console.warn('[DEBUG_AUTH] Popup sign-in failed:', error);
+            // CRITICAL FIX: Do NOT automatically fall back to redirect if popup fails.
+            // This causes the infinite loop / bouncing behavior if the environment blocks popups or has config issues.
+            // Instead, alert the user and let them decide or try again.
+            if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+                alert('Sign-in popup was blocked or closed. Please allow popups for this site and try again.');
+            } else {
+                const proceed = confirm(`Sign-in popup failed (${error.message}).\n\nDo you want to try redirecting to Google Sign-in page instead? (This will reload the app)`);
+                if (proceed) {
+                    console.log('[DEBUG_AUTH] User approved fallback to redirect...');
+                    await firebase.auth().signInWithRedirect(provider);
+                }
+            }
         }
     } catch (error) {
-        console.error('Sign-in error:', error);
+        console.error('[DEBUG_AUTH] Sign-in error:', error);
         alert('Failed to sign in. Please try again.\n\nError: ' + error.message);
     }
 }
@@ -3254,6 +3467,7 @@ function checkLocalhostRedirect() {
 
 // Refactored auth handler
 async function handleUserAuth(user) {
+    console.log("[DEBUG_AUTH] handleUserAuth state change:", user ? user.uid : 'null');
     state.user = user;
     if (user) {
         console.log("User signed in:", user.uid);
@@ -3277,6 +3491,18 @@ async function handleUserAuth(user) {
                 await tryRestoreDraftIfNeeded();
             }
         }
+
+        // If we initiated auth from the Picker flow, resume automatically after redirect.
+        try {
+            const post = sessionStorage.getItem('shoso_post_signin_action');
+            if (post === 'loadPicker') {
+                console.log("[DEBUG_AUTH] Found post-signin action 'loadPicker'. Resuming...");
+                sessionStorage.removeItem('shoso_post_signin_action');
+                setTimeout(() => {
+                    try { if (typeof loadPicker === 'function') loadPicker(); } catch { /* ignore */ }
+                }, 50);
+            }
+        } catch { /* ignore */ }
     }
 }
 
@@ -3305,6 +3531,18 @@ async function initialize() {
         console.warn('Error checking restoreTemplate:', e);
     }
 
+    // Restore template after auth redirect / refresh
+    try {
+        if (!state.selectedTemplate) {
+            const savedId = localStorage.getItem('shoso_selected_template_id');
+            const templatesObj = window.PHOTO_BOOK_TEMPLATES || (typeof PHOTO_BOOK_TEMPLATES !== 'undefined' ? PHOTO_BOOK_TEMPLATES : {});
+            if (savedId && templatesObj && templatesObj[savedId]) {
+                state.selectedTemplate = templatesObj[savedId];
+                state.currentTheme = savedId;
+            }
+        }
+    } catch { /* ignore */ }
+
     try {
         console.log("Initializing app...");
 
@@ -3316,7 +3554,8 @@ async function initialize() {
         // Show template gallery if no template selected
         // Wait a tick to let stored project load if happening
         setTimeout(() => {
-            if (!state.selectedTemplate && !state.activeProjectId) {
+            // If we are in AI Auto Design flow, stay in editor (no "selectedTemplate" yet).
+            if (!state.selectedTemplate && !state.activeProjectId && !state._aiAutoDesignMode) {
                 const galleryView = document.getElementById('templateGalleryView');
                 const editorView = document.getElementById('editorView');
                 const mdView = document.getElementById('memoryDirectorView');
@@ -3418,30 +3657,41 @@ async function initialize() {
 // GOOGLE PHOTOS PICKER
 // ============================================
 async function loadPicker() {
+    console.log("[DEBUG_AUTH] loadPicker called");
     const btn = document.getElementById('pickerBtn');
     const statusMsg = document.getElementById('picker-message');
 
     btn.disabled = true;
-    btn.innerHTML = '⏳ Creating Session...';
+    btn.innerHTML = (getUiLang() === 'he') ? '⏳ טוען...' : '⏳ Creating Session...';
     statusMsg.innerHTML = '';
 
-    const user = firebase.auth().currentUser;
+    // Robust user check: check both firebase auth and our local state
+    const user = firebase.auth().currentUser || state.user;
     if (!user) {
-        console.warn("User not signed in when clicking loadPicker. Redirecting to sign in...");
+        console.warn("[DEBUG_AUTH] User not signed in when clicking loadPicker. Triggering sign in...");
         try {
+            try { sessionStorage.setItem('shoso_post_signin_action', 'loadPicker'); } catch { /* ignore */ }
             await signInWithGoogle();
-            // If sign-in succeeded, user is now populated. We should recurse to continue!
-            if (firebase.auth().currentUser) {
-                console.log("Sign-in successful, retrying loadPicker automatically...");
+
+            // Check again after potential popup
+            const refreshedUser = firebase.auth().currentUser;
+            if (refreshedUser) {
+                console.log("[DEBUG_AUTH] Sign-in successful, retrying loadPicker automatically...");
+                // Reset button state just in case loadPicker fails again
+                btn.disabled = false;
                 return loadPicker();
+            } else {
+                console.log("[DEBUG_AUTH] Sign-in flow finished but no user yet (maybe redirecting implies reload).");
             }
         } catch (e) {
-            console.error("Sign in failed:", e);
+            console.error("[DEBUG_AUTH] Sign in failed/cancelled:", e);
             btn.disabled = false;
-            btn.innerHTML = '🖼️ Open Google Photos Picker';
+            btn.innerHTML = (getUiLang() === 'he') ? '🖼️ פתח את Google Photos Picker' : '🖼️ Open Google Photos Picker';
         }
         return;
     }
+
+    console.log("[DEBUG_AUTH] User is signed in. Proceeding to create picker session for:", user.uid);
 
 
     try {
@@ -3469,7 +3719,7 @@ async function loadPicker() {
           </p>
         </div>`;
             btn.disabled = false;
-            btn.innerHTML = '🔄 Try Again';
+            btn.innerHTML = (getUiLang() === 'he') ? '🔄 נסה שוב' : '🔄 Try Again';
             return;
         }
 
@@ -3481,7 +3731,7 @@ async function loadPicker() {
           <br><small style="color:#666">After authorizing, close that tab and click the button again.</small>
         </div>`;
             btn.disabled = false;
-            btn.innerHTML = '🖼️ Open Google Photos Picker';
+            btn.innerHTML = (getUiLang() === 'he') ? '🖼️ פתח את Google Photos Picker' : '🖼️ Open Google Photos Picker';
             return;
         }
 
@@ -3568,6 +3818,8 @@ async function handleLocalFileUpload(event) {
         }
 
         showStatus(`Imported ${files.length} photos successfully!`, 'success');
+        // Open review modal after local upload
+        try { setTimeout(() => { try { openPhotoReviewModal({ reason: 'local' }); } catch { } }, 50); } catch { /* ignore */ }
 
     } catch (err) {
         console.error('Error importing local photos:', err);
@@ -3636,6 +3888,13 @@ async function checkSession() {
             document.getElementById('picker-message').innerHTML =
                 `<span style="color:green; font-weight:bold;">✅ Added ${result.count} photos!</span>`;
             resetPickerButton();
+
+            // After photos are loaded/added (non-Memory Director), open the review modal
+            try {
+                if (!state.pendingStartMemoryDirector) {
+                    setTimeout(() => { try { openPhotoReviewModal({ reason: 'picker' }); } catch { } }, 50);
+                }
+            } catch { /* ignore */ }
 
             // If user clicked Memory Director before selecting photos, auto-launch now.
             if (state.pendingStartMemoryDirector && state.selectedPhotos.length >= 4) {
@@ -3898,14 +4157,37 @@ function updateSelectedPhotosUI() {
         return;
     }
 
+    const isSafeImgSrc = (src) => {
+        if (!src || typeof src !== 'string') return false;
+        const s = src.trim();
+        if (!s) return false;
+        if (s.startsWith('data:') || s.startsWith('blob:')) return true;
+        // allow relative or same-origin assets
+        if (!/^https?:\/\//i.test(s)) return true;
+        try { return new URL(s, window.location.href).origin === window.location.origin; } catch { return false; }
+    };
+    const getSafeThumb = (photo) => {
+        const cands = [
+            photo?.editedData,
+            photo?.thumbnailUrl,
+            photo?.editedImageData,
+            photo?.baseUrl,
+            photo?.url,
+        ].filter(Boolean);
+        for (const c of cands) {
+            if (isSafeImgSrc(c)) return c;
+        }
+        return null;
+    };
+
     // Render full grid in the sidebar (no longer just a strip)
     list.innerHTML = state.selectedPhotos.map((photo, index) => {
-        // Try thumbnail (base64) -> baseUrl (google) -> url (legacy)
-        const imgSrc = photo.thumbnailUrl || photo.baseUrl || photo.url;
+        // Avoid direct requests to protected googleusercontent URLs (403 spam).
+        const imgSrc = getSafeThumb(photo);
 
         return `<div class="grid-item" title="Photo ${index + 1}">
           ${imgSrc
-                ? `<img src="${imgSrc}" alt="Photo ${index + 1}" onerror="this.onerror=null; this.src=''; this.parentElement.classList.add('load-error'); this.parentElement.innerHTML='<div class=\\'error-placeholder\\' onclick=\\'injectRepairPermissionsButton()\\'>⚠️ Repair</div>';">`
+                ? `<img src="${imgSrc}" alt="Photo ${index + 1}" onerror="this.onerror=null; this.src=''; this.parentElement.classList.add('load-error'); this.parentElement.innerHTML='<div class=\\'error-placeholder\\'>⚠️</div>';">`
                 : `<div class="thumbnail-placeholder">${index + 1}</div>`
             }
             <button class="remove-btn" onclick="removeSelectedPhoto(${index})" title="Remove">×</button>
@@ -3915,6 +4197,561 @@ function updateSelectedPhotosUI() {
     // We no longer need the "Show more" button pattern for the rail view
     if (showMoreBtn) showMoreBtn.style.display = 'none';
 }
+
+// ============================================
+// PHOTO REVIEW MODAL (select/sort/captions)
+// ============================================
+function ensurePhotoReviewModal() {
+    if (document.getElementById('photoReviewModal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'photoReviewModal';
+    modal.className = 'modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+      <div class="modal-content modal-large" style="max-width: 1100px;">
+        <div class="modal-header" style="align-items:flex-start;">
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <h3 id="photoReviewTitle" style="margin:0;">${getUiLang() === 'he' ? 'בחירת תמונות וסידור' : 'Review & Arrange Photos'}</h3>
+            <div id="photoReviewSubtitle" style="font-size:13px; color:#64748b;">${getUiLang() === 'he' ? 'סמן אילו תמונות לכלול, בחר סידור, והוסף תיאורים (AI) לפני יצירת האלבום.' : 'Choose which photos to include, pick an order, and generate captions before creating the book.'}</div>
+          </div>
+          <button class="close-btn" type="button" aria-label="Close" onclick="closePhotoReviewModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px 20px;">
+          <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <button class="btn btn-secondary btn-small" type="button" onclick="photoReviewSelectAll(true)">${getUiLang() === 'he' ? 'בחר הכל' : 'Select all'}</button>
+              <button class="btn btn-secondary btn-small" type="button" onclick="photoReviewSelectAll(false)">${getUiLang() === 'he' ? 'נקה בחירה' : 'Clear'}</button>
+              <button class="btn btn-ghost btn-small" type="button" onclick="photoReviewInvert()">${getUiLang() === 'he' ? 'הפוך בחירה' : 'Invert'}</button>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <label style="font-size:12px; font-weight:700; color:#334155;">${getUiLang() === 'he' ? 'סדר:' : 'Order:'}</label>
+              <select id="photoReviewOrder" class="edo-select" style="min-width: 230px;">
+                <option value="ai">${getUiLang() === 'he' ? 'AI (רלוונטיות/סיפור)' : 'AI (relevance/story)'}</option>
+                <option value="date_asc">${getUiLang() === 'he' ? 'לפי תאריך (ישן→חדש)' : 'By date (old→new)'}</option>
+                <option value="date_desc">${getUiLang() === 'he' ? 'לפי תאריך (חדש→ישן)' : 'By date (new→old)'}</option>
+                <option value="random">${getUiLang() === 'he' ? 'אקראי' : 'Random'}</option>
+              </select>
+              <button class="btn btn-secondary btn-small" type="button" onclick="applyPhotoReviewOrder()">${getUiLang() === 'he' ? 'סדר תמונות' : 'Apply order'}</button>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button class="btn btn-primary btn-small" type="button" onclick="generateAICaptionsForSelected()">${getUiLang() === 'he' ? 'צור תיאורים (AI)' : 'Generate AI captions'}</button>
+              <div style="font-size:12px; color:#64748b;">${getUiLang() === 'he' ? 'התיאורים יופיעו גם ב‑PDF.' : 'Captions will also appear in the PDF.'}</div>
+            </div>
+            <div id="photoReviewStatus" style="font-size:12px; color:#64748b;"></div>
+          </div>
+
+          <div id="photoReviewGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:12px;"></div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" type="button" onclick="closePhotoReviewModal()">${getUiLang() === 'he' ? 'סגור' : 'Close'}</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-primary" type="button" data-photo-review-ai-btn style="display:none;" onclick="startAiAutoDesignFromReview()">${getUiLang() === 'he' ? 'צור עם AI' : 'Create with AI'}</button>
+            <button class="btn btn-primary" type="button" data-photo-review-apply-btn onclick="applyPhotoReviewSelection()">${getUiLang() === 'he' ? 'אישור' : 'Apply'}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // close on backdrop
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closePhotoReviewModal();
+    });
+}
+
+function openPhotoReviewModal(opts = {}) {
+    ensurePhotoReviewModal();
+    const modal = document.getElementById('photoReviewModal');
+    if (!modal) return;
+
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    if (!photos.length) return;
+
+    // Debounce: avoid reopening too often
+    const now = Date.now();
+    const lastAt = state._photoReviewLastOpenedAt || 0;
+    const lastCount = state._photoReviewLastCount || 0;
+    if (now - lastAt < 1200 && lastCount === photos.length) return;
+    state._photoReviewLastOpenedAt = now;
+    state._photoReviewLastCount = photos.length;
+
+    // Build selection map (default: all selected)
+    state._photoReview = state._photoReview || {};
+    if (!state._photoReview.selectedById) state._photoReview.selectedById = {};
+    photos.forEach(p => {
+        if (!p || !p.id) return;
+        if (typeof state._photoReview.selectedById[p.id] !== 'boolean') state._photoReview.selectedById[p.id] = true;
+    });
+
+    renderPhotoReviewGrid();
+    modal.style.display = 'block';
+
+    // Toggle footer buttons for AI Auto Design mode
+    try {
+        const isAi = !!state._aiAutoDesignMode;
+        const applyBtn = modal.querySelector('[data-photo-review-apply-btn]');
+        const aiBtn = modal.querySelector('[data-photo-review-ai-btn]');
+        if (applyBtn) applyBtn.style.display = isAi ? 'none' : '';
+        if (aiBtn) aiBtn.style.display = isAi ? '' : 'none';
+    } catch { /* ignore */ }
+}
+
+function closePhotoReviewModal() {
+    const modal = document.getElementById('photoReviewModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openAIAutoDesignFlow() {
+    // Called from template gallery card
+    state._aiAutoDesignMode = true;
+    // Prevent the "no template selected" view-switcher from bouncing us back to the gallery.
+    // We'll still let the AI choose a different template later when applying the plan.
+    try {
+        const templates = window.PHOTO_BOOK_TEMPLATES || (typeof PHOTO_BOOK_TEMPLATES !== 'undefined' ? PHOTO_BOOK_TEMPLATES : {});
+        if (!state.selectedTemplate && templates && templates.classic) {
+            state.selectedTemplate = templates.classic;
+            state.currentTheme = templates.classic.id || 'classic';
+        }
+    } catch { /* ignore */ }
+    showEditorView();
+    // Encourage the user to pick photos
+    setTimeout(() => {
+        try { if (typeof loadPicker === 'function') loadPicker(); } catch { /* ignore */ }
+    }, 80);
+}
+
+async function startAiAutoDesignFromReview() {
+    // Apply selection first (keeps only checked photos)
+    applyPhotoReviewSelection();
+    closePhotoReviewModal();
+
+    const isHe = getUiLang() === 'he';
+    if (!Array.isArray(state.selectedPhotos) || state.selectedPhotos.length === 0) {
+        showToast(isHe ? 'לא נבחרו תמונות.' : 'No photos selected.', 'info');
+        return;
+    }
+
+    await startAiAutoDesignGeneration();
+}
+
+function ensureAiAutoDesignModal() {
+    if (document.getElementById('aiAutoDesignModal')) return;
+    const isHe = getUiLang() === 'he';
+    const modal = document.createElement('div');
+    modal.id = 'aiAutoDesignModal';
+    modal.className = 'modal';
+    modal.style.display = 'none';
+    const dir = isHe ? 'rtl' : 'ltr';
+    const align = isHe ? 'right' : 'left';
+    const rowDir = isHe ? 'row-reverse' : 'row';
+    modal.innerHTML = `
+      <div class="modal-content modal-large" dir="${dir}" style="max-width: 1180px; width: 96vw; max-height: 86vh; overflow: hidden;">
+        <div class="modal-header">
+          <h3 style="margin:0;">${isHe ? 'עיצוב אוטומטי עם AI' : 'AI Auto Design'}</h3>
+          <button class="close-btn" onclick="closeAiAutoDesignModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 0; overflow: hidden;">
+          <div style="display:flex; flex-direction:${rowDir}; height: 100%; min-height: 520px;">
+            <!-- Visual / animation side -->
+            <div style="flex: 1; min-width: 320px; background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(168,85,247,0.10)); border-${isHe ? 'left' : 'right'}: 1px solid rgba(148,163,184,0.25); display:flex; align-items:center; justify-content:center; padding: 28px; position: relative; overflow:hidden;">
+              <div style="position:absolute; inset:0; background: radial-gradient(circle at 30% 20%, rgba(99,102,241,0.18), transparent 45%), radial-gradient(circle at 70% 80%, rgba(168,85,247,0.14), transparent 55%);"></div>
+
+              <div style="position:relative; width: 100%; max-width: 420px; text-align:center;">
+                <div style="font-weight:900; letter-spacing:-0.02em; font-size: 22px; color:#0f172a; margin-bottom: 10px;">
+                  ${isHe ? 'הספר נוצר באמצעות AI' : 'Your book is being created by AI'}
+                </div>
+                <div style="color:#475569; font-size: 13px; line-height: 1.5; margin-bottom: 18px;">
+                  ${isHe ? 'בוחר סגנון, מסדר תמונות, מעצב דפים ומוסיף טקסטים בצורה עקבית.' : 'Picking a style, arranging photos, designing pages, and adding text coherently.'}
+                </div>
+
+                <div class="book-loader-container" style="padding: 18px 0;">
+                  <div class="book-loader" aria-hidden="true">
+                    <div class="page"></div>
+                    <div class="page"></div>
+                    <div class="page"></div>
+                  </div>
+                </div>
+
+                <div id="aiAutoDesignStatus" style="text-align:${align}; padding:12px 14px; border:1px solid rgba(148,163,184,0.35); border-radius:14px; background: rgba(255,255,255,0.7); color:#0f172a;">
+                  ${isHe ? 'מוכן להתחיל.' : 'Ready.'}
+                </div>
+              </div>
+            </div>
+
+            <!-- Controls side -->
+            <div style="width: 420px; max-width: 44vw; min-width: 340px; background: #ffffff; padding: 26px; overflow: auto;">
+              <div style="text-align:${align}; display:flex; flex-direction:column; gap:12px;">
+                <div style="font-size:14px; color:#64748b; line-height:1.55;">
+                  ${isHe ? 'ה‑AI בונה אלבום שלם עם שפה עיצובית אחידה. כל ריצה יוצאת שונה.' : 'AI builds a full album with one coherent design system. Every run is different.'}
+                </div>
+
+                <div style="padding: 14px; border-radius: 14px; border: 1px solid rgba(148,163,184,0.35); background: rgba(241,245,249,0.55);">
+                  <div style="font-weight:800; font-size: 13px; color:#0f172a; margin-bottom: 6px;">
+                    ${isHe ? 'מה יקרה עכשיו?' : 'What happens next?'}
+                  </div>
+                  <div style="font-size: 13px; color:#475569; line-height:1.6;">
+                    ${isHe
+            ? '• ה‑AI יבחר תמונות לפי רלוונטיות\n• יעצב עמודים ויכריכה\n• יוסיף כיתובים ומסגרות בחלק מהתמונות\n• בסיום תוכל לערוך הכל בעורך הרגיל'
+            : '• AI selects photos by relevance\n• Designs pages + cover\n• Adds captions + frames to some photos\n• Then you can edit everything in the normal editor'}
+                  </div>
+                </div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:${isHe ? 'flex-start' : 'flex-end'}; margin-top: 6px;">
+                  <button id="aiAutoDesignStartBtn" class="btn btn-primary" type="button" onclick="runAiAutoDesignNow()" style="min-width: 190px;">
+                    ${isHe ? 'צור אלבום עם AI' : 'Generate album with AI'}
+                  </button>
+                  <button class="btn btn-secondary" type="button" onclick="closeAiAutoDesignModal()">
+                    ${isHe ? 'ביטול' : 'Cancel'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeAiAutoDesignModal(); });
+}
+
+function openAiAutoDesignModal() {
+    ensureAiAutoDesignModal();
+    const m = document.getElementById('aiAutoDesignModal');
+    if (!m) return;
+    m.style.display = 'block';
+}
+
+function closeAiAutoDesignModal() {
+    const m = document.getElementById('aiAutoDesignModal');
+    if (m) m.style.display = 'none';
+}
+
+function __aiAutoDesignPayloadFromSelected() {
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    return photos.map((p, index) => ({
+        index,
+        id: p?.id || null,
+        date: p?.date || p?.creationTime || p?.mediaMetadata?.creationTime || null,
+        location: p?.location || null,
+        filename: p?.filename || p?.name || null,
+        caption: p?.caption || null,
+    }));
+}
+
+async function runAiAutoDesignNow() {
+    const isHe = getUiLang() === 'he';
+    const status = document.getElementById('aiAutoDesignStatus');
+    const btn = document.getElementById('aiAutoDesignStartBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const payload = __aiAutoDesignPayloadFromSelected();
+        if (!payload.length) throw new Error('no photos');
+        if (status) status.textContent = isHe ? 'מייצר שפה עיצובית…' : 'Designing system…';
+        const seed = Math.random().toString(36).slice(2) + Date.now();
+        const res = await callFunction('generateAutoDesign', { photos: payload, lang: isHe ? 'he' : 'en', seed });
+        if (!res?.success) throw new Error(res?.error || 'generation failed');
+        if (status) status.textContent = isHe ? 'מיישם את העיצוב באלבום…' : 'Applying design…';
+        applyAiAutoDesignPlan(res.plan);
+        closeAiAutoDesignModal();
+        state._aiAutoDesignMode = false;
+        showEditorView();
+        renderCurrentPage();
+        updatePageIndicator();
+        showToast(isHe ? 'האלבום נוצר! אפשר לערוך עכשיו.' : 'Album generated! You can edit now.', 'success');
+    } catch (e) {
+        console.error('runAiAutoDesignNow failed:', e);
+        if (status) status.textContent = isHe ? 'שגיאה ביצירת האלבום.' : 'Failed to generate album.';
+        showToast(isHe ? 'שגיאה ביצירת האלבום.' : 'Failed to generate album.', 'info');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function startAiAutoDesignGeneration() {
+    openAiAutoDesignModal();
+}
+
+function applyAiAutoDesignPlan(plan) {
+    const isHe = getUiLang() === 'he';
+    if (!plan || typeof plan !== 'object') return;
+
+    // Pick template for coherent design system
+    const templates = window.PHOTO_BOOK_TEMPLATES || {};
+    const tpl = plan.templateId && templates[plan.templateId] ? templates[plan.templateId] : null;
+    if (tpl && typeof applyTemplate === 'function') {
+        state.selectedTemplate = tpl;
+        try { applyTemplate(tpl); } catch { /* ignore */ }
+    }
+
+    // Global knobs
+    if (Number.isFinite(plan.globalCornerRadius)) state.globalCornerRadius = plan.globalCornerRadius;
+
+    // Cover
+    state.cover = state.cover || {};
+    if (plan.cover?.title) state.cover.title = plan.cover.title;
+    if (plan.cover?.subtitle !== undefined) state.cover.subtitle = plan.cover.subtitle;
+    if (plan.cover?.photoIndex !== undefined && Number.isFinite(parseInt(plan.cover.photoIndex, 10))) {
+        const idx = parseInt(plan.cover.photoIndex, 10);
+        const p = state.selectedPhotos?.[idx];
+        if (p) state.cover.photo = { ...p, alignment: 'center' };
+    }
+    if (plan.cover?.photoShape) state.cover.photoShape = plan.cover.photoShape;
+    if (plan.cover?.photoFrameId !== undefined) state.cover.photoFrameId = plan.cover.photoFrameId;
+
+    // Back cover
+    state.backCover = state.backCover || {};
+    if (plan.backCover?.text) state.backCover.text = plan.backCover.text;
+    if (plan.backCover?.subtitle !== undefined) state.backCover.subtitle = plan.backCover.subtitle;
+
+    // Pages
+    const pages = Array.isArray(plan.pages) ? plan.pages : [];
+    state.pages = pages.map((pg) => {
+        const layout = pg.layout || 'single';
+        const slots = Array.isArray(pg.slots) ? pg.slots : [];
+        const slotsCount = state.config?.LAYOUTS?.[layout]?.slots || Math.max(1, slots.length || 1);
+        const photos = new Array(slotsCount).fill(null);
+        for (let i = 0; i < Math.min(slotsCount, slots.length); i++) {
+            const s = slots[i] || {};
+            const pi = Number.isFinite(parseInt(s.photoIndex, 10)) ? parseInt(s.photoIndex, 10) : null;
+            const base = (pi !== null && state.selectedPhotos?.[pi]) ? { ...state.selectedPhotos[pi] } : null;
+            if (!base) continue;
+            if (s.caption) base.caption = String(s.caption);
+            if (s.shape) base.shape = String(s.shape);
+            if (s.frameId !== undefined) base.frameId = s.frameId ? String(s.frameId) : null;
+            photos[i] = base;
+        }
+        return {
+            layout,
+            photos,
+            caption: pg.pageCaption || '',
+            backgroundColor: pg.backgroundColor || (tpl?.colors?.pageBackground || '#ffffff'),
+            showPageNumber: true,
+            photoSpacing: Number.isFinite(pg.photoSpacing) ? pg.photoSpacing : (tpl?.layout?.photoSpacing || 16),
+            frameId: pg.pageFrameId || null,
+        };
+    });
+
+    // Start at cover for a “beautiful reveal”
+    state.currentPageIndex = -1;
+    state.selectedPhotoSlot = null;
+    try { renderPageThumbnails(); } catch { /* ignore */ }
+    try { updateCoverFromState(); } catch { /* ignore */ }
+    try { updateBackCoverFromState(); } catch { /* ignore */ }
+}
+
+// Expose
+window.openAIAutoDesignFlow = openAIAutoDesignFlow;
+window.startAiAutoDesignFromReview = startAiAutoDesignFromReview;
+window.openAiAutoDesignModal = openAiAutoDesignModal;
+window.closeAiAutoDesignModal = closeAiAutoDesignModal;
+window.runAiAutoDesignNow = runAiAutoDesignNow;
+
+function __photoDateKey(p) {
+    const t = p?.date || p?.creationTime || p?.mediaMetadata?.creationTime || null;
+    if (!t) return 0;
+    const ms = Date.parse(String(t));
+    return Number.isFinite(ms) ? ms : 0;
+}
+
+function renderPhotoReviewGrid() {
+    const grid = document.getElementById('photoReviewGrid');
+    const status = document.getElementById('photoReviewStatus');
+    if (!grid) return;
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    const sel = state._photoReview?.selectedById || {};
+    const isHe = getUiLang() === 'he';
+
+    const selectedCount = photos.filter(p => p?.id && sel[p.id]).length;
+    if (status) status.textContent = isHe ? `נבחרו ${selectedCount} מתוך ${photos.length}` : `${selectedCount} of ${photos.length} selected`;
+
+    grid.innerHTML = photos.map((p, idx) => {
+        const id = p?.id || `idx-${idx}`;
+        const checked = !!(p?.id && sel[p.id]);
+        const isSafeImgSrc = (src) => {
+            if (!src || typeof src !== 'string') return false;
+            const s = src.trim();
+            if (!s) return false;
+            if (s.startsWith('data:') || s.startsWith('blob:')) return true;
+            if (!/^https?:\/\//i.test(s)) return true;
+            try { return new URL(s, window.location.href).origin === window.location.origin; } catch { return false; }
+        };
+        const src = (() => {
+            const cands = [p?.editedData, p?.thumbnailUrl, p?.editedImageData, p?.baseUrl].filter(Boolean);
+            for (const c of cands) if (isSafeImgSrc(c)) return c;
+            return '';
+        })();
+        const cap = (p?.caption || '').trim();
+        const hasImg = !!src;
+        return `
+          <div class="photo-review-tile" data-photo-id="${escapeHtml(id)}" onclick="togglePhotoReview('${escapeHtml(id)}')" style="border:1px solid ${checked ? '#22c55e' : '#e2e8f0'}; border-radius:10px; overflow:hidden; background:#fff; cursor:pointer; position:relative;">
+            <div style="height:140px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; position:relative;">
+              ${hasImg ? `<img src="${src}" alt="" style="width:100%; height:100%; object-fit:cover;">` : `<div style="color:#94a3b8; font-size:12px;">${isHe ? 'אין תצוגה' : 'No preview'}</div>`}
+              <div style="position:absolute; top:10px; ${isHe ? 'left' : 'right'}:10px; width:28px; height:28px; border-radius:999px; background:${checked ? '#22c55e' : 'rgba(15,23,42,0.35)'}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; box-shadow:0 6px 16px rgba(0,0,0,0.18);">
+                ${checked ? '✓' : ''}
+              </div>
+            </div>
+            <div style="padding:10px;">
+              <div style="font-size:12px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p?.filename || p?.name || p?.id || '')}</div>
+              <div style="font-size:12px; color:#0f172a; margin-top:6px; min-height: 34px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+                ${cap ? escapeHtml(cap) : `<span style="color:#94a3b8;">${isHe ? 'אין תיאור' : 'No caption'}</span>`}
+              </div>
+            </div>
+          </div>
+        `;
+    }).join('');
+}
+
+function togglePhotoReview(photoId) {
+    const id = String(photoId || '');
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    const sel = state._photoReview?.selectedById || (state._photoReview.selectedById = {});
+    const exists = photos.some(p => p?.id === id);
+    if (!exists) return;
+    sel[id] = !sel[id];
+    renderPhotoReviewGrid();
+}
+
+function photoReviewSelectAll(v) {
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    state._photoReview = state._photoReview || {};
+    state._photoReview.selectedById = state._photoReview.selectedById || {};
+    photos.forEach(p => { if (p?.id) state._photoReview.selectedById[p.id] = !!v; });
+    renderPhotoReviewGrid();
+}
+
+function photoReviewInvert() {
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    state._photoReview = state._photoReview || {};
+    state._photoReview.selectedById = state._photoReview.selectedById || {};
+    photos.forEach(p => { if (p?.id) state._photoReview.selectedById[p.id] = !state._photoReview.selectedById[p.id]; });
+    renderPhotoReviewGrid();
+}
+
+async function applyPhotoReviewOrder() {
+    const orderEl = document.getElementById('photoReviewOrder');
+    const status = document.getElementById('photoReviewStatus');
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    const sel = state._photoReview?.selectedById || {};
+    const included = photos.filter(p => p?.id && sel[p.id]);
+    const isHe = getUiLang() === 'he';
+    if (!included.length) {
+        if (status) status.textContent = isHe ? 'לא נבחרו תמונות.' : 'No photos selected.';
+        return;
+    }
+
+    const mode = orderEl ? orderEl.value : 'ai';
+
+    try {
+        if (status) status.textContent = isHe ? 'מסדר…' : 'Ordering…';
+        if (mode === 'random') {
+            included.sort(() => Math.random() - 0.5);
+        } else if (mode === 'date_asc' || mode === 'date_desc') {
+            included.sort((a, b) => (__photoDateKey(a) - __photoDateKey(b)) * (mode === 'date_desc' ? -1 : 1));
+        } else if (mode === 'ai') {
+            // AI story detection → use chapter order to derive a relevance/story order
+            const payload = included.map(p => ({
+                id: p.id,
+                date: p.date || p.creationTime || p.mediaMetadata?.creationTime || null,
+                location: p.location || null,
+                filename: p.filename || p.name || null,
+                creationTime: p.creationTime || null,
+                mediaMetadata: p.mediaMetadata || null,
+                caption: p.caption || null,
+            }));
+            const res = await callFunction('detectStory', { photos: payload });
+            const story = res?.story || res;
+            const indices = [];
+            const chapters = story?.chapters || [];
+            chapters.forEach(ch => {
+                (ch.photoIndices || []).forEach(i => { if (Number.isFinite(i)) indices.push(i); });
+            });
+            const seen = new Set();
+            const ordered = [];
+            indices.forEach(i => {
+                const p = included[i];
+                if (p && !seen.has(p.id)) { ordered.push(p); seen.add(p.id); }
+            });
+            // append any remaining
+            included.forEach(p => { if (p && !seen.has(p.id)) ordered.push(p); });
+            included.splice(0, included.length, ...ordered);
+        }
+
+        // replace selectedPhotos ordering with ordered included + remaining excluded (kept at end)
+        const excluded = photos.filter(p => !(p?.id && sel[p.id]));
+        state.selectedPhotos = [...included, ...excluded];
+        updateSelectedPhotosUI();
+        renderPhotoReviewGrid();
+        if (status) status.textContent = isHe ? 'הסידור עודכן.' : 'Order updated.';
+    } catch (e) {
+        console.error('applyPhotoReviewOrder failed:', e);
+        if (status) status.textContent = isHe ? 'שגיאה בסידור.' : 'Failed to order.';
+    }
+}
+
+async function generateAICaptionsForSelected() {
+    const status = document.getElementById('photoReviewStatus');
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    const sel = state._photoReview?.selectedById || {};
+    const included = photos.filter(p => p?.id && sel[p.id]);
+    const isHe = getUiLang() === 'he';
+    if (!included.length) {
+        if (status) status.textContent = isHe ? 'לא נבחרו תמונות.' : 'No photos selected.';
+        return;
+    }
+
+    try {
+        if (status) status.textContent = isHe ? 'יוצר תיאורים בעזרת AI…' : 'Generating AI captions…';
+        const payload = included.map(p => ({
+            id: p.id,
+            date: p.date || p.creationTime || p.mediaMetadata?.creationTime || null,
+            location: p.location || null,
+            filename: p.filename || p.name || null,
+            caption: p.caption || null,
+        }));
+        const res = await callFunction('generateCaptions', { photos: payload });
+        if (!res?.success) throw new Error(res?.error || 'caption generation failed');
+        const captions = Array.isArray(res.captions) ? res.captions : [];
+        captions.forEach(({ index, caption }) => {
+            const i = parseInt(index, 10);
+            if (!Number.isFinite(i) || !included[i]) return;
+            included[i].caption = String(caption || '').trim();
+        });
+        updateSelectedPhotosUI();
+        renderPhotoReviewGrid();
+        if (status) status.textContent = isHe ? `נוצרו ${captions.length} תיאורים.` : `Generated ${captions.length} captions.`;
+    } catch (e) {
+        console.error('generateAICaptionsForSelected failed:', e);
+        if (status) status.textContent = isHe ? 'שגיאה ביצירת תיאורים.' : 'Failed to generate captions.';
+    }
+}
+
+function applyPhotoReviewSelection() {
+    const photos = Array.isArray(state.selectedPhotos) ? state.selectedPhotos : [];
+    const sel = state._photoReview?.selectedById || {};
+    const included = photos.filter(p => p?.id && sel[p.id]);
+    if (!included.length) {
+        showToast(getUiLang() === 'he' ? 'לא נבחרו תמונות.' : 'No photos selected.', 'info');
+        return;
+    }
+    state.selectedPhotos = included;
+    updateSelectedPhotosUI();
+    closePhotoReviewModal();
+}
+
+window.openPhotoReviewModal = openPhotoReviewModal;
+window.closePhotoReviewModal = closePhotoReviewModal;
+window.photoReviewSelectAll = photoReviewSelectAll;
+window.photoReviewInvert = photoReviewInvert;
+window.togglePhotoReview = togglePhotoReview;
+window.applyPhotoReviewOrder = applyPhotoReviewOrder;
+window.generateAICaptionsForSelected = generateAICaptionsForSelected;
+window.applyPhotoReviewSelection = applyPhotoReviewSelection;
 
 function removeSelectedPhoto(index) {
     state.selectedPhotos.splice(index, 1);
@@ -3959,12 +4796,34 @@ function renderSelectedPhotosModal() {
         return;
     }
 
+    const isSafeImgSrc = (src) => {
+        if (!src || typeof src !== 'string') return false;
+        const s = src.trim();
+        if (!s) return false;
+        if (s.startsWith('data:') || s.startsWith('blob:')) return true;
+        if (!/^https?:\/\//i.test(s)) return true;
+        try { return new URL(s, window.location.href).origin === window.location.origin; } catch { return false; }
+    };
+    const getSafeThumb = (photo) => {
+        const cands = [
+            photo?.editedData,
+            photo?.thumbnailUrl,
+            photo?.editedImageData,
+            photo?.baseUrl,
+            photo?.url,
+        ].filter(Boolean);
+        for (const c of cands) {
+            if (isSafeImgSrc(c)) return c;
+        }
+        return null;
+    };
+
     grid.innerHTML = state.selectedPhotos.map((photo, index) => {
-        const imgSrc = photo.thumbnailUrl || photo.baseUrl || photo.url;
+        const imgSrc = getSafeThumb(photo);
         return `
           <div class="selected-photo-item">
             ${imgSrc
-                ? `<img src="${imgSrc}" alt="Photo ${index + 1}" onerror="this.onerror=null; this.src=''; this.parentElement.classList.add('load-error'); this.parentElement.innerHTML='<div class=\\'error-placeholder\\' onclick=\\'injectRepairPermissionsButton()\\'>⚠️ Repair</div>';">`
+                ? `<img src="${imgSrc}" alt="Photo ${index + 1}" onerror="this.onerror=null; this.src=''; this.parentElement.classList.add('load-error'); this.parentElement.innerHTML='<div class=\\'error-placeholder\\'>⚠️</div>';">`
                 : `<div class="thumbnail-placeholder">${index + 1}</div>`
             }
             <button class="remove-btn" onclick="removeSelectedPhoto(${index})" title="Remove">&times;</button>
@@ -4140,17 +4999,25 @@ function updateGlobalPhotoStyle(sourceId) {
     if (!selector) return;
 
     const val = parseInt(selector.value) || 0;
+
+    // Anti-bounce: If value hasn't changed, do nothing
+    if (state.globalCornerRadius === val) return;
+
     state.globalCornerRadius = val;
 
-    // Sync input values
+    // Sync input values (only update others if needed)
     const master = document.getElementById('globalCornerRadius');
-    if (master && master.id !== id) master.value = val;
+    if (master && master.id !== id && parseInt(master.value) !== val) master.value = val;
 
     const proxy = document.getElementById('globalCornerRadiusCover');
-    if (proxy && proxy.id !== id) proxy.value = val;
+    if (proxy && proxy.id !== id && parseInt(proxy.value) !== val) proxy.value = val;
 
-    renderCurrentPage(); // Re-render pages
-    updateCoverPreview(); // Update cover
+    // Defer heavy re-renders so native <select> UI can close cleanly (prevents
+    // "jumping" dropdown behavior on some browsers).
+    setTimeout(() => {
+        renderCurrentPage(); // Re-render pages
+        updateCoverPreview(); // Update cover
+    }, 0);
 }
 
 // ============================================
@@ -4166,6 +5033,7 @@ function updateCoverPreview() {
     const subtitle = document.getElementById('coverSubtitle')?.value || '';
     // NEW: Subtitle color from new input
     const subtitleColor = document.getElementById('coverSubtitleColor')?.value || '#ffffff';
+    const subtitleFont = document.getElementById('coverSubtitleFont')?.value || state.cover?.subtitleFont || titleFont;
 
     const subtitleSize = document.getElementById('coverSubtitleSize')?.value || 14;
 
@@ -4183,6 +5051,7 @@ function updateCoverPreview() {
     state.cover.subtitle = subtitle;
     // NEW: Store subtitle color
     state.cover.subtitleColor = subtitleColor;
+    state.cover.subtitleFont = subtitleFont;
     state.cover.subtitleSize = parseInt(subtitleSize) || 14;
     state.cover.backgroundColor = bgColor;
     state.cover.showBorder = showBorder;
@@ -4530,9 +5399,12 @@ function updateBackCoverPreview() {
             const current = sel.value;
             sel.innerHTML = `<option value="default">Default</option>` +
                 window.TEXT_STYLES.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
-            if (current) sel.value = current;
+            if (current && document.activeElement !== sel) sel.value = current;
         }
-        if (sel) sel.value = textStyleId || 'default';
+        // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+        if (sel && document.activeElement !== sel) {
+            sel.value = textStyleId || 'default';
+        }
     } catch { /* ignore */ }
 
     // Apply typography CSS to previews if a style is selected
@@ -4855,6 +5727,7 @@ function deletePage() {
 }
 
 function prevPage() {
+    const isRtl = (document?.documentElement?.getAttribute('dir') || 'ltr') === 'rtl';
     // Nav logic updated for Cover (-1)
     if (state.currentPageIndex === 0 || state.currentPageIndex === 1) {
         // Go to Cover
@@ -4881,10 +5754,12 @@ function prevPage() {
         updatePageIndicator();
         return;
     }
-    animateBookSpreadFlip(-1, targetBase);
+    // In RTL UI, flipping direction is visually reversed.
+    animateBookSpreadFlip(-1, targetBase, { rtl: isRtl });
 }
 
 function nextPage() {
+    const isRtl = (document?.documentElement?.getAttribute('dir') || 'ltr') === 'rtl';
     // Nav logic updated for Back Cover (> length)
     if (state.currentPageIndex === -1) {
         state.currentPageIndex = 0;
@@ -4904,7 +5779,8 @@ function nextPage() {
         updatePageIndicator();
         return;
     }
-    animateBookSpreadFlip(1, targetBase);
+    // In RTL UI, flipping direction is visually reversed.
+    animateBookSpreadFlip(1, targetBase, { rtl: isRtl });
 }
 
 function goToPage(index) {
@@ -4943,9 +5819,9 @@ function renderPageThumbnails() {
     const getStatus = (page) => {
         const slots = getSlotsCount(page);
         const filled = (page?.photos || []).slice(0, slots).filter(isFilled).length;
-        if (filled <= 0) return {status: 'empty', label: getUiLang() === 'he' ? 'ריק' : 'Empty', filled, slots};
-        if (filled < slots) return {status: 'partial', label: getUiLang() === 'he' ? 'חלקי' : 'In progress', filled, slots};
-        return {status: 'complete', label: getUiLang() === 'he' ? 'מוכן' : 'Complete', filled, slots};
+        if (filled <= 0) return { status: 'empty', label: getUiLang() === 'he' ? 'ריק' : 'Empty', filled, slots };
+        if (filled < slots) return { status: 'partial', label: getUiLang() === 'he' ? 'חלקי' : 'In progress', filled, slots };
+        return { status: 'complete', label: getUiLang() === 'he' ? 'מוכן' : 'Complete', filled, slots };
     };
     const getThumbSrc = (item) => {
         if (!item || item.type === 'text') return null;
@@ -4955,14 +5831,14 @@ function renderPageThumbnails() {
 
     container.innerHTML = state.pages.map((page, index) => {
         const slots = getSlotsCount(page);
-        const {status, label, filled} = getStatus(page);
+        const { status, label, filled } = getStatus(page);
         const active = index === state.currentPageIndex ? 'active' : '';
         const slotsClass = `slots-${Math.min(4, Math.max(1, slots))}`;
 
         const slotItems = (page?.photos || []).slice(0, slots);
         // For 3-slot layout, render as 2x2 grid and leave 4th blank.
         const visualSlots = slots === 3 ? 4 : slots;
-        const slotHtml = Array.from({length: visualSlots}).map((_, i) => {
+        const slotHtml = Array.from({ length: visualSlots }).map((_, i) => {
             const item = slotItems[i];
             if (!item) return `<div class="page-thumb-slot"></div>`;
             if (item.type === 'text') {
@@ -5053,7 +5929,32 @@ function renderCurrentPage() {
             <div class="book3d-cover-face">
                 <div class="book3d-cover-inner">
                     <div class="cover-photo-slot" onclick="selectPhotoForCover()" style="width: 90%; height: 70%; background: #eee; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 2px dashed #ccc; cursor: pointer; overflow: hidden; position: relative; z-index: 20;">
-                        ${(state.cover?.photo?.thumbnailUrl && state.cover.photo.thumbnailUrl.startsWith('data:')) || state.cover?.photoUrl ? `<img src="${(state.cover?.photo?.thumbnailUrl && state.cover.photo.thumbnailUrl.startsWith('data:')) ? state.cover.photo.thumbnailUrl : state.cover.photoUrl}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="color:#999; font-size:12px;">+ Add Cover Photo</span>'}
+                        ${(() => {
+                const isSafe = (src) => {
+                    if (!src || typeof src !== 'string') return false;
+                    const s = src.trim();
+                    if (!s) return false;
+                    if (s.startsWith('data:') || s.startsWith('blob:')) return true;
+                    if (!/^https?:\/\//i.test(s)) return true;
+                    try { return new URL(s, window.location.href).origin === window.location.origin; } catch { return false; }
+                };
+                const thumb = state.cover?.photo?.thumbnailUrl;
+                const url = (isSafe(thumb) ? thumb : (isSafe(state.cover?.photoUrl) ? state.cover.photoUrl : ''));
+                if (!url) return '<span style="color:#999; font-size:12px;">+ Add Cover Photo</span>';
+                const shape = state.cover?.photoShape || 'rect';
+                const radius = state.globalCornerRadius || 0;
+                const br = (shape === 'circle') ? '50%' : (shape === 'oval') ? '50% / 35%' : (shape === 'rounded') ? `${Math.max(12, radius)}px` : `${radius}px`;
+                let frameLayer = '';
+                try {
+                    const frameId = state.cover?.photoFrameId;
+                    const frame = frameId && window.IMAGE_FRAMES ? window.IMAGE_FRAMES.find(f => f.id === frameId) : null;
+                    if (frame && frame.svgGen) {
+                        const svgContent = frame.svgGen(1000, 1000, frame.color || '#111827', shape);
+                        frameLayer = `<div class="image-frame-layer" style="position:absolute; inset:0; pointer-events:none; z-index:4;"><svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none" style="display:block;">${svgContent}</svg></div>`;
+                    }
+                } catch { /* ignore */ }
+                return `<div class="image-mask" style="position:absolute; inset:0; border-radius:${br}; overflow:hidden;"><img src="${url}" style="width:100%; height:100%; object-fit:cover; border-radius:${br};"></div>${frameLayer}`;
+            })()}
                     </div>
                     <h1 style="font-size: 3em; color: ${state.cover?.titleColor || state.cover?.textColor || '#ffffff'}; font-family: ${state.cover?.titleFont || 'inherit'}; ${coverTypographyCss}">${state.cover?.title || 'My Photo Book'}</h1>
                     <h3 style="font-size: 1.5em; color: ${state.cover?.subtitleColor || state.cover?.textColor || state.cover?.titleColor || 'rgba(255,255,255,0.8)'}; margin-top: 5px; font-family: ${state.cover?.subtitleFont || 'inherit'}; ${coverTypographyCss}">${state.cover?.subtitle || 'Add a subtitle'}</h3>
@@ -5069,16 +5970,19 @@ function renderCurrentPage() {
         const coverPanel = document.getElementById('cover-settings-panel');
         const pagePanel = document.getElementById('pages-settings-panel');
         const backPanel = document.getElementById('backcover-settings-panel');
-        if (coverPanel) coverPanel.style.display = 'block';
-        if (pagePanel) pagePanel.style.display = 'none';
-        if (backPanel) backPanel.style.display = 'none';
+
+        // Anti-bounce: Check before set to avoid needless layout trashing
+        if (coverPanel && coverPanel.style.display !== 'block') coverPanel.style.display = 'block';
+        if (pagePanel && pagePanel.style.display !== 'none') pagePanel.style.display = 'none';
+        if (backPanel && backPanel.style.display !== 'none') backPanel.style.display = 'none';
 
         // Ensure toolbar is visible
         const toolbar = document.querySelector('.floating-toolbar');
-        if (toolbar) toolbar.style.display = 'flex';
+        if (toolbar && toolbar.style.display !== 'flex') toolbar.style.display = 'flex';
 
         // CRITICAL: Apply template assets and sync latest state to the fresh DOM
-        updateCoverPreview();
+        // Defer this slightly to allow DOM to settle if called rapidly
+        setTimeout(() => updateCoverPreview(), 0);
 
         return;
     }
@@ -5148,9 +6052,11 @@ function renderCurrentPage() {
         const coverPanel = document.getElementById('cover-settings-panel');
         const pagePanel = document.getElementById('pages-settings-panel');
         const backPanel = document.getElementById('backcover-settings-panel');
-        if (coverPanel) coverPanel.style.display = 'none';
-        if (pagePanel) pagePanel.style.display = 'none';
-        if (backPanel) backPanel.style.display = 'block';
+
+        // Anti-bounce logic
+        if (coverPanel && coverPanel.style.display !== 'none') coverPanel.style.display = 'none';
+        if (pagePanel && pagePanel.style.display !== 'none') pagePanel.style.display = 'none';
+        if (backPanel && backPanel.style.display !== 'block') backPanel.style.display = 'block';
 
         // Ensure toolbar is visible
         const toolbar = document.querySelector('.floating-toolbar');
@@ -5185,8 +6091,22 @@ function renderCurrentPage() {
         document.getElementById('coverBgColor')?.value ||
         '#2c3e50';
 
+    const isRtl = (document?.documentElement?.getAttribute('dir') || 'ltr') === 'rtl';
+
+    // Logical indices for this spread
+    const logicalLeftIndex = base;
+    const logicalRightIndex = (base + 1 < totalPages) ? (base + 1) : null;
+
+    // Display indices depend on reading direction (RTL: page 1 is on the right side)
+    const displayLeftIndex = isRtl ? logicalRightIndex : logicalLeftIndex;
+    const displayRightIndex = isRtl ? logicalLeftIndex : logicalRightIndex;
+
     const pagesLeft = Math.max(0, totalPages - (base + 2));
-    const spreadLabel = `Pages ${leftIndex + 1}${rightIndex < totalPages ? `–${rightIndex + 1}` : ''} · ${pagesLeft} left`;
+    const a = displayRightIndex; // start side in RTL (right) / LTR (left) is handled below
+    const b = displayLeftIndex;
+    const firstIdx = isRtl ? a : displayLeftIndex;
+    const secondIdx = isRtl ? b : displayRightIndex;
+    const spreadLabel = `Pages ${Number.isFinite(firstIdx) ? (firstIdx + 1) : ''}${Number.isFinite(secondIdx) ? `–${secondIdx + 1}` : ''} · ${pagesLeft} left`;
 
     preview.innerHTML = `
     <div class="book3d" style="--book-thickness: ${thicknessPx}px; --cover-color: ${coverColor}; width: 62%; height: 62%; margin: auto; inset: 0; position: absolute;">
@@ -5197,9 +6117,9 @@ function renderCurrentPage() {
                 <div class="book3d-bottom"></div>
 
                 <div class="book3d-spread">
-                    <div class="book3d-page book3d-page-left ${state.currentPageIndex === leftIndex ? 'is-active' : ''}" data-page-index="${leftIndex}"></div>
+                    <div id="leftPage" class="book3d-page book3d-page-left ${state.currentPageIndex === displayLeftIndex ? 'is-active' : ''}" data-page-index="${displayLeftIndex ?? ''}"></div>
                     <div class="book3d-gutter"></div>
-                    <div class="book3d-page book3d-page-right ${state.currentPageIndex === rightIndex ? 'is-active' : ''}" data-page-index="${rightIndex}"></div>
+                    <div id="rightPage" class="book3d-page book3d-page-right ${state.currentPageIndex === displayRightIndex ? 'is-active' : ''}" data-page-index="${displayRightIndex ?? ''}"></div>
                 </div>
 
                 <div class="book3d-progress">${escapeHtml(spreadLabel)}</div>
@@ -5210,21 +6130,29 @@ function renderCurrentPage() {
     `;
 
     // Render both pages (inactive side is non-interactive preview)
-    const leftEl = preview.querySelector(`.book3d-page[data-page-index="${leftIndex}"]`);
-    const rightEl = preview.querySelector(`.book3d-page[data-page-index="${rightIndex}"]`);
+    const leftEl = document.getElementById('leftPage');
+    const rightEl = document.getElementById('rightPage');
 
     if (leftEl) {
-        leftEl.innerHTML = renderSinglePageHtml(leftIndex, { isActive: state.currentPageIndex === leftIndex });
-        applyBackgroundToPageElement(leftEl, leftIndex);
-        if (state.currentPageIndex !== leftIndex) {
-            leftEl.insertAdjacentHTML('beforeend', `<button class="book3d-page-activate" type="button" onclick="activatePage(${leftIndex})" aria-label="Edit page ${leftIndex + 1}"></button>`);
+        if (Number.isFinite(displayLeftIndex)) {
+            leftEl.innerHTML = renderSinglePageHtml(displayLeftIndex, { isActive: state.currentPageIndex === displayLeftIndex });
+            applyBackgroundToPageElement(leftEl, displayLeftIndex);
+            if (state.currentPageIndex !== displayLeftIndex) {
+                leftEl.insertAdjacentHTML('beforeend', `<button class="book3d-page-activate" type="button" onclick="activatePage(${displayLeftIndex})" aria-label="Edit page ${displayLeftIndex + 1}"></button>`);
+            }
+        } else {
+            leftEl.innerHTML = '';
         }
     }
     if (rightEl) {
-        rightEl.innerHTML = renderSinglePageHtml(rightIndex, { isActive: state.currentPageIndex === rightIndex });
-        applyBackgroundToPageElement(rightEl, rightIndex);
-        if (rightIndex < totalPages && state.currentPageIndex !== rightIndex) {
-            rightEl.insertAdjacentHTML('beforeend', `<button class="book3d-page-activate" type="button" onclick="activatePage(${rightIndex})" aria-label="Edit page ${rightIndex + 1}"></button>`);
+        if (Number.isFinite(displayRightIndex)) {
+            rightEl.innerHTML = renderSinglePageHtml(displayRightIndex, { isActive: state.currentPageIndex === displayRightIndex });
+            applyBackgroundToPageElement(rightEl, displayRightIndex);
+            if (displayRightIndex < totalPages && state.currentPageIndex !== displayRightIndex) {
+                rightEl.insertAdjacentHTML('beforeend', `<button class="book3d-page-activate" type="button" onclick="activatePage(${displayRightIndex})" aria-label="Edit page ${displayRightIndex + 1}"></button>`);
+            }
+        } else {
+            rightEl.innerHTML = '';
         }
     }
 
@@ -5244,9 +6172,13 @@ function renderCurrentPage() {
             sideSwitcher.style.display = 'none';
         } else {
             const base = Math.floor(state.currentPageIndex / 2) * 2;
-            const leftIndex = base;
-            const rightIndex = base + 1;
-            const hasRight = rightIndex < state.pages.length;
+            const logicalLeftIndex = base;
+            const logicalRightIndex = (base + 1 < state.pages.length) ? (base + 1) : null;
+            const isRtl = (document?.documentElement?.getAttribute('dir') || 'ltr') === 'rtl';
+            const leftIndex = isRtl ? logicalRightIndex : logicalLeftIndex;
+            const rightIndex = isRtl ? logicalLeftIndex : logicalRightIndex;
+            const hasLeft = Number.isFinite(leftIndex);
+            const hasRight = Number.isFinite(rightIndex);
 
             sideSwitcher.style.display = 'flex';
 
@@ -5255,7 +6187,7 @@ function renderCurrentPage() {
 
             if (btnLeft) {
                 btnLeft.classList.toggle('active', state.currentPageIndex === leftIndex);
-                btnLeft.disabled = false;
+                btnLeft.disabled = !hasLeft;
             }
             if (btnRight) {
                 btnRight.classList.toggle('active', state.currentPageIndex === rightIndex);
@@ -5269,7 +6201,18 @@ function renderCurrentPage() {
     const bgColor = page.backgroundColor || (template ? template.colors.pageBackground : theme.colors.bg);
 
     const pageLayoutEl = document.getElementById('pageLayout');
-    if (pageLayoutEl) pageLayoutEl.value = page.layout;
+    // Avoid mutating a focused <select> while user is interacting with it
+    // (can close the dropdown on some browsers).
+    if (pageLayoutEl && document.activeElement !== pageLayoutEl) pageLayoutEl.value = page.layout;
+
+    // Photo spacing (gap between layout slots)
+    const spacingEl = document.getElementById('pagePhotoSpacing');
+    const spacingValEl = document.getElementById('pagePhotoSpacingVal');
+    if (spacingEl) {
+        const gap = Number.isFinite(page.photoSpacing) ? page.photoSpacing : 16;
+        spacingEl.value = String(gap);
+        if (spacingValEl) spacingValEl.textContent = `${gap}px`;
+    }
 
     const pageBgColorEl = document.getElementById('pageBgColor');
     if (pageBgColorEl) pageBgColorEl.value = page.backgroundColor || bgColor;
@@ -5444,7 +6387,7 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
             const rot = Number.isFinite(photo.rotation) ? photo.rotation : 0;
             const fs = Number.isFinite(photo.fontSize) ? photo.fontSize : null;
             const ss = Number.isFinite(photo.shadowStrength) ? photo.shadowStrength : 0;
-            const shadowCss = ss > 0 ? `filter: drop-shadow(0 2px ${Math.max(1, ss/10)}px rgba(0,0,0,${Math.min(0.7, ss/140)}));` : '';
+            const shadowCss = ss > 0 ? `filter: drop-shadow(0 2px ${Math.max(1, ss / 10)}px rgba(0,0,0,${Math.min(0.7, ss / 140)}));` : '';
             // Ensure font size scales with slot? Or fixed? 
             // For now, fixed relative to container or auto-fit could be complex. 
             // Let's use a reasonable base size and rely on the style's definition or defaults.
@@ -5453,7 +6396,37 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
                              <span style="${styleString} ${fs ? `font-size:${fs}px;` : ''} white-space: pre-wrap; word-break: break-word; display:inline-block; max-width:100%; transform: rotate(${rot}deg); transform-origin:center; line-height:1.1; ${shadowCss}">${escapeHtml(photo.content)}</span>
                            </div>`;
         } else if (hasPhoto) {
-            slotContent = `<img src="${displayUrl}" alt="" draggable="false" style="object-position:${objectPos}; border-radius:${state.globalCornerRadius || 0}px;">`;
+            const shape = photo?.shape || 'rect';
+            const radius = state.globalCornerRadius || 0;
+            const borderRadius = (shape === 'circle') ? '50%' :
+                (shape === 'oval') ? '50% / 35%' :
+                    (shape === 'rounded') ? `${Math.max(12, radius)}px` :
+                        `${radius}px`;
+            const maskStyle = `border-radius:${borderRadius}; overflow:hidden;`;
+
+            // Optional per-image frame overlay
+            let frameHtml = '';
+            try {
+                const frameId = photo?.frameId;
+                const frame = frameId && window.IMAGE_FRAMES ? window.IMAGE_FRAMES.find(f => f.id === frameId) : null;
+                if (frame && frame.svgGen) {
+                    const svgContent = frame.svgGen(1000, 1000, frame.color || '#111827', shape);
+                    frameHtml = `
+                      <div class="image-frame-layer" style="position:absolute; inset:0; pointer-events:none; z-index:4;">
+                        <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none" style="display:block;">
+                          ${svgContent}
+                        </svg>
+                      </div>
+                    `;
+                }
+            } catch { /* ignore */ }
+
+            slotContent = `
+              <div class="image-mask" style="position:absolute; inset:0; ${maskStyle}">
+                <img src="${displayUrl}" alt="" draggable="false" style="width:100%; height:100%; object-fit:cover; object-position:${objectPos}; border-radius:${borderRadius};">
+              </div>
+              ${frameHtml}
+            `;
         } else if (hasPhotoData) {
             slotContent = `<div class="thumbnail-placeholder">Photo ${i + 1}</div>`;
         } else {
@@ -5540,10 +6513,11 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
 
     const gridId = isActive ? 'pageLayoutGrid' : `pageLayoutGrid_${pageIndex} `;
     const captionColor = template ? (template.colors.captionColor || template.colors.textColor || '#333333') : (theme.colors.text || '#333333');
+    const gapPx = Number.isFinite(page?.photoSpacing) ? page.photoSpacing : 16;
 
     return `
       ${themeOverlayHtml}
-        <div class="layout-grid ${layoutClass}" id="${gridId}" style="position: relative; z-index: 2;">
+        <div class="layout-grid ${layoutClass}" id="${gridId}" style="position: relative; z-index: 2; --layout-gap: ${gapPx}px;">
             ${slotsHtml}
         </div>
       ${decorationsHtml}
@@ -5552,7 +6526,7 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
 }
 
 let __bookFlipInProgress = false;
-function animateBookSpreadFlip(direction, targetBaseIndex) {
+function animateBookSpreadFlip(direction, targetBaseIndex, opts = {}) {
     if (__bookFlipInProgress) return;
     if (!state.pages || !state.pages.length) return;
 
@@ -5570,33 +6544,49 @@ function animateBookSpreadFlip(direction, targetBaseIndex) {
     const base = Math.floor((state.currentPageIndex || 0) / 2) * 2;
     const totalPages = state.pages.length;
 
-    const isNext = direction > 0;
-    const sheetClass = isNext ? 'is-next' : 'is-prev';
+    const isRtl = !!opts.rtl;
+    const isForward = direction > 0;
+    // In RTL we flip from left->right when moving forward (opposite of LTR).
+    const sheetClass = isForward ? (isRtl ? 'is-prev' : 'is-next') : (isRtl ? 'is-next' : 'is-prev');
 
-    // Determine which page faces should show during the flip
-    const currentLeft = base;
-    const currentRight = base + 1;
-    const targetLeft = targetBaseIndex;
-    const targetRight = targetBaseIndex + 1;
+    // Determine which page faces should show during the flip (display-aware)
+    const logicalCurrentLeft = base;
+    const logicalCurrentRight = (base + 1 < totalPages) ? (base + 1) : null;
+    const logicalTargetLeft = targetBaseIndex;
+    const logicalTargetRight = (targetBaseIndex + 1 < totalPages) ? (targetBaseIndex + 1) : null;
 
-    // Next: flip the right-hand page; its back becomes the next left page
-    // Prev: flip the left-hand page back; its back becomes the previous right page
-    const frontIndex = isNext ? currentRight : currentLeft;
-    const backIndex = isNext ? targetLeft : targetRight;
+    const currentDisplayLeft = isRtl ? logicalCurrentRight : logicalCurrentLeft;
+    const currentDisplayRight = isRtl ? logicalCurrentLeft : logicalCurrentRight;
+    const targetDisplayLeft = isRtl ? logicalTargetRight : logicalTargetLeft;
+    const targetDisplayRight = isRtl ? logicalTargetLeft : logicalTargetRight;
+
+    // Forward:
+    // - LTR: flip the RIGHT page; back becomes target LEFT page
+    // - RTL: flip the LEFT page; back becomes target RIGHT page
+    // Backward:
+    // - LTR: flip the LEFT page; back becomes target RIGHT page
+    // - RTL: flip the RIGHT page; back becomes target LEFT page
+    const frontIndex = isForward ? (isRtl ? currentDisplayLeft : currentDisplayRight) : (isRtl ? currentDisplayRight : currentDisplayLeft);
+    const backIndex = isForward ? (isRtl ? targetDisplayRight : targetDisplayLeft) : (isRtl ? targetDisplayLeft : targetDisplayRight);
 
     // Determine what should be visible UNDERNEATH the flipping page
-    // If Next: We are flipping Right->Left. 
-    //   - Left stays 'currentLeft' (until covered).
-    //   - Right reveals 'targetRight' (the page after the one flipping).
-    // If Prev: We are flipping Left->Right.
-    //   - Left reveals 'targetLeft' (the page before the one flipping).
-    //   - Right stays 'currentRight' (until covered).
-    const underneathLeftIndex = isNext ? currentLeft : targetLeft;
-    const underneathRightIndex = isNext ? targetRight : currentRight;
+    let underneathLeftIndex = null;
+    let underneathRightIndex = null;
+    if (isForward) {
+        // LTR forward: left stays currentLeft, right reveals targetRight
+        // RTL forward: right stays currentRight, left reveals targetLeft
+        underneathLeftIndex = isRtl ? targetDisplayLeft : currentDisplayLeft;
+        underneathRightIndex = isRtl ? currentDisplayRight : targetDisplayRight;
+    } else {
+        // LTR backward: right stays currentRight, left reveals targetLeft
+        // RTL backward: left stays currentLeft, right reveals targetRight
+        underneathLeftIndex = isRtl ? currentDisplayLeft : targetDisplayLeft;
+        underneathRightIndex = isRtl ? targetDisplayRight : currentDisplayRight;
+    }
 
     // Render the flipping sheet
-    const frontHtml = renderSinglePageHtml(frontIndex, { isActive: false });
-    const backHtml = renderSinglePageHtml(backIndex, { isActive: false });
+    const frontHtml = Number.isFinite(frontIndex) ? renderSinglePageHtml(frontIndex, { isActive: false }) : '';
+    const backHtml = Number.isFinite(backIndex) ? renderSinglePageHtml(backIndex, { isActive: false }) : '';
 
     // Clear any prior overlay
     flipLayer.innerHTML = '';
@@ -5615,8 +6605,8 @@ function animateBookSpreadFlip(direction, targetBaseIndex) {
     // Ensure backgrounds are applied for the overlay faces
     const frontFace = sheet.querySelector('.book3d-sheet-face.front');
     const backFace = sheet.querySelector('.book3d-sheet-face.back');
-    applyBackgroundToPageElement(frontFace, frontIndex);
-    applyBackgroundToPageElement(backFace, backIndex);
+    if (Number.isFinite(frontIndex)) applyBackgroundToPageElement(frontFace, frontIndex);
+    if (Number.isFinite(backIndex)) applyBackgroundToPageElement(backFace, backIndex);
 
     // UPDATE STATIC BACKGROUND PAGES BEFORE ANIMATION STARTS
     // This ensures we reveal the correct page underneath the lifting sheet
@@ -5624,12 +6614,12 @@ function animateBookSpreadFlip(direction, targetBaseIndex) {
     const rightPageEl = document.getElementById('rightPage');
 
     if (leftPageEl) {
-        leftPageEl.innerHTML = renderSinglePageHtml(underneathLeftIndex, { isActive: false });
-        applyBackgroundToPageElement(leftPageEl, underneathLeftIndex);
+        leftPageEl.innerHTML = Number.isFinite(underneathLeftIndex) ? renderSinglePageHtml(underneathLeftIndex, { isActive: false }) : '';
+        if (Number.isFinite(underneathLeftIndex)) applyBackgroundToPageElement(leftPageEl, underneathLeftIndex);
     }
     if (rightPageEl) {
-        rightPageEl.innerHTML = renderSinglePageHtml(underneathRightIndex, { isActive: false });
-        applyBackgroundToPageElement(rightPageEl, underneathRightIndex);
+        rightPageEl.innerHTML = Number.isFinite(underneathRightIndex) ? renderSinglePageHtml(underneathRightIndex, { isActive: false }) : '';
+        if (Number.isFinite(underneathRightIndex)) applyBackgroundToPageElement(rightPageEl, underneathRightIndex);
     }
 
     // Trigger the flip
@@ -5771,9 +6761,27 @@ function updatePageLayout() {
     const pageLayoutEl = document.getElementById('pageLayout');
     if (pageLayoutEl) {
         state.pages[state.currentPageIndex].layout = pageLayoutEl.value;
-        renderCurrentPage();
+        // Defer to let the native <select> commit selection without being interrupted.
+        setTimeout(() => renderCurrentPage(), 0);
     }
 }
+
+function updatePagePhotoSpacing(val) {
+    if (!state.pages || state.pages.length === 0) return;
+    if (state.currentPageIndex < 0 || state.currentPageIndex >= state.pages.length) return;
+
+    const v = Math.max(0, Math.min(40, parseInt(val, 10) || 0));
+    const page = state.pages[state.currentPageIndex];
+    page.photoSpacing = v;
+
+    const label = document.getElementById('pagePhotoSpacingVal');
+    if (label) label.textContent = `${v}px`;
+
+    // Re-render so the layout gap changes immediately
+    renderCurrentPage();
+}
+
+window.updatePagePhotoSpacing = updatePagePhotoSpacing;
 
 function updatePageBackground() {
     if (state.pages.length === 0) return;
@@ -5910,6 +6918,18 @@ function openBackgroundGallery() {
     const modal = document.getElementById('backgroundGalleryModal');
     if (!modal) return;
     modal.style.display = 'flex'; // Ensure flex for centering
+
+    // Only allow "Image Frames" in the gallery for the COVER.
+    // For page photos, frames live inside the Design Studio.
+    try {
+        const isCover = state.currentPageIndex === -1;
+        const btn = document.querySelector('.gallery-tab[data-gallery-tab="imageFrames"]');
+        if (btn) btn.style.display = isCover ? '' : 'none';
+        if (!isCover && typeof currentGalleryTab !== 'undefined' && currentGalleryTab === 'imageFrames') {
+            currentGalleryTab = 'textures';
+        }
+    } catch { /* ignore */ }
+
     // Default to textures if not set
     if (typeof currentGalleryTab === 'undefined') currentGalleryTab = 'textures';
     switchGalleryTab(currentGalleryTab);
@@ -6011,16 +7031,25 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function switchGalleryTab(tab) {
+    // Prevent opening Image Frames tab for inner pages.
+    if (tab === 'imageFrames' && state.currentPageIndex !== -1) {
+        showToast(getUiLang() === 'he' ? 'מסגרות לתמונה נמצאות בסטודיו העיצוב' : 'Image frames are in the Design Studio', 'info');
+        tab = 'textures';
+        try { currentGalleryTab = tab; } catch { /* ignore */ }
+    }
+
     const tabs = document.querySelectorAll('.gallery-tab');
     tabs.forEach(t => {
-        if (t.textContent.toLowerCase().includes(tab)) {
-            t.classList.add('active');
-        } else {
-            t.classList.remove('active');
+        const k = t.getAttribute('data-gallery-tab');
+        if (k) {
+            t.classList.toggle('active', k === tab);
+            return;
         }
-        // Special case for 'paper' matching 'textures'
+        // Fallback to previous behavior if markup is older
+        if (t.textContent.toLowerCase().includes(String(tab).toLowerCase())) t.classList.add('active');
+        else t.classList.remove('active');
         if (tab === 'textures' && t.textContent.includes('Paper')) t.classList.add('active');
-        if (tab === 'typography' && t.textContent.includes('Typography')) t.classList.add('active'); // NEW
+        if (tab === 'typography' && t.textContent.includes('Typography')) t.classList.add('active');
     });
 
     // Design gallery grid id in HTML is `backgroundGalleryGrid`.
@@ -6033,18 +7062,375 @@ function switchGalleryTab(tab) {
         renderGalleryTextures(grid);
     } else if (tab === 'frames') {
         renderGalleryFrames(grid);
+    } else if (tab === 'imageFrames') {
+        renderGalleryImageFrames(grid);
     } else if (tab === 'typography') {
         renderGalleryTypography(grid); // NEW
     }
 }
+
+function getActiveImageTarget() {
+    // Cover photo
+    if (state.currentPageIndex === -1) {
+        const hasCoverPhoto = !!(state.cover?.photo?.editedData || state.cover?.photo?.thumbnailUrl || state.cover?.photoUrl);
+        return hasCoverPhoto ? { type: 'cover' } : null;
+    }
+
+    // Inner pages
+    const page = state.pages?.[state.currentPageIndex];
+    const slot = state.selectedPhotoSlot;
+    const item = (page && slot !== null && slot !== undefined) ? page.photos?.[slot] : null;
+    if (!item || item.type === 'text') return null;
+    return { type: 'page', pageIndex: state.currentPageIndex, slotIndex: slot };
+}
+
+function getCurrentImageShape() {
+    const target = getActiveImageTarget();
+    if (!target) return 'rect';
+    if (target.type === 'cover') return state.cover?.photoShape || 'rect';
+    const item = state.pages?.[target.pageIndex]?.photos?.[target.slotIndex];
+    return item?.shape || 'rect';
+}
+
+function setImageShapeForTarget(shape) {
+    const target = getActiveImageTarget();
+    if (!target) {
+        showToast(getUiLang() === 'he' ? 'בחר תמונה כדי לערוך מסגרת/צורה' : 'Select an image first', 'info');
+        return;
+    }
+    const s = String(shape || 'rect');
+    if (target.type === 'cover') {
+        state.cover.photoShape = s;
+    } else {
+        const item = state.pages?.[target.pageIndex]?.photos?.[target.slotIndex];
+        if (item) item.shape = s;
+    }
+    renderCurrentPage();
+}
+
+function applyImageShapeToAll(shape) {
+    const s = String(shape || 'rect');
+    if (state.cover) state.cover.photoShape = s;
+    (state.pages || []).forEach(p => {
+        (p.photos || []).forEach(it => {
+            if (it && it.type !== 'text') it.shape = s;
+        });
+    });
+    renderCurrentPage();
+    showToast(getUiLang() === 'he' ? 'הצורה הוחלה על כל התמונות' : 'Shape applied to all images', 'success');
+}
+
+function setImageFrameForTarget(frameId) {
+    const target = getActiveImageTarget();
+    if (!target) {
+        showToast(getUiLang() === 'he' ? 'בחר תמונה כדי לערוך מסגרת/צורה' : 'Select an image first', 'info');
+        return;
+    }
+    const id = frameId ? String(frameId) : null;
+    if (target.type === 'cover') {
+        state.cover.photoFrameId = id;
+    } else {
+        const item = state.pages?.[target.pageIndex]?.photos?.[target.slotIndex];
+        if (item) item.frameId = id;
+    }
+    renderCurrentPage();
+}
+
+function applyImageFrameToAll(frameId) {
+    const id = frameId ? String(frameId) : null;
+    if (state.cover) state.cover.photoFrameId = id;
+    (state.pages || []).forEach(p => {
+        (p.photos || []).forEach(it => {
+            if (it && it.type !== 'text') it.frameId = id;
+        });
+    });
+    renderCurrentPage();
+    showToast(getUiLang() === 'he' ? 'המסגרת הוחלה על כל התמונות' : 'Frame applied to all images', 'success');
+}
+
+function renderGalleryImageFrames(grid) {
+    const isHe = getUiLang() === 'he';
+    const frames = window.IMAGE_FRAMES || [];
+    const target = getActiveImageTarget();
+
+    grid.innerHTML = '';
+
+    // Gallery Image Frames are kept for COVER only (per UX request).
+    if (!target || target.type !== 'cover') {
+        const p = document.createElement('div');
+        p.style.gridColumn = '1 / -1';
+        p.style.textAlign = 'center';
+        p.style.padding = '20px';
+        p.style.color = '#475569';
+        p.textContent = isHe ? 'מסגרות לתמונה בעמוד נמצאות בסטודיו העיצוב.' : 'Page photo frames are in the Design Studio.';
+        grid.appendChild(p);
+        return;
+    }
+
+    // Header / controls
+    const panel = document.createElement('div');
+    panel.style.gridColumn = '1 / -1';
+    panel.style.display = 'flex';
+    panel.style.flexWrap = 'wrap';
+    panel.style.gap = '10px';
+    panel.style.alignItems = 'center';
+    panel.style.padding = '6px 2px 12px';
+
+    const help = document.createElement('div');
+    help.style.flex = '1 1 280px';
+    help.style.color = '#475569';
+    help.style.fontSize = '13px';
+    help.textContent = target
+        ? (isHe ? 'בחר צורת תמונה, ואז בחר מסגרת שמתאימה לצורה.' : 'Pick an image shape, then choose a matching frame.')
+        : (isHe ? 'בחר תמונה בעמוד או בכריכה כדי לערוך מסגרת/צורה.' : 'Select an image on a page (or cover) to edit shape/frame.');
+
+    const shapeLabel = document.createElement('span');
+    shapeLabel.style.fontWeight = '700';
+    shapeLabel.textContent = isHe ? 'צורת תמונה:' : 'Image shape:';
+
+    const shapeSelect = document.createElement('select');
+    shapeSelect.className = 'edo-select';
+    shapeSelect.style.minWidth = '180px';
+    shapeSelect.innerHTML = `
+      <option value="rect">${isHe ? 'ריבוע/מלבן' : 'Square/Rectangle'}</option>
+      <option value="rounded">${isHe ? 'פינות מעוגלות' : 'Rounded'}</option>
+      <option value="circle">${isHe ? 'עיגול' : 'Circle'}</option>
+      <option value="oval">${isHe ? 'אליפסה' : 'Oval'}</option>
+    `;
+    shapeSelect.value = getCurrentImageShape();
+    shapeSelect.onchange = () => {
+        setImageShapeForTarget(shapeSelect.value);
+        try { renderGalleryImageFrames(grid); } catch { /* ignore */ }
+    };
+
+    const applyShapeAllBtn = document.createElement('button');
+    applyShapeAllBtn.className = 'btn btn-secondary btn-small';
+    applyShapeAllBtn.textContent = isHe ? 'החל צורה על הכל' : 'Apply shape to all';
+    applyShapeAllBtn.onclick = () => applyImageShapeToAll(shapeSelect.value);
+
+    const clearFrameBtn = document.createElement('button');
+    clearFrameBtn.className = 'btn btn-ghost btn-small';
+    clearFrameBtn.textContent = isHe ? 'הסר מסגרת' : 'Clear frame';
+    clearFrameBtn.onclick = () => setImageFrameForTarget(null);
+
+    panel.appendChild(help);
+    panel.appendChild(shapeLabel);
+    panel.appendChild(shapeSelect);
+    panel.appendChild(applyShapeAllBtn);
+    panel.appendChild(clearFrameBtn);
+    grid.appendChild(panel);
+
+    if (!frames.length) {
+        const p = document.createElement('div');
+        p.style.gridColumn = '1 / -1';
+        p.style.textAlign = 'center';
+        p.style.padding = '20px';
+        p.textContent = isHe ? 'אין מסגרות לתמונות.' : 'No image frames available.';
+        grid.appendChild(p);
+        return;
+    }
+
+    const shape = shapeSelect.value;
+    const filtered = frames.filter(f => !f.shapes || f.shapes.includes(shape));
+
+    filtered.forEach(frame => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item-card';
+        item.style.border = '1px solid #ddd';
+        item.style.borderRadius = '8px';
+        item.style.overflow = 'hidden';
+        item.style.background = '#fff';
+
+        const preview = document.createElement('div');
+        preview.style.height = '180px';
+        preview.style.position = 'relative';
+        preview.style.background = 'linear-gradient(135deg, #e2e8f0, #f8fafc)';
+        preview.style.display = 'flex';
+        preview.style.alignItems = 'center';
+        preview.style.justifyContent = 'center';
+
+        const previewBox = document.createElement('div');
+        previewBox.style.width = '130px';
+        previewBox.style.height = '130px';
+        previewBox.style.position = 'relative';
+
+        const maskDiv = document.createElement('div');
+        maskDiv.style.position = 'absolute';
+        maskDiv.style.inset = '0';
+        maskDiv.style.background = 'rgba(255,255,255,0.7)';
+        maskDiv.style.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.06)';
+        maskDiv.style.overflow = 'hidden';
+        if (shape === 'circle') maskDiv.style.borderRadius = '50%';
+        else if (shape === 'oval') maskDiv.style.borderRadius = '50% / 35%';
+        else if (shape === 'rounded') maskDiv.style.borderRadius = '18px';
+        else maskDiv.style.borderRadius = '2px';
+
+        const svg = document.createElement('div');
+        svg.style.position = 'absolute';
+        svg.style.inset = '0';
+        svg.style.pointerEvents = 'none';
+        const svgContent = frame.svgGen ? frame.svgGen(1000, 1000, frame.color || '#111827', shape) : '';
+        svg.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none">${svgContent}</svg>`;
+
+        previewBox.appendChild(maskDiv);
+        previewBox.appendChild(svg);
+        preview.appendChild(previewBox);
+
+        const info = document.createElement('div');
+        info.style.padding = '12px';
+        const name = (isHe && frame.nameHe) ? frame.nameHe : frame.name;
+        const cat = (isHe && frame.categoryHe) ? frame.categoryHe : frame.category;
+        info.innerHTML = `
+          <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+            <div style="min-width:0;">
+              <div style="font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name || '')}</div>
+              <div style="font-size:12px; color:#64748b;">${escapeHtml(cat || '')}</div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-secondary btn-small" type="button">${isHe ? 'בחר' : 'Select'}</button>
+              <button class="btn btn-secondary btn-small" type="button">${isHe ? 'החל על הכל' : 'Apply All'}</button>
+            </div>
+          </div>
+        `;
+
+        const btns = info.querySelectorAll('button');
+        btns[0].onclick = (e) => { e.stopPropagation(); setImageFrameForTarget(frame.id); closeBackgroundGallery(); };
+        btns[1].onclick = (e) => { e.stopPropagation(); applyImageFrameToAll(frame.id); closeBackgroundGallery(); };
+
+        item.appendChild(preview);
+        item.appendChild(info);
+        item.onclick = () => { setImageFrameForTarget(frame.id); closeBackgroundGallery(); };
+        grid.appendChild(item);
+    });
+}
+
+function renderDesignStudioImageFrames() {
+    const isHe = getUiLang() === 'he';
+    const wrap = document.getElementById('designStudioImageFrames');
+    const section = document.getElementById('designStudioImageFramesSection');
+    if (!wrap || !section) return;
+
+    // Only show for inner page photos. (Cover frames stay in gallery.)
+    const target = getActiveImageTarget();
+    const isPagePhoto = !!(target && target.type === 'page');
+    section.style.display = isPagePhoto ? 'block' : 'none';
+    if (!isPagePhoto) return;
+
+    const frames = window.IMAGE_FRAMES || [];
+    const shape = getCurrentImageShape();
+    const pageItem = state.pages?.[target.pageIndex]?.photos?.[target.slotIndex];
+    const activeFrameId = pageItem?.frameId || null;
+
+    wrap.innerHTML = '';
+
+    // Controls row
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.flexWrap = 'wrap';
+    row.style.gap = '8px';
+    row.style.alignItems = 'center';
+    row.style.marginBottom = '10px';
+
+    const shapeSelect = document.createElement('select');
+    shapeSelect.className = 'edo-select';
+    shapeSelect.style.height = '36px';
+    shapeSelect.style.padding = '0 10px';
+    shapeSelect.style.fontSize = '13px';
+    shapeSelect.style.minWidth = '160px';
+    shapeSelect.innerHTML = `
+      <option value="rect">${isHe ? 'ריבוע/מלבן' : 'Square/Rectangle'}</option>
+      <option value="rounded">${isHe ? 'פינות מעוגלות' : 'Rounded'}</option>
+      <option value="circle">${isHe ? 'עיגול' : 'Circle'}</option>
+      <option value="oval">${isHe ? 'אליפסה' : 'Oval'}</option>
+    `;
+    shapeSelect.value = shape;
+    shapeSelect.onchange = () => {
+        setImageShapeForTarget(shapeSelect.value);
+        setTimeout(() => { try { renderDesignStudioImageFrames(); } catch { /* ignore */ } }, 0);
+    };
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn btn-secondary btn-small';
+    clearBtn.type = 'button';
+    clearBtn.textContent = isHe ? 'הסר מסגרת' : 'Clear frame';
+    clearBtn.onclick = () => {
+        setImageFrameForTarget(null);
+        setTimeout(() => { try { renderDesignStudioImageFrames(); } catch { /* ignore */ } }, 0);
+    };
+
+    row.appendChild(shapeSelect);
+    row.appendChild(clearBtn);
+    wrap.appendChild(row);
+
+    if (!frames.length) {
+        const p = document.createElement('div');
+        p.style.color = '#cbd5e1';
+        p.style.fontSize = '13px';
+        p.textContent = isHe ? 'אין מסגרות זמינות.' : 'No frames available.';
+        wrap.appendChild(p);
+        return;
+    }
+
+    // Frames grid
+    const grid = document.createElement('div');
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+    grid.style.gap = '10px';
+
+    const filtered = frames.filter(f => !f.shapes || f.shapes.includes(shapeSelect.value));
+    filtered.forEach(frame => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'btn';
+        card.style.padding = '10px';
+        card.style.borderRadius = '12px';
+        card.style.border = (activeFrameId === frame.id) ? '2px solid #818cf8' : '1px solid rgba(255,255,255,0.12)';
+        card.style.background = 'rgba(255,255,255,0.06)';
+        card.style.color = '#f8fafc';
+        card.style.textAlign = 'left';
+        card.style.cursor = 'pointer';
+
+        const name = (isHe && frame.nameHe) ? frame.nameHe : frame.name;
+        const svgContent = frame.svgGen ? frame.svgGen(1000, 1000, frame.color || '#e2e8f0', shapeSelect.value) : '';
+
+        card.innerHTML = `
+          <div style="height: 86px; border-radius: 10px; background: rgba(255,255,255,0.10); position: relative; overflow: hidden;">
+            <div style="position:absolute; inset: 10px; background: rgba(255,255,255,0.10); border-radius: ${shapeSelect.value === 'circle' ? '50%' : shapeSelect.value === 'oval' ? '50% / 35%' : shapeSelect.value === 'rounded' ? '16px' : '2px'};"></div>
+            <div style="position:absolute; inset: 0; pointer-events: none;">
+              <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none">${svgContent}</svg>
+            </div>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${escapeHtml(name || '')}
+          </div>
+        `;
+
+        card.onclick = () => {
+            setImageFrameForTarget(frame.id);
+            setTimeout(() => { try { renderDesignStudioImageFrames(); } catch { /* ignore */ } }, 0);
+        };
+
+        grid.appendChild(card);
+    });
+
+    wrap.appendChild(grid);
+}
+
+window.renderGalleryImageFrames = renderGalleryImageFrames;
+window.setImageShapeForTarget = setImageShapeForTarget;
+window.applyImageShapeToAll = applyImageShapeToAll;
+window.setImageFrameForTarget = setImageFrameForTarget;
+window.applyImageFrameToAll = applyImageFrameToAll;
 
 function renderGalleryTypography() {
     const grid = document.getElementById('backgroundGalleryGrid') || document.getElementById('galleryGrid');
     if (!grid) return;
     grid.innerHTML = '';
 
+    const isHe = getUiLang() === 'he';
+
     if (!window.TEXT_STYLES) {
-        grid.innerHTML = '<p>Loading text styles...</p>';
+        grid.innerHTML = `<p>${isHe ? 'טוען סגנונות טקסט…' : 'Loading text styles...'}</p>`;
         return;
     }
 
@@ -6064,11 +7450,11 @@ function renderGalleryTypography() {
 
         div.innerHTML = `
             <div class="gallery-item-preview" style="display:flex; align-items:center; justify-content:center; background:#f5f5f5; height:120px;">
-                <span style="font-size: 32px; ${styleString}">${style.previewText}</span>
+                <span style="font-size: 32px; ${styleString}">${(isHe && style.previewTextHe) ? style.previewTextHe : style.previewText}</span>
             </div>
             <div class="gallery-item-info">
-                <span class="gallery-item-name">${style.name}</span>
-                <span class="gallery-item-category">${style.category}</span>
+                <span class="gallery-item-name">${(isHe && style.nameHe) ? style.nameHe : style.name}</span>
+                <span class="gallery-item-category">${(isHe && style.categoryHe) ? style.categoryHe : style.category}</span>
             </div>
         `;
         div.onclick = () => applyTextStyle(style);
@@ -6135,13 +7521,16 @@ function applyTextStyle(styleObj) {
 function renderGalleryFramesLocal(grid) {
     const frames = window.PAGE_FRAMES || [];
     if (frames.length === 0) {
-        grid.innerHTML = '<p>No frames available.</p>';
+        grid.innerHTML = `<p>${getUiLang() === 'he' ? 'אין מסגרות זמינות.' : 'No frames available.'}</p>`;
         return;
     }
+    const isHe = getUiLang() === 'he';
     frames.forEach(frame => {
         const item = document.createElement('div');
         // Simple SVG Preview
         const svgContent = frame.svgGen ? frame.svgGen(140, 180, frame.color) : '';
+        const frameName = (isHe && frame.nameHe) ? frame.nameHe : frame.name;
+        const frameCat = (isHe && frame.categoryHe) ? frame.categoryHe : frame.category;
 
         item.innerHTML = `
             <div class="gallery-item-card" style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s; position: relative;">
@@ -6154,10 +7543,10 @@ function renderGalleryFramesLocal(grid) {
                 <div style="padding: 12px; border-top:1px solid #eee;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                          <div>
-                            <div style="font-weight: 600; font-size: 15px;">${frame.name}</div>
-                            <div style="font-size: 12px; color: #666;">${frame.category}</div>
+                            <div style="font-weight: 600; font-size: 15px;">${frameName}</div>
+                            <div style="font-size: 12px; color: #666;">${frameCat}</div>
                          </div>
-                         <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyFrameToAllPages('${frame.id}')">Apply All</button>
+                         <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyFrameToAllPages('${frame.id}')">${isHe ? 'החל על הכל' : 'Apply All'}</button>
                     </div>
                 </div>
             </div>
@@ -6170,9 +7559,11 @@ function renderGalleryTextures(grid) {
     // Standard Background Textures
     const textures = window.BACKGROUND_TEXTURES || [];
     if (textures.length === 0) {
-        grid.innerHTML = '<p>No backgrounds available.</p>';
+        grid.innerHTML = `<p>${getUiLang() === 'he' ? 'אין רקעים זמינים.' : 'No backgrounds available.'}</p>`;
         return;
     }
+
+    const isHe = getUiLang() === 'he';
 
     textures.forEach(bg => {
         const item = document.createElement('div');
@@ -6188,21 +7579,22 @@ function renderGalleryTextures(grid) {
             </div>`;
         }
 
-        const typeLabel = isTheme ? 'Full Theme' : 'Texture Only';
+        const typeLabel = isTheme ? (isHe ? 'תבנית מלאה' : 'Full Theme') : (isHe ? 'טקסטורה בלבד' : 'Texture Only');
+        const bgName = (isHe && bg.nameHe) ? bg.nameHe : bg.name;
 
         item.innerHTML = `
             <div class="gallery-item-card" style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s; position: relative;">
             <div style="height: 180px; overflow: hidden; background: #eee; position:relative; cursor: pointer;" onclick="selectBackgroundFromGallery('${bg.id}')">
-                <img src="${bg.thumbnail}" alt="${bg.name}" style="width: 100%; height: 100%; object-fit: cover;">
-                ${isTheme ? '<div style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.9); color:#1a1a1a; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,0.1);">TEMPLATE</div>' : ''}
+                <img src="${bg.thumbnail}" alt="${bgName}" style="width: 100%; height: 100%; object-fit: cover;">
+                ${isTheme ? `<div style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.9); color:#1a1a1a; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,0.1);">${isHe ? 'תבנית' : 'TEMPLATE'}</div>` : ''}
             </div>
             <div style="padding: 12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                      <div>
-                        <div style="font-weight: 600; font-size: 15px;">${bg.name}</div>
+                        <div style="font-weight: 600; font-size: 15px;">${bgName}</div>
                         <div style="font-size: 12px; color: #666;">${typeLabel}</div>
                      </div>
-                     <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyBackgroundToAllPages('${bg.id}')">Apply All</button>
+                     <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyBackgroundToAllPages('${bg.id}')">${isHe ? 'החל על הכל' : 'Apply All'}</button>
                 </div>
                 ${themePreview}
             </div>
@@ -6213,7 +7605,7 @@ function renderGalleryTextures(grid) {
 }
 
 function applyBackgroundToAllPages(id) {
-    if (!confirm('Apply this design to ALL pages in your book?')) return;
+    if (!confirm(getUiLang() === 'he' ? 'להחיל את העיצוב הזה על כל העמודים באלבום?' : 'Apply this design to ALL pages in your book?')) return;
 
     const textures = window.BACKGROUND_TEXTURES || [];
     const bg = textures.find(t => t.id === id);
@@ -6243,7 +7635,7 @@ function applyBackgroundToAllPages(id) {
     // 3. Re-render
     renderCurrentPage();
     closeBackgroundGallery();
-    showToast('Design applied to all pages!', 'success');
+    showToast(getUiLang() === 'he' ? 'העיצוב הוחל על כל העמודים!' : 'Design applied to all pages!', 'success');
 }
 
 function applyFrameToPage(frameId) {
@@ -6260,11 +7652,11 @@ function applyFrameToPage(frameId) {
     // Re-render
     renderCurrentPage();
     closeBackgroundGallery();
-    showToast('Frame applied!');
+    showToast(getUiLang() === 'he' ? 'המסגרת הוחלה!' : 'Frame applied!');
 }
 
 function applyFrameToAllPages(frameId) {
-    if (!confirm('Apply this frame to ALL pages?')) return;
+    if (!confirm(getUiLang() === 'he' ? 'להחיל את המסגרת הזאת על כל העמודים?' : 'Apply this frame to ALL pages?')) return;
 
     state.pages.forEach(page => {
         page.frameId = frameId;
@@ -6275,20 +7667,23 @@ function applyFrameToAllPages(frameId) {
 
     renderCurrentPage();
     closeBackgroundGallery();
-    showToast('Frame applied to all pages!', 'success');
+    showToast(getUiLang() === 'he' ? 'המסגרת הוחלה על כל העמודים!' : 'Frame applied to all pages!', 'success');
 }
 
 function renderGalleryFrames(grid) {
     const frames = window.PAGE_FRAMES || [];
     if (frames.length === 0) {
-        grid.innerHTML = '<p>No frames available.</p>';
+        grid.innerHTML = `<p>${getUiLang() === 'he' ? 'אין מסגרות זמינות.' : 'No frames available.'}</p>`;
         return;
     }
+    const isHe = getUiLang() === 'he';
     grid.innerHTML = ''; // Clear
     frames.forEach(frame => {
         const item = document.createElement('div');
         // Simple SVG Preview
         const svgContent = frame.svgGen ? frame.svgGen(140, 180, frame.color) : '';
+        const frameName = (isHe && frame.nameHe) ? frame.nameHe : frame.name;
+        const frameCat = (isHe && frame.categoryHe) ? frame.categoryHe : frame.category;
 
         item.innerHTML = `
             <div class="gallery-item-card" style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s; position: relative;">
@@ -6301,10 +7696,10 @@ function renderGalleryFrames(grid) {
                 <div style="padding: 12px; border-top:1px solid #eee;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                          <div>
-                            <div style="font-weight: 600; font-size: 15px;">${frame.name}</div>
-                            <div style="font-size: 12px; color: #666;">${frame.category}</div>
+                            <div style="font-weight: 600; font-size: 15px;">${frameName}</div>
+                            <div style="font-size: 12px; color: #666;">${frameCat}</div>
                          </div>
-                         <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyFrameToAllPages('${frame.id}')">Apply All</button>
+                         <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyFrameToAllPages('${frame.id}')">${isHe ? 'החל על הכל' : 'Apply All'}</button>
                     </div>
                 </div>
             </div>
@@ -6425,6 +7820,66 @@ async function searchDesignApi() {
             window.BACKGROUND_TEXTURES.push(r);
         }
     });
+
+    // IMPORTANT: Keep the live editor cover text in-sync.
+    // renderCurrentPage() sets inline styles on <h1>/<h3>, so without this the editor
+    // won't reflect color changes until a full rerender.
+    try {
+        const styleObj = (state.coverTextStyle && window.TEXT_STYLES)
+            ? window.TEXT_STYLES.find(s => s.id === state.coverTextStyle)
+            : null;
+
+        coverRoots.forEach(root => {
+            const titleEl = root.querySelector('.book3d-cover-inner h1');
+            if (titleEl) {
+                titleEl.textContent = title;
+                titleEl.style.fontSize = `${parseInt(titleSize) || 36}px`;
+                titleEl.style.fontFamily = `'${titleFont}', serif`;
+
+                // Reset, then apply style, then force user color
+                titleEl.style.textShadow = 'none';
+                titleEl.style.background = 'none';
+                titleEl.style.webkitTextFillColor = 'initial';
+                titleEl.style.transform = 'none';
+
+                if (styleObj && styleObj.style) {
+                    Object.assign(titleEl.style, styleObj.style);
+                    titleEl.style.fontSize = `${parseInt(titleSize) || 36}px`;
+                    if (!styleObj.style.fontFamily) {
+                        titleEl.style.fontFamily = `'${titleFont}', serif`;
+                    }
+                }
+
+                titleEl.style.color = titleColor;
+                titleEl.style.webkitTextFillColor = titleColor;
+            }
+
+            const subtitleEl = root.querySelector('.book3d-cover-inner h3');
+            if (subtitleEl) {
+                subtitleEl.textContent = subtitle;
+                subtitleEl.style.fontSize = `${parseInt(subtitleSize) || 14}px`;
+                subtitleEl.style.fontFamily = `'${subtitleFont}', serif`;
+
+                subtitleEl.style.textShadow = 'none';
+                subtitleEl.style.background = 'none';
+                subtitleEl.style.webkitTextFillColor = 'initial';
+                subtitleEl.style.opacity = '0.9';
+
+                if (styleObj && styleObj.style) {
+                    const appliedStyle = { ...styleObj.style };
+                    delete appliedStyle.fontSize; // keep manual size control
+                    Object.assign(subtitleEl.style, appliedStyle);
+                    subtitleEl.style.fontSize = `${parseInt(subtitleSize) || 14}px`;
+                    if (!appliedStyle.fontFamily) {
+                        subtitleEl.style.fontFamily = `'${subtitleFont}', serif`;
+                    }
+                }
+
+                subtitleEl.style.color = subtitleColor;
+                subtitleEl.style.webkitTextFillColor = subtitleColor;
+            }
+        });
+    } catch { /* ignore */ }
 }
 
 function selectBackgroundFromGallery(id) {
@@ -6633,8 +8088,9 @@ function selectPhotoForSlot(slotIndex) {
                 id: photo.id || ('text-' + Date.now()),
                 content: String(photo.content || ''),
                 styleId: photo.styleId || 'default',
-                rotation: 0,
-                fontSize: 32,
+                rotation: Number.isFinite(photo.rotation) ? photo.rotation : 0,
+                fontSize: Number.isFinite(photo.fontSize) ? photo.fontSize : 32,
+                shadowStrength: Number.isFinite(photo.shadowStrength) ? photo.shadowStrength : 0,
             };
         } else {
             // Initialize photo with alignment and position data
@@ -6647,6 +8103,13 @@ function selectPhotoForSlot(slotIndex) {
         }
         state.selectedPhotoSlot = slotIndex;
         renderCurrentPage();
+
+        // If user picked text, open Typography Studio (not Design Studio)
+        if (page.photos[slotIndex] && page.photos[slotIndex].type === 'text') {
+            try {
+                requestAnimationFrame(() => setTimeout(() => openTextStudio(slotIndex), 0));
+            } catch { /* ignore */ }
+        }
     };
     openPhotoPicker();
 }
@@ -6747,6 +8210,14 @@ function selectPhotoSlot(slotIndex) {
 // Replaces handleReplacePhotoClick with a menu option
 function showPhotoOptions(slotIndex, event) {
     if (event) event.stopPropagation();
+
+    // If this slot contains text, open Typography Studio instead of photo editor.
+    const page = state.pages?.[state.currentPageIndex];
+    const item = page?.photos?.[slotIndex];
+    if (item && item.type === 'text') {
+        try { openTextStudio(slotIndex); } catch { /* ignore */ }
+        return;
+    }
 
     // Create modal if not exists
     let modal = document.getElementById('photoOptionsModal');
@@ -6859,7 +8330,7 @@ function ensureTextStudioModal() {
     modal.innerHTML = `
       <div class="modal-content" style="max-width: 720px; width: 92vw;">
         <div class="modal-header">
-          <h3>Text Studio</h3>
+          <h3>Typography Studio</h3>
           <button class="close-btn" onclick="closeTextStudio()">&times;</button>
         </div>
         <div class="modal-body" style="display:flex; gap:16px; align-items:stretch;">
@@ -6875,13 +8346,13 @@ function ensureTextStudioModal() {
 
             <label style="font-size:12px; color:#6b7280; font-weight:700;">Size</label>
             <div style="display:flex; align-items:center; gap:10px;">
-              <input id="tsSize" type="range" min="10" max="80" value="32" style="flex:1;">
+              <input id="tsSize" type="range" min="10" max="120" value="32" style="flex:1;">
               <span id="tsSizeVal" style="width:48px; text-align:right; font-size:12px;">32px</span>
             </div>
 
             <label style="font-size:12px; color:#6b7280; font-weight:700;">Rotate</label>
             <div style="display:flex; align-items:center; gap:10px;">
-              <input id="tsRotate" type="range" min="-45" max="45" value="0" style="flex:1;">
+              <input id="tsRotate" type="range" min="-180" max="180" value="0" style="flex:1;">
               <span id="tsRotateVal" style="width:40px; text-align:right; font-size:12px;">0°</span>
             </div>
 
@@ -6891,7 +8362,10 @@ function ensureTextStudioModal() {
               <span id="tsShadowVal" style="width:40px; text-align:right; font-size:12px;">0</span>
             </div>
 
-            <button class="btn btn-primary" onclick="applyTextStudio()">Apply</button>
+            <div style="display:flex; gap:10px; margin-top: 6px;">
+              <button class="btn btn-primary" style="flex:1;" onclick="applyTextStudio()">Apply</button>
+              <button class="btn btn-secondary" style="flex:1;" onclick="closeTextStudio()">Cancel</button>
+            </div>
           </div>
         </div>
       </div>
@@ -6926,7 +8400,10 @@ function openTextStudio(slotIndex) {
     if (sel) {
         sel.innerHTML = `<option value="default">Default</option>` +
             (window.TEXT_STYLES || []).map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
-        sel.value = item.styleId || 'default';
+        // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+        if (document.activeElement !== sel) {
+            sel.value = item.styleId || 'default';
+        }
     }
     if (ta) ta.value = item.content || '';
     if (size) size.value = String(Number.isFinite(item.fontSize) ? item.fontSize : 32);
@@ -6942,7 +8419,7 @@ function openTextStudio(slotIndex) {
         const fs = parseInt(size?.value || '32', 10) || 32;
         const r = parseInt(rot?.value || '0', 10) || 0;
         const ss = parseInt(sh?.value || '0', 10) || 0;
-        const shadow = ss > 0 ? `filter: drop-shadow(0 2px ${Math.max(1, ss/10)}px rgba(0,0,0,${Math.min(0.7, ss/140)}));` : '';
+        const shadow = ss > 0 ? `filter: drop-shadow(0 2px ${Math.max(1, ss / 10)}px rgba(0,0,0,${Math.min(0.7, ss / 140)}));` : '';
         const preview = document.getElementById('textStudioPreview');
         if (preview) {
             preview.innerHTML = `<span style="${css}; font-size:${fs}px; display:inline-block; transform: rotate(${r}deg); transform-origin:center; max-width:100%; white-space:pre-wrap; word-break:break-word; ${shadow}">${escapeHtml(ta?.value || '')}</span>`;
@@ -6953,11 +8430,11 @@ function openTextStudio(slotIndex) {
     };
 
     // Bind live preview
-    ta?.addEventListener('input', refresh, {once: true});
-    sel?.addEventListener('change', refresh, {once: true});
-    size?.addEventListener('input', refresh, {once: true});
-    rot?.addEventListener('input', refresh, {once: true});
-    sh?.addEventListener('input', refresh, {once: true});
+    ta?.addEventListener('input', refresh, { once: true });
+    sel?.addEventListener('change', refresh, { once: true });
+    size?.addEventListener('input', refresh, { once: true });
+    rot?.addEventListener('input', refresh, { once: true });
+    sh?.addEventListener('input', refresh, { once: true });
     // Re-bind without once by re-adding handlers each open:
     ta && (ta.oninput = refresh);
     sel && (sel.onchange = refresh);
@@ -7272,7 +8749,10 @@ function ensurePageTextControls() {
         const current = select.value;
         select.innerHTML = `<option value="default">Default</option>` +
             styles.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
-        if (current) select.value = current;
+        // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+        if (current && document.activeElement !== select) {
+            select.value = current;
+        }
     };
     fillStyles();
 
@@ -7336,7 +8816,10 @@ function updateTextSlotControls() {
             select.innerHTML = `<option value="default">Default</option>` +
                 styles.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
         }
-        select.value = item.styleId || 'default';
+        // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+        if (document.activeElement !== select) {
+            select.value = item.styleId || 'default';
+        }
     }
 
     const rot = Number.isFinite(item.rotation) ? item.rotation : 0;
@@ -8551,7 +10034,10 @@ function updateCoverFromState() {
     if (coverTitleColorEl) coverTitleColorEl.value = state.cover.titleColor || '#ffffff';
 
     const coverTitleFontEl = document.getElementById('coverTitleFont');
-    if (coverTitleFontEl) coverTitleFontEl.value = state.cover.titleFont || 'Playfair Display';
+    // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+    if (coverTitleFontEl && document.activeElement !== coverTitleFontEl) {
+        coverTitleFontEl.value = state.cover.titleFont || 'Playfair Display';
+    }
 
     const subtitleEl = document.getElementById('coverSubtitle');
     if (subtitleEl) subtitleEl.value = state.cover.subtitle || '';
@@ -8565,6 +10051,12 @@ function updateCoverFromState() {
 
     const subtitleSizeValEl = document.getElementById('coverSubtitleSizeVal');
     if (subtitleSizeValEl) subtitleSizeValEl.textContent = (state.cover.subtitleSize || 14) + 'px';
+
+    const coverSubtitleFontEl = document.getElementById('coverSubtitleFont');
+    // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+    if (coverSubtitleFontEl && document.activeElement !== coverSubtitleFontEl) {
+        coverSubtitleFontEl.value = state.cover.subtitleFont || (state.cover.titleFont || 'Playfair Display');
+    }
 
     const showBorderEl = document.getElementById('coverShowBorder');
     if (showBorderEl) showBorderEl.checked = state.cover.showBorder !== false;
@@ -8585,7 +10077,10 @@ function updateCoverFromState() {
 
     // Update Layout & Custom Controls
     const layoutEl = document.getElementById('coverLayout');
-    if (layoutEl) layoutEl.value = state.cover.layout || 'standard';
+    // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+    if (layoutEl && document.activeElement !== layoutEl) {
+        layoutEl.value = state.cover.layout || 'standard';
+    }
 
     const photoSizeEl = document.getElementById('coverPhotoSize');
     if (photoSizeEl) photoSizeEl.value = state.cover.photoSize || 100;
@@ -8598,16 +10093,31 @@ function updateCoverFromState() {
     if (photoAngleValEl) photoAngleValEl.textContent = (state.cover.photoAngle || 0) + '°';
 
     const globalCornerRadiusEl = document.getElementById('globalCornerRadius');
-    if (globalCornerRadiusEl) globalCornerRadiusEl.value = state.globalCornerRadius || 0;
+    // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+    if (globalCornerRadiusEl && document.activeElement !== globalCornerRadiusEl) {
+        globalCornerRadiusEl.value = state.globalCornerRadius || 0;
+    }
 
     const globalCornerRadiusCoverEl = document.getElementById('globalCornerRadiusCover');
-    if (globalCornerRadiusCoverEl) globalCornerRadiusCoverEl.value = state.globalCornerRadius || 0;
+    // Avoid mutating a focused <select> while user is interacting with it (can close the dropdown)
+    if (globalCornerRadiusCoverEl && document.activeElement !== globalCornerRadiusCoverEl && document.activeElement !== globalCornerRadiusEl) {
+        globalCornerRadiusCoverEl.value = state.globalCornerRadius || 0;
+    }
 
     updateCoverPreview();
 
     const slot = document.getElementById('coverPhotoSlot');
-    if (slot && state.cover.photo && state.cover.photo.thumbnailUrl) {
-        slot.innerHTML = `<img src="${state.cover.photo.thumbnailUrl}" alt="Cover photo">`;
+    const isSafeImgSrc = (src) => {
+        if (!src || typeof src !== 'string') return false;
+        const s = src.trim();
+        if (!s) return false;
+        if (s.startsWith('data:') || s.startsWith('blob:')) return true;
+        if (!/^https?:\/\//i.test(s)) return true;
+        try { return new URL(s, window.location.href).origin === window.location.origin; } catch { return false; }
+    };
+    const coverThumb = state?.cover?.photo?.thumbnailUrl;
+    if (slot && state.cover.photo && isSafeImgSrc(coverThumb)) {
+        slot.innerHTML = `<img src="${coverThumb}" alt="Cover photo">`;
         slot.onclick = selectCoverPhoto;
         slot.style.cursor = 'pointer';
     } else if (slot) {
@@ -8756,17 +10266,21 @@ function switchPageSide(side) {
     if (state.currentPageIndex < 0) return; // Cover
 
     const base = Math.floor(state.currentPageIndex / 2) * 2;
-    const leftIndex = base;
-    const rightIndex = base + 1;
+    const total = state.pages.length;
+    const logicalLeftIndex = base;
+    const logicalRightIndex = (base + 1 < total) ? (base + 1) : null;
+    const isRtl = (document?.documentElement?.getAttribute('dir') || 'ltr') === 'rtl';
+    const leftIndex = isRtl ? logicalRightIndex : logicalLeftIndex;
+    const rightIndex = isRtl ? logicalLeftIndex : logicalRightIndex;
 
     if (side === 'left') {
-        if (state.currentPageIndex !== leftIndex) {
+        if (Number.isFinite(leftIndex) && state.currentPageIndex !== leftIndex) {
             state.currentPageIndex = leftIndex;
             renderCurrentPage();
         }
     } else if (side === 'right') {
         // Only if right page exists
-        if (rightIndex < state.pages.length) {
+        if (Number.isFinite(rightIndex) && rightIndex < state.pages.length) {
             if (state.currentPageIndex !== rightIndex) {
                 state.currentPageIndex = rightIndex;
                 renderCurrentPage();
@@ -9031,7 +10545,10 @@ function collectBookData() {
             alignment: photo.alignment || 'center',
             customX: photo.customX,
             customY: photo.customY,
-            caption: photo.caption || null
+            caption: photo.caption || null,
+            // Per-image mask + frame (non-destructive)
+            shape: photo.shape || null,
+            frameId: photo.frameId || null,
         };
     };
 
@@ -9077,6 +10594,8 @@ function collectBookData() {
         title: state.cover.title || (bookTitleEl ? bookTitleEl.value : null) || 'My Photo Book',
         pageFormat: (pageFormatEl ? pageFormatEl.value : null) || 'square-8x8',
         coverPhoto: coverPhoto,
+        coverPhotoShape: state.cover?.photoShape || null,
+        coverPhotoFrameId: state.cover?.photoFrameId || null,
         coverBackground: state.cover.backgroundColor || (template ? template.cover.backgroundColor : currentTheme.colors.bg),
         coverTextColor: state.cover.titleColor || (template ? template.cover.titleColor : currentTheme.colors.primary),
         coverTitleSize: state.cover.titleSize || (template ? template.cover.titleSize : 36),
@@ -10315,16 +11834,33 @@ window.openDesignStudio = function () {
     const page = state.pages[state.currentPageIndex];
     let slotIndex = state.selectedPhotoSlot;
 
+    // If the selected slot is text, open Typography Studio instead.
+    if (slotIndex !== null && slotIndex !== undefined) {
+        const candidate = page?.photos?.[slotIndex];
+        if (candidate && candidate.type === 'text') {
+            try { openTextStudio(slotIndex); } catch { /* ignore */ }
+            return;
+        }
+    }
+
     // If no slot is strictly "selected" (clicked), try to find the first populated slot
     if (slotIndex === null || slotIndex === undefined) {
         // Find first slot with a photo
-        const index = page.photos.findIndex(p => p && (p.editedData || p.thumbnailUrl || p.baseUrl));
+        const index = page.photos.findIndex(p => p && p.type !== 'text' && (p.editedData || p.thumbnailUrl || p.baseUrl));
         if (index >= 0) {
             slotIndex = index;
             // Select it visually
             state.selectedPhotoSlot = slotIndex;
             renderCurrentPage();
         } else {
+            // If the page only has text, open Typography Studio on first text slot.
+            const textIndex = page.photos.findIndex(p => p && p.type === 'text');
+            if (textIndex >= 0) {
+                state.selectedPhotoSlot = textIndex;
+                renderCurrentPage();
+                try { openTextStudio(textIndex); } catch { /* ignore */ }
+                return;
+            }
             showToast('Please select a photo to design.');
             return;
         }
@@ -10336,10 +11872,16 @@ window.openDesignStudio = function () {
         return;
     }
 
+    // Ensure selection is set (used by frame/shape logic)
+    state.selectedPhotoSlot = slotIndex;
+
     // 2. Open Modal
     const modal = document.getElementById('designStudioModal');
     if (modal) {
         modal.classList.add('active');
+
+        // Render frame controls for this photo
+        try { renderDesignStudioImageFrames(); } catch { /* ignore */ }
 
         // 3. Initialize Design Editor with the photo
         const src = photo.editedData || photo.thumbnailUrl || photo.baseUrl;
@@ -10415,3 +11957,6 @@ window.closeDesignStudio = function () {
     const modal = document.getElementById('designStudioModal');
     if (modal) modal.classList.remove('active');
 };
+
+// Expose for debugging / manual refresh
+window.renderDesignStudioImageFrames = renderDesignStudioImageFrames;

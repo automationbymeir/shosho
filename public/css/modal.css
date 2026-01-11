@@ -56,6 +56,39 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
+}
+
+.modal-header h2,
+.modal-header h3 {
+    min-width: 0; /* allow flex children to shrink without overflow */
+}
+
+/* Design Gallery header: prevent "Search with AI" truncation */
+#backgroundGalleryModal .modal-header {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+#backgroundGalleryModal .modal-header h2 {
+    margin: 0;
+    flex: 1 1 220px;
+}
+
+#backgroundGalleryModal .gallery-tabs {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#backgroundGalleryModal #searchDesignBtn {
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    #backgroundGalleryModal #searchDesignBtn {
+        flex: 1 1 100%;
+    }
 }
 
 .modal-header h3 {

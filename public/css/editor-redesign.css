@@ -874,6 +874,11 @@
     z-index: 10000;
 }
 
+/* RTL: flip navigation chevrons so they match reading direction */
+html[dir="rtl"] .floating-toolbar .nav-btn svg {
+    transform: scaleX(-1);
+}
+
 .nav-btn {
     width: 36px;
     height: 36px;

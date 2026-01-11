@@ -299,6 +299,22 @@ body {
 /* =====================================================
    RTL / HEBREW SUPPORT
    ===================================================== */
+/* In Hebrew mode, default to Arial across the app */
+html[lang="he"] {
+  --font-serif: Arial, 'Heebo', Georgia, serif;
+  --font-sans: Arial, 'Heebo', sans-serif;
+  --font-body: Arial, 'Heebo', sans-serif;
+}
+
+html[lang="he"] body,
+html[lang="he"] button,
+html[lang="he"] .btn,
+html[lang="he"] input,
+html[lang="he"] select,
+html[lang="he"] textarea {
+  font-family: Arial, 'Heebo', sans-serif;
+}
+
 html[dir="rtl"] body {
   direction: rtl;
 }
@@ -1176,7 +1192,7 @@ input[type="checkbox"] {
   position: absolute;
   inset: 0;
   padding: 2rem;
-  gap: 16px;
+  gap: var(--layout-gap, 16px);
   box-sizing: border-box;
   /* If a layout is missing explicit rows, still fill the page */
   grid-auto-rows: 1fr;
@@ -1566,7 +1582,7 @@ input[type="checkbox"] {
   display: grid;
   width: 100%;
   height: 100%;
-  gap: 20px;
+  gap: var(--layout-gap, 20px);
   padding: 3rem;
   /* Inner page margin */
   background: transparent;
@@ -2020,9 +2036,17 @@ input[type="checkbox"] {
   box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.25);
 }
 
-.page-thumbnail-card.status-empty { border-color: #cbd5e1; }
-.page-thumbnail-card.status-partial { border-color: #f59e0b; }
-.page-thumbnail-card.status-complete { border-color: #22c55e; }
+.page-thumbnail-card.status-empty {
+  border-color: #cbd5e1;
+}
+
+.page-thumbnail-card.status-partial {
+  border-color: #f59e0b;
+}
+
+.page-thumbnail-card.status-complete {
+  border-color: #22c55e;
+}
 
 .page-thumb-surface {
   position: relative;
@@ -2043,10 +2067,25 @@ input[type="checkbox"] {
   pointer-events: none;
 }
 
-.page-thumb-slots.slots-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
-.page-thumb-slots.slots-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
-.page-thumb-slots.slots-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.page-thumb-slots.slots-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.page-thumb-slots.slots-1 {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.page-thumb-slots.slots-2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.page-thumb-slots.slots-3 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.page-thumb-slots.slots-4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
 
 .page-thumb-slot {
   background: rgba(255, 255, 255, 0.55);
@@ -2107,9 +2146,17 @@ input[type="checkbox"] {
   pointer-events: none;
 }
 
-.page-thumbnail-card.status-empty .page-thumb-badge { background: rgba(100, 116, 139, 0.85); }
-.page-thumbnail-card.status-partial .page-thumb-badge { background: rgba(245, 158, 11, 0.9); }
-.page-thumbnail-card.status-complete .page-thumb-badge { background: rgba(34, 197, 94, 0.9); }
+.page-thumbnail-card.status-empty .page-thumb-badge {
+  background: rgba(100, 116, 139, 0.85);
+}
+
+.page-thumbnail-card.status-partial .page-thumb-badge {
+  background: rgba(245, 158, 11, 0.9);
+}
+
+.page-thumbnail-card.status-complete .page-thumb-badge {
+  background: rgba(34, 197, 94, 0.9);
+}
 
 /* Photo Selection Popup - Animated */
 .photo-selection-popup {
@@ -2956,22 +3003,42 @@ input[type="checkbox"] {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   z-index: 10000;
-  min-width: 300px;
+  min-width: 320px;
   max-width: 500px;
   display: none;
+  /* Fix for RTL cutting off content */
+  direction: ltr;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+/* Ensure text inputs verify direction based on user input */
+.text-editor-panel input[type="text"] {
+  direction: auto;
+  text-align: left;
+}
+
+.text-editor-panel input[type="text"]:dir(rtl) {
+  text-align: right;
 }
 
 .text-editor-content {
   padding: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .text-editor-content h4 {
   margin-bottom: 1rem;
   color: var(--color-primary);
+  text-align: center;
 }
 
 .text-editor-content .control-group {
   margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .text-editor-content .control-group label {
@@ -5102,9 +5169,33 @@ input:checked+.slider:before {
   gap: 16px;
 }
 
+/* In the sidebar panels, stack label + control vertically to avoid clipping */
+.editor-settings-panel .setting-group:not(.flex-group):not(.sidebar-control-group) {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+
+.editor-settings-panel .setting-group:not(.flex-group):not(.sidebar-control-group) label {
+  width: 100%;
+  text-transform: none;
+  /* Hebrew + long labels shouldn't be forced uppercase */
+  white-space: normal;
+  overflow: visible;
+}
+
+.editor-settings-panel .setting-group textarea,
+.editor-settings-panel .setting-group select,
+.editor-settings-panel .setting-group input[type="text"],
+.editor-settings-panel .setting-group input[type="number"] {
+  width: 100%;
+}
+
 .editor-settings-panel .setting-card {
   margin-bottom: 0;
 }
+
 /* Error Repair Placeholder */
 .load-error {
   position: relative;
@@ -5114,6 +5205,7 @@ input:checked+.slider:before {
   justify-content: center;
   min-height: 100px;
 }
+
 .error-placeholder {
   cursor: pointer;
   color: #856404;
@@ -5126,8 +5218,9 @@ input:checked+.slider:before {
   border-radius: 4px;
   width: 90%;
 }
+
 .error-placeholder:hover {
   background: #fff;
   text-decoration: underline;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }

@@ -8,8 +8,11 @@ const PHOTO_BOOK_TEMPLATES = {
   'classic': {
     id: 'classic',
     name: 'Classic Minimal',
+    nameHe: 'קלאסי מינימלי',
     description: 'Timeless elegance with ample whitespace',
+    descriptionHe: 'אלגנטיות נצחית עם הרבה מרווחים',
     category: 'Minimalist',
+    categoryHe: 'מינימליסטי',
     preview: {
       coverColor: '#FFFFFF',
       accentColor: '#1E3932',
@@ -58,8 +61,11 @@ const PHOTO_BOOK_TEMPLATES = {
   'botanical': {
     id: 'botanical',
     name: 'Vintage Botanical',
+    nameHe: 'בוטניקה וינטג׳',
     description: 'Inspired by 19th-century flora illustrations',
+    descriptionHe: 'בהשראת איורי פלורה מהמאה ה‑19',
     category: 'Nature',
+    categoryHe: 'טבע',
     preview: {
       coverColor: '#F3F4F0',
       accentColor: '#2C5F2D',
@@ -107,8 +113,11 @@ const PHOTO_BOOK_TEMPLATES = {
   'archive': {
     id: 'archive',
     name: 'The Archive',
+    nameHe: 'הארכיון',
     description: 'Sepia tones and typewriter aesthetics',
+    descriptionHe: 'גווני ספיה ואסתטיקת מכונת כתיבה',
     category: 'Vintage',
+    categoryHe: 'וינטג׳',
     preview: {
       coverColor: '#F0E6D2',
       accentColor: '#8B4513',
@@ -156,8 +165,11 @@ const PHOTO_BOOK_TEMPLATES = {
   'noir-film': {
     id: 'noir-film',
     name: 'Noir Filmstrip',
+    nameHe: 'סרט נואר',
     description: 'High-contrast cinematic pages with filmstrip framing',
+    descriptionHe: 'דפים קולנועיים בקונטרסט גבוה עם מסגרת פילם',
     category: 'Cinematic',
+    categoryHe: 'קולנועי',
     preview: {
       coverColor: '#0B0D10',
       accentColor: '#E63946',
@@ -206,8 +218,11 @@ const PHOTO_BOOK_TEMPLATES = {
   'bauhaus-pop': {
     id: 'bauhaus-pop',
     name: 'Bauhaus Pop',
+    nameHe: 'באוהאוס פופ',
     description: 'Bold geometry, playful color blocks, modern gallery feel',
+    descriptionHe: 'גאומטריה נועזת, בלוקים צבעוניים, תחושת גלריה מודרנית',
     category: 'Graphic',
+    categoryHe: 'גרפי',
     preview: {
       coverColor: '#FFF6E6',
       accentColor: '#005BBB',

@@ -43,22 +43,47 @@ const MIN_DPI_REJECT = 150; // Strong warning below this
 // PAGE SIZE CONFIGURATIONS
 // ============================================
 
-function safeFilename(name) {
+function safeDisplayFilename(name) {
+  // Keep Unicode (Hebrew) for display, but remove path separators.
   const raw = String(name || "My Photo Book.pdf");
-  // Avoid path separators and odd characters in the filename.
   return raw
       .replace(/[\\/]/g, "-")
-      .replace(/[^\w\s.\-()]/g, "_")
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 180);
+}
+
+function safeAsciiFilename(name) {
+  // Conservative ASCII fallback (some clients ignore filename*).
+  const raw = safeDisplayFilename(name);
+  const cleaned = raw
+      .replace(/[^A-Za-z0-9\s.\-()_]/g, "_")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 180);
+  return cleaned || "Photo Book.pdf";
+}
+
+function encodeRFC5987ValueChars(str) {
+  // RFC 5987: filename*=UTF-8''<pct-encoded>
+  return encodeURIComponent(String(str || ""))
+      .replace(/['()]/g, escape) // i.e. %27 %28 %29
+      .replace(/\*/g, "%2A")
+      .replace(/%(7C|60|5E)/g, (m) => m.toLowerCase());
+}
+
+function buildContentDisposition(type, displayName) {
+  const unicodeName = safeDisplayFilename(displayName);
+  const asciiName = safeAsciiFilename(displayName);
+  return `${type}; filename="${asciiName}"; filename*=UTF-8''${encodeRFC5987ValueChars(unicodeName)}`;
 }
 
 async function uploadPdfToStorage(userId, filename, pdfBuffer) {
   const bucket = admin.storage().bucket();
   const bucketName = bucket.name;
   const token = crypto.randomUUID();
-  const safeName = safeFilename(filename);
+  const displayName = safeDisplayFilename(filename);
+  const safeName = safeAsciiFilename(filename);
 
   const filePath = `pdf/${userId}/${Date.now()}_${safeName}`;
   const file = bucket.file(filePath);
@@ -67,7 +92,7 @@ async function uploadPdfToStorage(userId, filename, pdfBuffer) {
     resumable: false,
     metadata: {
       contentType: "application/pdf",
-      contentDisposition: `inline; filename="${safeName}"`,
+      contentDisposition: buildContentDisposition("inline", displayName),
       cacheControl: "private, max-age=0, no-transform",
       metadata: {
         firebaseStorageDownloadTokens: token,
@@ -79,8 +104,8 @@ async function uploadPdfToStorage(userId, filename, pdfBuffer) {
   const base = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
 
   // Provide both an inline (view) link and an attachment (download) link.
-  const pdfUrl = `${base}&response-content-disposition=${encodeURIComponent(`inline; filename="${safeName}"`)}`;
-  const pdfDownloadUrl = `${base}&response-content-disposition=${encodeURIComponent(`attachment; filename="${safeName}"`)}`;
+  const pdfUrl = `${base}&response-content-disposition=${encodeURIComponent(buildContentDisposition("inline", displayName))}`;
+  const pdfDownloadUrl = `${base}&response-content-disposition=${encodeURIComponent(buildContentDisposition("attachment", displayName))}`;
 
   return {
     pdfId: filePath,
@@ -98,7 +123,7 @@ async function uploadPdfToDrive(userId, filename, pdfBuffer) {
   const drive = google.drive({version: "v3", auth: oauth2Client});
 
   const fileMetadata = {
-    name: safeFilename(filename || "Photo Book.pdf"),
+    name: safeDisplayFilename(filename || "Photo Book.pdf"),
     mimeType: "application/pdf",
   };
 
@@ -202,7 +227,6 @@ async function generateBookpodCoverPdf(userId, bookData) {
     console.error("Advanced cover generation failed, falling back to basic:", e);
 
     // Fallback: Ensure we have a page
-    // Fallback: Ensure we have a page
     try {doc.addPage({size: "A4", margin: 0});} catch (err) {/* ignore */}
 
     const w = doc.page.width;
@@ -211,17 +235,27 @@ async function generateBookpodCoverPdf(userId, bookData) {
     // Background
     doc.rect(0, 0, w, h).fillColor(bgColor).fill();
 
-    // Title
+    // Title - use proper Hebrew RTL handling
     doc.fillColor(textColor);
-    doc.font("Helvetica-Bold");
-    doc.fontSize(32);
-    doc.text(title, 48, h * 0.55, {width: w - 96, align: "center"});
+    const preparedTitle = preparePdfText(title, {latinFont: "Helvetica-Bold", hebrewFont: HEBREW_FONT_BOLD});
+    doc.font(preparedTitle.font).fontSize(32);
+    drawTextBlock(doc, title, 48, h * 0.55, w - 96, {
+      font: preparedTitle.font,
+      fontSize: 32,
+      align: "center",
+      isHebrew: preparedTitle.isHebrew,
+    });
 
+    // Subtitle - use proper Hebrew RTL handling
     if (subtitle && subtitle.trim()) {
-      doc.font("Helvetica");
-      doc.fontSize(14);
-      doc.fillColor(textColor);
-      doc.text(subtitle, 60, h * 0.55 + 52, {width: w - 120, align: "center"});
+      const preparedSub = preparePdfText(subtitle, {latinFont: "Helvetica", hebrewFont: HEBREW_FONT_REGULAR});
+      doc.font(preparedSub.font).fontSize(14).fillColor(textColor);
+      drawTextBlock(doc, subtitle, 60, h * 0.55 + 52, w - 120, {
+        font: preparedSub.font,
+        fontSize: 14,
+        align: "center",
+        isHebrew: preparedSub.isHebrew,
+      });
     }
   }
 
@@ -674,6 +708,32 @@ function getLayoutPositionsForPrint(layout, pageSize, margins, designData) {
   return layouts[layout] || layouts.single;
 }
 
+function drawPhotoCaption(doc, caption, pos, opts = {}) {
+  if (!caption) return;
+  const text = String(caption || "").trim();
+  if (!text) return;
+
+  const fontSize = Math.max(9, Math.min(13, parseInt(opts.fontSize, 10) || 10));
+  const color = opts.color || "#475569";
+  const paddingX = 6;
+  const height = Math.max(14, parseInt(opts.height, 10) || 18);
+  const y = (pos.y + pos.height) - height;
+
+  const prepared = preparePdfText(text, {latinFont: "Times-Italic", hebrewFont: HEBREW_FONT_REGULAR});
+  doc.save();
+  // subtle background strip for readability
+  doc.fillColor("#ffffff", 0.55).rect(pos.x, y - 2, pos.width, height + 4).fill();
+  doc.font(prepared.font).fontSize(fontSize).fillColor(color);
+  drawTextBlock(doc, text, pos.x + paddingX, y, Math.max(1, pos.width - paddingX * 2), {
+    font: prepared.font,
+    fontSize,
+    align: "center",
+    isHebrew: prepared.isHebrew,
+    lineGap: 1,
+  });
+  doc.restore();
+}
+
 // ============================================
 // TEXT HANDLING (Hebrew Support)
 // ============================================
@@ -699,24 +759,28 @@ function containsHebrew(text) {
 
 function rtlize(text) {
   if (!text || typeof text !== "string") return text;
-  // Proper bidi reordering (fixes mixed Hebrew/English rendering).
-  // PDFKit doesn't implement Unicode BiDi; we must feed visually-ordered text.
+  // PDFKit lays text out left-to-right and does NOT implement Unicode BiDi.
+  // To make RTL (Hebrew) read correctly in the rendered PDF, we must feed
+  // a visually-reordered string (so that when drawn LTR it appears RTL).
+  // Inspired by PdfSharpWithHebrewSupport approach: preprocess text to reorder
+  // RTL runs before rendering, similar to what getReorderedString provides.
   try {
     // eslint-disable-next-line global-require
     const bidiFactory = require("bidi-js");
     const bidi = bidiFactory();
-    const embedding = bidi.getEmbeddingLevels(text, "rtl");
-    const segments = bidi.getReorderSegments(text, embedding);
-    const chars = text.split("");
-    // Reverse the specified ranges in-place (visual order)
-    segments.forEach(([start, end]) => {
-      const seg = chars.slice(start, end + 1).reverse();
-      chars.splice(start, end - start + 1, ...seg);
-    });
-    return "\u200F" + chars.join("");
+
+    // For an LTR renderer (PDFKit), we need visual order suitable for LTR.
+    // getReorderedString returns the visually correct string for LTR rendering.
+    // Base direction "ltr" ensures proper handling of mixed LTR/RTL content.
+    const embeddingLevels = bidi.getEmbeddingLevels(text, "ltr");
+    const reorderedText = bidi.getReorderedString(text, embeddingLevels);
+
+    // Return reordered text without RLM to avoid double-reversal by smart viewers
+    return reorderedText;
   } catch (e) {
-    // Fallback: naive reversal (better than nothing, but can scramble mixed text)
-    return "\u200F" + Array.from(text).reverse().join("");
+    console.warn("bidi-js failed, using fallback:", e);
+    // Fallback: naive reversal
+    return Array.from(text).reverse().join("");
   }
 }
 
@@ -751,6 +815,262 @@ function preparePdfText(text, fonts) {
   const isHeb = containsHebrew(text);
   if (!isHeb) return {text, font: getSafeFont(fonts.latinFont), isHebrew: false};
   return {text: rtlize(text), font: fonts.hebrewFont, isHebrew: true};
+}
+
+/**
+ * PDFKit does NOT do RTL layout or BiDi-aware wrapping. If we call doc.text()
+ * with a width, PDFKit wraps left-to-right which breaks Hebrew sentence order.
+ *
+ * Fix: do our own word-wrapping on the logical string, then apply BiDi (rtlize)
+ * per line, and draw each line manually with right/center alignment.
+ */
+function wrapHebrewLines(doc, logicalText, width, opts = {}) {
+  const text = String(logicalText || "");
+  const font = opts.font || HEBREW_FONT_REGULAR;
+  const fontSize = Math.max(6, parseInt(opts.fontSize, 10) || 12);
+  const maxW = Math.max(1, width || 1);
+
+  doc.font(font).fontSize(fontSize);
+
+  const paragraphs = text.split(/\r?\n/);
+  /** @type {string[]} */
+  const lines = [];
+
+  for (let pi = 0; pi < paragraphs.length; pi++) {
+    const para = String(paragraphs[pi] || "").trim();
+    if (!para) {
+      // Preserve empty lines
+      lines.push("");
+      continue;
+    }
+
+    const words = para.split(/\s+/).filter(Boolean);
+    let current = "";
+
+    for (const word of words) {
+      const cand = current ? `${current} ${word}` : word;
+      const candVisual = rtlize(cand);
+      const candW = doc.widthOfString(candVisual);
+
+      if (!current || candW <= maxW) {
+        current = cand;
+        continue;
+      }
+
+      lines.push(current);
+      current = word;
+    }
+
+    if (current) lines.push(current);
+    if (pi < paragraphs.length - 1) lines.push(""); // paragraph gap as a blank line
+  }
+
+  return lines;
+}
+
+function measureTextBlockHeight(doc, logicalText, width, opts = {}) {
+  const font = opts.font || "Helvetica";
+  const fontSize = Math.max(6, parseInt(opts.fontSize, 10) || 12);
+  const align = opts.align || "left";
+  const isHebrew = !!opts.isHebrew;
+  const lineGap = Math.max(0, parseInt(opts.lineGap, 10) || 0);
+
+  doc.font(font).fontSize(fontSize);
+
+  if (!isHebrew) {
+    // For non-Hebrew, PDFKit wrapping is OK.
+    return doc.heightOfString(String(logicalText || ""), {width: Math.max(1, width || 1), align});
+  }
+
+  const lines = wrapHebrewLines(doc, logicalText, width, {font, fontSize});
+  const lh = doc.currentLineHeight(true);
+  return Math.max(1, lines.length) * lh + Math.max(0, lines.length - 1) * lineGap;
+}
+
+function drawTextBlock(doc, logicalText, x, y, width, opts = {}) {
+  const font = opts.font || "Helvetica";
+  const fontSize = Math.max(6, parseInt(opts.fontSize, 10) || 12);
+  const align = opts.align || "left";
+  const isHebrew = !!opts.isHebrew;
+  const lineGap = Math.max(0, parseInt(opts.lineGap, 10) || 0);
+
+  doc.font(font).fontSize(fontSize);
+
+  if (!isHebrew) {
+    doc.text(String(logicalText || ""), x, y, {width: Math.max(1, width || 1), align});
+    return;
+  }
+
+  const lines = wrapHebrewLines(doc, logicalText, width, {font, fontSize});
+  const lh = doc.currentLineHeight(true);
+  let yy = y;
+
+  for (const line of lines) {
+    if (!line) {
+      yy += lh + lineGap;
+      continue;
+    }
+
+    const visual = rtlize(line);
+    const w = doc.widthOfString(visual);
+    const boxW = Math.max(1, width || 1);
+
+    let xx = x;
+    if (align === "right") xx = x + boxW - w;
+    else if (align === "center") xx = x + (boxW - w) / 2;
+
+    doc.text(visual, xx, yy, {lineBreak: false});
+    yy += lh + lineGap;
+  }
+}
+
+// ============================================
+// PER-IMAGE SHAPES + FRAMES (PDF)
+// ============================================
+function normalizeImageShape(shape) {
+  const s = String(shape || "").toLowerCase();
+  if (s === "circle" || s === "oval" || s === "rounded" || s === "rect") return s;
+  return "rect";
+}
+
+function clipImageShape(doc, x, y, w, h, shape, cornerRadius) {
+  const s = normalizeImageShape(shape);
+  if (s === "circle" || s === "oval") {
+    // Note: circle in a non-square box becomes an ellipse. That's acceptable for print.
+    doc.ellipse(x + w / 2, y + h / 2, w / 2, h / 2).clip();
+    return;
+  }
+  if (s === "rounded") {
+    const r = Math.max(6, Number(cornerRadius) || 0);
+    doc.roundedRect(x, y, w, h, r).clip();
+    return;
+  }
+  // rect: no clip needed (caller may still clip for rounded corners)
+}
+
+function drawImageFrame(doc, x, y, w, h, frameId, shape, cornerRadius) {
+  const id = String(frameId || "");
+  if (!id) return;
+
+  const s = normalizeImageShape(shape);
+  const base = {
+    "imgframe-classic-gold": {color: "#D4AF37", type: "double"},
+    "imgframe-stitched": {color: "#475569", type: "dashed"},
+    "imgframe-polaroid": {color: "#FFFFFF", type: "polaroid"},
+    "imgframe-artdeco": {color: "#C0C0C0", type: "artdeco"},
+    "imgframe-botanical-corners": {color: "#2C5F2D", type: "corners"},
+    "imgframe-beaded": {color: "#94a3b8", type: "dots"},
+    "imgframe-ink-double": {color: "#111827", type: "double-ink"},
+    "imgframe-scallop": {color: "#0f766e", type: "dashed-soft"},
+    "imgframe-neon": {color: "#06b6d4", type: "double-soft"},
+    "imgframe-minimal-hairline": {color: "#0f172a", type: "single-thin"},
+    "imgframe-dots-gold": {color: "#BF953F", type: "dots"},
+    "imgframe-filmstrip": {color: "#111827", type: "filmstrip"},
+    "imgframe-watercolor": {color: "#60a5fa", type: "wash"},
+    "imgframe-geo-lines": {color: "#0f766e", type: "geo"},
+    "imgframe-oval-laurel": {color: "#16a34a", type: "dashed"},
+  }[id];
+
+  if (!base) return;
+  const color = base.color;
+  const r = Math.max(6, Number(cornerRadius) || 0);
+
+  doc.save();
+  doc.strokeColor(color);
+
+  const strokeRect = (lw, inset = 0, dash = null) => {
+    doc.lineWidth(lw);
+    if (dash) doc.dash(dash[0], {space: dash[1]});
+    if (s === "circle" || s === "oval") {
+      doc.ellipse(x + w / 2, y + h / 2, w / 2 - inset, h / 2 - inset).stroke();
+    } else if (s === "rounded") {
+      doc.roundedRect(x + inset, y + inset, w - inset * 2, h - inset * 2, Math.max(6, r - inset)).stroke();
+    } else {
+      doc.rect(x + inset, y + inset, w - inset * 2, h - inset * 2).stroke();
+    }
+    if (dash) doc.undash();
+  };
+
+  if (base.type === "double") {
+    strokeRect(3.2, 0);
+    strokeRect(1.2, 10);
+  } else if (base.type === "double-ink") {
+    strokeRect(2.6, 0);
+    strokeRect(0.8, 14);
+  } else if (base.type === "single-thin") {
+    strokeRect(0.9, 0);
+  } else if (base.type === "dashed") {
+    strokeRect(1.6, 0, [6, 10]);
+  } else if (base.type === "dashed-soft") {
+    strokeRect(2.2, 0, [2, 10]);
+    strokeRect(0.8, 12);
+  } else if (base.type === "double-soft") {
+    strokeRect(2.2, 0);
+    doc.strokeColor("#a5f3fc");
+    strokeRect(0.9, 10);
+  } else if (base.type === "polaroid") {
+    // Thick white border + subtle inner gray
+    doc.strokeColor("#ffffff");
+    doc.lineWidth(14);
+    strokeRect(14, 0);
+    doc.strokeColor("#e5e7eb");
+    strokeRect(1.2, 14);
+  } else if (base.type === "artdeco") {
+    strokeRect(2.0, 0);
+    doc.lineWidth(1.2);
+    // corner lines
+    const m = 10;
+    doc.moveTo(x + m, y + 120).lineTo(x + 120, y + m).stroke();
+    doc.moveTo(x + w - m, y + 120).lineTo(x + w - 120, y + m).stroke();
+    doc.moveTo(x + m, y + h - 120).lineTo(x + 120, y + h - m).stroke();
+    doc.moveTo(x + w - m, y + h - 120).lineTo(x + w - 120, y + h - m).stroke();
+  } else if (base.type === "corners") {
+    strokeRect(1.1, 0);
+    doc.lineWidth(1.6);
+    const len = 60;
+    doc.moveTo(x + 12, y + 12 + len).lineTo(x + 12, y + 12).lineTo(x + 12 + len, y + 12).stroke();
+    doc.moveTo(x + w - 12 - len, y + 12).lineTo(x + w - 12, y + 12).lineTo(x + w - 12, y + 12 + len).stroke();
+    doc.moveTo(x + 12, y + h - 12 - len).lineTo(x + 12, y + h - 12).lineTo(x + 12 + len, y + h - 12).stroke();
+    doc.moveTo(x + w - 12 - len, y + h - 12).lineTo(x + w - 12, y + h - 12).lineTo(x + w - 12, y + h - 12 - len).stroke();
+  } else if (base.type === "dots") {
+    strokeRect(0.8, 0);
+    doc.fillColor(color);
+    const n = 18;
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const cxTop = x + t * w;
+      const cyLeft = y + t * h;
+      doc.circle(cxTop, y, 2.2).fill();
+      doc.circle(cxTop, y + h, 2.2).fill();
+      doc.circle(x, cyLeft, 2.2).fill();
+      doc.circle(x + w, cyLeft, 2.2).fill();
+    }
+  } else if (base.type === "filmstrip") {
+    strokeRect(2.2, 0);
+    doc.fillColor(color, 0.55);
+    const holes = 10;
+    for (let i = 0; i < holes; i++) {
+      const t = (i + 0.5) / holes;
+      const yy = y + t * h;
+      doc.roundedRect(x - 18, yy - 10, 12, 20, 3).fill();
+      doc.roundedRect(x + w + 6, yy - 10, 12, 20, 3).fill();
+    }
+  } else if (base.type === "wash") {
+    // soft thick stroke + inner thin
+    doc.strokeColor(color, 0.25);
+    strokeRect(16, 0);
+    doc.strokeColor(color, 0.65);
+    strokeRect(2.2, 10);
+  } else if (base.type === "geo") {
+    strokeRect(1.8, 0);
+    doc.lineWidth(1.4);
+    doc.moveTo(x, y + 90).lineTo(x + 90, y).stroke();
+    doc.moveTo(x + w, y + 90).lineTo(x + w - 90, y).stroke();
+    doc.moveTo(x, y + h - 90).lineTo(x + 90, y + h).stroke();
+    doc.moveTo(x + w, y + h - 90).lineTo(x + w - 90, y + h).stroke();
+  }
+
+  doc.restore();
 }
 
 /**
@@ -1164,8 +1484,11 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
           doc.translate(x + finalWidth / 2, y + finalHeight / 2);
           doc.rotate(angle);
 
-          // Apply Border Radius (Clipping)
-          if (cornerRadius > 0) {
+          // Apply Shape Mask (Clipping)
+          const coverShape = bookData.coverPhotoShape || bookData.cover?.photoShape || bookData.coverPhoto?.shape || "rect";
+          if (coverShape && coverShape !== "rect") {
+            clipImageShape(doc, -finalWidth / 2, -finalHeight / 2, finalWidth, finalHeight, coverShape, cornerRadius);
+          } else if (cornerRadius > 0) {
             doc.roundedRect(-finalWidth / 2, -finalHeight / 2, finalWidth, finalHeight, cornerRadius).clip();
           }
 
@@ -1197,6 +1520,12 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
             } else {
               doc.rect(-finalWidth / 2 - 2, -finalHeight / 2 - 2, finalWidth + 4, finalHeight + 4).stroke(); // Expands slightly if sharp
             }
+          }
+
+          // Per-image frame overlay (goes around the selected image)
+          const coverFrameId = bookData.coverPhotoFrameId || bookData.cover?.photoFrameId || null;
+          if (coverFrameId) {
+            drawImageFrame(doc, -finalWidth / 2, -finalHeight / 2, finalWidth, finalHeight, coverFrameId, coverShape, cornerRadius);
           }
 
           doc.restore();
@@ -1321,26 +1650,26 @@ async function createChapterTitlePage(doc, chapter, pageSize, pageNumber, bookDa
   const centerY = pageSize.height / 2 - 50;
 
   const preparedName = preparePdfText(chapter.name, {latinFont: "Times-Bold", hebrewFont: HEBREW_FONT_BOLD});
-  doc
-      .fontSize(42)
-      .font(preparedName.font)
-      .fillColor(chapterColor)
-      .text(preparedName.text, margins.left, centerY, {
-        width: pageSize.width - margins.left - margins.right,
-        align: "center",
-      });
+  doc.font(preparedName.font).fontSize(42).fillColor(chapterColor);
+  drawTextBlock(doc, chapter.name, margins.left, centerY, pageSize.width - margins.left - margins.right, {
+    font: preparedName.font,
+    fontSize: 42,
+    align: "center",
+    isHebrew: preparedName.isHebrew,
+    lineGap: 2,
+  });
 
   // Subtitle
   if (chapter.subtitle) {
     const preparedSub = preparePdfText(chapter.subtitle, {latinFont: "Helvetica", hebrewFont: HEBREW_FONT_REGULAR});
-    doc
-        .fontSize(16)
-        .font(preparedSub.font)
-        .fillColor("#666666")
-        .text(preparedSub.text, margins.left, centerY + 55, {
-          width: pageSize.width - margins.left - margins.right,
-          align: "center",
-        });
+    doc.font(preparedSub.font).fontSize(16).fillColor("#666666");
+    drawTextBlock(doc, chapter.subtitle, margins.left, centerY + 55, pageSize.width - margins.left - margins.right, {
+      font: preparedSub.font,
+      fontSize: 16,
+      align: "center",
+      isHebrew: preparedSub.isHebrew,
+      lineGap: 2,
+    });
   }
 
   // Photo count
@@ -1415,11 +1744,23 @@ async function createContentPageFromPhoto(doc, photo, pageSize, accessToken, pag
     // Image
     if (cornerRadius > 0) {
       doc.save();
-      doc.roundedRect(x, y, fit.width, fit.height, cornerRadius).clip();
+      const shape = photo?.shape || "rect";
+      const frameId = photo?.frameId || null;
+      if (shape && String(shape).toLowerCase() !== "rect") {
+        clipImageShape(doc, x, y, fit.width, fit.height, shape, cornerRadius);
+      } else {
+        doc.roundedRect(x, y, fit.width, fit.height, cornerRadius).clip();
+      }
       doc.image(imageData.buffer, x, y, {width: fit.width, height: fit.height});
+      if (frameId) {
+        drawImageFrame(doc, x, y, fit.width, fit.height, frameId, shape, cornerRadius);
+      }
       doc.restore();
     } else {
       doc.image(imageData.buffer, x, y, {width: fit.width, height: fit.height});
+      const shape = photo?.shape || "rect";
+      const frameId = photo?.frameId || null;
+      if (frameId) drawImageFrame(doc, x, y, fit.width, fit.height, frameId, shape, 0);
     }
 
     console.log(`✓ Photo: ${fit.width.toFixed(0)}×${fit.height.toFixed(0)}pt at ${Math.round(imageData.effectiveDPI)} DPI`);
@@ -1545,13 +1886,23 @@ async function createBackCoverPage(doc, bookData, pageSize, pageNumber) {
   const safeBottom = pageSize.height - (margins.bottom || 40);
 
   // Measure heights to avoid clipping; place near bottom but inside safe area.
-  // Use same shaping rules as drawPageText (fixes Hebrew/English mixing)
+  // IMPORTANT: Hebrew requires custom wrapping (PDFKit wraps LTR).
   const prepMain = preparePdfText(text, {latinFont: fontName, hebrewFont: HEBREW_FONT_REGULAR});
   const prepSub = preparePdfText(subtitle, {latinFont: fontName, hebrewFont: HEBREW_FONT_REGULAR});
-  doc.font(prepMain.font).fontSize(textSize);
-  const textH = doc.heightOfString(prepMain.text, {width: safeW, align});
-  doc.font(prepSub.font).fontSize(subtitleSize);
-  const subH = subtitle ? doc.heightOfString(prepSub.text, {width: safeW, align}) : 0;
+  const textH = measureTextBlockHeight(doc, text, safeW, {
+    font: prepMain.font,
+    fontSize: textSize,
+    align,
+    isHebrew: prepMain.isHebrew,
+    lineGap: 2,
+  });
+  const subH = subtitle ? measureTextBlockHeight(doc, subtitle, safeW, {
+    font: prepSub.font,
+    fontSize: subtitleSize,
+    align,
+    isHebrew: prepSub.isHebrew,
+    lineGap: 2,
+  }) : 0;
 
   const gap = subtitle ? 10 : 0;
   const blockH = textH + gap + subH;
@@ -1804,7 +2155,9 @@ async function generatePrintReadyPdf(userId, bookData) {
     }
 
     const layout = page.layout || "single";
-    const positions = getLayoutPositionsForPrint(layout, pageSize, margins, null);
+    const positions = getLayoutPositionsForPrint(layout, pageSize, margins, {
+      data: {layout: {photoSpacing: Number.isFinite(page.photoSpacing) ? page.photoSpacing : undefined}},
+    });
     const photos = (page.photos || []).filter((p) => p && (p.baseUrl || p.editedImageData || p.thumbnailUrl || p.type === "text"));
 
     // Parallelize image fetching for this page
@@ -1829,7 +2182,7 @@ async function generatePrintReadyPdf(userId, bookData) {
         }));
       } else {
         imagePromises.push(fetchImageForPrint(item, accessToken, positions[i]).then((result) => ({
-          result, index: i, position: positions[i],
+          result, index: i, position: positions[i], source: item,
         })));
       }
     }
@@ -1838,7 +2191,7 @@ async function generatePrintReadyPdf(userId, bookData) {
     const fetchedImages = await Promise.all(imagePromises);
 
     for (const item of fetchedImages) {
-      const {result, position} = item;
+      const {result, position, source} = item;
 
       if (result.isText) {
         drawPageText(doc, result.content, result.styleId, position, {
@@ -1867,21 +2220,41 @@ async function generatePrintReadyPdf(userId, bookData) {
           // Clip to the actual drawn image rect (not the whole slot),
           // otherwise "contain/fit" leaves sharp-cornered images inside a rounded slot.
           const cornerRadius = getCornerRadiusPoints(bookData);
+          const captionText = source?.caption || null;
+          const captionH = captionText ? 18 : 0;
           const fit = calculateFitDimensions(
               imageData.width,
               imageData.height,
               position.width,
-              position.height,
+              Math.max(1, position.height - captionH),
           );
           const x = position.x + (position.width - fit.width) / 2;
-          const y = position.y + (position.height - fit.height) / 2;
+          const y = position.y + ((position.height - captionH) - fit.height) / 2;
 
-          if (cornerRadius > 0) {
+          const shape = source?.shape || null;
+          const frameId = source?.frameId || null;
+          if (shape && String(shape).toLowerCase() !== "rect") {
+            clipImageShape(doc, x, y, fit.width, fit.height, shape, cornerRadius);
+          } else if (cornerRadius > 0) {
             doc.roundedRect(x, y, fit.width, fit.height, cornerRadius).clip();
           }
           doc.image(imageData.buffer, x, y, {width: fit.width, height: fit.height});
 
+          // Frame overlay (after drawing image, before restore so it matches clip/coords)
+          if (frameId) {
+            drawImageFrame(doc, x, y, fit.width, fit.height, frameId, shape, cornerRadius);
+          }
+
           doc.restore();
+
+          // Caption (styled)
+          if (captionText) {
+            drawPhotoCaption(doc, captionText, position, {
+              fontSize: 10,
+              height: captionH,
+              color: page?.templateData?.colors?.captionColor || page?.colors?.captionColor || "#475569",
+            });
+          }
         } catch (err) {
           console.error(`Error drawing image on page ${pageNumber}:`, err);
         }
@@ -2048,14 +2421,21 @@ function drawPageText(doc, content, styleId, pos, opts = {}) {
   const hebFont = String(style.font || "").toLowerCase().includes("bold") ? HEBREW_FONT_BOLD : HEBREW_FONT_REGULAR;
   const baseFont = fontNameOverride || style.font || "Helvetica";
   const prepared = preparePdfText(rawText, {latinFont: baseFont, hebrewFont: hebFont});
-  const text = prepared.text;
+  // For Hebrew we keep the LOGICAL text for wrapping and apply BiDi per line at draw-time.
+  const text = prepared.isHebrew ? rawText : prepared.text;
   const activeFont = prepared.isHebrew ? prepared.font : getSafeFont(baseFont);
 
   // Determine font size that fits the slot (avoids clipping/cut-off)
   try {
     doc.font(activeFont).fontSize(fontSize);
     for (let i = 0; i < 10; i++) {
-      const th = doc.heightOfString(text, {width: box.width, align});
+      const th = measureTextBlockHeight(doc, text, box.width, {
+        font: activeFont,
+        fontSize,
+        align,
+        isHebrew: prepared.isHebrew,
+        lineGap: 2,
+      });
       if (th <= box.height) break;
       fontSize = Math.max(10, Math.floor(fontSize * 0.9));
       doc.fontSize(fontSize);
@@ -2067,7 +2447,13 @@ function drawPageText(doc, content, styleId, pos, opts = {}) {
   // Compute vertical centering
   let y = box.y;
   try {
-    const th = doc.heightOfString(text, {width: box.width, align});
+    const th = measureTextBlockHeight(doc, text, box.width, {
+      font: activeFont,
+      fontSize,
+      align,
+      isHebrew: prepared.isHebrew,
+      lineGap: 2,
+    });
     y = box.y + (box.height - th) / 2;
   } catch {
     y = box.y + box.height / 2;
@@ -2080,7 +2466,13 @@ function drawPageText(doc, content, styleId, pos, opts = {}) {
     doc.save();
     doc.opacity(opacity);
     doc.font(activeFont).fontSize(fontSize).fillColor(fill || "#333333");
-    doc.text(text, box.x, y, {width: box.width, align});
+    drawTextBlock(doc, text, box.x, y, box.width, {
+      font: activeFont,
+      fontSize,
+      align,
+      isHebrew: prepared.isHebrew,
+      lineGap: 2,
+    });
     doc.restore();
   };
 
@@ -2099,7 +2491,13 @@ function drawPageText(doc, content, styleId, pos, opts = {}) {
     doc.save();
     doc.font(activeFont).fontSize(fontSize).fillColor(outlineColor || "#000000");
     offsets.forEach(([dx, dy]) => {
-      doc.text(text, box.x + dx, y + dy, {width: box.width, align});
+      drawTextBlock(doc, text, box.x + dx, y + dy, box.width, {
+        font: activeFont,
+        fontSize,
+        align,
+        isHebrew: prepared.isHebrew,
+        lineGap: 2,
+      });
     });
     doc.restore();
   };
