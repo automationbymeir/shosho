@@ -1,3 +1,4 @@
+
 // ============================================
 // PHOTO BOOK CREATOR - MAIN APPLICATION
 // ============================================
@@ -521,6 +522,151 @@ function resetClassicAlbumStateToDefaults() {
 }
 
 /**
+ * Show the Template Gallery and hide other views.
+ */
+function showTemplateGallery() {
+    const galleryView = document.getElementById('templateGalleryView');
+    const editorView = document.getElementById('editorView');
+    const mdView = document.getElementById('memoryDirectorView');
+    if (galleryView) galleryView.style.display = 'block';
+    if (editorView) editorView.style.display = 'none';
+    if (mdView) mdView.style.display = 'none';
+
+    // Ensure gallery is initialized
+    initTemplateGallery();
+
+    // Also ensuring repair button is present
+    injectRepairPermissionsButton();
+}
+
+/**
+ * Initialize the template gallery grid from BACKGROUND_TEXTURES
+ */
+function initTemplateGallery() {
+    const grid = document.getElementById('templateGalleryGrid');
+    if (!grid) return;
+
+    // Clear existing
+    grid.innerHTML = '';
+
+    // Check if we have textures
+    const textures = window.BACKGROUND_TEXTURES || [];
+    if (textures.length === 0) {
+        grid.innerHTML = '<p>No templates found.</p>';
+        return;
+    }
+
+    textures.forEach(template => {
+        const card = document.createElement('div');
+        card.className = 'template-card';
+        card.style.cssText = 'border: 1px solid #ddd; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s; background: white;';
+        card.onmouseover = () => card.style.transform = 'scale(1.02)';
+        card.onmouseout = () => card.style.transform = 'scale(1)';
+
+        const img = document.createElement('img');
+        img.src = template.thumbnail || template.url;
+        img.alt = template.name;
+        img.style.cssText = 'width: 100%; height: 200px; object-fit: cover; display: block;';
+
+        const info = document.createElement('div');
+        info.style.padding = '12px';
+        info.innerHTML = `<h3 style="margin:0; font-size:16px; color: #333;">${template.name}</h3><p style="margin:4px 0 0; color:#666; font-size:14px;">${template.category}</p>`;
+
+        card.appendChild(img);
+        card.appendChild(info);
+
+        card.onclick = () => selectGalleryTemplate(template);
+        grid.appendChild(card);
+    });
+}
+
+/**
+ * Handle template selection from gallery
+ */
+function selectGalleryTemplate(template) {
+    if (!template) return;
+
+    // Set state
+    if (typeof state !== 'undefined') {
+        state.selectedTemplate = template;
+        state.currentTheme = template.id; // Fallback
+    }
+
+    // Apply template logic if available
+    if (typeof applyTemplate === 'function') {
+        applyTemplate(template);
+    } else if (typeof applyTemplateToUI === 'function') {
+        applyTemplateToUI(template);
+    }
+
+    // Switch view
+    const galleryView = document.getElementById('templateGalleryView');
+    const editorView = document.getElementById('editorView');
+    if (galleryView) galleryView.style.display = 'none';
+    if (editorView) editorView.style.display = 'block';
+
+    // Initialize editor state if needed
+    if (typeof renderCurrentPage === 'function') renderCurrentPage();
+}
+
+/**
+ * Inject a "Repair Permissions" button into the header if missing.
+ */
+function injectRepairPermissionsButton() {
+    // Look for .header-right in the editor view
+    const headerRight = document.querySelector('.header-right');
+    if (!headerRight) return;
+
+    if (document.getElementById('btnRepairPermissions')) return; // Already exists
+
+    const btn = document.createElement('button');
+    btn.id = 'btnRepairPermissions';
+    btn.className = 'btn-header btn-header-ghost';
+    btn.style.cssText = 'color: #ef4444; border-color: #ef4444; display: inline-flex; margin-right: 8px;';
+    btn.title = "Repair Google Photos Connection";
+    btn.innerHTML = `
+        <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+        </span>
+        Repair Connection
+    `;
+
+    btn.onclick = async () => {
+        const ok = confirm("This will re-connect to Google Photos to fix loading issues. Continue?");
+        if (!ok) return;
+
+        try {
+            if (typeof requestGooglePhotosAuthorization === 'function') {
+                await requestGooglePhotosAuthorization();
+                // After auth, try to refresh images
+                if (typeof rehydrateThumbnailsFromBaseUrls === 'function') {
+                    await rehydrateThumbnailsFromBaseUrls();
+                }
+                alert("Connection repaired! Images should load now.");
+            } else {
+                alert("Repair function not found. Please reload.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to repair: " + e.message);
+        }
+    };
+
+    // Insert as first item
+    headerRight.insertBefore(btn, headerRight.firstChild);
+}
+
+// Auto-inject on load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectRepairPermissionsButton);
+} else {
+    injectRepairPermissionsButton();
+}
+
+
+/**
  * Start a brand-new album from anywhere (any template / editor / Memory Director).
  * Clears current state and then shows template options for the user to choose.
  */
@@ -803,53 +949,233 @@ function persistDraftToStorage(reason = 'auto') {
     }
 }
 
+/**
+ * Robustly fetch thumbnails, automatically refreshing expired URLs if needed.
+ * @param {Array<Object>} items - Array of objects { id, baseUrl, isLocal, ... }
+ * @param {Object} opts - { batchSize, onProgress(current, total) }
+ * @returns {Promise<Map<string, string>>} Map of currentBaseUrl -> thumbnailUrl
+ */
+async function refreshAndFetchThumbnails(items, opts = {}) {
+    const { batchSize = 12, onProgress } = opts;
+    const itemsToFetch = items.filter(i => i && i.baseUrl && !i.isLocal);
+    if (itemsToFetch.length === 0) return new Map();
+
+    const map = new Map();
+    const failedItems = [];
+    const total = itemsToFetch.length;
+    let processed = 0;
+
+    // 1. Initial Fetch in Batches
+    for (let i = 0; i < total; i += batchSize) {
+        const chunkItems = itemsToFetch.slice(i, i + batchSize);
+        const chunkUrls = chunkItems.map(c => c.baseUrl);
+
+        try {
+            const res = await callFunction('fetchThumbnailBatch', { baseUrls: chunkUrls });
+
+            // DEBUG LOGGING
+            console.log(`[DEBUG-Refresh] Batch ${i} result:`, res.success, res.thumbnails?.length);
+
+            if (res.success && Array.isArray(res.thumbnails)) {
+                res.thumbnails.forEach((t, idx) => {
+                    const originalItem = chunkItems[idx];
+                    if (t.success && t.thumbnailUrl) {
+                        map.set(t.baseUrl, t.thumbnailUrl);
+                    } else {
+                        // Mark for potential refresh if it has an ID
+                        if (originalItem.id) {
+                            console.log(`[DEBUG-Refresh] Item failed, has ID: ${originalItem.id}, queuing refresh.`);
+                            failedItems.push(originalItem);
+                        } else {
+                            console.warn(`[DEBUG-Refresh] Item failed but MISSING ID. Cannot refresh.`, originalItem);
+                        }
+                    }
+                });
+            } else {
+
+                // Whole batch failed (e.g. 403 or other error)
+                // Assume all with IDs might need refresh
+                chunkItems.forEach(item => {
+                    if (item.id) failedItems.push(item);
+                });
+            }
+        } catch (e) {
+            console.warn("Fetch batch failed, marking for refresh logic:", e);
+            chunkItems.forEach(item => {
+                if (item.id) failedItems.push(item);
+            });
+        }
+
+        processed += chunkItems.length;
+        if (typeof onProgress === 'function') {
+            onProgress(processed, total);
+        }
+    }
+
+    // 2. Refresh Failed Items
+    if (failedItems.length > 0) {
+        console.log(`Attempting to auto-refresh ${failedItems.length} expired items...`);
+        // Deduplicate IDs
+        const idsToRefresh = [...new Set(failedItems.map(i => i.id))];
+
+        try {
+            const refreshRes = await callFunction('refreshMediaItemUrls', { mediaItemIds: idsToRefresh });
+
+            if (refreshRes.success) {
+                const returnedCount = refreshRes.urls ? Object.keys(refreshRes.urls).length : 0;
+                console.log(`[DEBUG-Refresh] Backend returned ${returnedCount} updated URLs.`);
+                if (returnedCount > 0) {
+                    console.log(`[DEBUG-Refresh] Sample URL key: ${Object.keys(refreshRes.urls)[0]}`);
+                    console.log(`[DEBUG-Refresh] Sample Failed Item ID: ${failedItems[0].id}`);
+                }
+
+                if (refreshRes.inputDebug) {
+                    console.info("[DEBUG-Refresh] Backend Input Debug:", refreshRes.inputDebug);
+                }
+
+                if (refreshRes.debug) {
+                    console.info("[DEBUG-Refresh] Backend Debug Data:", refreshRes.debug);
+                }
+
+                if (refreshRes.errors && refreshRes.errors.length > 0) {
+                    console.warn(`[DEBUG-Refresh] Backend reported ${refreshRes.errors.length} errors.`);
+                    console.warn(`[DEBUG-Refresh] Sample Error:`, JSON.stringify(refreshRes.errors[0]));
+
+                    // Check for token issues
+                    const sampleError = refreshRes.errors[0];
+                    if (sampleError?.status?.code === 403 ||
+                        sampleError?.status?.message?.includes?.('UNAUTHENTICATED') ||
+                        sampleError?.message?.includes?.('expired')) {
+                        console.error("Token expired or invalid scopes. User needs REPAIR.");
+                        // Show the button if it's not already there
+                        if (typeof injectRepairPermissionsButton === 'function') injectRepairPermissionsButton();
+                    }
+                }
+
+                if (refreshRes.success && refreshRes.urls) {
+                    const scopeOrAuthIssue = Array.isArray(refreshRes.errors) && refreshRes.errors.some(e => {
+                        const status = e?.status?.code ?? e?.status;
+                        const text = String(e?.text || e?.message || e?.status?.message || '');
+                        return status === 403 || text.includes('insufficient authentication scopes');
+                    });
+                    const returnedIds = new Set(Object.keys(refreshRes.urls));
+                    const retryItems = [];
+                    let refreshedCount = 0;
+
+                    failedItems.forEach(item => {
+                        const originalUrl = item.baseUrl;
+                        const newUrl = refreshRes.urls[item.id];
+
+                        if (newUrl) {
+                            refreshedCount++;
+                            if (newUrl !== originalUrl) {
+                                // Update the item's baseUrl in place
+                                item.baseUrl = newUrl;
+                                retryItems.push(item);
+                                console.log(`[DEBUG-Refresh] Updated URL for item ${item.id}`);
+                            } else {
+                                console.log(`[DEBUG-Refresh] URL for item ${item.id} is unchanged.`);
+                                // Even if unchanged, if it was in failedItems, we should retry fetching its thumbnail
+                                retryItems.push(item);
+                            }
+                        } else {
+                            // Backend succeeded but didn't return this ID.
+                            // If this is a scope/auth issue, do NOT mark as permanent failure:
+                            // the user can repair permissions and we can retry fetching thumbnails.
+                            if (scopeOrAuthIssue) {
+                                console.warn(`[DEBUG-Refresh] Item ${item.id} missing from refresh response due to scope/auth issue. Keeping for retry.`);
+                                retryItems.push(item);
+                            } else {
+                                // Permanent Failure (deleted/invalid)
+                                console.warn(`[DEBUG-Refresh] Item ${item.id} not found in backend response. Marking as permanently failed.`);
+                                // Do NOT add to failedItems. Just give up on this one.
+                                // Optionally, we could remove it from the UI or show an error placeholder.
+                            }
+                        }
+                    });
+
+                    if (refreshedCount > 0) {
+                        console.log(`Successfully refreshed ${refreshedCount} items. Retrying fetch...`);
+
+                        // 3. Retry Fetch for refreshed items
+                        // We can do this in one big batch or chunked. 
+                        // Given it's a retry, one batch or larger chunks is fine.
+                        const retryUrls = retryItems.map(i => i.baseUrl);
+                        const retryBatchSize = 20;
+
+                        for (let j = 0; j < retryUrls.length; j += retryBatchSize) {
+                            const batchUrls = retryUrls.slice(j, j + retryBatchSize);
+                            try {
+                                const retryRes = await callFunction('fetchThumbnailBatch', { baseUrls: batchUrls });
+                                if (retryRes.success && retryRes.thumbnails) {
+                                    retryRes.thumbnails.forEach(t => {
+                                        if (t.success && t.thumbnailUrl) {
+                                            map.set(t.baseUrl, t.thumbnailUrl);
+                                        }
+                                    });
+                                }
+                            } catch (e) {
+                                console.error("Retry fetch failed:", e);
+                            }
+                        }
+                    } else {
+                        console.warn("Refresh returned success but no new URLs were mapped.");
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Auto-refreshing URLs failed:", e);
+        }
+    }
+
+    return map;
+}
+
 async function rehydrateThumbnailsFromBaseUrls() {
     try {
-        const baseUrls = [];
-        const pushUrl = (u) => { if (u && typeof u === 'string') baseUrls.push(u); };
-        const getBaseUrl = (p) => (p && typeof p === 'object') ? normalizeBaseUrl(p.baseUrl || p.fullUrl || p.url || null) : null;
+        // Collect all photo objects that might need fetching
+        const allItems = [];
+        const pushItem = (p) => {
+            if (p && !p.isLocal && (p.baseUrl || p.getUrl)) {
+                // Ensure it has a baseUrl property if it's a simple object or handle safely
+                if (!p.baseUrl && p.url) p.baseUrl = p.url;
+                if (p.baseUrl) allItems.push(p);
+            }
+        };
 
-        pushUrl(getBaseUrl(state.cover?.photo));
-        (state.selectedPhotos || []).forEach(p => pushUrl(getBaseUrl(p)));
+        if (state.cover?.photo) pushItem(state.cover.photo);
+        (state.selectedPhotos || []).forEach(p => pushItem(p));
         (state.pages || []).forEach(page => {
-            (page.photos || []).forEach(p => pushUrl(getBaseUrl(p)));
+            (page.photos || []).forEach(p => pushItem(p));
         });
 
-        let map = null;
-        try {
-            map = await fetchThumbnailMapInBatches(baseUrls);
-        } catch (e) {
-            if (isPhotosAuthRequiredError(e)) {
-                await requestGooglePhotosAuthorization('restore your photos');
-                const ok = await waitForGooglePhotosAuthorization(baseUrls[0], 60000);
-                if (ok) map = await fetchThumbnailMapInBatches(baseUrls);
-            } else {
-                throw e;
+        if (allItems.length === 0) return;
+
+        console.log(`Rehydrating ${allItems.length} thumbnails (with auto-refresh support)...`);
+
+        // This helper updates p.baseUrl in place if refreshed!
+        const map = await refreshAndFetchThumbnails(allItems, {
+            batchSize: 12,
+            onProgress: (curr, total) => {
+                // Optional: could show a toast or loader
             }
-        }
+        });
+
         if (!map || map.size === 0) return;
 
-        const coverBaseUrl = getBaseUrl(state.cover?.photo);
-        if (state.cover?.photo && coverBaseUrl && map.get(coverBaseUrl)) {
-            state.cover.photo.baseUrl = coverBaseUrl;
-            state.cover.photo.thumbnailUrl = map.get(coverBaseUrl);
-        }
-        (state.selectedPhotos || []).forEach(p => {
-            const u = getBaseUrl(p);
-            if (p && u && map.get(u)) {
-                p.baseUrl = u;
-                p.thumbnailUrl = map.get(u);
+        // Apply thumbnails
+        allItems.forEach(p => {
+            // p.baseUrl might have been updated by refreshAndFetchThumbnails
+            if (p.baseUrl && map.has(p.baseUrl)) {
+                p.thumbnailUrl = map.get(p.baseUrl);
             }
         });
-        (state.pages || []).forEach(page => {
-            (page.photos || []).forEach(p => {
-                const u = getBaseUrl(p);
-                if (p && u && map.get(u)) {
-                    p.baseUrl = u;
-                    p.thumbnailUrl = map.get(u);
-                }
-            });
-        });
+
+        // Trigger Repaint
+        console.log("Rehydration complete. Triggering repaint.");
+        if (typeof renderCurrentPage === 'function') renderCurrentPage();
+        if (typeof updateSelectedPhotosUI === 'function') updateSelectedPhotosUI();
+
     } catch (e) {
         console.warn('Failed to rehydrate thumbnails:', e);
     }
@@ -1800,6 +2126,31 @@ function applyTemplate(template) {
     state.decorations = template.decorations || { enabled: false };
     state.borderStyle = template.illustrations?.border || 'none';
 
+    // === NEW: Auto-Apply Cover Design from Gallery ===
+    const bgDesign = window.BACKGROUND_TEXTURES?.find(bg => bg.id === template.id);
+    if (bgDesign) {
+        console.log("Auto-applying cover design:", bgDesign.name);
+
+        // Ensure state.cover exists
+        if (!state.cover) state.cover = {};
+
+        // Apply Background URL
+        // Use absolute URL to be safe for PDF generation
+        const absUrl = new URL(bgDesign.url, window.location.href).href;
+        state.cover.backgroundImageUrl = absUrl;
+        state.cover.backgroundImageName = bgDesign.name;
+        state.cover.backgroundImageData = null; // Clear manual upload
+
+        // Apply Theme Props
+        if (bgDesign.theme) {
+            state.cover.themeColors = bgDesign.theme.colors;
+            if (bgDesign.theme.fonts) {
+                state.cover.titleFont = bgDesign.theme.fonts.serif;
+                state.cover.subtitleFont = bgDesign.theme.fonts.sans;
+            }
+        }
+    }
+
     // Get root element for CSS variables
     const root = document.documentElement;
 
@@ -1900,9 +2251,30 @@ function applyTemplate(template) {
     // === Apply template to cover state ===
     if (state.cover && template.cover) {
         state.cover.backgroundColor = template.cover.backgroundColor || primaryColor;
-        state.cover.titleColor = template.cover.titleColor || coverTextColor;
+
+        // Priority: 
+        // 1. Text Color from Background Design (if one was auto-applied)
+        // 2. Template Cover Title Color (from templates.js)
+        // 3. Calculated Contrast Color
+
+        let targetTitleColor = coverTextColor;
+        if (template.cover && template.cover.titleColor) {
+            targetTitleColor = template.cover.titleColor;
+        } else if (bgDesign && bgDesign.textColor) {
+            targetTitleColor = bgDesign.textColor;
+            console.log("Using Background Design text color:", targetTitleColor);
+        }
+
+        state.cover.titleColor = targetTitleColor;
         state.cover.titleFont = template.cover.titleFont || titleFontValue;
         state.cover.titleSize = template.cover.titleSize || state.cover.titleSize || 36;
+
+        // Ensure inputs are updated with the FINAL decision
+        if (coverTitleColor) coverTitleColor.value = targetTitleColor;
+        if (coverTitleColorText) coverTitleColorText.value = targetTitleColor;
+
+        // Also update root variable for immediate CSS usage
+        root.style.setProperty('--cover-text-color', targetTitleColor);
     }
 
     // === Apply template to all existing pages ===
@@ -2054,6 +2426,21 @@ function applyTemplateToUI(template) {
         const coverTextColor = getContrastingTextColor(primaryColor);
         templateIndicator.style.background = `linear-gradient(135deg, ${primaryColor} 0%, ${lightenColor(primaryColor, 25)} 100%)`;
         templateIndicator.style.color = coverTextColor;
+
+        // CRITICAL: Update cover title color input to ensure contrast against the new cover color
+        // This fixes the issue where text remains white on light backgrounds
+        // REMOVED: Redundant and incorrect update of coverTitleColor here.
+        // It is correctly handled in applyTemplate() using template-specific logic.
+        /*
+        const titleColorInput = document.getElementById('coverTitleColor');
+        if (titleColorInput) {
+            titleColorInput.value = coverTextColor;
+            // Also update state immediately so updateCoverPreview picks it up validly
+            if (state.cover) {
+                state.cover.titleColor = coverTextColor;
+            }
+        }
+        */
     }
 
     // Ensure cover assets are updated for the new template
@@ -2224,6 +2611,7 @@ async function signInWithGoogle() {
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.addScope('https://www.googleapis.com/auth/photospicker.mediaitems.readonly');
+        provider.addScope('https://www.googleapis.com/auth/photoslibrary.readonly');
         provider.addScope('https://www.googleapis.com/auth/presentations');
         provider.addScope('https://www.googleapis.com/auth/drive');
         try {
@@ -2240,7 +2628,15 @@ async function signInWithGoogle() {
 
 async function signOut() {
     try {
+        clearDraftFromStorage();
+        // Clear other session keys
+        localStorage.removeItem(STORAGE_KEYS.lastProjectId);
+        localStorage.removeItem(STORAGE_KEYS.lastProjectType);
+        localStorage.removeItem(STORAGE_KEYS.lastProjectTitle);
+        localStorage.removeItem(STORAGE_KEYS.selectedPhotos); // If it exists
+
         await firebase.auth().signOut();
+        window.location.reload();
     } catch (error) {
         console.error('Sign-out error:', error);
     }
@@ -2374,7 +2770,11 @@ async function initialize() {
         // Initialize design editor
         try {
             if (typeof designEditor !== 'undefined') {
-                designEditor.init('designCanvasContainer');
+                designEditor.init('designStudioCanvasContainer', {
+                    filterControlsId: 'designStudioFilterControls',
+                    toolControlsId: 'designStudioToolControls',
+                    brushControlsId: 'designStudioBrushControls'
+                });
             }
         } catch (e) { console.warn('designEditor init failed:', e); }
 
@@ -2519,6 +2919,79 @@ async function loadPicker() {
     }
 }
 
+// ============================================
+// LOCAL PHOTO UPLOAD
+// ============================================
+function triggerLocalUpload() {
+    const input = document.getElementById('localPhotoInput');
+    if (input) input.click();
+}
+
+async function handleLocalFileUpload(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    if (!state.selectedPhotos) state.selectedPhotos = [];
+
+    const processingBtn = document.getElementById('localUploadBtn');
+    if (processingBtn) {
+        processingBtn.disabled = true;
+        processingBtn.innerHTML = '⏳ Processing...';
+    }
+
+    try {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (!file.type.startsWith('image/')) continue;
+
+            const base64Url = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            // Add to state
+            state.selectedPhotos.push({
+                id: 'local-' + Date.now() + '-' + i,
+                baseUrl: base64Url,
+                thumbnailUrl: base64Url, // REQUIRED for frontend preview
+                editedImageData: base64Url, // REQUIRED for backend print (skip fetch)
+                mimeType: file.type,
+                filename: file.name,
+                isLocal: true
+            });
+        }
+
+        // Update UI
+        updateSelectedPhotosUI();
+        if (typeof renderSelectedPhotosModal !== 'undefined') {
+            renderSelectedPhotosModal();
+        }
+
+        showStatus(`Imported ${files.length} photos successfully!`, 'success');
+
+    } catch (err) {
+        console.error('Error importing local photos:', err);
+        showStatus('Failed to import some photos.', 'error');
+    } finally {
+        if (processingBtn) {
+            processingBtn.disabled = false;
+            processingBtn.innerHTML = `
+                <span class="icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="17,8 12,3 7,8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </span>
+                Upload from Computer`;
+        }
+        // Reset input so same files can be selected again if needed
+        event.target.value = '';
+    }
+}
+
 const THUMBNAIL_BATCH_SIZE = 5;
 
 async function checkSession() {
@@ -2587,58 +3060,43 @@ async function checkSession() {
 
 async function loadThumbnailsInBatches(photos) {
     const totalPhotos = photos.length;
-    let processed = 0;
-
     const useGlobalProgress = !!state.pendingStartMemoryDirector;
+
+    // Initial UI
     if (!useGlobalProgress) {
         showThumbnailProgress(0, totalPhotos);
     } else {
         updateProgress("Preparing Memory Director...", `Loading thumbnails... 0/${totalPhotos}`, 10);
     }
 
-    for (let i = 0; i < photos.length; i += THUMBNAIL_BATCH_SIZE) {
-        const batch = photos.slice(i, i + THUMBNAIL_BATCH_SIZE);
-        const baseUrls = batch.map(p => p.baseUrl);
-
-        try {
-            const result = await callFunction('fetchThumbnailBatch', { baseUrls });
-
-            if (result.success && result.thumbnails) {
-                result.thumbnails.forEach((thumb, batchIndex) => {
-                    const photoIndex = i + batchIndex;
-                    const photo = state.selectedPhotos.find(p => p.baseUrl === photos[photoIndex].baseUrl);
-                    if (photo && thumb.thumbnailUrl) {
-                        photo.thumbnailUrl = thumb.thumbnailUrl;
-                    }
-                });
-
+    try {
+        const map = await refreshAndFetchThumbnails(photos, {
+            batchSize: THUMBNAIL_BATCH_SIZE,
+            onProgress: (current, total) => {
                 if (!useGlobalProgress) {
-                    updateSelectedPhotosUI();
+                    showThumbnailProgress(current, total);
+                    updateSelectedPhotosUI(); // Update UI progressively
+                } else {
+                    const pct = Math.round((current / total) * 25) + 10;
+                    updateProgress("Preparing Memory Director...", `Loading thumbnails... ${current}/${total}`, pct);
                 }
             }
+        });
 
-            processed += batch.length;
-            if (!useGlobalProgress) {
-                showThumbnailProgress(processed, totalPhotos);
-            } else {
-                const pct = Math.round((processed / totalPhotos) * 25) + 10; // 10%..35%
-                updateProgress("Preparing Memory Director...", `Loading thumbnails... ${processed}/${totalPhotos}`, pct);
+        // Apply thumbnails
+        photos.forEach(p => {
+            if (p.baseUrl && map.has(p.baseUrl)) {
+                p.thumbnailUrl = map.get(p.baseUrl);
             }
+        });
 
-        } catch (e) {
-            console.error("Batch load error:", e);
-            processed += batch.length;
-            if (!useGlobalProgress) {
-                showThumbnailProgress(processed, totalPhotos);
-            } else {
-                const pct = Math.round((processed / totalPhotos) * 25) + 10;
-                updateProgress("Preparing Memory Director...", `Loading thumbnails... ${processed}/${totalPhotos}`, pct);
-            }
-        }
+    } catch (e) {
+        console.error("loadThumbnailsInBatches failed:", e);
     }
 
     if (!useGlobalProgress) {
         hideThumbnailProgress();
+        updateSelectedPhotosUI(); // Final update
     } else {
         updateProgress("Preparing Memory Director...", "Starting story analysis...", 40);
     }
@@ -2844,10 +3302,12 @@ function updateSelectedPhotosUI() {
 
     // Render full grid in the sidebar (no longer just a strip)
     list.innerHTML = state.selectedPhotos.map((photo, index) => {
-        const thumbUrl = photo.thumbnailUrl && photo.thumbnailUrl.startsWith('data:') ? photo.thumbnailUrl : null;
+        // Try thumbnail (base64) -> baseUrl (google) -> url (legacy)
+        const imgSrc = photo.thumbnailUrl || photo.baseUrl || photo.url;
+
         return `<div class="grid-item" title="Photo ${index + 1}">
-          ${thumbUrl
-                ? `<img src="${thumbUrl}" alt="Photo ${index + 1}">`
+          ${imgSrc
+                ? `<img src="${imgSrc}" alt="Photo ${index + 1}" onerror="this.onerror=null; this.src=''; this.parentElement.classList.add('load-error'); this.parentElement.innerHTML='<div class=\\'error-placeholder\\' onclick=\\'injectRepairPermissionsButton()\\'>⚠️ Repair</div>';">`
                 : `<div class="thumbnail-placeholder">${index + 1}</div>`
             }
             <button class="remove-btn" onclick="removeSelectedPhoto(${index})" title="Remove">×</button>
@@ -2902,11 +3362,11 @@ function renderSelectedPhotosModal() {
     }
 
     grid.innerHTML = state.selectedPhotos.map((photo, index) => {
-        const thumbUrl = photo.thumbnailUrl && photo.thumbnailUrl.startsWith('data:') ? photo.thumbnailUrl : null;
+        const imgSrc = photo.thumbnailUrl || photo.baseUrl || photo.url;
         return `
           <div class="selected-photo-item">
-            ${thumbUrl
-                ? `<img src="${thumbUrl}" alt="Photo ${index + 1}">`
+            ${imgSrc
+                ? `<img src="${imgSrc}" alt="Photo ${index + 1}" onerror="this.onerror=null; this.src=''; this.parentElement.classList.add('load-error'); this.parentElement.innerHTML='<div class=\\'error-placeholder\\' onclick=\\'injectRepairPermissionsButton()\\'>⚠️ Repair</div>';">`
                 : `<div class="thumbnail-placeholder">${index + 1}</div>`
             }
             <button class="remove-btn" onclick="removeSelectedPhoto(${index})" title="Remove">&times;</button>
@@ -2934,18 +3394,35 @@ function switchTab(tabName) {
     );
 
     // Redesign Support (Editorial Swiss System)
+    const drawer = document.querySelector('.rebuild-drawer');
+    const activeDrawerContent = document.getElementById(tabName + '-tab');
+
+    // Toggle Logic: If clicking the already active tab, close the drawer
+    if (drawer && drawer.classList.contains('is-open') && activeDrawerContent && activeDrawerContent.classList.contains('active')) {
+        drawer.classList.remove('is-open');
+        // Deactivate rail buttons
+        document.querySelectorAll('.rebuild-rail .rail-btn').forEach(btn => btn.classList.remove('active'));
+        // Trigger resize for canvas/book
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+        return;
+    }
+
+    // Otherwise, open/switch tab
     // 1. Update Navigation Rail Buttons
     document.querySelectorAll('.rebuild-rail .rail-btn').forEach(btn =>
         btn.classList.toggle('active', btn.dataset.tab === tabName)
     );
 
     // 2. Update Drawer Content Visibility
-    // Since index.html has IDs like 'photos-tab' and 'design-tab' inside the drawer,
-    // and multiple .drawer-content elements, we toggle them.
     document.querySelectorAll('.rebuild-drawer .drawer-content').forEach(content => {
         const isActive = content.id === tabName + '-tab';
         content.classList.toggle('active', isActive);
     });
+
+    // Ensure drawer is open
+    if (drawer && !drawer.classList.contains('is-open')) {
+        drawer.classList.add('is-open');
+    }
 
     // If switching to design tab, ensure canvas is visible
     if (tabName === 'design' && typeof designEditor !== 'undefined') {
@@ -2954,6 +3431,24 @@ function switchTab(tabName) {
                 designEditor.resizeCanvas();
             }
         }, 100);
+    }
+
+    // Trigger resize for 3D book centering
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+}
+
+// TOGGLE RIGHT INSPECTOR
+function toggleInspector() {
+    const panel = document.getElementById('inspectorPanel');
+    if (panel) {
+        panel.classList.toggle('collapsed');
+        // Resize 3D book / Canvas
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+            if (typeof designEditor !== 'undefined' && designEditor.canvas) {
+                designEditor.resizeCanvas();
+            }
+        }, 300);
     }
 }
 
@@ -3034,6 +3529,32 @@ function switchEditorTab(tabName) {
     }
 }
 
+// Update cover photo customization (size, angle)
+function updateCoverCustomization() {
+    updateCoverPreview();
+}
+
+// Update global photo style (corners)
+// Update global photo style (corners) with sync support
+function updateGlobalPhotoStyle(sourceId) {
+    const id = sourceId || 'globalCornerRadius';
+    const selector = document.getElementById(id);
+    if (!selector) return;
+
+    const val = parseInt(selector.value) || 0;
+    state.globalCornerRadius = val;
+
+    // Sync input values
+    const master = document.getElementById('globalCornerRadius');
+    if (master && master.id !== id) master.value = val;
+
+    const proxy = document.getElementById('globalCornerRadiusCover');
+    if (proxy && proxy.id !== id) proxy.value = val;
+
+    renderCurrentPage(); // Re-render pages
+    updateCoverPreview(); // Update cover
+}
+
 // ============================================
 // COVER EDITOR
 // ============================================
@@ -3045,9 +3566,16 @@ function updateCoverPreview() {
     const titleColor = document.getElementById('coverTitleColor')?.value || '#ffffff';
     const titleFont = document.getElementById('coverTitleFont')?.value || 'Playfair Display';
     const subtitle = document.getElementById('coverSubtitle')?.value || '';
+    // NEW: Subtitle color from new input
+    const subtitleColor = document.getElementById('coverSubtitleColor')?.value || '#ffffff';
+
     const subtitleSize = document.getElementById('coverSubtitleSize')?.value || 14;
+
     const bgColor = document.getElementById('coverBgColor')?.value || '#6366f1';
     const showBorder = document.getElementById('coverShowBorder')?.checked !== false;
+    const layout = document.getElementById('coverLayout')?.value || 'standard';
+    const photoSize = document.getElementById('coverPhotoSize')?.value || 100;
+    const photoAngle = document.getElementById('coverPhotoAngle')?.value || 0;
 
     // Update state
     state.cover.title = title;
@@ -3055,9 +3583,14 @@ function updateCoverPreview() {
     state.cover.titleColor = titleColor;
     state.cover.titleFont = titleFont;
     state.cover.subtitle = subtitle;
+    // NEW: Store subtitle color
+    state.cover.subtitleColor = subtitleColor;
     state.cover.subtitleSize = parseInt(subtitleSize) || 14;
     state.cover.backgroundColor = bgColor;
     state.cover.showBorder = showBorder;
+    state.cover.layout = layout;
+    state.cover.photoSize = parseInt(photoSize);
+    state.cover.photoAngle = parseInt(photoAngle);
 
     // Update range value displays
     const titleSizeVal = document.getElementById('coverTitleSizeVal');
@@ -3066,13 +3599,43 @@ function updateCoverPreview() {
     const subtitleSizeVal = document.getElementById('coverSubtitleSizeVal');
     if (subtitleSizeVal) subtitleSizeVal.textContent = (subtitleSize || 14) + 'px';
 
+    // Update new custom controls
+    const photoSizeVal = document.getElementById('coverPhotoSizeVal');
+    if (photoSizeVal) photoSizeVal.textContent = photoSize + '%';
+
+    const photoAngleVal = document.getElementById('coverPhotoAngleVal');
+    if (photoAngleVal) photoAngleVal.textContent = photoAngle + '°';
+
     // Update title preview with styling
     const titlePreview = document.getElementById('coverTitlePreview');
     if (titlePreview) {
         titlePreview.textContent = title;
         titlePreview.style.fontSize = titleSize + 'px';
-        titlePreview.style.color = titleColor;
         titlePreview.style.fontFamily = `'${titleFont}', serif`;
+
+        // Reset base styles
+        titlePreview.style.color = titleColor;
+        titlePreview.style.textShadow = 'none';
+        titlePreview.style.background = 'none';
+        titlePreview.style.webkitTextFillColor = 'initial';
+        titlePreview.style.transform = 'none';
+
+        // Apply WordArt Style if selected
+        if (state.coverTextStyle && window.TEXT_STYLES) {
+            const styleObj = window.TEXT_STYLES.find(s => s.id === state.coverTextStyle);
+            if (styleObj && styleObj.style) {
+                Object.assign(titlePreview.style, styleObj.style);
+                // Ensure font size and family from inputs override unless style demands specific font
+                // Actually, let's let input font override style font family if user wants custom font with neon effect
+                titlePreview.style.fontSize = titleSize + 'px';
+                // We keep the style's font family if it's crucial to the look (e.g. Retro), 
+                // but let's allow user override if they explicitly changed it? 
+                // For simplicity, let style win for now, or mix.
+                if (!styleObj.style.fontFamily) {
+                    titlePreview.style.fontFamily = `'${titleFont}', serif`;
+                }
+            }
+        }
     }
 
     // Update subtitle preview
@@ -3080,8 +3643,24 @@ function updateCoverPreview() {
     if (subtitlePreview) {
         subtitlePreview.textContent = subtitle;
         subtitlePreview.style.fontSize = (subtitleSize || 14) + 'px';
-        subtitlePreview.style.color = titleColor;
-        subtitlePreview.style.opacity = '0.85';
+
+        // Reset
+        subtitlePreview.style.color = subtitleColor;
+        subtitlePreview.style.textShadow = 'none';
+        subtitlePreview.style.opacity = '0.9';
+
+        // Apply WordArt Style (same as title for consistency, or maybe lighter?)
+        if (state.coverTextStyle && window.TEXT_STYLES) {
+            const styleObj = window.TEXT_STYLES.find(s => s.id === state.coverTextStyle);
+            if (styleObj && styleObj.style) {
+                // Clone style to avoid mutating original, remove huge font sizes if present
+                const appliedStyle = { ...styleObj.style };
+                delete appliedStyle.fontSize; // Keep manual size control
+                Object.assign(subtitlePreview.style, appliedStyle);
+            }
+        } else {
+            subtitlePreview.style.color = subtitleColor; // manual fallback
+        }
     }
 
     // Custom Template Assets (Botanical, etc.)
@@ -3101,6 +3680,11 @@ function updateCoverPreview() {
         const coverColor = state?.selectedTemplate?.colors?.accentColor || bgColor || '#2c3e50';
         root.style.setProperty('--cover-color', coverColor);
 
+        // Apply Layout Classes
+        const layout = state.cover.layout || 'standard';
+        root.classList.remove('layout-standard', 'layout-full-bleed', 'layout-photo-bottom');
+        root.classList.add(`layout-${layout}`);
+
         // Find the face to apply assets to
         // In the visible 3D book, it is .book3d-cover-face
         const coverFace = root.querySelector('.book3d-cover-face') || root;
@@ -3112,6 +3696,13 @@ function updateCoverPreview() {
             coverFace.style.border = '';
             coverFace.style.boxShadow = '';
             coverFace.classList.remove('no-border');
+
+            // Apply Background Image from State if present
+            if (state.cover && state.cover.backgroundImageUrl) {
+                coverFace.style.backgroundImage = `url("${state.cover.backgroundImageUrl}")`;
+                coverFace.style.backgroundSize = 'cover';
+                coverFace.style.backgroundPosition = 'center';
+            }
 
             // Remove old overlays
             const existingOverlay = coverFace.querySelector('.template-overlay');
@@ -3144,6 +3735,34 @@ function updateCoverPreview() {
                      </svg>
                  `;
                 coverFace.appendChild(overlay);
+            }
+
+            // Apply Size & Rotation & Corners to Photo
+            const photoImg = coverFace.querySelector('img.book3d-cover-photo') || coverFace.querySelector('img');
+            if (photoImg) {
+                const scale = (state.cover.photoSize || 100) / 100;
+                const angle = state.cover.photoAngle || 0;
+
+                // Fix: Force absolute centering so transform behaves correctly
+                photoImg.style.position = 'absolute';
+                photoImg.style.top = '50%';
+                photoImg.style.left = '50%';
+                photoImg.style.minWidth = '100%';
+                photoImg.style.minHeight = '100%';
+                photoImg.style.maxWidth = 'none'; // Prevent constraints
+                photoImg.style.maxHeight = 'none';
+                photoImg.style.width = 'auto'; // Let min-width/height handle fill
+                photoImg.style.height = 'auto';
+                // Note: Object-fit might be better but if we rotate/scale, absolute control is safer for centering.
+                // Actually, if we use object-fit: cover, and size is 100%, we don't need min/max.
+                // But translate requires absolute usually to escape flow if flow is constrained.
+                // Let's assume absolute is best.
+
+                photoImg.style.transformOrigin = 'center center';
+                photoImg.style.transform = `translate(-50%, -50%) rotate(${angle}deg) scale(${scale})`;
+
+                const radius = state.globalCornerRadius || 0;
+                photoImg.style.borderRadius = `${radius}px`;
             }
         }
     });
@@ -3529,7 +4148,7 @@ function autoArrange() {
     renderPageThumbnails();
     renderCurrentPage();
     updatePageIndicator();
-    switchEditorTab('pages');
+    switchTab('pages');
 }
 
 function addPage() {
@@ -3591,6 +4210,15 @@ function prevPage() {
     if (state.currentPageIndex === 0 || state.currentPageIndex === 1) {
         // Go to Cover
         state.currentPageIndex = -1;
+        renderCurrentPage();
+        updatePageIndicator();
+        return;
+    }
+
+    // Handle return from Back Cover
+    if (state.currentPageIndex >= state.pages.length) {
+        const lastSpreadBase = Math.floor((state.pages.length - 1) / 2) * 2;
+        state.currentPageIndex = lastSpreadBase;
         renderCurrentPage();
         updatePageIndicator();
         return;
@@ -3708,10 +4336,10 @@ function renderCurrentPage() {
             <div class="book3d-cover-face">
                 <div class="book3d-cover-inner">
                     <div class="cover-photo-slot" onclick="selectPhotoForCover()" style="width: 90%; height: 70%; background: #eee; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 2px dashed #ccc; cursor: pointer; overflow: hidden; position: relative; z-index: 20;">
-                        ${state.cover?.photoUrl ? `<img src="${state.cover.photoUrl}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="color:#999; font-size:12px;">+ Add Cover Photo</span>'}
+                        ${(state.cover?.photo?.thumbnailUrl && state.cover.photo.thumbnailUrl.startsWith('data:')) || state.cover?.photoUrl ? `<img src="${(state.cover?.photo?.thumbnailUrl && state.cover.photo.thumbnailUrl.startsWith('data:')) ? state.cover.photo.thumbnailUrl : state.cover.photoUrl}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="color:#999; font-size:12px;">+ Add Cover Photo</span>'}
                     </div>
-                    <h1 style="font-size: 3em; color: white; font-family: ${state.cover?.titleFont || 'inherit'};">${state.cover?.title || 'My Photo Book'}</h1>
-                    <h3 style="font-size: 1.5em; color: white; opacity: 0.8; margin-top: 5px; font-family: ${state.cover?.subtitleFont || 'inherit'};">${state.cover?.subtitle || 'Add a subtitle'}</h3>
+                    <h1 style="font-size: 3em; color: ${state.cover?.titleColor || state.cover?.textColor || '#ffffff'}; font-family: ${state.cover?.titleFont || 'inherit'};">${state.cover?.title || 'My Photo Book'}</h1>
+                    <h3 style="font-size: 1.5em; color: ${state.cover?.textColor || state.cover?.titleColor || 'rgba(255,255,255,0.8)'}; margin-top: 5px; font-family: ${state.cover?.subtitleFont || 'inherit'};">${state.cover?.subtitle || 'Add a subtitle'}</h3>
                 </div>
             </div>
             <div class="book3d-cover-spine"></div>
@@ -4004,11 +4632,11 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
         // Fix: Use edited data if available, otherwise thumbnail
         const displayUrl = photo ? (photo.editedData || photo.thumbnailUrl) : null;
 
-        // Check if we have a valid image to display (must be data URI for security/CORS in this context usually)
-        // But for editedData it's always a data URI.
-        const hasPhoto = displayUrl && displayUrl.startsWith('data:');
+        // Check types
+        const isTextSlot = photo && photo.type === 'text';
+        const hasPhoto = !isTextSlot && displayUrl && displayUrl.startsWith('data:');
 
-        const hasPhotoData = photo && (photo.editedData || photo.baseUrl || photo.id);
+        const hasPhotoData = photo && (photo.editedData || photo.baseUrl || photo.id || isTextSlot);
         const isSelected = isActive && (state.currentPageIndex === pageIndex) && (state.selectedPhotoSlot === i);
         const alignment = photo?.alignment || 'center';
         const objectPos = alignment === 'left' ? '0% 50%' : (alignment === 'right' ? '100% 50%' : '50% 50%');
@@ -4017,23 +4645,50 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
             ? `onclick="showPhotoOptions(${i}, event)"`
             : '';
 
+        let slotContent = '';
+        if (isTextSlot) {
+            // Render Styled Text
+            let styleString = '';
+            if (photo.styleId && window.TEXT_STYLES) {
+                const styleObj = window.TEXT_STYLES.find(s => s.id === photo.styleId);
+                if (styleObj && styleObj.style) {
+                    for (const [key, value] of Object.entries(styleObj.style)) {
+                        const kebabKey = key.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
+                        styleString += `${kebabKey}:${value};`;
+                    }
+                }
+            } else {
+                // Default fallback
+                styleString = 'font-family:sans-serif; color:#333; font-size:24px;';
+            }
+            // Ensure font size scales with slot? Or fixed? 
+            // For now, fixed relative to container or auto-fit could be complex. 
+            // Let's use a reasonable base size and rely on the style's definition or defaults.
+            // We might want to center it.
+            slotContent = `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; padding:10px; overflow:hidden; text-align:center;">
+                             <span style="${styleString} white-space: pre-wrap;">${photo.content}</span>
+                           </div>`;
+        } else if (hasPhoto) {
+            slotContent = `<img src="${displayUrl}" alt="" draggable="false" style="object-position:${objectPos}; border-radius:${state.globalCornerRadius || 0}px;">`;
+        } else if (hasPhotoData) {
+            slotContent = `<div class="thumbnail-placeholder">Photo ${i + 1}</div>`;
+        } else {
+            slotContent = `<div class="empty-slot" onclick="activatePage(${pageIndex}); selectPhotoForSlot(${i})">Click to add photo or text</div>`;
+        }
+
         slotsHtml += `
     <div class="layout-slot slot-${i} ${hasPhotoData ? 'has-photo' : ''} ${isSelected ? 'selected' : ''}"
-data-slot-index="${i}"
-draggable="${draggable}"
+           data-slot-index="${i}"
+           draggable="${draggable}"
            ${replaceClick}>
-    ${hasPhoto
-                ? `<img src="${displayUrl}" alt="" draggable="false" style="object-position:${objectPos};">`
-                : (hasPhotoData
-                    ? `<div class="thumbnail-placeholder">Photo ${i + 1}</div>`
-                    : `<div class="empty-slot" onclick="activatePage(${pageIndex}); selectPhotoForSlot(${i})">Click to add photo</div>`
-                )
-            }
-<span class="slot-number">${i + 1}</span>
+           ${slotContent}
+           <span class="slot-number">${i + 1}</span>
         ${hasPhotoData ? `
-          <span class="alignment-indicator" title="Alignment: ${alignment}">${alignment === 'left' ? '⬅' : alignment === 'right' ? '➡' : '⬌'}</span>
-        ` : ''
-            }
+          <button class="edit-photo-btn" title="Edit Design" onclick="event.stopPropagation(); window.selectPhotoForSlot(${i}); window.openDesignStudio();">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:inline-block; vertical-align:middle; margin-right:2px;"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            Edit
+          </button>
+        ` : ''}
       </div>
     `;
     }
@@ -4049,13 +4704,32 @@ draggable="${draggable}"
     const illustrations = page.themeIllustrations || templateIllustrations || theme.illustrations || {};
 
     let decorationsHtml = '';
-    if (decorations.length > 0 && illustrations.pattern !== 'none') {
+
+    // NEW: Page Frames (Overrides older decorations)
+    if (page.frameId && window.PAGE_FRAMES) {
+        const frame = window.PAGE_FRAMES.find(f => f.id === page.frameId);
+        if (frame) {
+            // Use a standard 1000x1000 coordinate system for the vector generation
+            // The SVG will scale to fit the page container
+            const svgContent = frame.svgGen(1000, 1000, frame.color);
+            decorationsHtml = `
+                <div class="page-frame-layer" style="position:absolute; inset:0; pointer-events:none; z-index:2;">
+                    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none" style="display:block;">
+                        ${svgContent}
+                    </svg>
+                </div>
+            `;
+        }
+    }
+
+    // Legacy/Theme Decorations (Only if no frame is set)
+    if (!decorationsHtml && decorations.length > 0 && illustrations.pattern !== 'none') {
         const decorationsColor = template
             ? (template.colors.accentColor || template.colors.textColor || '#333333')
             : (theme.colors.primary || '#333333');
         decorationsHtml = `
-    <div class="page-decorations" style="position:absolute; inset:0; pointer-events:none; z-index:1;">
-        ${decorations.map((dec, i) => {
+            <div class="page-decorations" style="position:absolute; inset:0; pointer-events:none; z-index:1;">
+                ${decorations.map((dec, i) => {
             const positions = [
                 { top: '10%', left: '5%', rotate: '0deg' },
                 { top: '10%', right: '5%', rotate: '90deg' },
@@ -4068,24 +4742,24 @@ draggable="${draggable}"
         }).join('')
             }
           </div>
-    `;
+            `;
     }
 
     // In the 3D book spread preview we keep the surface clean (no big diagonal overlays),
     // so the book geometry reads clearly.
     const themeOverlayHtml = '';
 
-    const gridId = isActive ? 'pageLayoutGrid' : `pageLayoutGrid_${pageIndex}`;
+    const gridId = isActive ? 'pageLayoutGrid' : `pageLayoutGrid_${pageIndex} `;
     const captionColor = template ? (template.colors.captionColor || template.colors.textColor || '#333333') : (theme.colors.text || '#333333');
 
     return `
       ${themeOverlayHtml}
-<div class="layout-grid ${layoutClass}" id="${gridId}" style="position: relative; z-index: 2;">
-    ${slotsHtml}
-</div>
+        <div class="layout-grid ${layoutClass}" id="${gridId}" style="position: relative; z-index: 2;">
+            ${slotsHtml}
+        </div>
       ${decorationsHtml}
       ${page.caption ? `<div class="page-caption" style="color: ${captionColor};">${escapeHtml(page.caption)}</div>` : ''}
-`;
+        `;
 }
 
 let __bookFlipInProgress = false;
@@ -4121,17 +4795,28 @@ function animateBookSpreadFlip(direction, targetBaseIndex) {
     const frontIndex = isNext ? currentRight : currentLeft;
     const backIndex = isNext ? targetLeft : targetRight;
 
+    // Determine what should be visible UNDERNEATH the flipping page
+    // If Next: We are flipping Right->Left. 
+    //   - Left stays 'currentLeft' (until covered).
+    //   - Right reveals 'targetRight' (the page after the one flipping).
+    // If Prev: We are flipping Left->Right.
+    //   - Left reveals 'targetLeft' (the page before the one flipping).
+    //   - Right stays 'currentRight' (until covered).
+    const underneathLeftIndex = isNext ? currentLeft : targetLeft;
+    const underneathRightIndex = isNext ? targetRight : currentRight;
+
+    // Render the flipping sheet
     const frontHtml = renderSinglePageHtml(frontIndex, { isActive: false });
     const backHtml = renderSinglePageHtml(backIndex, { isActive: false });
 
     // Clear any prior overlay
     flipLayer.innerHTML = '';
     flipLayer.insertAdjacentHTML('beforeend', `
-    <div class="book3d-sheet ${sheetClass}">
+            <div class="book3d-sheet ${sheetClass}">
         <div class="book3d-sheet-face front">${frontHtml}</div>
         <div class="book3d-sheet-face back">${backHtml}</div>
       </div>
-    `);
+            `);
 
     const sheet = flipLayer.querySelector('.book3d-sheet');
     if (!sheet) return;
@@ -4143,6 +4828,20 @@ function animateBookSpreadFlip(direction, targetBaseIndex) {
     const backFace = sheet.querySelector('.book3d-sheet-face.back');
     applyBackgroundToPageElement(frontFace, frontIndex);
     applyBackgroundToPageElement(backFace, backIndex);
+
+    // UPDATE STATIC BACKGROUND PAGES BEFORE ANIMATION STARTS
+    // This ensures we reveal the correct page underneath the lifting sheet
+    const leftPageEl = document.getElementById('leftPage');
+    const rightPageEl = document.getElementById('rightPage');
+
+    if (leftPageEl) {
+        leftPageEl.innerHTML = renderSinglePageHtml(underneathLeftIndex, { isActive: false });
+        applyBackgroundToPageElement(leftPageEl, underneathLeftIndex);
+    }
+    if (rightPageEl) {
+        rightPageEl.innerHTML = renderSinglePageHtml(underneathRightIndex, { isActive: false });
+        applyBackgroundToPageElement(rightPageEl, underneathRightIndex);
+    }
 
     // Trigger the flip
     requestAnimationFrame(() => {
@@ -4161,8 +4860,8 @@ function animateBookSpreadFlip(direction, targetBaseIndex) {
     };
 
     sheet.addEventListener('transitionend', finish, { once: true });
-    // Safety timeout in case transitionend doesn't fire
-    setTimeout(() => { if (__bookFlipInProgress) finish(); }, 900);
+    // Safety timeout in case transitionend doesn't fire (matched to 1200ms CSS + buffer)
+    setTimeout(() => { if (__bookFlipInProgress) finish(); }, 1400);
 }
 
 function openPageTemplatePicker() {
@@ -4201,7 +4900,7 @@ function renderPageTemplatePicker() {
         const accentColor = tpl.preview?.accentColor || tpl.colors?.accentColor || tpl.colors?.textColor || '#2C3E50';
         const isActive = activeId ? (tpl.id === activeId) : (tpl.id === bookId);
         return `
-    <div class="page-template-card ${isActive ? 'active' : ''}" onclick="applyTemplateToCurrentPage('${tpl.id}')">
+            <div class="page-template-card ${isActive ? 'active' : ''}" onclick="applyTemplateToCurrentPage('${tpl.id}')">
             <div class="page-template-preview" style="background:${coverColor};">
               <div class="page-template-mini-book" style="background:${coverColor}; border-color:${accentColor};">
                 <div class="page-template-mini-spine" style="background:${accentColor};"></div>
@@ -4213,7 +4912,7 @@ function renderPageTemplatePicker() {
               <p class="page-template-desc">${escapeHtml(tpl.description || tpl.category || '')}</p>
             </div>
           </div>
-    `;
+            `;
     }).join('');
 }
 
@@ -4313,7 +5012,7 @@ function updatePageBackground() {
         }
     }
 
-    console.log(`Updated page ${state.currentPageIndex + 1} background to: ${bgColor}`);
+    console.log(`Updated page ${state.currentPageIndex + 1} background to: ${bgColor} `);
 }
 
 function triggerPageBackgroundImageUpload() {
@@ -4383,56 +5082,377 @@ async function updatePageBackgroundImage(event) {
 // BACKGROUND GALLERY LOGIC
 // ============================================
 
+// Helper: Simple Toast Notification
+function showToast(message, type = 'info') {
+    // Check if existing toast container
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:10000; display:flex; flex-direction:column; gap:10px;';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+        background: ${type === 'success' ? '#4CAF50' : '#333'};
+        color: white; padding: 12px 24px; border-radius: 4px; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-size: 14px;
+        opacity: 0; transform: translateY(20px); transition: all 0.3s ease;
+    `;
+    container.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+
+    // Remove after 3s
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 function openBackgroundGallery() {
     const modal = document.getElementById('backgroundGalleryModal');
     if (!modal) return;
-    modal.classList.add('active');
-    renderBackgroundGalleryItems();
+    modal.style.display = 'flex'; // Ensure flex for centering
+    // Default to textures if not set
+    if (typeof currentGalleryTab === 'undefined') currentGalleryTab = 'textures';
+    switchGalleryTab(currentGalleryTab);
 }
 
 function closeBackgroundGallery() {
     const modal = document.getElementById('backgroundGalleryModal');
-    if (modal) modal.classList.remove('active');
+    if (modal) modal.style.display = 'none';
 }
 
-function renderBackgroundGalleryItems(items = null) {
-    const grid = document.getElementById('backgroundGalleryGrid');
+function switchGalleryTab(tab) {
+    const tabs = document.querySelectorAll('.gallery-tab');
+    tabs.forEach(t => {
+        if (t.textContent.toLowerCase().includes(tab)) {
+            t.classList.add('active');
+        } else {
+            t.classList.remove('active');
+        }
+        // Special case for 'paper' matching 'textures'
+        if (tab === 'textures' && t.textContent.includes('Paper')) t.classList.add('active');
+        if (tab === 'typography' && t.textContent.includes('Typography')) t.classList.add('active'); // NEW
+    });
+
+    // Design gallery grid id in HTML is `backgroundGalleryGrid`.
+    // Keep a fallback to `galleryGrid` for older markup.
+    const grid = document.getElementById('backgroundGalleryGrid') || document.getElementById('galleryGrid');
     if (!grid) return;
+    grid.innerHTML = ''; // Clear
 
-    // Use passed items or fallback to global window.BACKGROUND_TEXTURES
-    const textures = items || window.BACKGROUND_TEXTURES || [];
+    if (tab === 'textures') {
+        renderGalleryTextures(grid);
+    } else if (tab === 'frames') {
+        renderGalleryFrames(grid);
+    } else if (tab === 'typography') {
+        renderGalleryTypography(grid); // NEW
+    }
+}
 
+function renderGalleryTypography() {
+    const grid = document.getElementById('backgroundGalleryGrid') || document.getElementById('galleryGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    if (!window.TEXT_STYLES) {
+        grid.innerHTML = '<p>Loading text styles...</p>';
+        return;
+    }
+
+    window.TEXT_STYLES.forEach(style => {
+        const div = document.createElement('div');
+        div.className = 'gallery-item';
+        // Render preview with the defined styles
+        let styleString = '';
+        for (const [key, value] of Object.entries(style.style)) {
+            // Convert camelCase to kebab-case
+            const kebabKey = key.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
+            styleString += `${kebabKey}:${value};`;
+        }
+
+        // Handle webkit/fallback logic manually for preview if needed, or rely on inserted style
+        // For gradient text (Elegant Gold), we need specifically inline styles
+
+        div.innerHTML = `
+            <div class="gallery-item-preview" style="display:flex; align-items:center; justify-content:center; background:#f5f5f5; height:120px;">
+                <span style="font-size: 32px; ${styleString}">${style.previewText}</span>
+            </div>
+            <div class="gallery-item-info">
+                <span class="gallery-item-name">${style.name}</span>
+                <span class="gallery-item-category">${style.category}</span>
+            </div>
+        `;
+        div.onclick = () => applyTextStyle(style);
+        grid.appendChild(div);
+    });
+}
+
+function applyTextStyle(styleObj) {
+    // 1. If we are on Cover, apply to Title/Subtitle
+    // 2. If we are editing a Text Slot on a page, apply to that slot (TODO)
+
+    if (state.currentPageIndex === -1) {
+        // Cover Mode
+        state.coverTextStyle = styleObj.id;
+        // Store the full style object loosely or lookup by ID during render
+
+        showToast('Text style applied to Cover!');
+        updateCoverPreview(); // Need to update this function to reading styling
+    } else {
+        // Page Mode - Check if a text slot is selected
+        // For now, let's just alert strictly for Cover as per step 1, 
+        // but user asked for "pages" too.
+        // We need to implement Text Slots first. 
+        // If no text slot selected, maybe we change default?
+        showToast('Select a text slot to apply style (Feature coming next step)');
+    }
+    closeBackgroundGallery();
+}
+
+function renderGalleryFramesLocal(grid) {
+    const frames = window.PAGE_FRAMES || [];
+    if (frames.length === 0) {
+        grid.innerHTML = '<p>No frames available.</p>';
+        return;
+    }
+    frames.forEach(frame => {
+        const item = document.createElement('div');
+        // Simple SVG Preview
+        const svgContent = frame.svgGen ? frame.svgGen(140, 180, frame.color) : '';
+
+        item.innerHTML = `
+            <div class="gallery-item-card" style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s; position: relative;">
+                <div style="height: 200px; background: #fff; position:relative; cursor: pointer; display:flex; align-items:center; justify-content:center; padding:10px;" onclick="applyFrameToPage('${frame.id}')">
+                    <div style="width:140px; height:180px; background:#fafafa; box-shadow:0 2px 5px rgba(0,0,0,0.1); position:relative; overflow:hidden;">
+                        <svg width="100%" height="100%" viewBox="0 0 140 180" style="position:absolute; inset:0;">${svgContent}</svg>
+                        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); opacity:0.1; font-family:serif; font-size:32px;">A</div>
+                    </div>
+                </div>
+                <div style="padding: 12px; border-top:1px solid #eee;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                         <div>
+                            <div style="font-weight: 600; font-size: 15px;">${frame.name}</div>
+                            <div style="font-size: 12px; color: #666;">${frame.category}</div>
+                         </div>
+                         <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyFrameToAllPages('${frame.id}')">Apply All</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        grid.appendChild(item);
+    });
+}
+
+function renderGalleryTextures(grid) {
+    // Standard Background Textures
+    const textures = window.BACKGROUND_TEXTURES || [];
     if (textures.length === 0) {
         grid.innerHTML = '<p>No backgrounds available.</p>';
         return;
     }
 
-    grid.innerHTML = textures.map(bg => {
-        // Check if it's a "Theme" (has theme object) or just a background
+    textures.forEach(bg => {
+        const item = document.createElement('div');
         const isTheme = !!bg.theme;
-        const typeLabel = isTheme ? 'Design Template' : (bg.category || 'Background');
-        const themePreview = isTheme
-            ? `<div style="display:flex; gap:4px; margin-top:4px;">
-                 <div style="width:16px; height:16px; background:${bg.theme.colors.primary}; border-radius:50%;"></div>
-                 <div style="width:16px; height:16px; background:${bg.theme.colors.secondary}; border-radius:50%;"></div>
-                 <div style="width:16px; height:16px; background:${bg.theme.colors.bg}; border:1px solid #ddd; border-radius:50%;"></div>
-                 <div style="font-size:10px; line-height:16px; margin-left:4px; color:#666;">${bg.theme.fonts.serif.split(',')[0].replace(/['"]/g, '')}</div>
-               </div>`
-            : '';
 
-        return `
-        <div class="gallery-item-card" onclick="selectBackgroundFromGallery('${bg.id}')" style="cursor: pointer; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s;">
-            <div style="height: 120px; overflow: hidden; background: #eee; position:relative;">
+        let themePreview = '';
+        if (isTheme) {
+            themePreview = `
+            <div style="display:flex; gap:4px; margin-top:8px;">
+                <div style="width:16px; height:16px; border-radius:50%; background:${bg.theme.colors.primary};" title="Primary"></div>
+                <div style="width:16px; height:16px; border-radius:50%; background:${bg.theme.colors.secondary};" title="Secondary"></div>
+                <div style="width:16px; height:16px; border-radius:50%; background:${bg.theme.colors.bg}; border:1px solid #ddd;" title="Background"></div>
+            </div>`;
+        }
+
+        const typeLabel = isTheme ? 'Full Theme' : 'Texture Only';
+
+        item.innerHTML = `
+            <div class="gallery-item-card" style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s; position: relative;">
+            <div style="height: 180px; overflow: hidden; background: #eee; position:relative; cursor: pointer;" onclick="selectBackgroundFromGallery('${bg.id}')">
                 <img src="${bg.thumbnail}" alt="${bg.name}" style="width: 100%; height: 100%; object-fit: cover;">
-                ${isTheme ? '<div style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.9); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">TEMPLATE</div>' : ''}
+                ${isTheme ? '<div style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.9); color:#1a1a1a; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,0.1);">TEMPLATE</div>' : ''}
             </div>
-            <div style="padding: 10px;">
-                <div style="font-weight: 600; font-size: 14px;">${bg.name}</div>
-                <div style="font-size: 11px; color: #666;">${typeLabel}</div>
+            <div style="padding: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                     <div>
+                        <div style="font-weight: 600; font-size: 15px;">${bg.name}</div>
+                        <div style="font-size: 12px; color: #666;">${typeLabel}</div>
+                     </div>
+                     <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyBackgroundToAllPages('${bg.id}')">Apply All</button>
+                </div>
                 ${themePreview}
             </div>
-        </div>
-    `}).join('');
+            </div>
+        `;
+        grid.appendChild(item);
+    });
+}
+
+function applyBackgroundToAllPages(id) {
+    if (!confirm('Apply this design to ALL pages in your book?')) return;
+
+    const textures = window.BACKGROUND_TEXTURES || [];
+    const bg = textures.find(t => t.id === id);
+    if (!bg) return;
+
+    // Use absolute URL
+    const absUrl = new URL(bg.url, window.location.href).href;
+
+    // 1. Apply to Cover if user wants (optional logic, applying blindly here as per request)
+    if (state.cover) {
+        state.cover.backgroundImageUrl = absUrl;
+        if (bg.theme) {
+            state.cover.themeColors = bg.theme.colors;
+        }
+    }
+
+    // 2. Apply to All Pages
+    state.pages.forEach(page => {
+        page.backgroundImageUrl = absUrl;
+        page.backgroundImageData = null;
+        page.backgroundImageName = bg.name;
+        if (bg.theme) {
+            page.themeColors = bg.theme.colors;
+        }
+    });
+
+    // 3. Re-render
+    renderCurrentPage();
+    closeBackgroundGallery();
+    showToast('Design applied to all pages!', 'success');
+}
+
+function applyFrameToPage(frameId) {
+    if (state.pages.length === 0) return;
+    const page = state.pages[state.currentPageIndex];
+
+    // Apply Frame
+    page.frameId = frameId;
+
+    // Clear conflicting decorations for a clean look
+    page.decorations = [];
+    page.themeDecorations = [];
+
+    // Re-render
+    renderCurrentPage();
+    closeBackgroundGallery();
+    showToast('Frame applied!');
+}
+
+function applyFrameToAllPages(frameId) {
+    if (!confirm('Apply this frame to ALL pages?')) return;
+
+    state.pages.forEach(page => {
+        page.frameId = frameId;
+        // Optionally clear other decorations? Let's be safe and do it.
+        page.decorations = [];
+        page.themeDecorations = [];
+    });
+
+    renderCurrentPage();
+    closeBackgroundGallery();
+    showToast('Frame applied to all pages!', 'success');
+}
+
+function renderGalleryFrames(grid) {
+    const frames = window.PAGE_FRAMES || [];
+    if (frames.length === 0) {
+        grid.innerHTML = '<p>No frames available.</p>';
+        return;
+    }
+    grid.innerHTML = ''; // Clear
+    frames.forEach(frame => {
+        const item = document.createElement('div');
+        // Simple SVG Preview
+        const svgContent = frame.svgGen ? frame.svgGen(140, 180, frame.color) : '';
+
+        item.innerHTML = `
+            <div class="gallery-item-card" style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s; position: relative;">
+                <div style="height: 200px; background: #fff; position:relative; cursor: pointer; display:flex; align-items:center; justify-content:center; padding:10px;" onclick="applyFrameToPage('${frame.id}')">
+                    <div style="width:140px; height:180px; background:#fafafa; box-shadow:0 2px 5px rgba(0,0,0,0.1); position:relative; overflow:hidden;">
+                        <svg width="100%" height="100%" viewBox="0 0 140 180" style="position:absolute; inset:0;">${svgContent}</svg>
+                        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); opacity:0.1; font-family:serif; font-size:32px;">A</div>
+                    </div>
+                </div>
+                <div style="padding: 12px; border-top:1px solid #eee;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                         <div>
+                            <div style="font-weight: 600; font-size: 15px;">${frame.name}</div>
+                            <div style="font-size: 12px; color: #666;">${frame.category}</div>
+                         </div>
+                         <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyFrameToAllPages('${frame.id}')">Apply All</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        grid.appendChild(item);
+    });
+}
+
+function renderBackgroundGalleryItems(items) {
+    const grid = document.getElementById('backgroundGalleryGrid');
+    if (!grid) return;
+
+    // If we passed specific items (e.g. from search), render them as textures
+    if (items && Array.isArray(items)) {
+        // Clear grid first? Yes, usually.
+        grid.innerHTML = '';
+
+        // Helper to render texture card
+        items.forEach(bg => {
+            const item = document.createElement('div');
+            const isTheme = !!bg.theme;
+            const typeLabel = isTheme ? 'Full Theme' : 'Texture Only';
+            let themePreview = '';
+            if (isTheme) {
+                themePreview = `
+                <div style="display:flex; gap:4px; margin-top:8px;">
+                    <div style="width:16px; height:16px; border-radius:50%; background:${bg.theme.colors.primary};" title="Primary"></div>
+                    <div style="width:16px; height:16px; border-radius:50%; background:${bg.theme.colors.secondary};" title="Secondary"></div>
+                    <div style="width:16px; height:16px; border-radius:50%; background:${bg.theme.colors.bg}; border:1px solid #ddd;" title="Background"></div>
+                </div>`;
+            }
+
+            item.innerHTML = `
+                <div class="gallery-item-card" style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; transition: all 0.2s; position: relative;">
+                <div style="height: 180px; overflow: hidden; background: #eee; position:relative; cursor: pointer;" onclick="selectBackgroundFromGallery('${bg.id}')">
+                    <img src="${bg.thumbnail}" alt="${bg.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                    ${isTheme ? '<div style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.9); color:#1a1a1a; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,0.1);">TEMPLATE</div>' : ''}
+                </div>
+                <div style="padding: 12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                         <div>
+                            <div style="font-weight: 600; font-size: 15px;">${bg.name}</div>
+                            <div style="font-size: 12px; color: #666;">${typeLabel}</div>
+                         </div>
+                         <button class="btn btn-secondary btn-small" style="padding: 6px 10px; font-size: 11px;" onclick="applyBackgroundToAllPages('${bg.id}')">Apply All</button>
+                    </div>
+                    ${themePreview}
+                </div>
+                </div>
+            `;
+            grid.appendChild(item);
+        });
+        return;
+    }
+
+    // Default behavior
+    if (typeof currentGalleryTab === 'undefined' || currentGalleryTab === 'textures') {
+        renderGalleryTextures(grid);
+    } else {
+        renderGalleryFrames(grid);
+    }
 }
 
 async function searchDesignApi() {
@@ -4500,32 +5520,40 @@ function selectBackgroundFromGallery(id) {
 
     if (state.pages.length === 0) return;
 
-    const page = state.pages[state.currentPageIndex];
-
     // Use absolute URL for the background functionality
     const absUrl = new URL(bg.url, window.location.href).href;
 
-    // Apply Background
-    page.backgroundImageUrl = absUrl;
-    page.backgroundImageData = null; // clear any uploaded data
-    page.backgroundImageName = bg.name; // metadata
+    // CHECK: Are we on the Cover or an Inner Page?
+    if (state.currentPageIndex < 0) {
+        // === COVER ===
+        state.cover.backgroundImageUrl = absUrl;
+        if (bg.theme) {
+            state.cover.themeColors = bg.theme.colors;
+            // Apply Fonts if available
+            if (bg.theme.fonts) {
+                state.cover.titleFont = bg.theme.fonts.serif;
+                state.cover.subtitleFont = bg.theme.fonts.sans;
+            }
+        }
+    } else {
+        // === INNER PAGE ===
+        const page = state.pages[state.currentPageIndex];
 
-    // Check if it's a Full Theme Template
-    if (bg.theme) {
-        console.log("Applying theme:", bg.theme);
+        // Apply Background
+        page.backgroundImageUrl = absUrl;
+        page.backgroundImageData = null; // clear any uploaded data
+        page.backgroundImageName = bg.name; // metadata
 
-        // 1. Update State Theme Config (localized to page if we supported per-page themes, but global for now)
-        // Ideally we should have per-page theme overrides. 
-        // For now, let's update the page's themeColors property which sanitizePageForStorage supports
-        page.themeColors = bg.theme.colors;
-
-        // Also update the global theme cursor if valid, or just apply styles manually
-        // We'll apply styles directly to the DOM elements of the current page
+        // Check if it's a Full Theme Template
+        if (bg.theme) {
+            console.log("Applying theme:", bg.theme);
+            page.themeColors = bg.theme.colors;
+        }
     }
 
     // Update UI
     const bgStatus = document.getElementById('pageBgImageStatus');
-    if (bgStatus) bgStatus.textContent = `Selected: ${bg.name}`;
+    if (bgStatus) bgStatus.textContent = `Selected: ${bg.name} `;
 
     renderCurrentPage();
 
@@ -4540,7 +5568,13 @@ window.openBackgroundGallery = openBackgroundGallery;
 window.closeBackgroundGallery = closeBackgroundGallery;
 window.renderBackgroundGalleryItems = renderBackgroundGalleryItems;
 window.selectBackgroundFromGallery = selectBackgroundFromGallery;
-window.searchDesignApi = searchDesignApi;
+window.searchDesignApi = searchDesignApi;    // Expose functions required by Gallery UI
+window.switchGalleryTab = switchGalleryTab;
+window.applyFrameToPage = applyFrameToPage;
+window.applyFrameToAllPages = applyFrameToAllPages;
+window.showToast = showToast;
+window.renderGalleryTypography = renderGalleryTypography; // NEW
+window.applyTextStyle = applyTextStyle; // NEW
 
 function applyPageBackgroundStyles(element, page, fallbackBgColor) {
     if (!element) return;
@@ -4569,7 +5603,7 @@ async function uploadBackgroundImageToStorage(dataUrl, originalName) {
     const safeName = String(originalName || 'background.jpg')
         .replace(/[^\w.\-]+/g, '_')
         .slice(0, 80);
-    const path = `users/${uid}/page-backgrounds/${Date.now()}_${safeName.replace(/\.(png|jpe?g)$/i, '')}.jpg`;
+    const path = `users / ${uid} /page-backgrounds/${Date.now()}_${safeName.replace(/\.(png|jpe?g)$/i, '')}.jpg`;
 
     const storage = firebase.storage();
     const ref = storage.ref().child(path);
@@ -4777,7 +5811,7 @@ function showPhotoOptions(slotIndex, event) {
                 </div>
                 <button class="btn btn-small" onclick="closePhotoOptions()">Cancel</button>
             </div>
-        `;
+            `;
         document.body.appendChild(modal);
     }
 
@@ -4787,8 +5821,8 @@ function showPhotoOptions(slotIndex, event) {
 
     designBtn.onclick = () => {
         closePhotoOptions();
-        activatePage(state.currentPageIndex);
-        selectPhotoSlot(slotIndex); // Switches to design tab
+        window.selectPhotoForSlot(slotIndex); // Set global selection state
+        window.openDesignStudio(); // Open the large modal
     };
 
     replaceBtn.onclick = () => {
@@ -4851,7 +5885,11 @@ async function openDesignEditor(slotIndex) {
 
         // Initialize or reinitialize
         if (!designEditor.canvas) {
-            designEditor.init('designCanvasContainer');
+            designEditor.init('designStudioCanvasContainer', {
+                filterControlsId: 'designStudioFilterControls',
+                toolControlsId: 'designStudioToolControls',
+                brushControlsId: 'designStudioBrushControls'
+            });
         }
 
         // Wait a bit more for canvas to be ready
@@ -4979,7 +6017,7 @@ function updateAdjustmentLabel(type, value) {
     // We need to find the specific one. 
     // Best way is to pass the input element `this` and look at siblings
     // But since we are restricted to app.js, we assume IDs will be added to index.html
-    const labelId = `val-${type}`;
+    const labelId = `val - ${type} `;
     const label = document.getElementById(labelId);
     if (label) label.textContent = value + '%';
 
@@ -5095,25 +6133,138 @@ function setupPhotoDragAndDrop() {
 // ============================================
 // PHOTO PICKER MODAL
 // ============================================
-function openPhotoPicker() {
-    const modal = document.getElementById('photoPickerModal');
-    const grid = document.getElementById('photoPickerGrid');
-
-    if (state.selectedPhotos.length === 0) {
-        grid.innerHTML = '<div class="empty-state">No photos selected. Please pick photos from Google Photos first.</div>';
-    } else {
-        grid.innerHTML = state.selectedPhotos.map((photo, index) => {
-            const thumbUrl = photo.thumbnailUrl && photo.thumbnailUrl.startsWith('data:') ? photo.thumbnailUrl : null;
-            return `<div class="photo-item" onclick="pickPhoto(${index})">
-    ${thumbUrl
-                    ? `<img src="${thumbUrl}" alt="Photo ${index + 1}">`
-                    : `<div class="thumbnail-placeholder">${index + 1}</div>`
-                }
-      </div>`;
-        }).join('');
+// Enhanced Photo Picker with Text Support
+function openPhotoPicker(callback) {
+    // Some flows (e.g. cover photo selection) set `state.photoPickerCallback`
+    // before opening the picker. Avoid overwriting it with `undefined`.
+    if (typeof callback === 'function') {
+        state.photoPickerCallback = callback;
     }
+    const modal = document.getElementById('photoPickerModal');
+
+    // Switch to Photos tab by default
+    let activeTab = 'photos';
+
+    const renderModalContent = () => {
+        modal.innerHTML = `
+        <div class="modal-content large-modal" style="height: 80vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <div class="gallery-tabs">
+                        <button class="gallery-tab ${activeTab === 'photos' ? 'active' : ''}" id="ppTabPhotos">Photos</button>
+                        <button class="gallery-tab ${activeTab === 'text' ? 'active' : ''}" id="ppTabText">Text / WordArt</button>
+                    </div>
+                     <div style="display:flex; align-items:center; gap:10px;">
+                        ${activeTab === 'photos' ? `
+                             <span style="font-size: 20px;">🔍</span>
+                             <input type="range" min="100" max="400" value="150" data-album-zoom-range style="width: 100px;">
+                        ` : ''}
+                        <span class="close-modal" onclick="closePhotoPicker()">&times;</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
+                ${activeTab === 'photos' ? `
+                    <div id="photoPickerGrid" class="photo-grid" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));">
+                        ${state.selectedPhotos.map((photo, index) => {
+            const url = photo.editedImageData || (photo.thumbnailUrl && photo.thumbnailUrl.startsWith('data:') ? photo.thumbnailUrl : (photo.baseUrl || photo.url));
+            return `
+                            <div class="photo-item" onclick="pickPhoto(${index})">
+                                <img src="${url}" loading="lazy" alt="Photo ${index + 1}">
+                            </div>`;
+        }).join('')}
+                        ${state.selectedPhotos.length === 0 ? '<p style="grid-column: 1/-1; text-align:center; color:#666; margin-top:50px;">No photos selected. Upload photos first.</p>' : ''}
+                    </div>
+                ` : `
+                    <!-- Text / WordArt Input -->
+                    <div class="text-input-container" style="max-width: 600px; margin: 0 auto; text-align: center;">
+                        <textarea id="ppTextInput" class="edo-textarea" placeholder="Type your text here..." style="font-size: 18px; width: 100%; min-height: 100px; margin-bottom: 20px;"></textarea>
+                        
+                        <h4 style="margin-bottom: 10px; text-align: left;">Select Style</h4>
+                        <div class="text-style-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px;">
+                            ${window.TEXT_STYLES ? window.TEXT_STYLES.map(style => {
+            let styleString = '';
+            for (const [key, value] of Object.entries(style.style)) {
+                const kebabKey = key.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
+                styleString += `${kebabKey}:${value};`;
+            }
+            return `
+                                <div class="style-option" onclick="pickText('${style.id}', '${style.name}')" style="border: 1px solid #eee; padding: 10px; cursor: pointer; border-radius: 8px; hover:background:#f9f9f9;">
+                                    <div style="font-size: 24px; text-align: center; margin-bottom: 5px; ${styleString}">Abc</div>
+                                    <div style="font-size: 11px; text-align: center; color: #666;">${style.name}</div>
+                                </div>
+                                `;
+        }).join('') : '<p>Loading styles...</p>'}
+                             <!-- Default / Plain Text Option -->
+                             <div class="style-option" onclick="pickText('default', 'Plain Text')" style="border: 1px solid #eee; padding: 10px; cursor: pointer; border-radius: 8px;">
+                                    <div style="font-size: 24px; text-align: center; margin-bottom: 5px; font-family: sans-serif; color: #333;">Abc</div>
+                                    <div style="font-size: 11px; text-align: center; color: #666;">Plain Text</div>
+                             </div>
+                        </div>
+
+                        <button class="btn btn-primary" onclick="submitTextSelection()" style="margin-top: 30px; width: 100%; padding: 12px;">Insert Text</button>
+                    </div>
+                `}
+            </div>
+        </div>
+        `;
+
+        // Bind Tab Click Handlers
+        document.getElementById('ppTabPhotos').onclick = () => { activeTab = 'photos'; renderModalContent(); };
+        document.getElementById('ppTabText').onclick = () => { activeTab = 'text'; renderModalContent(); };
+
+        // Re-bind Zoom Listener if on photos tab
+        if (activeTab === 'photos') {
+            const zoomInput = modal.querySelector('input[data-album-zoom-range]');
+            const grid = document.getElementById('photoPickerGrid');
+            if (zoomInput && grid) {
+                zoomInput.oninput = function () {
+                    const size = this.value + 'px';
+                    grid.style.setProperty('grid-template-columns', `repeat(auto-fill, minmax(${size}, 1fr))`);
+                };
+            }
+        }
+    };
+
+    renderModalContent();
     modal.classList.add('active');
 }
+
+// Global function to handle Text Selection
+window.pickText = (styleId, styleName) => {
+    // Highlight selection
+    const opts = document.querySelectorAll('.style-option');
+    opts.forEach(o => o.style.borderColor = '#eee');
+    // We can't easily find "this" without passing event, so simpler implementation:
+    // Just store selected style in a temp variable attached to modal or state
+    state.tempSelectedTextStyle = styleId;
+
+    // Ideally visuals update:
+    event.currentTarget.style.borderColor = '#6366f1';
+    event.currentTarget.style.borderWidth = '2px';
+};
+
+window.submitTextSelection = () => {
+    const textInput = document.getElementById('ppTextInput').value;
+    if (!textInput) {
+        alert('Please enter some text');
+        return;
+    }
+    const styleId = state.tempSelectedTextStyle || 'default';
+
+    if (state.photoPickerCallback) {
+        // Pass a special object structure for text
+        state.photoPickerCallback({
+            type: 'text',
+            content: textInput,
+            styleId: styleId,
+            id: 'text-' + Date.now() // unique ID
+        });
+        state.photoPickerCallback = null;
+    }
+    closePhotoPicker();
+};
 
 function pickPhoto(index) {
     if (state.photoPickerCallback) {
@@ -5320,8 +6471,8 @@ async function loadBookpodShippingOptions() {
         const current = methodSel.value || '2';
         methodSel.innerHTML = options.shippingMethods.map(m => {
             const id = String(m.id);
-            const label = m.name || `Method ${id}`;
-            return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
+            const label = m.name || `Method ${id} `;
+            return `< option value = "${escapeHtml(id)}" > ${escapeHtml(label)}</option > `;
         }).join('');
         // Prefer preserving selection; default to "2" if present.
         // Prefer preserving selection; default to "2" if present.
@@ -5465,7 +6616,8 @@ async function submitBookpodOrder() {
             template: state.template || state.selectedTemplate?.id || "custom",
             // Pass other necessary state configs
             pageFormat: state.pageFormat || "square-10x10",
-            title: state.activeProjectTitle || state.cover?.title || "My Photo Book"
+            title: state.activeProjectTitle || state.cover?.title || "My Photo Book",
+            globalCornerRadius: state.globalCornerRadius || 0
         };
 
         showStatus('Generating PDF for print...', 'info');
@@ -5604,6 +6756,98 @@ async function createBookpodOrderPrep() {
     alert('Create order is not enabled yet. This modal currently only previews the order + available shipping methods.');
 }
 
+async function resizeBase64Image(base64, maxWidth) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+                height = Math.round(height * (maxWidth / width));
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // JPEG 0.85 quality is good balance for print
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => resolve(base64); // Fallback
+    });
+}
+
+async function optimizeBookDataForPdf(originalState) {
+    showProgress('Optimizing...', 'Preparing images for upload...', 10);
+
+    // Deep clone pertinent parts only
+    const cleanState = {
+        title: originalState.title || "My Photo Book",
+        // Extract cover info
+        cover: { ...originalState.cover },
+        // Extract pages
+        pages: originalState.pages ? originalState.pages.map(p => ({
+            ...p,
+            // Keep only essential photo data
+            photos: p.photos ? p.photos.map(ph => ({ ...ph })) : []
+        })) : [],
+        // Template info
+        template: originalState.template,
+        selectedTemplate: originalState.selectedTemplate,
+        borderStyle: originalState.borderStyle,
+        borderColor: originalState.borderColor,
+        decorations: originalState.decorations,
+        globalCornerRadius: originalState.globalCornerRadius, // Pass corner radius to backend
+        // Back cover
+        backCover: originalState.backCover
+    };
+
+    const MAX_WIDTH = 2000;
+    let processedCount = 0;
+    const totalImages = (cleanState.cover?.photo ? 1 : 0) +
+        cleanState.pages.reduce((acc, p) => acc + (p.photos?.length || 0), 0);
+
+    // 1. Optimize Cover Photo
+    if (cleanState.cover && cleanState.cover.photo) {
+        const p = cleanState.cover.photo;
+        // If it's a local Data URL
+        if (p.baseUrl && String(p.baseUrl).startsWith('data:')) {
+            p.baseUrl = await resizeBase64Image(p.baseUrl, MAX_WIDTH);
+            // Ensure other fields leverage this
+            p.thumbnailUrl = p.baseUrl;
+            p.editedImageData = p.baseUrl;
+        }
+        processedCount++;
+        if (totalImages > 0) updateProgress('Optimizing...', `Processing image ${processedCount} /${totalImages}`, 10 + (processedCount / totalImages) * 20);
+    }
+
+    // 2. Optimize Page Photos
+    for (const page of cleanState.pages) {
+        if (!page.photos) continue;
+        for (const p of page.photos) {
+            // If it's local
+            if (p && p.baseUrl && String(p.baseUrl).startsWith('data:')) {
+                p.baseUrl = await resizeBase64Image(p.baseUrl, MAX_WIDTH);
+                p.thumbnailUrl = p.baseUrl;
+                p.editedImageData = p.baseUrl;
+            }
+            // Strip unused bulky fields if they exist
+            if (p) delete p.originalFile;
+
+            processedCount++;
+            if (totalImages > 0) updateProgress('Optimizing...', `Processing image ${processedCount}/${totalImages}`, 10 + (processedCount / totalImages) * 20);
+        }
+    }
+
+    return cleanState;
+}
+
 async function downloadPdfOnly() {
     const user = state.user || firebase.auth().currentUser;
     if (!user) {
@@ -5618,11 +6862,14 @@ async function downloadPdfOnly() {
 
     if (!confirm('Generate high-resolution PDF preview? This may take a minute.')) return;
 
-    showProgress('Generating PDF...', 'Combining photos and layout...', 20);
-
     try {
-        // Use 600s (10 min) timeout for PDF generation as it involves heavy image processing
-        const pdfRes = await callFunction('generateMemoryDirectorPdf', { bookData: state }, 600000);
+        // Optimize payload (Client-side resize of huge local photos)
+        const optimizedData = await optimizeBookDataForPdf(state);
+
+        showProgress('Generating PDF...', 'Combining photos and layout...', 35);
+
+        // Use 600s timeout
+        const pdfRes = await callFunction('generateMemoryDirectorPdf', { bookData: optimizedData }, 600000);
 
         if (!pdfRes || !pdfRes.success || !pdfRes.pdfDownloadUrl) {
             throw new Error('Failed to generate PDF: ' + (pdfRes?.error || 'Unknown error'));
@@ -6015,6 +7262,10 @@ function updateCoverFromState() {
     const subtitleEl = document.getElementById('coverSubtitle');
     if (subtitleEl) subtitleEl.value = state.cover.subtitle || '';
 
+    // NEW: Initialize subtitle color
+    const subtitleColorEl = document.getElementById('coverSubtitleColor');
+    if (subtitleColorEl) subtitleColorEl.value = state.cover.subtitleColor || '#ffffff';
+
     const subtitleSizeEl = document.getElementById('coverSubtitleSize');
     if (subtitleSizeEl) subtitleSizeEl.value = state.cover.subtitleSize || 14;
 
@@ -6038,6 +7289,26 @@ function updateCoverFromState() {
         if (coverPhotoBorderEl) coverPhotoBorderEl.checked = false;
     }
 
+    // Update Layout & Custom Controls
+    const layoutEl = document.getElementById('coverLayout');
+    if (layoutEl) layoutEl.value = state.cover.layout || 'standard';
+
+    const photoSizeEl = document.getElementById('coverPhotoSize');
+    if (photoSizeEl) photoSizeEl.value = state.cover.photoSize || 100;
+    const photoSizeValEl = document.getElementById('coverPhotoSizeVal');
+    if (photoSizeValEl) photoSizeValEl.textContent = (state.cover.photoSize || 100) + '%';
+
+    const photoAngleEl = document.getElementById('coverPhotoAngle');
+    if (photoAngleEl) photoAngleEl.value = state.cover.photoAngle || 0;
+    const photoAngleValEl = document.getElementById('coverPhotoAngleVal');
+    if (photoAngleValEl) photoAngleValEl.textContent = (state.cover.photoAngle || 0) + '°';
+
+    const globalCornerRadiusEl = document.getElementById('globalCornerRadius');
+    if (globalCornerRadiusEl) globalCornerRadiusEl.value = state.globalCornerRadius || 0;
+
+    const globalCornerRadiusCoverEl = document.getElementById('globalCornerRadiusCover');
+    if (globalCornerRadiusCoverEl) globalCornerRadiusCoverEl.value = state.globalCornerRadius || 0;
+
     updateCoverPreview();
 
     const slot = document.getElementById('coverPhotoSlot');
@@ -6054,14 +7325,19 @@ function updateCoverFromState() {
 
 function selectCoverPhoto() {
     state.photoPickerCallback = (photo) => {
+        // Uniformly update BOTH state properties
         state.cover.photo = {
             ...photo,
             alignment: 'center'
         };
+        // Ensure legacy property is also set for 3D preview
+        state.cover.photoUrl = photo.editedData || photo.thumbnailUrl || photo.baseUrl;
+
         updateCoverFromState();
-        // Also update the 3D book cover preview if visible
-        // Also update the 3D book cover preview if visible
         try { updateCoverPreview(); } catch (e) {/* ignore */ }
+
+        // Force re-render of 3D view (which consumes photoUrl)
+        if (typeof renderCurrentPage === 'function') renderCurrentPage();
     };
     openPhotoPicker();
 }
@@ -6513,7 +7789,10 @@ function collectBookData() {
         coverTitleFont: state.cover.titleFont || (template ? template.cover.titleFont : 'Playfair Display'),
         coverSubtitle: state.cover.subtitle || '',
         coverSubtitleSize: state.cover.subtitleSize || 14,
+        coverSubtitle: state.cover.subtitle || '',
+        coverSubtitleSize: state.cover.subtitleSize || 14,
         coverShowBorder: state.cover.showBorder !== false,
+        coverLayout: state.cover.layout || 'standard',
 
         // Enhanced back cover data with full parity
         backCover: {
@@ -7568,7 +8847,11 @@ function initializeEditor() {
     }
 
     if (typeof designEditor !== 'undefined') {
-        designEditor.init('designCanvasContainer');
+        designEditor.init('designStudioCanvasContainer', {
+            filterControlsId: 'designStudioFilterControls',
+            toolControlsId: 'designStudioToolControls',
+            brushControlsId: 'designStudioBrushControls'
+        });
     }
 }
 
@@ -7632,22 +8915,8 @@ if (document.getElementById('editorView')) {
 // ============================================
 
 function selectPhotoForCover() {
-    // Reuse existing picker logic by temporarily overriding the callback
-    const originalCallback = state.photoPickerCallback;
-
-    state.photoPickerCallback = (photo) => {
-        if (!photo) return;
-        // Prefer edited data, then thumbnail data URL
-        const url = photo.editedData || photo.thumbnailUrl;
-        if (url) {
-            state.cover.photoUrl = url;
-            renderCurrentPage();
-        }
-        document.getElementById('photoPickerModal').classList.remove('active');
-        // Restore original callback just in case
-        state.photoPickerCallback = originalCallback;
-    };
-    openPhotoPicker();
+    // Delegate to the main robust handler to ensure state consistency
+    selectCoverPhoto();
 }
 
 function setupCoverEnhancements() {
@@ -7734,3 +9003,124 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ============================================
+// DESIGN STUDIO MODAL LOGIC (ADDED)
+// ============================================
+
+window.openDesignStudio = function () {
+    console.log("Opening Design Studio...");
+
+    // 1. Check if we have a valid page and selected photo
+    if (!state.pages || state.pages.length === 0) {
+        showToast('Please create a page first.');
+        return;
+    }
+
+    // Default to the first photo if none selected, or let user know
+    const page = state.pages[state.currentPageIndex];
+    let slotIndex = state.selectedPhotoSlot;
+
+    // If no slot is strictly "selected" (clicked), try to find the first populated slot
+    if (slotIndex === null || slotIndex === undefined) {
+        // Find first slot with a photo
+        const index = page.photos.findIndex(p => p && (p.editedData || p.thumbnailUrl || p.baseUrl));
+        if (index >= 0) {
+            slotIndex = index;
+            // Select it visually
+            state.selectedPhotoSlot = slotIndex;
+            renderCurrentPage();
+        } else {
+            showToast('Please select a photo to design.');
+            return;
+        }
+    }
+
+    const photo = page.photos[slotIndex];
+    if (!photo || (!photo.editedData && !photo.thumbnailUrl && !photo.baseUrl)) {
+        showToast('The selected slot is empty.');
+        return;
+    }
+
+    // 2. Open Modal
+    const modal = document.getElementById('designStudioModal');
+    if (modal) {
+        modal.classList.add('active');
+
+        // 3. Initialize Design Editor with the photo
+        const src = photo.editedData || photo.thumbnailUrl || photo.baseUrl;
+
+        // If we have a design editor instance
+        if (window.designEditor) {
+            // Re-init canvas in the new container if needed, or just load image
+            // We need to ensure the canvas is inside #designCanvasContainer
+            setTimeout(() => {
+                window.designEditor.init('designStudioCanvasContainer', {
+                    filterControlsId: 'designStudioFilterControls',
+                    toolControlsId: 'designStudioToolControls',
+                    brushControlsId: 'designStudioBrushControls'
+                });
+                window.designEditor.loadImage(src)
+                    .then(() => {
+                        console.log('Image loaded into Design Studio');
+                    })
+                    .catch(err => {
+                        console.error('Failed to load image into studio:', err);
+                        showToast('Could not load image for editing.');
+                    });
+            }, 100); // Small delay to ensure modal is visible/rendered
+        } else {
+            console.error("DesignEditor instance not found on window.");
+        }
+    } else {
+        console.error("designStudioModal not found in DOM");
+    }
+};
+
+window.applyDesignToPhoto = function () {
+    console.log("Applying design to photo...");
+    if (!window.designEditor || !window.designEditor.currentImage) {
+        console.warn("Design editor not ready or no image");
+        return;
+    }
+
+    // 1. Export High-Res Image from Canvas
+    try {
+        // Use exportImage which now handles aspect ratio (see design-editor.js fix)
+        // format 'png', quality 1.0
+        const dataUrl = window.designEditor.exportImage('png', 1.0);
+
+        if (state.pages && state.pages[state.currentPageIndex] && state.selectedPhotoSlot !== null) {
+            const page = state.pages[state.currentPageIndex];
+            const photo = page.photos[state.selectedPhotoSlot];
+
+            if (photo) {
+                // Save as edited data
+                photo.editedData = dataUrl;
+
+                // 2. Update State & UI
+                renderCurrentPage();
+
+                // 3. Close Modal
+                const modal = document.getElementById('designStudioModal');
+                if (modal) modal.classList.remove('active');
+
+                showToast('Design applied successfully!');
+
+                // 4. (Optional) Auto-save project
+                if (typeof saveProject === 'function') {
+                    // Debounce/auto save
+                    saveProject({ silent: true });
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Failed to export design:', e);
+        showToast('Failed to save design. See console.');
+    }
+};
+
+window.closeDesignStudio = function () {
+    const modal = document.getElementById('designStudioModal');
+    if (modal) modal.classList.remove('active');
+};

@@ -80,6 +80,7 @@ function getOauthConfig() {
 
 const SCOPES = [
   "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
+  "https://www.googleapis.com/auth/photoslibrary.readonly",
   "https://www.googleapis.com/auth/presentations",
   "https://www.googleapis.com/auth/drive",
 ];

@@ -121,6 +121,17 @@ exports.fetchHighResImage = onCall(async (request) => {
   return photos.fetchHighResImage(request.auth.uid, url);
 });
 
+exports.refreshMediaItemUrls = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+  const {mediaItemIds} = request.data;
+  if (!mediaItemIds || !Array.isArray(mediaItemIds)) {
+    throw new HttpsError("invalid-argument", "mediaItemIds array required");
+  }
+  return photos.refreshMediaItemUrls(request.auth.uid, mediaItemIds);
+});
+
 // ============================================
 // GOOGLE SLIDES PRESENTATION
 // ============================================
@@ -487,6 +498,26 @@ exports.searchDesignInspiration = onCall(async (request) => {
   }
 });
 
+exports.generatePhotoDesign = onCall({
+  timeoutSeconds: 60,
+  memory: "1GiB",
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+  const {imageUrl, prompt} = request.data;
+  if (!imageUrl) {
+    throw new HttpsError("invalid-argument", "imageUrl is required");
+  }
+
+  try {
+    return await designInspiration.generatePhotoDesign(request.auth.uid, imageUrl, prompt);
+  } catch (error) {
+    console.error("generatePhotoDesign error:", error);
+    throw new HttpsError("internal", error.message || "Failed to generate design");
+  }
+});
+
 // ============================================
 // MEMORY DIRECTOR (AI STORY + PRINT-READY PDF)
 // ============================================
@@ -539,6 +570,7 @@ exports.generateCaptions = onCall(async (request) => {
 exports.generateMemoryDirectorPdf = onCall({
   timeoutSeconds: 540,
   memory: "2GiB",
+  cors: true,
 }, async (request) => {
   try {
     if (!request.auth) {
@@ -560,11 +592,17 @@ exports.generateMemoryDirectorPdf = onCall({
       coverTitle: bookData.cover?.title || "My Photo Book",
       coverSubtitle: bookData.cover?.subtitle || "",
       coverBackground: bookData.cover?.backgroundColor || "#1a1a2e",
-      coverTextColor: bookData.cover?.textColor || "#ffffff",
+      coverTextColor: bookData.cover?.textColor || bookData.cover?.titleColor || "#ffffff",
       coverTitleFont: bookData.cover?.titleFont || "Times-Bold",
+      coverTitleSize: bookData.cover?.titleSize || 36,
       coverPhoto: bookData.cover?.photo || null,
       coverBackgroundImageData: bookData.cover?.backgroundImageData || null,
       coverBackgroundImageUrl: bookData.cover?.backgroundImageUrl || null,
+      // Template information (critical for decorations and design)
+      template: bookData.selectedTemplate?.id || bookData.template || null,
+      borderStyle: bookData.selectedTemplate?.borderStyle || bookData.borderStyle || null,
+      borderColor: bookData.selectedTemplate?.colors?.primary || bookData.borderColor || null,
+      decorations: bookData.selectedTemplate?.decorations || bookData.decorations || null,
       // Back cover mapping
       backCover: {
         text: bookData.backCover?.text || "Created with Shoso",

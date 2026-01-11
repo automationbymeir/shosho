@@ -99,3 +99,99 @@
     box-shadow: 0 0 0 2px #6366f1;
     /* Primary color focus */
 }
+
+/* Modal Tabs */
+.gallery-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+.gallery-tab {
+    background: transparent;
+    border: none;
+    padding: 8px 16px;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.gallery-tab:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px 4px 0 0;
+}
+
+.gallery-tab.active {
+    color: #6366f1;
+    /* Primary */
+    border-bottom-color: #6366f1;
+}
+
+/* Photo Picker Grid Overrides for Grid Density */
+.photo-grid {
+    display: grid;
+    gap: 10px;
+    padding-bottom: 20px;
+}
+
+.photo-item {
+    aspect-ratio: 1;
+    background: #0f172a;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.photo-item:hover {
+    border-color: #6366f1;
+}
+
+.photo-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Text / WordArt Styling */
+.text-input-container {
+    padding: 20px;
+}
+
+.edo-textarea {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.edo-textarea:focus {
+    border-color: #6366f1;
+    outline: none;
+}
+
+.text-style-grid {
+    margin-top: 15px;
+}
+
+.style-option {
+    background: #0f172a;
+    transition: all 0.2s;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.style-option:hover {
+    transform: translateY(-2px);
+    border-color: #6366f1 !important;
+    background: #1e293b;
+}

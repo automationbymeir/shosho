@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="/css/modal.css">
   <!-- Enhanced 3D Book Styles -->
   <link rel="stylesheet" href="/css/book-3d-enhanced.css">
+  <link rel="stylesheet" href="/css/book-loader.css">
   <!-- Editorial Swiss Design System -->
   <link rel="stylesheet" href="/css/editor-redesign.css?v=v46">
   <style>
@@ -37,6 +38,17 @@
       height: 100vh !important;
       height: 100dvh !important;
       min-height: 100% !important;
+    }
+
+    /* FIX: Cover Photo Rotation (allow corners outside frame) */
+    .book3d-cover-photo-container {
+      overflow: visible !important;
+      background: transparent !important;
+    }
+
+    .book3d-cover-photo {
+      /* Ensure image itself doesn't have background */
+      background: transparent !important;
     }
   </style>
   <script>
@@ -274,6 +286,15 @@
             </span>
             Preview PDF
           </button>
+          <button class="btn-header btn-header-ghost" onclick="showProfileModal()" title="User Profile">
+            <span class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </span>
+            Profile
+          </button>
           <button class="btn-header btn-header-primary" id="sendToPrintBtn" onclick="showBookpodOrderModal()">
             <span class="icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -301,6 +322,16 @@
               </svg>
             </span>
             <label>Photos</label>
+          </button>
+          <button class="rail-btn tab" data-tab="pages" onclick="switchTab('pages')">
+            <span class="icon icon-lg">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+                <line x1="12" y1="18" x2="12" y2="18.01" />
+                <line x1="12" y1="6" x2="12" y2="14" />
+              </svg>
+            </span>
+            <label>Pages</label>
           </button>
           <button class="rail-btn tab" data-tab="design" onclick="switchTab('design')">
             <span class="icon icon-lg">
@@ -336,6 +367,21 @@
                 </span>
                 Import from Cloud
               </button>
+
+              <!-- Local Upload Button -->
+              <input type="file" id="localPhotoInput" multiple accept="image/*" style="display:none"
+                onchange="handleLocalFileUpload(event)">
+              <button id="localUploadBtn" class="btn-photo-picker" onclick="triggerLocalUpload()"
+                style="margin-top: 8px; background-color: var(--edo-text); color: white;">
+                <span class="icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="17,8 12,3 7,8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </span>
+                Upload from Computer
+              </button>
               <div id="picker-message" class="text-caption"></div>
               <div class="photos-section-header">
                 <span class="photos-count">Selected (<span id="selectedCount">0</span>)</span>
@@ -345,6 +391,25 @@
                 </div>
               </div>
               <div id="selectedPhotosList" class="photo-grid"></div>
+            </div>
+          </div>
+
+          <!-- PAGES TAB (New) -->
+          <div class="drawer-content" id="pages-tab">
+            <div class="drawer-header">
+              <h2 class="drawer-title">Pages Overview</h2>
+            </div>
+            <div class="drawer-body">
+              <div class="design-section">
+                <div class="design-section-title">
+                  Page Thumbnails
+                </div>
+                <div id="pageThumbnails"
+                  style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px;"></div>
+              </div>
+              <div class="design-section" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="addPage()" style="width:100%">+ Add Empty Page</button>
+              </div>
             </div>
           </div>
 
@@ -387,6 +452,35 @@
                       </svg>
                     </span>
                     <span>Shuffle</span>
+                  </button>
+                </div>
+                <!-- Apply Design Button (Moved from Properties) -->
+                <button class="btn btn-primary" onclick="applyDesignToPhoto()" style="width: 100%; margin-top: 12px;">
+                  <span class="icon">✓</span> Apply Design to Photo
+                </button>
+              </div>
+
+              <!-- Nana Banana AI Design -->
+              <div class="design-section"
+                style="background: linear-gradient(135deg, rgba(129, 140, 248, 0.1), rgba(56, 189, 248, 0.1)); border: 1px solid rgba(129, 140, 248, 0.3);">
+                <div class="design-section-title" style="color: #818cf8;">
+                  <span class="icon icon-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                      <line x1="9" y1="9" x2="9.01" y2="9" />
+                      <line x1="15" y1="9" x2="15.01" y2="9" />
+                    </svg>
+                  </span>
+                  Nana Banana AI
+                </div>
+                <div class="control-group">
+                  <textarea id="aiPrompt" class="edo-textarea"
+                    placeholder="Describe how you want to redesign this photo..."
+                    style="min-height: 60px; margin-bottom: 8px; font-size: 13px; background: rgba(255,255,255,0.5); border: 1px solid rgba(129, 140, 248, 0.2); color: var(--edo-text);"></textarea>
+                  <button class="btn btn-primary" onclick="window.designEditor.generateAIImage()"
+                    style="width: 100%; background: linear-gradient(135deg, #818cf8, #4f46e5); border: none;">
+                    <span class="icon">✨</span> Design with AI
                   </button>
                 </div>
               </div>
@@ -494,7 +588,18 @@
         </aside>
 
         <!-- C. Main Stage -->
-        <main class="rebuild-stage">
+        <main class="rebuild-stage" style="position:relative;">
+
+          <!-- New Floating Design Button (User Request) -->
+          <button id="openDesignGalleryBtn" onclick="openBackgroundGallery()" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 50;
+                     background: linear-gradient(135deg, #6366f1, #a855f7); color: white;
+                     border: none; padding: 10px 24px; border-radius: 99px;
+                     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+                     display: flex; align-items: center; gap: 8px; font-weight: 600;
+                     transition: all 0.3s ease; cursor: pointer;">
+            <span class="icon">✨</span> Open Design Gallery
+          </button>
+
           <!-- 3D Book Container -->
           <div id="pagePreview" class="book3d-container"></div>
 
@@ -543,19 +648,43 @@
         </main>
 
         <!-- D. Properties Inspector -->
-        <aside class="rebuild-inspector">
+        <aside class="rebuild-inspector" id="inspectorPanel">
+          <!-- Collapsed View (Vertical Strip) -->
+          <div class="inspector-collapsed-view" onclick="toggleInspector()">
+            <button class="inspector-toggle-btn" title="Expand Properties">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <div
+              style="writing-mode: vertical-rl; text-orientation: mixed; margin-top: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--edo-text-secondary);">
+              Properties</div>
+          </div>
+
           <div class="inspector-header">
             <h3 class="inspector-title">Properties</h3>
+            <button class="inspector-toggle-btn" onclick="toggleInspector()" title="Collapse Panel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
           </div>
           <div class="inspector-body">
 
             <!-- Cover Settings -->
             <div id="cover-settings-panel" class="editor-settings-panel" style="display:none;">
-              <div class="setting-group">
+              <div class="setting-group group-title">
                 <label class="setting-label">Book Title</label>
-                <input type="text" id="coverTitle" placeholder="Enter title..." class="edo-input">
+                <div style="display:flex; gap:8px;">
+                  <input type="text" id="coverTitle" placeholder="Enter title..." class="edo-input" style="flex:1;">
+                  <div class="color-picker-wrapper"
+                    style="width:36px; height:36px; padding:0; border-radius:4px; overflow:hidden; border:1px solid #ddd;">
+                    <input type="color" id="coverTitleColor" value="#ffffff" oninput="updateCoverPreview()"
+                      style="width:100%; height:100%; padding:0; border:none; background:none; cursor:pointer;">
+                  </div>
+                </div>
               </div>
-              <div class="setting-group">
+              <div class="setting-group group-cover">
                 <label class="setting-label">Cover Photo</label>
                 <!-- Moved from legacy container to be visible and clickable -->
                 <div id="coverPhotoSlot" class="photo-slot-placeholder"
@@ -564,11 +693,19 @@
                 </div>
               </div>
 
-              <div class="setting-group" style="margin-top: 10px;">
+              <div class="setting-group group-subtitle" style="margin-top: 10px;">
                 <label class="setting-label">Subtitle</label>
-                <input type="text" id="coverSubtitle" placeholder="Enter subtitle..." class="edo-input">
+                <div style="display:flex; gap:8px;">
+                  <input type="text" id="coverSubtitle" placeholder="Enter subtitle..." class="edo-input"
+                    style="flex:1;">
+                  <div class="color-picker-wrapper"
+                    style="width:36px; height:36px; padding:0; border-radius:4px; overflow:hidden; border:1px solid #ddd;">
+                    <input type="color" id="coverSubtitleColor" value="#ffffff" oninput="updateCoverPreview()"
+                      style="width:100%; height:100%; padding:0; border:none; background:none; cursor:pointer;">
+                  </div>
+                </div>
               </div>
-              <div class="setting-group" style="margin-top: 10px;">
+              <div class="setting-group group-title-font" style="margin-top: 10px;">
                 <label class="setting-label">Title Font</label>
                 <select id="coverTitleFont" class="edo-select">
                   <option value="Playfair Display">Playfair Display</option>
@@ -580,7 +717,7 @@
                   <option value="Roboto">Roboto</option>
                 </select>
               </div>
-              <div class="setting-group" style="margin-top: 10px;">
+              <div class="setting-group group-subtitle-font" style="margin-top: 10px;">
                 <label class="setting-label">Subtitle Font</label>
                 <select id="coverSubtitleFont" class="edo-select">
                   <option value="Playfair Display">Playfair Display</option>
@@ -592,31 +729,73 @@
                   <option value="Roboto">Roboto</option>
                 </select>
               </div>
+
+              <!-- NEW: Cover Layout Selector -->
+              <div class="sidebar-control-group setting-group group-layout flex-group" style="margin-top: 10px;">
+                <label class="setting-label" style="min-width: 80px;">Layout</label>
+                <select class="form-select flex-expand" id="coverLayout" onchange="updateCoverPreview()">
+                  <option value="standard">Standard (Photo Top)</option>
+                  <option value="full-bleed">Full Bleed</option>
+                  <option value="photo-bottom">Photo Bottom</option>
+                </select>
+              </div>
+
+              <!-- NEW: Cover Customization (Size & Angle) -->
+              <div class="sidebar-control-group setting-group group-cover-custom flex-group"
+                style="align-items: center; margin-top: 10px;">
+                <label class="setting-label" style="min-width:80px;">Size</label>
+                <input type="range" id="coverPhotoSize" min="50" max="100" value="100" class="flex-expand"
+                  oninput="updateCoverCustomization()">
+                <span id="coverPhotoSizeVal" style="width:35px; text-align:right; font-size:12px;">100%</span>
+              </div>
+
+              <div class="sidebar-control-group setting-group group-cover-custom flex-group"
+                style="align-items: center; margin-top: 5px;">
+                <label class="setting-label" style="min-width:80px;">Angle</label>
+                <input type="range" id="coverPhotoAngle" min="-45" max="45" value="0" class="flex-expand"
+                  oninput="updateCoverCustomization()">
+                <span id="coverPhotoAngleVal" style="width:35px; text-align:right; font-size:12px;">0°</span>
+              </div>
+
+              <!-- NEW: Global Corner Radius (Cover Proxy) -->
+              <div class="sidebar-control-group setting-group group-cover-custom flex-group"
+                style="align-items: center; margin-top: 5px;">
+                <label class="setting-label" style="min-width:80px;">Corners</label>
+                <select id="globalCornerRadiusCover" class="form-select flex-expand"
+                  onchange="updateGlobalPhotoStyle('globalCornerRadiusCover')">
+                  <option value="0">Sharp (0px)</option>
+                  <option value="8">Rounded (8px)</option>
+                  <option value="16">Soft (16px)</option>
+                  <option value="24">Circular (24px)</option>
+                </select>
+              </div>
             </div>
 
             <!-- Page Settings -->
             <div id="pages-settings-panel" class="editor-settings-panel" style="display:block;">
 
               <!-- Left/Right Page Selection -->
-              <div id="pageSideSwitcher" class="setting-group"
-                style="display:none; flex-direction:row; gap:5px; margin-bottom:15px;">
+              <div id="pageSideSwitcher" class="setting-group group-page-side"
+                style="display:none; flex-direction:row; gap:5px; margin-bottom:15px; width:100%;">
                 <button id="btnSideLeft" class="btn btn-sm" style="flex:1;" onclick="switchPageSide('left')">Left
                   Page</button>
                 <button id="btnSideRight" class="btn btn-sm" style="flex:1;" onclick="switchPageSide('right')">Right
                   Page</button>
               </div>
 
-              <div class="setting-group">
+              <div class="setting-group group-bg-color flex-group">
                 <label class="setting-label">Background Color</label>
-                <div class="color-picker-wrapper" id="pageBackgroundColorPickerWrapper">
+                <div class="color-picker-wrapper" id="pageBackgroundColorPickerWrapper" style="flex:1;">
                   <input type="color" id="pageBgColor" value="#ffffff" oninput="updatePageBackground()">
                 </div>
               </div>
 
+
+
               <!-- Page Background Image -->
-              <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label">Background Image</label>
-                <div style="display: flex; gap: 8px; flex-direction: column;">
+              <div class="setting-group group-bg-image flex-group align-start" style="margin-top: 10px;">
+                <label class="setting-label" style="min-width: 80px; margin-top: 5px;">Background Image</label>
+                <div class="controls-expand" style="display: flex; gap: 8px; flex-direction: column;">
                   <button class="btn btn-secondary btn-sm" onclick="triggerPageBackgroundImageUpload()"
                     style="width:100%">
                     Upload Image...
@@ -635,7 +814,7 @@
                   </button>
                 </div>
               </div>
-              <div class="setting-group">
+              <div class="setting-group group-page-layout">
                 <label class="setting-label">Page Layout</label>
                 <select id="pageLayout" class="edo-select" onchange="updatePageLayout(this.value)">
                   <option value="single">Single Photo</option>
@@ -649,13 +828,7 @@
                 </select>
               </div>
 
-              <!-- Apply Design Button (Added to save edits) -->
-              <div class="setting-group" style="margin-top: 1rem;">
-                <button class="btn btn-primary" style="width: 100%;" onclick="applyDesignToPhoto()">
-                  <span class="icon">✓</span> Apply Design to Photo
-                </button>
-              </div>
-              <div class="setting-group">
+              <div class="setting-group group-spacing">
                 <label class="setting-label">Photo Spacing</label>
                 <div class="slider-control">
                   <div class="slider-header">
@@ -663,6 +836,25 @@
                     <span class="slider-value">12px</span>
                   </div>
                   <input type="range" class="slider-track" min="0" max="40" value="12">
+                </div>
+              </div>
+
+              <!-- NEW: Global Corner Radius (Page Settings) -->
+              <div class="setting-group group-corners" style="margin-top: 10px;">
+                <label class="setting-label">Global Corners</label>
+                <div class="slider-control">
+                  <div class="slider-header">
+                    <span class="slider-label">Radius</span>
+                  </div>
+                  <select id="globalCornerRadius" class="edo-select"
+                    onchange="updateGlobalPhotoStyle('globalCornerRadius')">
+                    <option value="0">Square (0px)</option>
+                    <option value="4">Subtle (4px)</option>
+                    <option value="8">Rounded (8px)</option>
+                    <option value="12">Soft (12px)</option>
+                    <option value="16">Modern (16px)</option>
+                    <option value="24">Circular (24px)</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -693,7 +885,7 @@
 
       </div>
 
-      <!-- LEGACY SUPPORTS (HIDDEN) -->
+      <!-- LEGACY SUPPORTS (HIDDEN: Only non-duplicated items remain) -->
       <div id="legacy-containers" style="position: absolute; top: -9999px; visibility: hidden;">
         <div id="pagePreview"></div>
         <div class="book3d-cover-face">
@@ -707,18 +899,14 @@
         <input id="backCoverTextColor" value="#ffffff">
         <input id="backCoverTextSize" value="18">
         <input id="backCoverTextFont" value="Inter">
-        <input id="coverTitleSize" value="36">
-        <input id="coverTitleColor" value="#ffffff">
-        <input id="coverTitleFont" value="Playfair Display">
-        <input id="coverSubtitle" value="">
-        <input id="coverSubtitleSize" value="14">
+        <!-- Cover Title/Subtitle inputs moved to sidebar with same IDs -->
         <input id="coverBgColor" value="#1a1a2e">
         <input id="coverShowBorder" type="checkbox" checked>
         <input id="pageBorderColor" value="#cccccc">
         <input id="pageBorderWeight" value="1">
         <input id="pageCaption" value="">
         <input id="showPageNumber" type="checkbox" checked>
-        <div id="pageThumbnails"></div>
+
       </div>
     </div> <!-- Progress Modal (Global) -->
     <div class="modal" id="progressModal">
@@ -726,12 +914,118 @@
         <div class="progress-content">
           <div class="spinner"></div>
           <p id="progressText">Generating your photo book...</p>
-          <div class="progress-bar-container" style="margin-top: 20px; width: 100%;">
-            <div class="progress-bar" id="progressBar"
-              style="width: 0%; height: 8px; background: var(--color-primary); border-radius: 4px; transition: width 0.3s;">
+          <div class="book-loader-container">
+            <div class="book-loader">
+              <div class="page"></div>
+              <div class="page"></div>
+              <div class="page"></div>
             </div>
           </div>
+          <!-- Deprecated Progress Bar -->
+          <div class="progress-bar-container" style="display: none;">
+            <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+          </div>
           <p id="progressStatus" style="margin-top: 10px; font-size: 0.9rem; color: #666;"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design Studio Modal (Large) -->
+    <div class="modal" id="designStudioModal">
+      <div class="modal-content"
+        style="max-width: 90vw; height: 90vh; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+          <h3>Design Studio</h3>
+          <button class="close-btn"
+            onclick="document.getElementById('designStudioModal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 0; display: flex; flex: 1; overflow: hidden;">
+          <!-- Left: Canvas Area -->
+          <div
+            style="flex: 1; background: #0f1015; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+            <div id="designStudioCanvasContainer"
+              style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+              <!-- Canvas injected here -->
+            </div>
+          </div>
+
+          <!-- Right: Tools Sidebar -->
+          <div
+            style="width: 320px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; overflow-y: auto;">
+            <div style="padding: 20px;">
+
+              <!-- Nana Banana AI Design -->
+              <div class="design-section"
+                style="background: linear-gradient(135deg, rgba(129, 140, 248, 0.1), rgba(56, 189, 248, 0.1)); border: 1px solid rgba(129, 140, 248, 0.3);">
+                <div class="design-section-title" style="color: #818cf8;">
+                  <span class="icon icon-sm">✨</span> Nana Banana AI
+                </div>
+                <div class="control-group">
+                  <textarea id="aiPrompt" class="edo-textarea"
+                    placeholder="Describe how you want to redesign this photo..."
+                    style="min-height: 60px; margin-bottom: 8px; font-size: 13px; background: rgba(255,255,255,0.1); border: 1px solid rgba(129, 140, 248, 0.2); color: white;"></textarea>
+                  <button class="btn btn-primary" onclick="window.designEditor.generateAIImage()"
+                    style="width: 100%; background: linear-gradient(135deg, #818cf8, #4f46e5); border: none;">
+                    Design with AI
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filters -->
+              <div class="design-section">
+                <div class="design-section-title">Photo Filters</div>
+                <div class="filter-chips" id="designStudioFilterControls">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+
+              <!-- Adjustments -->
+              <div class="design-section">
+                <div class="design-section-title">Adjustments</div>
+                <div class="slider-control">
+                  <div class="slider-header">
+                    <span class="slider-label" style="color:#cbd5e1">Brightness</span>
+                    <span class="slider-value" id="val-brightness">100%</span>
+                  </div>
+                  <input type="range" id="brightnessSlider" class="slider-track" min="0" max="200" value="100"
+                    oninput="updateAdjustmentLabel('brightness', this.value)">
+                </div>
+                <div class="slider-control" style="margin-top: 16px;">
+                  <div class="slider-header">
+                    <span class="slider-label" style="color:#cbd5e1">Contrast</span>
+                    <span class="slider-value" id="val-contrast">100%</span>
+                  </div>
+                  <input type="range" id="contrastSlider" class="slider-track" min="0" max="200" value="100"
+                    oninput="updateAdjustmentLabel('contrast', this.value)">
+                </div>
+                <div class="slider-control" style="margin-top: 16px;">
+                  <div class="slider-header">
+                    <span class="slider-label" style="color:#cbd5e1">Saturation</span>
+                    <span class="slider-value" id="val-saturation">100%</span>
+                  </div>
+                  <input type="range" id="saturationSlider" class="slider-track" min="0" max="200" value="100"
+                    oninput="updateAdjustmentLabel('saturation', this.value)">
+                </div>
+              </div>
+
+              <!-- Tools Placeholders (Brush etc) -->
+              <div id="designStudioToolControls" class="col gap-3" style="margin-bottom: 20px;"></div>
+              <div id="brushControlsSection" style="display:none">
+                <div class="design-section">
+                  <div class="design-section-title">Brush Settings</div>
+                  <div id="designStudioBrushControls"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <div style="margin-top: auto; padding: 20px; border-top: 1px solid #334155;">
+              <button class="btn btn-primary" onclick="applyDesignToPhoto()"
+                style="width: 100%; height: 48px; font-size: 16px;">
+                <span class="icon">✓</span> Apply Design
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1288,62 +1582,84 @@
         </div>
       </div>
 
-      <!-- Background Gallery Modal -->
-      <div class="modal" id="backgroundGalleryModal">
-        <div class="modal-content" style="max-width: 800px; width: 90%;">
-          <div class="modal-header">
-            <h3>Design Gallery</h3>
-            <div style="display:flex; gap:10px;">
-              <button class="btn btn-primary btn-sm" onclick="searchDesignApi()">
-                <span class="icon">✨</span> Search with AI
-              </button>
-              <button class="close-btn" onclick="closeBackgroundGallery()">×</button>
-            </div>
-          </div>
-          <div class="modal-body">
-            <div id="backgroundGalleryGrid"
-              style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; padding: 10px;">
-              <!-- Populated by JS -->
-            </div>
-          </div>
+
+
+    </div>
+  </div>
+
+  <!-- Data Scripts -->
+
+  <script src="data/textStyles.js"></script> <!-- NEW -->
+
+  <!-- Design Gallery Modal (Backgrounds, Frames, & Text) -->
+  <div id="backgroundGalleryModal" class="modal">
+    <div class="modal-content large-modal">
+      <div class="modal-header">
+        <h2>Design Gallery</h2>
+        <div class="gallery-tabs">
+          <button class="gallery-tab active" onclick="switchGalleryTab('textures')">Paper & Textures</button>
+          <button class="gallery-tab" onclick="switchGalleryTab('frames')">Page Frames</button>
+          <button class="gallery-tab" onclick="switchGalleryTab('typography')">Typography</button> <!-- NEW -->
         </div>
 
-        <!-- Design Inspiration Modal (Global) -->
-        <div class="modal" id="designInspirationModal">
-          <div class="modal-content modal-large">
-            <div class="modal-header">
-              <h3>🎨 Design Inspiration Results</h3>
-              <button class="close-btn" onclick="closeDesignInspirationModal()">&times;</button>
-            </div>
-            <div class="design-inspiration-content" id="designInspirationContent">
-              <div class="loading">Searching for design inspiration...</div>
-            </div>
-            <div class="modal-footer">
-              <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
-            </div>
-          </div>
-        </div>
+        <!-- Search with AI Button (Restored) -->
+        <button id="searchDesignBtn" class="btn btn-primary btn-small" onclick="showInputforSearchDesign()">
+          <span class="icon">✨</span> Search with AI
+        </button>
 
+        <span class="close-modal" onclick="closeBackgroundGallery()">&times;</span>
+      </div>
+
+      <!-- AI Search Input Container (Hidden by default) -->
+      <div id="aiSearchContainer"
+        style="display:none; padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee;">
+        <div style="display:flex; gap: 10px;">
+          <input type="text" id="aiDesignPrompt" class="edo-input"
+            placeholder="Describe a texture, frame, or text style... (e.g. 'vintage rose paper' or 'neon cyberpunk text')"
+            style="flex:1;">
+          <button class="btn btn-primary" onclick="searchDesignApi()">Generate</button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div id="backgroundGalleryGrid"
+          style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 20px;">
+          <!-- Populated by JS -->
+        </div>
       </div>
     </div>
+  </div>
 
-    <!-- Data: Backgrounds & Templates -->
-    <script src="/data/backgrounds.js"></script>
+  <!-- Design Inspiration Modal (Global) -->
+  <div class="modal" id="designInspirationModal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>🎨 Design Inspiration Results</h3>
+        <button class="close-btn" onclick="closeDesignInspirationModal()">&times;</button>
+      </div>
+      <div class="design-inspiration-content" id="designInspirationContent">
+        <div class="loading">Searching for design inspiration...</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
+      </div>
+    </div>
+  </div>
 
-    <!-- Design Editor Script -->
-    <script src="/js/design-editor.js"></script>
+  <!-- Design Editor Script -->
+  <script src="/js/design-editor.js"></script>
 
-    <!-- Icons (Memory Director + UI) -->
-    <script src="/js/icons.js"></script>
+  <!-- Icons (Memory Director + UI) -->
+  <script src="/js/icons.js"></script>
 
-    <!-- Main Application Script -->
-    <script src="/js/app.js?v=v45_fix_cover"></script>
+  <!-- Main Application Script -->
+  <script src="/js/app.js?v=v50_cover_design_fix"></script>
 
-    <!-- Template Gallery Script -->
-    <script src="/js/template-gallery.js"></script>
+  <!-- Template Gallery Script -->
+  <script src="/js/template-gallery.js"></script>
 
-    <!-- Support Chat Widget (AI + Human escalation) -->
-    <!-- <script src="/js/support-chat.js"></script> -->
+  <!-- Support Chat Widget (AI + Human escalation) -->
+  <!-- <script src="/js/support-chat.js"></script> -->
 </body>
 
 </html>

@@ -23,7 +23,7 @@ class DesignEditor {
         // ... (rest of constructor fields if any, checking context)
         this.paths = [];
         this.textElements = [];
-        this.history = []; // Undo stack
+        this.drawingHistory = []; // Undo stack (Fix: Renamed from history)
         this.historyIndex = -1;
         this.maxHistory = 50;
         this.selectedTextId = null;
@@ -46,7 +46,16 @@ class DesignEditor {
         };
     }
 
-    init(containerId) {
+    init(containerId, config = {}) {
+        this.config = Object.assign({
+            filterControlsId: 'filterControls',
+            toolControlsId: 'toolControls',
+            brushControlsId: 'brushControls',
+            brushSizeId: 'brushSize',
+            brushColorId: 'brushColor',
+            brushSizeValId: 'brushSizeVal'
+        }, config);
+
         const container = document.getElementById(containerId);
         if (!container) {
             console.error('Design editor container not found:', containerId);
@@ -109,7 +118,7 @@ class DesignEditor {
             // CRITICAL FIX: Always default to something usable so we don't end up with 0x0 canvas
             this.canvas.width = 600;
             this.canvas.height = 600;
-            console.warn('Canvas container hidden or 0 size, defaulting to 600x600');
+            // console.warn('Canvas container hidden or 0 size, defaulting to 600x600');
         } else {
             // Make the drawing area square so photos are never stretched
             const availableWidth = rect.width - 40;
@@ -170,7 +179,7 @@ class DesignEditor {
 
     initUI() {
         // Filter controls
-        const filterContainer = document.getElementById('filterControls');
+        const filterContainer = document.getElementById(this.config.filterControlsId);
         if (filterContainer) {
             filterContainer.innerHTML = Object.keys(this.filters).map(filterName => {
                 const filter = this.filters[filterName];
@@ -189,7 +198,7 @@ class DesignEditor {
         }
 
         // Tool controls
-        const toolContainer = document.getElementById('toolControls');
+        const toolContainer = document.getElementById(this.config.toolControlsId);
         if (toolContainer) {
             toolContainer.innerHTML = `
                 <button class="tool-btn active" data-tool="select" onclick="designEditor.setTool('select')">
@@ -208,18 +217,18 @@ class DesignEditor {
         }
 
         // Brush controls
-        const brushContainer = document.getElementById('brushControls');
+        const brushContainer = document.getElementById(this.config.brushControlsId);
         if (brushContainer) {
             brushContainer.innerHTML = `
                 <div class="control-group">
                     <label>Brush Size:</label>
-                    <input type="range" id="brushSize" min="1" max="50" value="${this.brushSize}" 
+                    <input type="range" id="${this.config.brushSizeId}" min="1" max="50" value="${this.brushSize}" 
                            oninput="designEditor.setBrushSize(this.value)">
-                    <span id="brushSizeVal">${this.brushSize}px</span>
+                    <span id="${this.config.brushSizeValId}">${this.brushSize}px</span>
                 </div>
                 <div class="control-group">
                     <label>Color:</label>
-                    <input type="color" id="brushColor" value="${this.brushColor}" 
+                    <input type="color" id="${this.config.brushColorId}" value="${this.brushColor}" 
                            oninput="designEditor.setBrushColor(this.value)">
                 </div>
             `;
@@ -602,23 +611,17 @@ class DesignEditor {
         let exportH = baseH;
 
         if (this.currentImage) {
-            // Max scale we can apply without upscaling the underlying image.
-            const maxScaleNoUpscale = Math.min(
-                this.currentImage.width / baseW,
-                this.currentImage.height / baseH
-            );
+            // FIX: Match export aspect ratio to the image, not the square canvas
+            // This prevents adding white borders to non-square images
+            exportW = this.currentImage.width;
+            exportH = this.currentImage.height;
 
-            // Scale up to maxDimension, but never beyond source resolution.
-            const desiredScale = Math.min(
-                maxScaleNoUpscale,
-                maxDimension / Math.max(baseW, baseH)
-            );
-
-            // Never upscale beyond 1 if the source is already smaller than the editor canvas.
-            const finalScale = Math.max(1, desiredScale);
-
-            exportW = Math.max(1, Math.round(baseW * finalScale));
-            exportH = Math.max(1, Math.round(baseH * finalScale));
+            // Apply maxDimension constraint if needed
+            if (Math.max(exportW, exportH) > maxDimension) {
+                const scale = maxDimension / Math.max(exportW, exportH);
+                exportW = Math.round(exportW * scale);
+                exportH = Math.round(exportH * scale);
+            }
         }
 
         const scaleFactor = exportW / baseW;
@@ -639,14 +642,10 @@ class DesignEditor {
         }
 
         // Calculate image position and size
-        const scale = Math.min(
-            exportCanvas.width / this.currentImage.width,
-            exportCanvas.height / this.currentImage.height
-        );
-        const scaledWidth = this.currentImage.width * scale;
-        const scaledHeight = this.currentImage.height * scale;
-        const x = (exportCanvas.width - scaledWidth) / 2;
-        const y = (exportCanvas.height - scaledHeight) / 2;
+        const x = 0;
+        const y = 0;
+        const scaledWidth = exportCanvas.width;
+        const scaledHeight = exportCanvas.height;
 
         // Create a temporary canvas for the image at full resolution
         const imageCanvas = document.createElement('canvas');
@@ -774,6 +773,75 @@ class DesignEditor {
             this.historyIndex = -1;
             this.currentFilter = 'none';
             this.redraw();
+        }
+    }
+
+    async generateAIImage() {
+        const promptInput = document.getElementById('aiPrompt');
+        const prompt = promptInput ? promptInput.value.trim() : '';
+
+        if (!prompt) {
+            alert('Please enter a prompt for the AI design.');
+            return;
+        }
+
+        if (!this.currentImage) {
+            alert('Please select a photo first.');
+            return;
+        }
+
+        // Show loading state
+        const btn = document.querySelector('#design-tab .btn-primary');
+        const originalText = btn ? btn.innerHTML : 'Design with AI';
+        if (btn) {
+            btn.innerHTML = '<span class="icon spinner"></span> Generating...';
+            btn.disabled = true;
+        }
+
+        try {
+            console.log('Generating AI design with prompt:', prompt);
+
+            // Call "Nana Banana" Cloud Function (Gemini/OpenAI wrapper)
+            const generateDesign = firebase.functions().httpsCallable('generatePhotoDesign');
+
+            // Note: If using a data URL, we might need to handle differently, but assuming standard URL here.
+            const result = await generateDesign({
+                imageUrl: this.currentImage.src,
+                prompt: prompt
+            });
+
+            const data = result.data;
+            if (!data.success) throw new Error(data.error || 'Unknown error');
+
+            this.saveState();
+
+            // Apply filters proposed by the "Nana Banana" model
+            if (data.filters) {
+                if (data.filters.brightness) this.setAdjustment('brightness', data.filters.brightness);
+                if (data.filters.contrast) this.setAdjustment('contrast', data.filters.contrast);
+                if (data.filters.saturation) this.setAdjustment('saturation', data.filters.saturation);
+                if (data.filters.sepia) this.applyFilter('sepia', data.filters.sepia / 100); // Normalize if needed
+                // Add more mappings as necessary
+            }
+
+            // If the model returned a new image URL (e.g. generative fill), load it
+            if (data.newImageUrl && data.newImageUrl !== this.currentImage.src) {
+                // Determine if we need to replace the image entirely
+                // checks if load logic is available, otherwise just warn
+                console.log("New AI Image URL received:", data.newImageUrl);
+                // Future: Implement replaceImage(data.newImageUrl) if real generational AI provided
+            }
+
+            alert(`AI Design applied: "${prompt}"\n${data.designNote || ''}`);
+
+        } catch (error) {
+            console.error('AI Generation failed:', error);
+            alert('Failed to generate design. ' + (error.message || 'Please try again.'));
+        } finally {
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
     }
 }

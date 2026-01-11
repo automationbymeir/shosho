@@ -51,9 +51,11 @@
 
     /* -- Layout Dimensions -- */
     --edo-header-h: 64px;
-    --edo-sidebar-w: 320px;
+    --edo-sidebar-w: 360px;
+    /* Increased from 320px */
     --edo-rail-w: 72px;
-    --edo-inspector-w: 280px;
+    --edo-inspector-w: 340px;
+    /* Increased from 280px */
     --edo-toolbar-h: 52px;
 
     /* -- Effects -- */
@@ -241,10 +243,10 @@
 
 /* Header Buttons */
 .btn-header {
-    height: 40px;
-    padding: 0 var(--sp-4);
+    height: 52px;
+    padding: 0 32px;
     border-radius: var(--edo-radius-md);
-    font-size: 14px;
+    font-size: 1.1rem;
     font-weight: 500;
     border: none;
     cursor: pointer;
@@ -535,8 +537,9 @@
 
 .photo-grid-item:hover,
 .grid-item:hover {
-    transform: scale(1.03);
+    transform: scale(1.25);
     box-shadow: var(--edo-shadow-md);
+    z-index: 100;
 }
 
 /* --------------------------------------------------------------------------
@@ -544,6 +547,21 @@
    -------------------------------------------------------------------------- */
 .design-section {
     margin-bottom: var(--sp-5);
+    padding: var(--sp-4);
+    border-radius: var(--edo-radius-md);
+    background: var(--edo-bg-elevated);
+    border: 1px solid var(--edo-border);
+}
+
+.design-section:nth-child(odd) {
+    background: #FFFCF9;
+    /* Warm off-white */
+    border-color: rgba(212, 101, 74, 0.1);
+}
+
+.design-section:nth-child(even) {
+    background: #FDFDFD;
+    /* Pure white */
 }
 
 .design-section-title {
@@ -979,9 +997,90 @@
 }
 
 .setting-group {
-    background: var(--edo-bg-accent);
+    /* background: var(--edo-bg-accent); */
     border-radius: var(--edo-radius-md);
     padding: var(--sp-4);
+}
+
+/* Unique Backgrounds for Properties Groups */
+.group-title {
+    background: #FFFBF0;
+    /* Warm Cream */
+}
+
+.group-cover {
+    background: #FAF8F5;
+    /* Edo Base */
+}
+
+.group-subtitle {
+    background: #FFF5F5;
+    /* Very Light Rose */
+}
+
+.group-title-font {
+    background: #F5F7FA;
+    /* Cool Gray */
+}
+
+.group-subtitle-font {
+    background: #FFF9F2;
+    /* Light Peach */
+}
+
+.group-bg-color {
+    background: #F2F9F4;
+    /* Mint Tint */
+}
+
+.group-layout {
+    background: #FAF5FF;
+    /* Lavender Tint */
+}
+
+.group-bg-image {
+    background: #FFFBF0;
+    /* Warm Cream */
+}
+
+.group-page-layout {
+    background: #F8FAFC;
+    /* Slate Tint */
+}
+
+.group-spacing {
+    background: #FFF7ED;
+    /* Orange Tint */
+}
+
+.group-page-side {
+    background: transparent;
+    padding: 0;
+}
+
+/* Button Styling in Setting Groups */
+.setting-group button {
+    width: 100%;
+    margin: 8px 0 0 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 10px 16px;
+    /* Ensure sufficient padding */
+}
+
+/* Specific fix for Left/Right Page buttons to ensure equality */
+.group-page-side button {
+    flex: 1;
+    min-width: 0;
+    /* Allow shrinking if needed */
+    white-space: nowrap;
+    /* Prevent wrapping to keep heights equal */
+    margin: 0;
+    /* Remove top margin for these side-by-side buttons */
+    height: 48px;
+    /* Fixed height for consistency */
 }
 
 .setting-label {
@@ -1006,6 +1105,9 @@
     font-family: var(--font-ui);
     color: var(--edo-text);
     transition: all 0.2s ease;
+    /* Prevent overflow */
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 .edo-input:focus,
@@ -1017,6 +1119,8 @@
 
 .edo-textarea {
     width: 100%;
+    min-width: 100%;
+    /* Force full width */
     min-height: 80px;
     background: var(--edo-bg-elevated);
     border: 1px solid var(--edo-border);
@@ -1027,6 +1131,7 @@
     color: var(--edo-text);
     resize: vertical;
     transition: all 0.2s ease;
+    box-sizing: border-box;
 }
 
 .edo-textarea:focus {
@@ -1271,7 +1376,9 @@
         padding: 0 var(--sp-2);
         height: 44px;
     }
-}/* =========================================
+}
+
+/* =========================================
    10. MODAL COMPONENT (Added for Gallery)
    ========================================= */
 .modal {
@@ -1371,4 +1478,180 @@
     transform: scale(1.02);
     box-shadow: 0 0 0 2px #6366f1;
     /* Primary color focus */
+}
+
+/* COVER LAYOUTS */
+/* Visual cues for layout in editor */
+.layout-full-bleed .book3d-cover-face .book3d-cover-photo-container {
+    /* Since we rely on PDF generator for final output, 
+       this is visual feedback for the editor. */
+}
+
+.layout-full-bleed .book3d-cover-face {
+    padding: 0 !important;
+}
+
+.layout-photo-bottom .book3d-cover-face {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+/* --------------------------------------------------------------------------
+   14. PHOTO SLOT CONTROLS (Added)
+   -------------------------------------------------------------------------- */
+.edit-photo-btn {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--edo-radius-sm);
+    padding: 6px 10px;
+    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--edo-shadow-sm);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--edo-text);
+    transition: all 0.2s ease;
+    opacity: 0;
+    transform: translateY(4px);
+    pointer-events: none;
+}
+
+.layout-slot:hover .edit-photo-btn,
+/* Flex Group Layout Helpers */
+.flex-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.flex-group.align-start {
+    align-items: flex-start;
+}
+
+.flex-expand,
+.controls-expand {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    /* Prevent overflow */
+}
+
+.flex-group .setting-label {
+    margin-bottom: 0;
+    flex-shrink: 0;
+    /* Don't shrink the label */
+}
+
+/* Specific Adjustments */
+.sidebar-control-group .form-select {
+    width: 100%;
+}
+
+/* Fix for Left/Right Page buttons equality */
+.group-page-side {
+    padding: 0 !important;
+    background: transparent !important;
+}
+
+.group-page-side button {
+    flex: 1;
+    width: 50%;
+    /* Explicitly 50% to force equality */
+    min-width: 0;
+    white-space: nowrap;
+    margin: 0;
+    height: 48px;
+    padding: 0 4px;
+    /* Tight padding to prevent cut-off text */
+}
+
+/* Ensure remove image button is aligned properly */
+.group-bg-image .btn-ghost {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* --------------------------------------------------------------------------
+   14. SIDEBAR COLLAPSE & COVER FIX
+   -------------------------------------------------------------------------- */
+
+/* Fix Cover Photo Clipping in Sidebar */
+#coverPhotoSlot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* Collapsed Inspector State */
+.rebuild-inspector.collapsed {
+    width: 48px;
+    /* Narrow strip */
+    min-width: 48px;
+    padding: 0;
+    overflow: hidden;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--edo-bg-elevated);
+    border-left: 1px solid var(--edo-border);
+}
+
+.rebuild-inspector.collapsed .inspector-header,
+.rebuild-inspector.collapsed .inspector-body {
+    display: none;
+    /* Hide main content */
+}
+
+/* Collapsed View (Icons/Vertical Text) */
+.inspector-collapsed-view {
+    display: none;
+    /* Hidden by default */
+    flex-direction: column;
+    align-items: center;
+    padding-top: 16px;
+    height: 100%;
+    width: 100%;
+    cursor: pointer;
+}
+
+.rebuild-inspector.collapsed .inspector-collapsed-view {
+    display: flex;
+    /* Show when collapsed */
+}
+
+.inspector-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--edo-text-secondary);
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.inspector-toggle-btn:hover {
+    background: var(--edo-border);
+    color: var(--edo-text);
+}
+
+/* Left Drawer Transition */
+.rebuild-drawer {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When drawer is closed (remove is-open class), it translates off-screen (relative to its width) */
+/* Actually, the current CSS probably does this. Let's ensure it. */
+.rebuild-drawer:not(.is-open) {
+    transform: translateX(-100%);
+    box-shadow: none;
 }

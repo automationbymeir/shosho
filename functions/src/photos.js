@@ -233,6 +233,7 @@ async function fetchThumbnailBatch(userId, baseUrls) {
   const accessToken = oauth2Client.credentials.access_token;
   const thumbnails = [];
 
+
   for (let i = 0; i < baseUrls.length; i++) {
     const baseUrl = baseUrls[i];
     try {
@@ -243,13 +244,18 @@ async function fetchThumbnailBatch(userId, baseUrls) {
       const normalizedBaseUrl = normalizeGooglePhotoBaseUrl(baseUrl);
       const url = `${normalizedBaseUrl}=w800-h800`;
 
-      // Fetch with OAuth token
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      });
+      // Some Google Photos URLs are publicly accessible for a while, but
+      // Picker-returned URLs can require OAuth. Try without auth first,
+      // then retry with Bearer token on common auth failures.
+      let response = await fetch(url, {method: "GET"});
+      if (response.status === 401 || response.status === 403) {
+        response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+          },
+        });
+      }
 
       if (response.status === 200) {
         const buffer = await response.buffer();
@@ -325,9 +331,127 @@ async function fetchHighResImage(userId, url) {
   }
 }
 
+
+/**
+ * Refresh expired media item URLs using their IDs.
+ * @param {string} userId - Firebase user ID
+ * @param {Array<string>} mediaItemIds - Array of media item IDs
+ * @return {Promise<Object>} Map of id -> newBaseUrl
+ */
+async function refreshMediaItemUrls(userId, mediaItemIds) {
+  const oauth2Client = await auth.getOAuth2Client(userId);
+
+  if (!oauth2Client) {
+    return {success: false, error: "No auth"};
+  }
+
+  const accessToken = oauth2Client.credentials.access_token;
+
+  if (!mediaItemIds || mediaItemIds.length === 0) {
+    return {
+      success: true,
+      urls: {},
+      inputDebug: {receivedCount: 0, receivedType: typeof mediaItemIds},
+    };
+  }
+
+  // Google Photos batchGet limit is 50. We might need to chunk if > 50.
+  // We'll process in chunks of 50.
+  const chunks = [];
+  const chunkSize = 50;
+  for (let i = 0; i < mediaItemIds.length; i += chunkSize) {
+    chunks.push(mediaItemIds.slice(i, i + chunkSize));
+  }
+
+  const results = {};
+  const debugData = {
+    inputDebug: {
+      receivedCount: mediaItemIds.length,
+      firstId: mediaItemIds[0],
+      receivedType: typeof mediaItemIds,
+    },
+    responses: [],
+  };
+  let errors = [];
+
+  for (const chunk of chunks) {
+    try {
+      // Construct query params: mediaItemIds=ID1&mediaItemIds=ID2...
+      const params = new URLSearchParams();
+      chunk.forEach((id) => params.append("mediaItemIds", id));
+
+
+      // DEBUG: Verify Scopes
+      try {
+        const tokenInfoRes = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`);
+        const tokenInfo = await tokenInfoRes.json();
+        console.log("[DEBUG_SCOPES] Token Scopes:", tokenInfo.scope);
+        if (tokenInfo.scope && !tokenInfo.scope.includes("photoslibrary.readonly")) {
+          console.error("[DEBUG_SCOPES] CRITICAL: Missing photoslibrary.readonly scope!");
+          errors.push({error: "MISSING_SCOPE", details: tokenInfo.scope});
+        }
+      } catch (e) {
+        console.error("[DEBUG_SCOPES] Failed to inspect token:", e);
+      }
+
+      const response = await fetch(`https://photoslibrary.googleapis.com/v1/mediaItems:batchGet?${params.toString()}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.status !== 200) {
+        const text = await response.text();
+        console.error("refreshMediaItemUrls batchGet failed:", response.status, text);
+        errors.push({chunkIds: chunk, status: response.status, text: text});
+        debugData.responses.push({status: response.status, text: text});
+        continue;
+      }
+
+      const data = await response.json();
+      debugData.responses.push(data);
+
+      if (data.mediaItemResults) {
+        data.mediaItemResults.forEach((result) => {
+          if (result.mediaItem && result.mediaItem.baseUrl) {
+            results[result.mediaItem.id] = result.mediaItem.baseUrl;
+          } else {
+            // Capture error
+            if (!errors) errors = [];
+            errors.push({
+              id: result.mediaItem ? result.mediaItem.id : "unknown",
+              status: result.status, // detailed object {code, message}
+              message: result.status?.message || "Unknown error",
+            });
+          }
+        });
+      } else {
+        // No mediaItemResults found
+        if (!errors) errors = [];
+        errors.push({
+          error: "No mediaItemResults in response",
+          raw: data,
+        });
+      }
+    } catch (e) {
+      console.error("refreshMediaItemUrls chunk error:", e);
+      if (!errors) errors = [];
+      errors.push({error: e.toString()});
+    }
+  }
+
+  return {
+    success: true,
+    urls: results,
+    errors: errors || [],
+  };
+}
+
 module.exports = {
   createPickerSession,
   checkPickerSession,
   fetchThumbnailBatch,
   fetchHighResImage,
+  refreshMediaItemUrls,
 };
