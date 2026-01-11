@@ -341,7 +341,7 @@ function calculateEffectiveDPI(imagePixelWidth, imagePixelHeight, printWidthInch
 /**
  * Get margins for a specific page considering binding
  */
-function getPageMargins(pageNumber, totalPages, pageSize, isRightPage = null) {
+function getPageMargins(pageNumber, totalPages, pageSize, isRightPage = null, bindingSide = "left") {
   const baseMargin = 0.5 * POINTS_PER_INCH; // 36 points = 0.5"
 
   // Determine page side (Page 1 is right, Page 2 is left, etc.)
@@ -353,14 +353,36 @@ function getPageMargins(pageNumber, totalPages, pageSize, isRightPage = null) {
   const innerMargin = baseMargin + BINDING_MARGIN_POINTS;
   const outerMargin = baseMargin;
 
+  const bindRight = bindingSide === "right";
+  // If binding is on the right, swap which side gets the inner margin.
+  const left = bindRight ? (isRightPage ? outerMargin : innerMargin) : (isRightPage ? innerMargin : outerMargin);
+  const right = bindRight ? (isRightPage ? innerMargin : outerMargin) : (isRightPage ? outerMargin : innerMargin);
+
   return {
     top: baseMargin,
     bottom: baseMargin + 20, // Extra space for page numbers
-    left: isRightPage ? innerMargin : outerMargin,
-    right: isRightPage ? outerMargin : innerMargin,
+    left,
+    right,
     spine: innerMargin,
     outer: outerMargin,
   };
+}
+
+function getBindingSide(bookData) {
+  const rd = (bookData?.bookpodPrint?.readingdirection ||
+    bookData?.readingdirection ||
+    bookData?.readingDirection ||
+    "")
+      .toString()
+      .toLowerCase();
+  // In UI we use "right" for RTL reading direction
+  if (rd === "right" || rd === "rtl") return "right";
+  return "left";
+}
+
+function isRightPageForPageNumber(pageNumber, bindingSide) {
+  // Cover is page 1. For RTL (binding right), page 2 should be a right page.
+  return bindingSide === "right" ? (pageNumber % 2 === 0) : (pageNumber % 2 === 1);
 }
 
 /**
@@ -588,6 +610,18 @@ function calculateFitDimensions(imageWidth, imageHeight, slotWidth, slotHeight) 
 }
 
 /**
+ * Convert UI "px" corner radius to PDF points (72dpi).
+ * UI values are in CSS px (~96dpi). PDF uses points (72/in).
+ * @param {any} bookData
+ * @return {number}
+ */
+function getCornerRadiusPoints(bookData) {
+  const px = parseInt(bookData?.globalCornerRadius, 10) || 0;
+  const pt = px * 0.75;
+  return Math.max(0, Math.min(48, pt));
+}
+
+/**
  * Get layout positions for multiple photos
  */
 function getLayoutPositionsForPrint(layout, pageSize, margins, designData) {
@@ -665,7 +699,25 @@ function containsHebrew(text) {
 
 function rtlize(text) {
   if (!text || typeof text !== "string") return text;
-  return "\u200F" + Array.from(text).reverse().join("");
+  // Proper bidi reordering (fixes mixed Hebrew/English rendering).
+  // PDFKit doesn't implement Unicode BiDi; we must feed visually-ordered text.
+  try {
+    // eslint-disable-next-line global-require
+    const bidiFactory = require("bidi-js");
+    const bidi = bidiFactory();
+    const embedding = bidi.getEmbeddingLevels(text, "rtl");
+    const segments = bidi.getReorderSegments(text, embedding);
+    const chars = text.split("");
+    // Reverse the specified ranges in-place (visual order)
+    segments.forEach(([start, end]) => {
+      const seg = chars.slice(start, end + 1).reverse();
+      chars.splice(start, end - start + 1, ...seg);
+    });
+    return "\u200F" + chars.join("");
+  } catch (e) {
+    // Fallback: naive reversal (better than nothing, but can scramble mixed text)
+    return "\u200F" + Array.from(text).reverse().join("");
+  }
 }
 
 /**
@@ -680,6 +732,13 @@ function getSafeFont(fontName) {
     "Lato": "Helvetica",
     "Montserrat": "Helvetica",
     "Inter": "Helvetica",
+    // Hebrew UI font names (PDF will still use Alef for Hebrew text via preparePdfText)
+    "Heebo": "Helvetica",
+    "Alef": "Helvetica",
+    "Rubik": "Helvetica",
+    "Assistant": "Helvetica",
+    "Noto Sans Hebrew": "Helvetica",
+    "Noto Serif Hebrew": "Times-Roman",
     "Times New Roman": "Times-Roman",
     "Arial": "Helvetica",
   };
@@ -729,11 +788,31 @@ async function drawPageBackground(doc, page, pageSize, accessToken) {
       }
 
       if (bgBuffer) {
-        doc.image(bgBuffer, 0, 0, {
-          width: pageSize.width,
-          height: pageSize.height,
-          allowDisable: true,
-        }); // Stretch to fit page
+        // If this is a small texture (e.g. patterns), tile it to avoid pixelation in print.
+        // If it's a large image, cover the whole page.
+        try {
+          const sizeOf = require("image-size").default || require("image-size");
+          const dim = sizeOf(bgBuffer);
+          const isSmall = (dim?.width || 0) > 0 && (dim?.height || 0) > 0 &&
+            dim.width <= 900 && dim.height <= 900;
+
+          if (isSmall) {
+            const targetTileW = 240; // points (roughly 3.3 inches at 72dpi)
+            const scale = targetTileW / dim.width;
+            const tileW = dim.width * scale;
+            const tileH = dim.height * scale;
+            for (let y = 0; y < pageSize.height + tileH; y += tileH) {
+              for (let x = 0; x < pageSize.width + tileW; x += tileW) {
+                doc.image(bgBuffer, x, y, {width: tileW, height: tileH});
+              }
+            }
+          } else {
+            doc.image(bgBuffer, 0, 0, {width: pageSize.width, height: pageSize.height});
+          }
+        } catch (e) {
+          // Fallback: stretch to fit
+          doc.image(bgBuffer, 0, 0, {width: pageSize.width, height: pageSize.height});
+        }
       }
     } catch (e) {
       console.warn("Failed to draw page background image:", e.message);
@@ -951,7 +1030,8 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
     decorations: bookData.decorations,
   });
 
-  const margins = getPageMargins(1, 0, pageSize, true);
+  const bindingSide = getBindingSide(bookData);
+  const margins = getPageMargins(1, 0, pageSize, true, bindingSide);
   doc.addPage({size: [pageSize.width, pageSize.height], margin: 0});
 
   // 1. Background
@@ -962,7 +1042,28 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
     try {
       const base64Data = String(bookData.coverBackgroundImageData).split(",")[1];
       const bgBuffer = Buffer.from(base64Data, "base64");
-      doc.image(bgBuffer, 0, 0, {width: pageSize.width, height: pageSize.height});
+      // Tile small textures; cover large images
+      try {
+        const sizeOf = require("image-size").default || require("image-size");
+        const dim = sizeOf(bgBuffer);
+        const isSmall = (dim?.width || 0) > 0 && (dim?.height || 0) > 0 &&
+          dim.width <= 900 && dim.height <= 900;
+        if (isSmall) {
+          const targetTileW = 240;
+          const scale = targetTileW / dim.width;
+          const tileW = dim.width * scale;
+          const tileH = dim.height * scale;
+          for (let y = 0; y < pageSize.height + tileH; y += tileH) {
+            for (let x = 0; x < pageSize.width + tileW; x += tileW) {
+              doc.image(bgBuffer, x, y, {width: tileW, height: tileH});
+            }
+          }
+        } else {
+          doc.image(bgBuffer, 0, 0, {width: pageSize.width, height: pageSize.height});
+        }
+      } catch (e) {
+        doc.image(bgBuffer, 0, 0, {width: pageSize.width, height: pageSize.height});
+      }
     } catch (e) {
       console.warn("Failed to draw cover background image:", e);
     }
@@ -980,7 +1081,28 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
       const bgImage = await fetchImageForPrint(bgPhoto, null, {width: pageSize.width, height: pageSize.height});
 
       if (bgImage.buffer) {
-        doc.image(bgImage.buffer, 0, 0, {width: pageSize.width, height: pageSize.height});
+        // Tile small textures; cover large images
+        try {
+          const sizeOf = require("image-size").default || require("image-size");
+          const dim = sizeOf(bgImage.buffer);
+          const isSmall = (dim?.width || 0) > 0 && (dim?.height || 0) > 0 &&
+            dim.width <= 900 && dim.height <= 900;
+          if (isSmall) {
+            const targetTileW = 240;
+            const scale = targetTileW / dim.width;
+            const tileW = dim.width * scale;
+            const tileH = dim.height * scale;
+            for (let y = 0; y < pageSize.height + tileH; y += tileH) {
+              for (let x = 0; x < pageSize.width + tileW; x += tileW) {
+                doc.image(bgImage.buffer, x, y, {width: tileW, height: tileH});
+              }
+            }
+          } else {
+            doc.image(bgImage.buffer, 0, 0, {width: pageSize.width, height: pageSize.height});
+          }
+        } catch (e) {
+          doc.image(bgImage.buffer, 0, 0, {width: pageSize.width, height: pageSize.height});
+        }
         console.log("✓ Cover background texture drawn");
       }
     } catch (e) {
@@ -1028,7 +1150,7 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
           // Apply User Customization (Size & Angle)
           const userScale = (bookData.cover?.photoSize || 100) / 100;
           const angle = bookData.cover?.photoAngle || 0;
-          const cornerRadius = bookData.globalCornerRadius || 0;
+          const cornerRadius = getCornerRadiusPoints(bookData);
 
           const finalWidth = fit.width * userScale;
           const finalHeight = fit.height * userScale;
@@ -1148,29 +1270,35 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
   // Enforce minimum size for legibility if not set
   const titleSize = parseInt(bookData.coverTitleSize) || 48;
 
-  const preparedTitle = preparePdfText(title, {latinFont: titleFont, hebrewFont: HEBREW_FONT_BOLD});
-
-  doc.fontSize(titleSize)
-      .font(preparedTitle.font)
-      .fillColor(titleColor)
-      .text(preparedTitle.text, content.x, photoBottom, {
-        width: content.width,
-        align: "center",
-      });
+  const coverStyleId = bookData.coverTextStyle || bookData.coverTextStyleId || bookData.cover?.textStyleId || "default";
+  drawPageText(doc, title, coverStyleId, {
+    x: content.x,
+    y: photoBottom,
+    width: content.width,
+    height: Math.max(1, pageSize.height - photoBottom - (margins.bottom || 40)),
+  }, {
+    fontSize: titleSize,
+    align: "center",
+    fontName: titleFont,
+    fillColor: titleColor,
+  });
 
   const subtitle = bookData.coverSubtitle || bookData.cover?.subtitle;
 
   if (subtitle) {
     const subSize = Math.max(16, titleSize * 0.5);
     const subColor = bookData.cover?.subtitleColor || titleColor;
-    const preparedSub = preparePdfText(subtitle, {latinFont: titleFont, hebrewFont: HEBREW_FONT_REGULAR});
-    doc.fontSize(subSize)
-        .font(preparedSub.font)
-        .fillColor(subColor)
-        .text(preparedSub.text, content.x, doc.y + 10, {
-          width: content.width,
-          align: "center",
-        });
+    drawPageText(doc, subtitle, coverStyleId, {
+      x: content.x,
+      y: doc.y + 10,
+      width: content.width,
+      height: Math.max(1, pageSize.height - (doc.y + 10) - (margins.bottom || 40)),
+    }, {
+      fontSize: subSize,
+      align: "center",
+      fontName: titleFont,
+      fillColor: subColor,
+    });
   }
 }
 
@@ -1180,7 +1308,8 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
 async function createChapterTitlePage(doc, chapter, pageSize, pageNumber, bookData) {
   console.log(`\n=== CHAPTER: ${chapter.name} (Page ${pageNumber}) ===`);
 
-  const margins = getPageMargins(pageNumber, 0, pageSize);
+  const bindingSide = getBindingSide(bookData);
+  const margins = getPageMargins(pageNumber, 0, pageSize, null, bindingSide);
 
   doc.addPage({size: [pageSize.width, pageSize.height], margin: 0});
 
@@ -1237,7 +1366,8 @@ async function createContentPageFromPhoto(doc, photo, pageSize, accessToken, pag
     return {created: false};
   }
 
-  const margins = getPageMargins(pageNumber, 0, pageSize, isRightPage);
+  const bindingSide = getBindingSide(bookData);
+  const margins = getPageMargins(pageNumber, 0, pageSize, isRightPage, bindingSide);
   const content = getContentArea(pageSize, margins);
 
   doc.addPage({size: [pageSize.width, pageSize.height], margin: 0});
@@ -1270,7 +1400,7 @@ async function createContentPageFromPhoto(doc, photo, pageSize, accessToken, pag
     const x = content.x + (photoSlot.width - fit.width) / 2;
     const y = content.y + (photoSlot.height - fit.height) / 2;
 
-    const cornerRadius = bookData.globalCornerRadius || 0;
+    const cornerRadius = getCornerRadiusPoints(bookData);
 
     // Shadow
     doc.save();
@@ -1310,16 +1440,20 @@ async function createContentPageFromPhoto(doc, photo, pageSize, accessToken, pag
     result.created = false;
   }
 
-  // Page number
+  // Page number (on outer edge)
+  const binding = getBindingSide(bookData);
+  const xNum = binding === "right" ?
+    (isRightPage ? margins.left : pageSize.width - margins.right - 30) :
+    (isRightPage ? pageSize.width - margins.right - 30 : margins.left);
   doc
       .fontSize(9)
       .font("Helvetica")
       .fillColor("#aaaaaa")
       .text(
           pageNumber.toString(),
-      isRightPage ? pageSize.width - margins.right - 30 : margins.left,
-      pageSize.height - 25,
-      {width: 30, align: isRightPage ? "right" : "left"},
+          xNum,
+          pageSize.height - 25,
+          {width: 30, align: isRightPage ? "right" : "left"},
       );
 
   return result;
@@ -1328,28 +1462,116 @@ async function createContentPageFromPhoto(doc, photo, pageSize, accessToken, pag
 /**
  * Create back cover
  */
-function createBackCoverPage(doc, bookData, pageSize, pageNumber) {
+async function createBackCoverPage(doc, bookData, pageSize, pageNumber) {
   console.log(`\n=== BACK COVER (Page ${pageNumber}) ===`);
 
-  const margins = getPageMargins(pageNumber, pageNumber, pageSize, false);
+  const bindingSide = getBindingSide(bookData);
+  const margins = getPageMargins(pageNumber, pageNumber, pageSize, false, bindingSide);
 
   doc.addPage({size: [pageSize.width, pageSize.height], margin: 0});
 
-  const bgColor = bookData.backCover?.backgroundColor || bookData.coverBackground || "#1a1a2e";
+  const bc = bookData.backCover || {};
+  const bgColor = bc.backgroundColor || bookData.coverBackground || "#1a1a2e";
+
+  // Base background color
   doc.rect(0, 0, pageSize.width, pageSize.height).fillColor(bgColor).fill();
 
-  const text = bookData.backCover?.text || "Made with love";
-  const textColor = bookData.coverTextColor || "#ffffff";
+  // Optional background image (URL or data URL)
+  try {
+    const bgData = bc.backgroundImageData;
+    const bgUrl = bc.backgroundImageUrl || bc.backgroundImage;
+    if (bgData) {
+      const base64 = String(bgData).split(",")[1];
+      if (base64) {
+        doc.image(Buffer.from(base64, "base64"), 0, 0, {width: pageSize.width, height: pageSize.height});
+      }
+    } else if (bgUrl) {
+      // Lazy-load with node-fetch (already used elsewhere in this file)
+      // eslint-disable-next-line global-require
+      const fetch = require("node-fetch");
+      const res = await fetch(bgUrl);
+      if (res.ok) {
+        const buf = await res.buffer();
+        try {
+          const sizeOf = require("image-size").default || require("image-size");
+          const dim = sizeOf(buf);
+          const isSmall = (dim?.width || 0) > 0 && (dim?.height || 0) > 0 &&
+            dim.width <= 900 && dim.height <= 900;
+          if (isSmall) {
+            const targetTileW = 240;
+            const scale = targetTileW / dim.width;
+            const tileW = dim.width * scale;
+            const tileH = dim.height * scale;
+            for (let yy = 0; yy < pageSize.height + tileH; yy += tileH) {
+              for (let xx = 0; xx < pageSize.width + tileW; xx += tileW) {
+                doc.image(buf, xx, yy, {width: tileW, height: tileH});
+              }
+            }
+          } else {
+            doc.image(buf, 0, 0, {width: pageSize.width, height: pageSize.height});
+          }
+        } catch (e) {
+          doc.image(buf, 0, 0, {width: pageSize.width, height: pageSize.height});
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Back cover background image failed:", e?.message || e);
+  }
 
-  const preparedText = preparePdfText(text, {latinFont: "Helvetica", hebrewFont: HEBREW_FONT_REGULAR});
-  doc
-      .fontSize(12)
-      .font(preparedText.font)
-      .fillColor(textColor, 0.7)
-      .text(preparedText.text, margins.left, pageSize.height - 80, {
-        width: pageSize.width - margins.left - margins.right,
-        align: "center",
-      });
+  // Optional border (safe area)
+  const showBorder = bc.showBorder !== false;
+  if (showBorder) {
+    const inset = 24;
+    doc.save();
+    doc.lineWidth(1);
+    doc.opacity(0.35);
+    doc.strokeColor("#ffffff");
+    doc.rect(inset, inset, pageSize.width - inset * 2, pageSize.height - inset * 2).stroke();
+    doc.restore();
+  }
+
+  const text = bc.text || "Made with love";
+  const subtitle = bc.subtitle || "";
+  const textColor = bc.textColor || bookData.coverTextColor || "#ffffff";
+  const fontName = bc.textFont || "Helvetica";
+  const textSize = parseInt(bc.textSize, 10) || 18;
+  const subtitleSize = parseInt(bc.subtitleSize, 10) || Math.max(10, Math.round(textSize * 0.7));
+  const align = bc.textAlign || "center";
+  const styleId = bc.textStyleId || "default";
+
+  const safeX = margins.left;
+  const safeW = pageSize.width - margins.left - margins.right;
+  const safeBottom = pageSize.height - (margins.bottom || 40);
+
+  // Measure heights to avoid clipping; place near bottom but inside safe area.
+  // Use same shaping rules as drawPageText (fixes Hebrew/English mixing)
+  const prepMain = preparePdfText(text, {latinFont: fontName, hebrewFont: HEBREW_FONT_REGULAR});
+  const prepSub = preparePdfText(subtitle, {latinFont: fontName, hebrewFont: HEBREW_FONT_REGULAR});
+  doc.font(prepMain.font).fontSize(textSize);
+  const textH = doc.heightOfString(prepMain.text, {width: safeW, align});
+  doc.font(prepSub.font).fontSize(subtitleSize);
+  const subH = subtitle ? doc.heightOfString(prepSub.text, {width: safeW, align}) : 0;
+
+  const gap = subtitle ? 10 : 0;
+  const blockH = textH + gap + subH;
+  const yStart = Math.max(margins.top || 40, safeBottom - blockH - 24);
+
+  // Use WordArt/typography styles for back cover too
+  drawPageText(doc, text, styleId, {x: safeX, y: yStart, width: safeW, height: Math.max(1, textH + 20)}, {
+    fontSize: textSize,
+    align,
+    fontName,
+    fillColor: textColor,
+  });
+  if (subtitle) {
+    drawPageText(doc, subtitle, "default", {x: safeX, y: yStart + textH + gap, width: safeW, height: Math.max(1, subH + 16)}, {
+      fontSize: subtitleSize,
+      align,
+      fontName,
+      fillColor: textColor,
+    });
+  }
 }
 
 // ============================================
@@ -1411,6 +1633,8 @@ async function generatePrintReadyPdfFromSpreads(userId, memoryDirectorData) {
     coverSubtitle: story?.chapters?.[0]?.subtitle || "",
     coverPhoto: spreads?.[0]?.leftPhoto || null,
     pageBackground: settings?.pageBackground || "#ffffff",
+    // Reading direction: 'right' = RTL binding on right edge
+    readingdirection: settings?.readingdirection || settings?.readingDirection || "right",
     backCover: {
       text: settings?.backCoverText || "Created with Memory Director",
       backgroundColor: settings?.backCoverBackground || "#1a1a2e",
@@ -1424,6 +1648,7 @@ async function generatePrintReadyPdfFromSpreads(userId, memoryDirectorData) {
   await createCoverPage(doc, bookData, pageSize, accessToken);
   pageNumber++;
 
+  const bindingSide = getBindingSide(bookData);
   // Chapters
   for (const chapter of story?.chapters || []) {
     // Chapter title
@@ -1434,16 +1659,19 @@ async function generatePrintReadyPdfFromSpreads(userId, memoryDirectorData) {
     const chapterSpreads = (spreads || []).filter((s) => s.chapterId === chapter.id);
 
     for (const spread of chapterSpreads) {
-      // Left page
-      if (spread.leftPhoto) {
+      // In RTL books (binding on right), the "right page" should come first in the PDF after the cover.
+      const first = bindingSide === "right" ? spread.rightPhoto : spread.leftPhoto;
+      const second = bindingSide === "right" ? spread.leftPhoto : spread.rightPhoto;
+
+      if (first) {
         const result = await createContentPageFromPhoto(
             doc,
-            spread.leftPhoto,
+            first,
             pageSize,
             accessToken,
             pageNumber,
             bookData,
-            false,
+            isRightPageForPageNumber(pageNumber, bindingSide),
         );
         if (result.warning) {
           resolutionWarnings.push({page: pageNumber, warning: result.warning, dpi: Math.round(result.effectiveDPI)});
@@ -1451,16 +1679,15 @@ async function generatePrintReadyPdfFromSpreads(userId, memoryDirectorData) {
         pageNumber++;
       }
 
-      // Right page
-      if (spread.rightPhoto) {
+      if (second) {
         const result = await createContentPageFromPhoto(
             doc,
-            spread.rightPhoto,
+            second,
             pageSize,
             accessToken,
             pageNumber,
             bookData,
-            true,
+            isRightPageForPageNumber(pageNumber, bindingSide),
         );
         if (result.warning) {
           resolutionWarnings.push({page: pageNumber, warning: result.warning, dpi: Math.round(result.effectiveDPI)});
@@ -1471,7 +1698,7 @@ async function generatePrintReadyPdfFromSpreads(userId, memoryDirectorData) {
   }
 
   // Back cover
-  createBackCoverPage(doc, bookData, pageSize, pageNumber);
+  await createBackCoverPage(doc, bookData, pageSize, pageNumber);
 
   // Finalize
   const pdfBuffer = await new Promise((resolve, reject) => {
@@ -1558,9 +1785,10 @@ async function generatePrintReadyPdf(userId, bookData) {
     return true;
   });
 
+  const bindingSide = getBindingSide(bookData);
   for (const page of validPages) {
-    const isRightPage = pageNumber % 2 === 1;
-    const margins = getPageMargins(pageNumber, 0, pageSize, isRightPage);
+    const isRightPage = isRightPageForPageNumber(pageNumber, bindingSide);
+    const margins = getPageMargins(pageNumber, 0, pageSize, isRightPage, bindingSide);
 
     doc.addPage({size: [pageSize.width, pageSize.height], margin: 0});
 
@@ -1588,7 +1816,14 @@ async function generatePrintReadyPdf(userId, bookData) {
       if (item.type === "text") {
         // Resolve immediately for text
         imagePromises.push(Promise.resolve({
-          result: {isText: true, content: item.content, styleId: item.styleId},
+          result: {
+            isText: true,
+            content: item.content,
+            styleId: item.styleId,
+            rotation: item.rotation,
+            fontSize: item.fontSize,
+            shadowStrength: item.shadowStrength,
+          },
           index: i,
           position: positions[i],
         }));
@@ -1606,7 +1841,11 @@ async function generatePrintReadyPdf(userId, bookData) {
       const {result, position} = item;
 
       if (result.isText) {
-        drawPageText(doc, result.content, result.styleId, position);
+        drawPageText(doc, result.content, result.styleId, position, {
+          rotation: result.rotation,
+          fontSize: result.fontSize,
+          shadowStrength: result.shadowStrength,
+        });
         continue;
       }
 
@@ -1625,15 +1864,22 @@ async function generatePrintReadyPdf(userId, bookData) {
           // Draw image
           doc.save();
 
-          // Clip to slot
-          doc.roundedRect(position.x, position.y, position.width, position.height, 2) // slight radius
-              .clip();
+          // Clip to the actual drawn image rect (not the whole slot),
+          // otherwise "contain/fit" leaves sharp-cornered images inside a rounded slot.
+          const cornerRadius = getCornerRadiusPoints(bookData);
+          const fit = calculateFitDimensions(
+              imageData.width,
+              imageData.height,
+              position.width,
+              position.height,
+          );
+          const x = position.x + (position.width - fit.width) / 2;
+          const y = position.y + (position.height - fit.height) / 2;
 
-          doc.image(imageData.buffer, position.x, position.y, {
-            fit: [position.width, position.height],
-            align: "center",
-            valign: "center",
-          });
+          if (cornerRadius > 0) {
+            doc.roundedRect(x, y, fit.width, fit.height, cornerRadius).clip();
+          }
+          doc.image(imageData.buffer, x, y, {width: fit.width, height: fit.height});
 
           doc.restore();
         } catch (err) {
@@ -1653,17 +1899,20 @@ async function generatePrintReadyPdf(userId, bookData) {
       // In the previous view, loop ended around 1600+ inside a warning check.
     }
 
-    // Page number
+    // Page number (outer edge)
+    const xNum = bindingSide === "right" ?
+      (isRightPage ? margins.left : pageSize.width - margins.right - 30) :
+      (isRightPage ? pageSize.width - margins.right - 30 : margins.left);
     doc.fontSize(9)
         .font("Helvetica")
         .fillColor("#aaa")
-        .text(pageNumber.toString(), isRightPage ? pageSize.width - 50 : 20, pageSize.height - 25);
+        .text(pageNumber.toString(), xNum, pageSize.height - 25, {width: 30, align: isRightPage ? "right" : "left"});
 
     pageNumber++;
   }
 
   // Back cover
-  createBackCoverPage(doc, bookData, pageSize, pageNumber);
+  await createBackCoverPage(doc, bookData, pageSize, pageNumber);
 
   const pdfBuffer = await new Promise((resolve, reject) => {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -1715,53 +1964,219 @@ module.exports = {
 
 
 // Helper for drawing Styled Text in PDF
-function drawPageText(doc, content, styleId, pos) {
+function drawPageText(doc, content, styleId, pos, opts = {}) {
   doc.save();
 
-  // Map styleId to PDFKit properties
-  let font = "Helvetica";
-  const fontSize = 24;
-  let color = "#000000";
+  const rotation = parseInt(opts.rotation, 10) || 0;
+  let fontSize = parseInt(opts.fontSize, 10) || 24;
+  const shadowStrength = parseInt(opts.shadowStrength, 10) || 0;
+  const align = String(opts.align || "center");
+  const fontNameOverride = opts.fontName ? String(opts.fontName) : null;
+  const fillColorOverride = opts.fillColor ? String(opts.fillColor) : null;
 
-  // Basic Vertical Centering calculation attempt
-  let y = pos.y + pos.height / 2 - 12; // approximate center
+  const padding = 12;
+  const box = {
+    x: pos.x + padding,
+    y: pos.y + padding,
+    width: Math.max(1, pos.width - padding * 2),
+    height: Math.max(1, pos.height - padding * 2),
+  };
 
-  switch (styleId) {
-    case "style-retro-pop":
-      font = "Helvetica-Bold";
-      color = "#FF0055";
-      break;
-    case "style-neon-glow":
-      font = "Courier-Bold";
-      color = "#ffffff";
-      break;
-    case "style-elegant-gold":
-      font = "Times-Bold";
-      color = "#D4AF37";
-      break;
-    case "style-vintage-type":
-      font = "Courier";
-      color = "#4e342e";
-      break;
-    default:
-      font = "Helvetica";
-      color = "#333333";
+  // PDF-friendly style approximations
+  const styleMap = {
+    "style-retro-pop": {
+      font: "Helvetica-Bold",
+      fill: "#FF0055",
+      shadow: {color: "#00FFFF", dx: 3, dy: 3, opacity: 1},
+    },
+    "style-neon-glow": {
+      font: "Courier-Bold",
+      fill: "#FFFFFF",
+      glows: [
+        {color: "#FF00DE", dx: 0, dy: 0, opacity: 0.55},
+        {color: "#FF00DE", dx: 1, dy: 1, opacity: 0.35},
+        {color: "#FF00DE", dx: -1, dy: 1, opacity: 0.35},
+      ],
+    },
+    "style-elegant-gold": {
+      font: "Times-Bold",
+      gradient: {
+        from: "#BF953F",
+        mid: "#FCF6BA",
+        to: "#AA771C",
+      },
+      shadow: {color: "#000000", dx: 1, dy: 1, opacity: 0.25},
+    },
+    "style-vintage-type": {
+      font: "Courier",
+      fill: "#4E342E",
+      shadow: {color: "#FFFFFF", dx: 1, dy: 1, opacity: 0.25},
+    },
+    "style-comic-fun": {
+      font: "Helvetica-Bold",
+      fill: "#FFD700",
+      outline: {color: "#000000", thickness: 2},
+      shadow: {color: "#000000", dx: 4, dy: 4, opacity: 1},
+    },
+    "style-minimal-shadow": {
+      font: "Helvetica-Bold",
+      fill: "#333333",
+      shadow: {color: "#000000", dx: 2, dy: 2, opacity: 0.18},
+    },
+    "style-bold-serif": {font: "Times-Bold", fill: "#0F172A"},
+    "style-stamp": {
+      font: "Helvetica-Bold",
+      fill: "#7F1D1D",
+      stampBox: {color: "#7F1D1D", opacity: 0.35},
+    },
+    "style-outline": {
+      font: "Helvetica-Bold",
+      fill: "#FFFFFF",
+      outline: {color: "#111827", thickness: 2},
+    },
+    "style-gradient-blue": {
+      font: "Helvetica-Bold",
+      gradient: {from: "#1D4ED8", mid: "#06B6D4", to: "#06B6D4"},
+    },
+    "style-handwritten": {font: "Helvetica-Oblique", fill: "#334155"},
+    "style-minimal-caps": {font: "Helvetica-Bold", fill: "#111827"},
+  };
+
+  const style = styleMap[String(styleId || "default")] || {font: "Helvetica", fill: "#333333"};
+
+  const rawText = String(content || "");
+  const hebFont = String(style.font || "").toLowerCase().includes("bold") ? HEBREW_FONT_BOLD : HEBREW_FONT_REGULAR;
+  const baseFont = fontNameOverride || style.font || "Helvetica";
+  const prepared = preparePdfText(rawText, {latinFont: baseFont, hebrewFont: hebFont});
+  const text = prepared.text;
+  const activeFont = prepared.isHebrew ? prepared.font : getSafeFont(baseFont);
+
+  // Determine font size that fits the slot (avoids clipping/cut-off)
+  try {
+    doc.font(activeFont).fontSize(fontSize);
+    for (let i = 0; i < 10; i++) {
+      const th = doc.heightOfString(text, {width: box.width, align});
+      if (th <= box.height) break;
+      fontSize = Math.max(10, Math.floor(fontSize * 0.9));
+      doc.fontSize(fontSize);
+    }
+  } catch (e) {
+    // ignore and continue with defaults
   }
 
-  // Draw
+  // Compute vertical centering
+  let y = box.y;
   try {
-    doc.font(font).fontSize(fontSize).fillColor(color);
-    // Calculate height to center properly
-    const textHeight = doc.heightOfString(content, {width: pos.width});
-    y = pos.y + (pos.height - textHeight) / 2;
+    const th = doc.heightOfString(text, {width: box.width, align});
+    y = box.y + (box.height - th) / 2;
+  } catch {
+    y = box.y + box.height / 2;
+  }
 
-    doc.text(content, pos.x, y, {
-      width: pos.width,
-      align: "center",
+  const origin = [pos.x + pos.width / 2, pos.y + pos.height / 2];
+  if (rotation) doc.rotate(rotation, {origin});
+
+  const drawText = (fill, opacity = 1) => {
+    doc.save();
+    doc.opacity(opacity);
+    doc.font(activeFont).fontSize(fontSize).fillColor(fill || "#333333");
+    doc.text(text, box.x, y, {width: box.width, align});
+    doc.restore();
+  };
+
+  const drawOutlinedText = (outlineColor, thickness) => {
+    // PDFKit doesn't reliably support stroking text across all renderers,
+    // so approximate outline by drawing text multiple times around the origin.
+    const t = Math.max(1, parseInt(thickness, 10) || 1);
+    const offsets = [];
+    for (let dx = -t; dx <= t; dx++) {
+      for (let dy = -t; dy <= t; dy++) {
+        if (!dx && !dy) continue;
+        if (Math.abs(dx) + Math.abs(dy) > t + 1) continue;
+        offsets.push([dx, dy]);
+      }
+    }
+    doc.save();
+    doc.font(activeFont).fontSize(fontSize).fillColor(outlineColor || "#000000");
+    offsets.forEach(([dx, dy]) => {
+      doc.text(text, box.x + dx, y + dy, {width: box.width, align});
     });
+    doc.restore();
+  };
+
+  try {
+    // Optional user shadow (applied in addition to style)
+    if (shadowStrength > 0) {
+      const blur = Math.max(1, shadowStrength / 10);
+      const alpha = Math.min(0.45, shadowStrength / 200);
+      doc.save();
+      doc.translate(2, 2);
+      drawText("#000000", alpha);
+      doc.restore();
+      doc.save();
+      doc.translate(-2, 2);
+      drawText("#000000", alpha * 0.8);
+      doc.restore();
+      // No true blur in PDFKit; multiple passes approximate softness.
+      for (let i = 0; i < Math.min(3, Math.ceil(blur / 3)); i++) {
+        doc.save();
+        doc.translate(0, 1);
+        drawText("#000000", alpha * 0.6);
+        doc.restore();
+      }
+    }
+
+    // Optional stamp box (approx)
+    if (style.stampBox) {
+      const m = 6;
+      doc.save();
+      doc.opacity(style.stampBox.opacity ?? 0.35);
+      doc.lineWidth(2);
+      doc.strokeColor(style.stampBox.color || "#7F1D1D");
+      doc.rect(box.x - m, y - m, box.width + m * 2, Math.min(box.height, fontSize * 2) + m * 2).stroke();
+      doc.restore();
+    }
+
+    // Shadows / glows first
+    if (style.shadow) {
+      drawText(style.shadow.color || "#000000", style.shadow.opacity ?? 0.25);
+      // Re-draw offset shadow by temporarily translating
+      doc.save();
+      doc.translate(style.shadow.dx || 0, style.shadow.dy || 0);
+      drawText(style.shadow.color || "#000000", style.shadow.opacity ?? 0.25);
+      doc.restore();
+    }
+    if (Array.isArray(style.glows)) {
+      style.glows.forEach((g) => {
+        doc.save();
+        doc.translate(g.dx || 0, g.dy || 0);
+        drawText(g.color || "#FF00DE", g.opacity ?? 0.3);
+        doc.restore();
+      });
+    }
+
+    // Outline
+    if (style.outline) {
+      drawOutlinedText(style.outline.color, style.outline.thickness);
+    }
+
+    // Gradient fill (approx) or solid fill
+    if (style.gradient) {
+      const grad = doc.linearGradient(pos.x, pos.y, pos.x + pos.width, pos.y);
+      grad.stop(0, style.gradient.from || "#ffffff");
+      if (style.gradient.mid) grad.stop(0.5, style.gradient.mid);
+      grad.stop(1, style.gradient.to || style.gradient.from || "#ffffff");
+      drawText(grad, 1);
+    } else {
+      drawText(fillColorOverride || style.fill || "#333333", 1);
+    }
   } catch (e) {
     console.error("Error drawing PDF text", e);
-    doc.text(content, pos.x, pos.y);
+    try {
+      doc.font("Helvetica").fontSize(12).fillColor("#333").text(text, box.x, box.y, {width: box.width});
+    } catch {
+      // ignore
+    }
   }
 
   doc.restore();

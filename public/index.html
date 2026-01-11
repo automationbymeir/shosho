@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 
 <head>
   <meta charset="UTF-8">
@@ -16,11 +16,11 @@
   <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-storage-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics-compat.js"></script>
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts (includes Hebrew support) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&family=Heebo:wght@400;500;600;700;800&family=Alef:wght@400;700&family=Rubik:wght@400;500;600;700;800&family=Assistant:wght@400;500;600;700;800&family=Noto+Sans+Hebrew:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
 
   <!-- Styles -->
@@ -88,7 +88,7 @@
 
   <!-- Templates Data -->
   <script src="/data/templates.js"></script>
-  <script src="/data/backgrounds.js"></script>
+  <script src="/data/backgrounds.js?v=v2_patterns"></script>
 </head>
 
 <body>
@@ -111,12 +111,15 @@
     <div id="templateGalleryView" class="template-gallery-view">
       <header class="gallery-header">
         <div class="gallery-header-content">
-          <h1 class="gallery-title">Create Your Photo Book</h1>
-          <p class="gallery-subtitle">Choose a template to begin</p>
+          <h1 class="gallery-title" data-i18n="gallery_title">Create Your Photo Book</h1>
+          <p class="gallery-subtitle" data-i18n="gallery_subtitle">Choose a template to begin</p>
         </div>
         <div class="gallery-header-actions">
-          <button class="btn btn-secondary" onclick="showLoadDialog()">Load Project</button>
-          <button class="btn btn-secondary" onclick="showProfileModal()">Profile</button>
+          <button class="btn btn-secondary" onclick="setUiLanguage('en')" data-i18n="lang_en">EN</button>
+          <button class="btn btn-secondary" onclick="setUiLanguage('he')" data-i18n="lang_he">עברית</button>
+          <button class="btn btn-secondary" onclick="setUiDirection((document.documentElement.getAttribute('dir') || 'ltr') === 'rtl' ? 'ltr' : 'rtl')" data-i18n="toggle_rtl">RTL</button>
+          <button class="btn btn-secondary" onclick="showLoadDialog()" data-i18n="load_project">Load Project</button>
+          <button class="btn btn-secondary" onclick="showProfileModal()" data-i18n="profile">Profile</button>
         </div>
       </header>
 
@@ -404,8 +407,7 @@
                 <div class="design-section-title">
                   Page Thumbnails
                 </div>
-                <div id="pageThumbnails"
-                  style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px;"></div>
+                <div id="pageThumbnails" class="pages-overview-grid"></div>
               </div>
               <div class="design-section" style="margin-top: 20px;">
                 <button class="btn btn-secondary" onclick="addPage()" style="width:100%">+ Add Empty Page</button>
@@ -597,7 +599,7 @@
                      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
                      display: flex; align-items: center; gap: 8px; font-weight: 600;
                      transition: all 0.3s ease; cursor: pointer;">
-            <span class="icon">✨</span> Open Design Gallery
+            <span class="icon">✨</span> <span data-i18n="open_design_gallery">Open Design Gallery</span>
           </button>
 
           <!-- 3D Book Container -->
@@ -605,9 +607,9 @@
 
           <!-- Floating Toolbar -->
           <div class="floating-toolbar">
-            <button class="btn-toolbar" onclick="goToCover()">Cover</button>
+            <button class="btn-toolbar" onclick="goToCover()" data-i18n="cover">Cover</button>
             <div class="toolbar-divider"></div>
-            <button class="nav-btn" title="Previous Page" onclick="prevPage()">
+            <button class="nav-btn" title="Previous Page" data-i18n-title="prev_page" onclick="prevPage()">
               <span class="icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="15,18 9,12 15,6" />
@@ -617,7 +619,7 @@
             <div class="page-indicator">
               <span id="currentPageNum">1</span> <span>/ </span><span id="totalPages">10</span>
             </div>
-            <button class="nav-btn" title="Next Page" onclick="nextPage()">
+            <button class="nav-btn" title="Next Page" data-i18n-title="next_page" onclick="nextPage()">
               <span class="icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="9,18 15,12 9,6" />
@@ -625,7 +627,7 @@
               </span>
             </button>
             <div class="toolbar-divider"></div>
-            <button class="btn-toolbar" onclick="goToBackCover()">Back</button>
+            <button class="btn-toolbar" onclick="goToBackCover()" data-i18n="back_cover">Back</button>
             <div class="toolbar-divider"></div>
             <button class="btn-toolbar" onclick="addPage()">
               <span class="icon">
@@ -634,7 +636,7 @@
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </span>
-              Add Page
+              <span data-i18n="add_page">Add Page</span>
             </button>
             <button class="btn-toolbar btn-toolbar-accent" id="autoLayout" onclick="autoLayoutCurrentPage()">
               <span class="icon">
@@ -642,7 +644,7 @@
                   <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
                 </svg>
               </span>
-              Auto Layout
+              <span data-i18n="auto_layout">Auto Layout</span>
             </button>
           </div>
         </main>
@@ -676,7 +678,7 @@
               <div class="setting-group group-title">
                 <label class="setting-label">Book Title</label>
                 <div style="display:flex; gap:8px;">
-                  <input type="text" id="coverTitle" placeholder="Enter title..." class="edo-input" style="flex:1;">
+                  <input type="text" id="coverTitle" placeholder="Enter title..." data-i18n-placeholder="cover_title_placeholder" class="edo-input" style="flex:1;">
                   <div class="color-picker-wrapper"
                     style="width:36px; height:36px; padding:0; border-radius:4px; overflow:hidden; border:1px solid #ddd;">
                     <input type="color" id="coverTitleColor" value="#ffffff" oninput="updateCoverPreview()"
@@ -685,18 +687,18 @@
                 </div>
               </div>
               <div class="setting-group group-cover">
-                <label class="setting-label">Cover Photo</label>
+                <label class="setting-label" data-i18n="cover_photo">Cover Photo</label>
                 <!-- Moved from legacy container to be visible and clickable -->
                 <div id="coverPhotoSlot" class="photo-slot-placeholder"
                   style="width: 100%; height: 160px; background: rgba(0,0,0,0.05); border: 2px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; margin-bottom: 10px;">
-                  <span style="font-size: 13px; color: #666;">Click to add photo</span>
+                  <span style="font-size: 13px; color: #666;" data-i18n="click_to_add_photo">Click to add photo</span>
                 </div>
               </div>
 
               <div class="setting-group group-subtitle" style="margin-top: 10px;">
-                <label class="setting-label">Subtitle</label>
+                <label class="setting-label" data-i18n="subtitle">Subtitle</label>
                 <div style="display:flex; gap:8px;">
-                  <input type="text" id="coverSubtitle" placeholder="Enter subtitle..." class="edo-input"
+                  <input type="text" id="coverSubtitle" placeholder="Enter subtitle..." data-i18n-placeholder="cover_subtitle_placeholder" class="edo-input"
                     style="flex:1;">
                   <div class="color-picker-wrapper"
                     style="width:36px; height:36px; padding:0; border-radius:4px; overflow:hidden; border:1px solid #ddd;">
@@ -706,7 +708,7 @@
                 </div>
               </div>
               <div class="setting-group group-title-font" style="margin-top: 10px;">
-                <label class="setting-label">Title Font</label>
+                <label class="setting-label" data-i18n="title_font">Title Font</label>
                 <select id="coverTitleFont" class="edo-select">
                   <option value="Playfair Display">Playfair Display</option>
                   <option value="Montserrat">Montserrat</option>
@@ -715,10 +717,16 @@
                   <option value="Inter">Inter</option>
                   <option value="Merriweather">Merriweather</option>
                   <option value="Roboto">Roboto</option>
+                  <option value="Heebo">Heebo (Hebrew)</option>
+                  <option value="Alef">Alef (Hebrew)</option>
+                  <option value="Rubik">Rubik (Hebrew)</option>
+                  <option value="Assistant">Assistant (Hebrew)</option>
+                  <option value="Noto Sans Hebrew">Noto Sans Hebrew</option>
+                  <option value="Noto Serif Hebrew">Noto Serif Hebrew</option>
                 </select>
               </div>
               <div class="setting-group group-subtitle-font" style="margin-top: 10px;">
-                <label class="setting-label">Subtitle Font</label>
+                <label class="setting-label" data-i18n="subtitle_font">Subtitle Font</label>
                 <select id="coverSubtitleFont" class="edo-select">
                   <option value="Playfair Display">Playfair Display</option>
                   <option value="Montserrat">Montserrat</option>
@@ -727,12 +735,18 @@
                   <option value="Inter">Inter</option>
                   <option value="Merriweather">Merriweather</option>
                   <option value="Roboto">Roboto</option>
+                  <option value="Heebo">Heebo (Hebrew)</option>
+                  <option value="Alef">Alef (Hebrew)</option>
+                  <option value="Rubik">Rubik (Hebrew)</option>
+                  <option value="Assistant">Assistant (Hebrew)</option>
+                  <option value="Noto Sans Hebrew">Noto Sans Hebrew</option>
+                  <option value="Noto Serif Hebrew">Noto Serif Hebrew</option>
                 </select>
               </div>
 
               <!-- NEW: Cover Layout Selector -->
               <div class="sidebar-control-group setting-group group-layout flex-group" style="margin-top: 10px;">
-                <label class="setting-label" style="min-width: 80px;">Layout</label>
+                <label class="setting-label" style="min-width: 80px;" data-i18n="layout">Layout</label>
                 <select class="form-select flex-expand" id="coverLayout" onchange="updateCoverPreview()">
                   <option value="standard">Standard (Photo Top)</option>
                   <option value="full-bleed">Full Bleed</option>
@@ -743,7 +757,7 @@
               <!-- NEW: Cover Customization (Size & Angle) -->
               <div class="sidebar-control-group setting-group group-cover-custom flex-group"
                 style="align-items: center; margin-top: 10px;">
-                <label class="setting-label" style="min-width:80px;">Size</label>
+                <label class="setting-label" style="min-width:80px;" data-i18n="size">Size</label>
                 <input type="range" id="coverPhotoSize" min="50" max="100" value="100" class="flex-expand"
                   oninput="updateCoverCustomization()">
                 <span id="coverPhotoSizeVal" style="width:35px; text-align:right; font-size:12px;">100%</span>
@@ -751,7 +765,7 @@
 
               <div class="sidebar-control-group setting-group group-cover-custom flex-group"
                 style="align-items: center; margin-top: 5px;">
-                <label class="setting-label" style="min-width:80px;">Angle</label>
+                <label class="setting-label" style="min-width:80px;" data-i18n="angle">Angle</label>
                 <input type="range" id="coverPhotoAngle" min="-45" max="45" value="0" class="flex-expand"
                   oninput="updateCoverCustomization()">
                 <span id="coverPhotoAngleVal" style="width:35px; text-align:right; font-size:12px;">0°</span>
@@ -760,7 +774,7 @@
               <!-- NEW: Global Corner Radius (Cover Proxy) -->
               <div class="sidebar-control-group setting-group group-cover-custom flex-group"
                 style="align-items: center; margin-top: 5px;">
-                <label class="setting-label" style="min-width:80px;">Corners</label>
+                <label class="setting-label" style="min-width:80px;" data-i18n="corners">Corners</label>
                 <select id="globalCornerRadiusCover" class="form-select flex-expand"
                   onchange="updateGlobalPhotoStyle('globalCornerRadiusCover')">
                   <option value="0">Sharp (0px)</option>
@@ -863,12 +877,68 @@
             <div id="backcover-settings-panel" class="editor-settings-panel" style="display:none;">
               <div class="setting-group">
                 <label class="setting-label">Closing Text</label>
-                <textarea id="backCoverText" class="edo-textarea"
-                  rows="3">Thank you for viewing this photo book</textarea>
+                <textarea id="backCoverText" class="edo-textarea" rows="3" oninput="updateBackCoverPreview()">Thank you
+for viewing this photo book</textarea>
               </div>
+
               <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label">Text Font</label>
-                <select id="backCoverFont" class="edo-select">
+                <label class="setting-label">Subtitle (optional)</label>
+                <input type="text" id="backCoverSubtitle" class="edo-input" placeholder="Add a subtitle..."
+                  oninput="updateBackCoverPreview()">
+              </div>
+
+              <div class="setting-group group-bg-color flex-group" style="margin-top: 10px;">
+                <label class="setting-label">Background Color</label>
+                <div class="color-input-pair" style="display:flex; gap:8px; flex:1;">
+                  <input type="color" id="backCoverBgColor" value="#1a1a2e" oninput="syncBackCoverBgColor()">
+                  <input type="text" id="backCoverBgColorText" class="edo-input" value="#1a1a2e"
+                    oninput="syncBackCoverBgColor()">
+                </div>
+              </div>
+
+              <!-- Back Cover Background Image -->
+              <div class="setting-group group-bg-image flex-group align-start" style="margin-top: 10px;">
+                <label class="setting-label" style="min-width: 80px; margin-top: 5px;">Background Image</label>
+                <div class="controls-expand" style="display: flex; gap: 8px; flex-direction: column;">
+                  <button class="btn btn-secondary btn-sm" onclick="triggerBackCoverBackgroundImageUpload()"
+                    style="width:100%">
+                    Upload Image...
+                  </button>
+                  <input type="file" id="backCoverBgImageFile" accept="image/jpeg, image/png" style="display: none;"
+                    onchange="updateBackCoverBackgroundImage(event)">
+                  <div id="backCoverBgImageStatus" style="font-size: 11px; color: #666; margin-top: 2px;">No image set
+                  </div>
+                  <button class="btn btn-ghost btn-xs" onclick="clearBackCoverBackgroundImage()"
+                    style="align-self: flex-start; color: #dc3545;">
+                    Remove Image
+                  </button>
+                  <!-- Design Gallery Button -->
+                  <button class="btn btn-secondary btn-sm" onclick="openBackgroundGallery()"
+                    style="width:100%; margin-top: 5px;">
+                    <span class="icon icon-sm" style="margin-right:4px;">🎨</span> Design Gallery
+                  </button>
+                </div>
+              </div>
+
+              <div class="setting-group" style="margin-top: 10px;">
+                <label class="setting-label">Typography Style</label>
+                <select id="backCoverTextStyleSelect" class="edo-select" onchange="updateBackCoverPreview()">
+                  <option value="default">Default</option>
+                </select>
+              </div>
+
+              <div class="setting-group group-text-color flex-group" style="margin-top: 10px;">
+                <label class="setting-label" data-i18n="text_color">Text Color</label>
+                <div class="color-input-pair" style="display:flex; gap:8px; flex:1;">
+                  <input type="color" id="backCoverTextColor" value="#ffffff" oninput="syncBackCoverTextColor()">
+                  <input type="text" id="backCoverTextColorText" class="edo-input" value="#ffffff"
+                    oninput="syncBackCoverTextColor()">
+                </div>
+              </div>
+
+              <div class="setting-group" style="margin-top: 10px;">
+                <label class="setting-label" data-i18n="text_font">Text Font</label>
+                <select id="backCoverTextFont" class="edo-select" onchange="updateBackCoverPreview()">
                   <option value="Playfair Display">Playfair Display</option>
                   <option value="Montserrat">Montserrat</option>
                   <option value="Lato">Lato</option>
@@ -876,7 +946,63 @@
                   <option value="Inter">Inter</option>
                   <option value="Merriweather">Merriweather</option>
                   <option value="Roboto">Roboto</option>
+                  <option value="DM Serif Display">DM Serif Display</option>
+                  <option value="DM Sans">DM Sans</option>
+                  <option value="Heebo">Heebo (Hebrew)</option>
+                  <option value="Alef">Alef (Hebrew)</option>
+                  <option value="Rubik">Rubik (Hebrew)</option>
+                  <option value="Assistant">Assistant (Hebrew)</option>
+                  <option value="Noto Sans Hebrew">Noto Sans Hebrew</option>
+                  <option value="Noto Serif Hebrew">Noto Serif Hebrew</option>
                 </select>
+              </div>
+
+              <div class="setting-group" style="margin-top: 10px;">
+                <label class="setting-label">Text Size</label>
+                <div class="slider-control">
+                  <div class="slider-header">
+                    <span class="slider-label">Size</span>
+                    <span class="slider-value" id="backCoverTextSizeVal">18px</span>
+                  </div>
+                  <input type="range" id="backCoverTextSize" class="slider-track" min="10" max="48" value="18"
+                    oninput="updateBackCoverPreview()">
+                </div>
+              </div>
+
+              <div class="setting-group" style="margin-top: 10px;">
+                <label class="setting-label">Subtitle Size</label>
+                <div class="slider-control">
+                  <div class="slider-header">
+                    <span class="slider-label">Size</span>
+                    <span class="slider-value" id="backCoverSubtitleSizeVal">12px</span>
+                  </div>
+                  <input type="range" id="backCoverSubtitleSize" class="slider-track" min="8" max="32" value="12"
+                    oninput="updateBackCoverPreview()">
+                </div>
+              </div>
+
+              <div class="setting-group" style="margin-top: 12px;">
+                <label class="setting-label" data-i18n="alignment">Alignment</label>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn btn-secondary btn-sm btn-alignment active" data-alignment="left"
+                    onclick="setBackCoverAlign('left')" data-i18n="align_left">Left</button>
+                  <button class="btn btn-secondary btn-sm btn-alignment" data-alignment="center"
+                    onclick="setBackCoverAlign('center')" data-i18n="align_center">Center</button>
+                  <button class="btn btn-secondary btn-sm btn-alignment" data-alignment="right"
+                    onclick="setBackCoverAlign('right')" data-i18n="align_right">Right</button>
+                </div>
+              </div>
+
+              <div class="setting-group" style="margin-top: 12px;">
+                <label class="setting-label">Options</label>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <label style="display:flex; align-items:center; gap:8px; font-size: 13px;">
+                    <input id="backCoverShowBorder" type="checkbox" checked onchange="updateBackCoverPreview()"> Border
+                  </label>
+                  <label style="display:flex; align-items:center; gap:8px; font-size: 13px;">
+                    <input id="backCoverShowLogo" type="checkbox" onchange="updateBackCoverPreview()"> Show logo
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -1607,7 +1733,7 @@
           <span class="icon">✨</span> Search with AI
         </button>
 
-        <span class="close-modal" onclick="closeBackgroundGallery()">&times;</span>
+        <button class="close-btn" type="button" aria-label="Close Design Gallery" onclick="closeBackgroundGallery()">&times;</button>
       </div>
 
       <!-- AI Search Input Container (Hidden by default) -->
@@ -1653,7 +1779,7 @@
   <script src="/js/icons.js"></script>
 
   <!-- Main Application Script -->
-  <script src="/js/app.js?v=v50_cover_design_fix"></script>
+  <script src="/js/app.js?v=v64_full_he_translate7"></script>
 
   <!-- Template Gallery Script -->
   <script src="/js/template-gallery.js"></script>

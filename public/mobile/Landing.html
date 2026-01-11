@@ -9,13 +9,28 @@
 
   <script src="/js/mobile-redirect.js"></script>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #fff; }
+    body { margin: 0; font-family: Heebo, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #fff; }
+    html[dir="rtl"] body { direction: rtl; }
     .loading { padding: 18px; color: #334155; }
   </style>
 </head>
 <body>
   <div class="loading">Loading mobile view…</div>
+  <script>
+    (function () {
+      try {
+        const pref = localStorage.getItem('shoso_ui_dir') || 'auto';
+        const dir = (pref === 'rtl' || pref === 'ltr') ? pref : 'ltr';
+        document.documentElement.setAttribute('dir', dir);
+        document.documentElement.setAttribute('lang', dir === 'rtl' ? 'he' : 'en');
+      } catch (e) {}
+    })();
+  </script>
   <script src="/mobile/shell.js"></script>
 </body>
 </html>

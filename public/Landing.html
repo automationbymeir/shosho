@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,10 +11,10 @@
   <!-- Mobile redirect (sends mobile devices to /mobile/*) -->
   <script src="/js/mobile-redirect.js"></script>
 
-  <!-- Fonts -->
+  <!-- Fonts (includes Hebrew support) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&family=Heebo:wght@400;500;600;700;800&family=Alef:wght@400;700&family=Rubik:wght@400;500;600;700;800&family=Assistant:wght@400;500;600;700;800&family=Noto+Sans+Hebrew:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <style>
     /* ============================================
@@ -68,6 +68,20 @@
       background: var(--color-bg);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
+    }
+
+    /* RTL / Hebrew */
+    html[dir="rtl"] body {
+      direction: rtl;
+    }
+    html[dir="rtl"] h1,
+    html[dir="rtl"] h2,
+    html[dir="rtl"] h3,
+    html[dir="rtl"] p,
+    html[dir="rtl"] a,
+    html[dir="rtl"] button {
+      text-align: right;
+      font-family: 'Heebo', 'Alef', 'Rubik', 'Assistant', 'Noto Sans Hebrew', 'Noto Serif Hebrew', var(--font-sans);
     }
 
     img {
@@ -1450,6 +1464,55 @@
   </style>
 </head>
 <body id="top">
+  <script>
+    // Lightweight RTL auto-detect for Landing page
+    (function () {
+      try {
+        const langPref = localStorage.getItem('shoso_ui_lang') || 'auto';
+        const dirPref = localStorage.getItem('shoso_ui_dir') || 'auto';
+        if (langPref === 'he') {
+          document.documentElement.setAttribute('dir', 'rtl');
+          document.documentElement.setAttribute('lang', 'he');
+        } else if (langPref === 'en') {
+          document.documentElement.setAttribute('dir', 'ltr');
+          document.documentElement.setAttribute('lang', 'en');
+        } else if (dirPref === 'rtl' || dirPref === 'ltr') {
+          document.documentElement.setAttribute('dir', dirPref);
+          document.documentElement.setAttribute('lang', dirPref === 'rtl' ? 'he' : 'en');
+        } else {
+          // Auto: detect Hebrew in visible text nodes
+          const hasHeb = /[\u0590-\u05FF]/.test(document.body.innerText || '');
+          const dir = hasHeb ? 'rtl' : 'ltr';
+          document.documentElement.setAttribute('dir', dir);
+          document.documentElement.setAttribute('lang', dir === 'rtl' ? 'he' : 'en');
+        }
+
+        // Translate key landing copy (Hebrew only) once DOM exists
+        window.addEventListener('DOMContentLoaded', () => {
+          if (document.documentElement.getAttribute('lang') !== 'he') return;
+          const setText = (sel, txt) => { const el = document.querySelector(sel); if (el) el.textContent = txt; };
+          const setHtml = (sel, html) => { const el = document.querySelector(sel); if (el) el.innerHTML = html; };
+
+          setHtml('.hero-title', 'הפכו את התמונות שלכם ל<span class="text-gradient">ספרים מודפסים יפים</span>');
+          setText('.hero-description', 'צרו אלבומי תמונות מרהיבים בדקות, לא בשעות. ה‑AI שלנו מנתח את התמונות, מזהה סיפורים ומארגן אותן לפרקים באופן אוטומטי. פשוט העלו, התאימו אישית והדפיסו.');
+
+          document.querySelectorAll('.section-badge').forEach(el => {
+            const t = (el.textContent || '').trim();
+            if (t === 'Pricing') el.textContent = 'מחירים';
+            if (t === 'Features') el.textContent = 'תכונות';
+          });
+          document.querySelectorAll('.section-title').forEach(el => {
+            const t = (el.textContent || '').trim();
+            if (t === 'Simple, Transparent Pricing') el.textContent = 'מחירים פשוטים ושקופים';
+            if (t === 'Everything You Need to Create Stunning Photo Books') el.textContent = 'כל מה שצריך כדי ליצור אלבומי תמונות מרהיבים';
+            if (t === 'Create Your Photo Book in 4 Simple Steps') el.textContent = 'צרו את האלבום שלכם ב‑4 צעדים פשוטים';
+            if (t === 'Books Made by Our Community') el.textContent = 'אלבומים שנוצרו על ידי הקהילה שלנו';
+            if (t === 'Loved by Thousands') el.textContent = 'אהובים על אלפים';
+          });
+        });
+      } catch (e) {}
+    })();
+  </script>
 
   <!-- Navigation -->
   <nav class="nav">

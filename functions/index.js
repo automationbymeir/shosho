@@ -594,6 +594,8 @@ exports.generateMemoryDirectorPdf = onCall({
       coverBackground: bookData.cover?.backgroundColor || "#1a1a2e",
       coverTextColor: bookData.cover?.textColor || bookData.cover?.titleColor || "#ffffff",
       coverTitleFont: bookData.cover?.titleFont || "Times-Bold",
+      coverSubtitleFont: bookData.cover?.subtitleFont || bookData.cover?.titleFont || "Times-Bold",
+      coverTextStyle: bookData.coverTextStyle || bookData.cover?.textStyleId || "default",
       coverTitleSize: bookData.cover?.titleSize || 36,
       coverPhoto: bookData.cover?.photo || null,
       coverBackgroundImageData: bookData.cover?.backgroundImageData || null,
@@ -606,8 +608,21 @@ exports.generateMemoryDirectorPdf = onCall({
       // Back cover mapping
       backCover: {
         text: bookData.backCover?.text || "Created with Shoso",
+        subtitle: bookData.backCover?.subtitle || "",
         backgroundColor: bookData.backCover?.backgroundColor || bookData.cover?.backgroundColor || "#1a1a2e",
+        // Background image (either URL or data URL)
+        backgroundImageUrl: bookData.backCover?.backgroundImageUrl || null,
+        backgroundImageData: bookData.backCover?.backgroundImageData || null,
+        backgroundImageName: bookData.backCover?.backgroundImageName || null,
+
         textColor: bookData.backCover?.textColor || bookData.cover?.textColor || "#ffffff",
+        textFont: bookData.backCover?.textFont || "Helvetica",
+        textSize: bookData.backCover?.textSize || 18,
+        subtitleSize: bookData.backCover?.subtitleSize || 12,
+        textAlign: bookData.backCover?.textAlign || "center",
+        showBorder: bookData.backCover?.showBorder !== false,
+        showLogo: !!bookData.backCover?.showLogo,
+        textStyleId: bookData.backCover?.textStyleId || "default",
       },
       // Ensure pages are passed through
       pages: bookData.pages || [],

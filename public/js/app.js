@@ -122,6 +122,11 @@ const state = {
     pollingInterval: null,
     sessionId: null,
     photoPickerCallback: null,
+    ui: {
+        // 'auto' | 'ltr' | 'rtl'
+        dir: localStorage.getItem('shoso_ui_dir') || 'auto',
+        lang: localStorage.getItem('shoso_ui_lang') || 'auto'
+    },
     generatedPresentationId: null,
     generatedPdfUrl: null,
     generatedPdfDownloadUrl: null,
@@ -695,6 +700,17 @@ function startNewAlbum() {
 function sanitizePhotoForStorage(p) {
     if (!p || typeof p !== 'object') return null;
     // Avoid storing big data-URIs in localStorage (thumbnails/edited images).
+    if (p.type === 'text') {
+        return {
+            type: 'text',
+            id: p.id || ('text-' + Date.now()),
+            content: String(p.content || ''),
+            styleId: p.styleId || 'default',
+            rotation: Number.isFinite(p.rotation) ? p.rotation : 0,
+            fontSize: Number.isFinite(p.fontSize) ? p.fontSize : 32,
+            shadowStrength: Number.isFinite(p.shadowStrength) ? p.shadowStrength : 0,
+        };
+    }
     return {
         id: p.id || null,
         baseUrl: normalizeBaseUrl(p.baseUrl || p.fullUrl || null),
@@ -721,6 +737,585 @@ function normalizeBaseUrl(u) {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+function containsHebrewText(s) {
+    if (!s) return false;
+    return /[\u0590-\u05FF]/.test(String(s));
+}
+
+function computeAutoDirFromState() {
+    // Look at common user-entered strings; if any contain Hebrew => RTL
+    const candidates = [
+        state?.cover?.title,
+        state?.cover?.subtitle,
+        state?.backCover?.text,
+        state?.backCover?.subtitle,
+        ...(state?.pages || []).flatMap(p => (p?.photos || [])
+            .filter(x => x && x.type === 'text')
+            .map(x => x.content)),
+    ];
+    return candidates.some(containsHebrewText) ? 'rtl' : 'ltr';
+}
+
+function applyUiDirection() {
+    const pref = state?.ui?.dir || 'auto';
+    const dir = pref === 'auto' ? computeAutoDirFromState() : pref;
+    document.documentElement.setAttribute('dir', dir);
+
+    const langPref = state?.ui?.lang || 'auto';
+    const lang = langPref === 'auto' ? (dir === 'rtl' ? 'he' : 'en') : langPref;
+    document.documentElement.setAttribute('lang', lang);
+    try { applyTranslations(); } catch { /* ignore */ }
+}
+
+// Apply persisted UI direction/lang as early as possible (before initialize)
+try { applyUiDirection(); } catch { /* ignore */ }
+
+function setUiDirection(dir) {
+    state.ui.dir = dir;
+    localStorage.setItem('shoso_ui_dir', dir);
+    applyUiDirection();
+    try { renderCurrentPage(); } catch { /* ignore */ }
+}
+
+const I18N = {
+    en: {
+        gallery_title: 'Create Your Photo Book',
+        gallery_subtitle: 'Choose a template to begin',
+        lang_en: 'EN',
+        lang_he: 'עברית',
+        toggle_rtl: 'RTL',
+        load_project: 'Load Project',
+        profile: 'Profile',
+        open_design_gallery: 'Open Design Gallery',
+        cover: 'Cover',
+        back_cover: 'Back',
+        prev_page: 'Previous Page',
+        next_page: 'Next Page',
+        add_page: 'Add Page',
+        auto_layout: 'Auto Layout',
+        cover_title_placeholder: 'Enter title...',
+        cover_subtitle_placeholder: 'Enter subtitle...',
+        cover_photo: 'Cover Photo',
+        click_to_add_photo: 'Click to add photo',
+        subtitle: 'Subtitle',
+        title_font: 'Title Font',
+        subtitle_font: 'Subtitle Font',
+        layout: 'Layout',
+        size: 'Size',
+        angle: 'Angle',
+        corners: 'Corners',
+        text_color: 'Text Color',
+        text_font: 'Text Font',
+        alignment: 'Alignment',
+        align_left: 'Left',
+        align_center: 'Center',
+        align_right: 'Right',
+        confirm_delete_page: 'Delete this page?',
+        page_cover: 'Cover',
+        page_back: 'Back',
+    },
+    he: {
+        gallery_title: 'צרו את אלבום התמונות שלכם',
+        gallery_subtitle: 'בחרו תבנית כדי להתחיל',
+        lang_en: 'EN',
+        lang_he: 'עברית',
+        toggle_rtl: 'RTL',
+        load_project: 'טען פרויקט',
+        profile: 'פרופיל',
+        open_design_gallery: 'פתח גלריית עיצוב',
+        cover: 'כריכה',
+        back_cover: 'גב',
+        prev_page: 'עמוד קודם',
+        next_page: 'עמוד הבא',
+        add_page: 'הוסף עמוד',
+        auto_layout: 'סידור אוטומטי',
+        cover_title_placeholder: 'הכנס כותרת…',
+        cover_subtitle_placeholder: 'הכנס כותרת משנה…',
+        cover_photo: 'תמונת כריכה',
+        click_to_add_photo: 'לחץ כדי להוסיף תמונה',
+        subtitle: 'כותרת משנה',
+        title_font: 'פונט כותרת',
+        subtitle_font: 'פונט כותרת משנה',
+        layout: 'פריסה',
+        size: 'גודל',
+        angle: 'זווית',
+        corners: 'פינות',
+        text_color: 'צבע טקסט',
+        text_font: 'פונט טקסט',
+        alignment: 'יישור',
+        align_left: 'שמאל',
+        align_center: 'מרכז',
+        align_right: 'ימין',
+        confirm_delete_page: 'למחוק את העמוד הזה?',
+        page_cover: 'כריכה',
+        page_back: 'גב',
+    }
+};
+
+function getUiLang() {
+    const lang = (document.documentElement.getAttribute('lang') || 'en').toLowerCase();
+    return (lang === 'he' || lang === 'iw') ? 'he' : 'en';
+}
+
+function t(key, fallback) {
+    const lang = getUiLang();
+    return (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || fallback || key;
+}
+
+// =====================================================
+// FULL-APP (DOM) TRANSLATION LAYER (reversible)
+// =====================================================
+const __i18nTouchedTextNodes = new Set();
+const __i18nTextNodeOrig = new WeakMap();
+const __i18nTouchedAttrs = new Set(); // entries: { el, attr }
+const __i18nAttrOrig = new WeakMap(); // el -> Map(attr->orig)
+
+function __i18nRememberAttr(el, attr, value) {
+    if (!el) return;
+    let m = __i18nAttrOrig.get(el);
+    if (!m) { m = new Map(); __i18nAttrOrig.set(el, m); }
+    if (!m.has(attr)) m.set(attr, value);
+}
+
+function __i18nRestoreAll() {
+    // Restore text nodes
+    __i18nTouchedTextNodes.forEach((n) => {
+        try {
+            if (!n || n.nodeType !== 3) return;
+            const orig = __i18nTextNodeOrig.get(n);
+            if (typeof orig === 'string') n.nodeValue = orig;
+        } catch { /* ignore */ }
+    });
+    __i18nTouchedTextNodes.clear();
+
+    // Restore attributes
+    __i18nTouchedAttrs.forEach((entry) => {
+        try {
+            const el = entry?.el;
+            const attr = entry?.attr;
+            if (!el || !attr) return;
+            const m = __i18nAttrOrig.get(el);
+            const orig = m ? m.get(attr) : undefined;
+            if (typeof orig === 'string') el.setAttribute(attr, orig);
+        } catch { /* ignore */ }
+    });
+    __i18nTouchedAttrs.clear();
+}
+
+function __i18nTranslateDynamicHebrew(s) {
+    const str = String(s || '');
+    // Sliders that include values
+    let m = str.match(/^Brightness\s+(\d+%?)$/i);
+    if (m) return `בהירות ${m[1]}`;
+    m = str.match(/^Contrast\s+(\d+%?)$/i);
+    if (m) return `ניגודיות ${m[1]}`;
+    m = str.match(/^Saturation\s+(\d+%?)$/i);
+    if (m) return `רוויה ${m[1]}`;
+    return null;
+}
+
+function __i18nTranslateString(s) {
+    const lang = getUiLang();
+    const raw = String(s ?? '');
+    const trimmed = raw.trim();
+    if (!trimmed) return raw;
+
+    if (lang !== 'he') return raw;
+
+    const dynamic = __i18nTranslateDynamicHebrew(trimmed);
+    if (dynamic) return raw.replace(trimmed, dynamic);
+
+    const replaceMap = {
+        // General actions
+        'Cancel': 'ביטול',
+        'Close': 'סגור',
+        'Back': 'חזרה',
+        'Next': 'הבא',
+        'Previous': 'הקודם',
+        'Continue': 'המשך',
+        'Confirm': 'אישור',
+        'Save': 'שמור',
+        'Refresh': 'רענן',
+        'Shuffle': 'ערבב',
+        'Clear': 'נקה',
+        'Generate': 'צור',
+        'Generate Book': 'צור ספר',
+        'Generate All Captions': 'צור כיתובים לכל התמונות',
+        'Export as PDF': 'ייצוא ל‑PDF',
+        'Import from Cloud': 'ייבוא מהענן',
+        'Upload from Computer': 'העלה מהמחשב',
+
+        // Tabs / sections
+        'Photos': 'תמונות',
+        'Pages': 'עמודים',
+        'Design': 'עיצוב',
+        'Photo Library': 'ספריית תמונות',
+        'Pages Overview': 'סקירת עמודים',
+        'Page Thumbnails': 'תצוגות מקדימות',
+        'Properties': 'מאפיינים',
+        'Design Tools': 'כלי עיצוב',
+        'Quick Actions': 'פעולות מהירות',
+        'Auto Layout': 'סידור אוטומטי',
+        'Brush Tools': 'כלי מברשת',
+        'Brush Settings': 'הגדרות מברשת',
+        'Photo Filters': 'מסנני תמונה',
+        'Select a photo to edit': 'בחר תמונה לעריכה',
+
+        // Page / cover controls
+        'Add Page': 'הוסף עמוד',
+        '+ Add Empty Page': '+ הוסף עמוד ריק',
+        'Cover': 'כריכה',
+        'Cover Photo': 'תמונת כריכה',
+        'Click to add photo': 'לחץ כדי להוסיף תמונה',
+        'Click to add photo or text': 'לחץ כדי להוסיף תמונה או טקסט',
+        '+ Add Cover Photo': '+ הוסף תמונת כריכה',
+        'Add a subtitle': 'הוסף כותרת משנה',
+        'Subtitle': 'כותרת משנה',
+        'Title Font': 'פונט כותרת',
+        'Subtitle Font': 'פונט כותרת משנה',
+        'Layout': 'פריסה',
+        'Size': 'גודל',
+        'Angle': 'זווית',
+        'Corners': 'פינות',
+
+        // Background / gallery
+        'Background Color': 'צבע רקע',
+        'Background Image': 'תמונת רקע',
+        'Upload Image...': 'העלה תמונה…',
+        'Remove Image': 'הסר תמונה',
+        'Design Gallery': 'גלריית עיצוב',
+        'Open Design Gallery': 'פתח גלריית עיצוב',
+        'Typography Style': 'סגנון טיפוגרפיה',
+
+        // Back cover panel
+        'Text Color': 'צבע טקסט',
+        'Text Font': 'פונט טקסט',
+        'Text Size': 'גודל טקסט',
+        'Subtitle Size': 'גודל כותרת משנה',
+        'Alignment': 'יישור',
+        'Left': 'שמאל',
+        'Center': 'מרכז',
+        'Right': 'ימין',
+        'Options': 'אפשרויות',
+        'Border': 'מסגרת',
+        'Show logo': 'הצג לוגו',
+        'No image set': 'לא הוגדרה תמונה',
+
+        // Modals / status
+        'Generating your photo book...': 'מייצר את האלבום שלך…',
+        'Load Project': 'טען פרויקט',
+        'Profile': 'פרופיל',
+        'Design Studio': 'סטודיו עיצוב',
+        'Edit': 'ערוך',
+        'Edit Design': 'עריכת עיצוב',
+        'Edit Text': 'עריכת טקסט',
+
+        // Shipping/profile fields
+        'Full name': 'שם מלא',
+        'Email': 'אימייל',
+        'Phone': 'טלפון',
+        'Country': 'מדינה',
+        'City': 'עיר',
+        'Address line 1': 'כתובת שורה 1',
+        'Address line 2': 'כתובת שורה 2',
+        'Postal code': 'מיקוד',
+        'Shipping method': 'שיטת משלוח',
+        'Home delivery': 'משלוח עד הבית',
+
+        // Templates / themes (best-effort)
+        'Classic Minimal': 'קלאסי מינימלי',
+        'The Archive': 'הארכיון',
+        'Your Photo Story': 'סיפור התמונות שלך',
+        'Memory Director': 'מנהל הזיכרונות',
+        'AI Captions': 'כיתובי AI',
+        'Format': 'פורמט',
+
+        // Remaining common strings (audit-driven)
+        'Adjustments': 'התאמות',
+        'Brightness': 'בהירות',
+        'Contrast': 'ניגודיות',
+        'Saturation': 'רוויה',
+        'Book Title': 'כותרת הספר',
+        'Book title': 'כותרת הספר',
+        'Album configuration': 'הגדרות אלבום',
+        'Printing configuration (BookPod — prep)': 'הגדרות הדפסה (BookPod — הכנה)',
+        'Shipping details': 'פרטי משלוח',
+        'Prefill from Profile': 'מלא מתוך פרופיל',
+        'Find pickup points near this address': 'מצא נקודות איסוף ליד הכתובת הזו',
+        'Subtitle (optional)': 'כותרת משנה (אופציונלי)',
+        'Gap': 'רווח',
+        'Radius': 'רדיוס',
+        'Design with AI': 'עיצוב עם AI',
+        '✓ Apply Design': '✓ החל עיצוב',
+        'Thank you for viewing this photo book': 'תודה שצפיתם באלבום התמונות הזה',
+
+        // Login / marketing strings inside app
+        'Photo Book Creator': 'יוצר אלבומי תמונות',
+        'Create beautiful photo books from your Google Photos': 'צרו אלבומי תמונות יפים מתמונות Google Photos שלכם',
+        'Sign in with Google': 'התחבר עם Google',
+
+        // Gallery / templates / AI
+        'Search with AI': 'חיפוש עם AI',
+        'Searching for design inspiration...': 'מחפש השראה לעיצוב…',
+        'Design Inspiration Results': 'תוצאות השראה לעיצוב',
+        'Paper & Textures': 'נייר וטקסטורות',
+        'Page Frames': 'מסגרות עמוד',
+        'Typography': 'טיפוגרפיה',
+
+        // Pickers / modals
+        'Select a Photo': 'בחר תמונה',
+        'Selected Photos': 'תמונות שנבחרו',
+        'Choose a template for this page': 'בחר תבנית לעמוד הזה',
+        'Loading projects...': 'טוען פרויקטים…',
+        'Loading albums...': 'טוען אלבומים…',
+        'Saved albums': 'אלבומים שמורים',
+        'Loading purchases...': 'טוען רכישות…',
+
+        // BookPod / checkout fields
+        'Shipping company': 'חברת שילוח',
+        'Company (optional)': 'חברה (אופציונלי)',
+        'VAT number (optional)': 'מספר עוסק/מע״מ (אופציונלי)',
+        'Quantity': 'כמות',
+        'Invoice URL (for order)': 'קישור לחשבונית (להזמנה)',
+
+        // Template badge tokens
+        'NEW': 'חדש',
+        'New': 'חדש',
+        'MINIMALIST': 'מינימליסטי',
+        'Minimalist': 'מינימליסטי',
+        'VINTAGE': 'וינטג׳',
+        'Vintage': 'וינטג׳',
+        'NATURE': 'טבע',
+        'Nature': 'טבע',
+        'Cinematic': 'קולנועי',
+        'Graphic': 'גרפי',
+        'Vintage Botanical': 'בוטניקה וינטג׳',
+        'Inspired by 19th-century flora illustrations': 'בהשראת איורי פלורה מהמאה ה‑19',
+
+        // Toasts / completion messages
+        'Photo Book Created!': 'הספר נוצר!',
+        'Your photo book is ready.': 'האלבום שלך מוכן.',
+        'View': 'צפה',
+        'Send to printing': 'שלח להדפסה',
+        'PDF exported successfully!': 'ה‑PDF יוצא בהצלחה!',
+        'Download PDF': 'הורד PDF',
+    };
+
+    const translated = replaceMap[trimmed];
+    if (translated) return raw.replace(trimmed, translated);
+
+    // Partial replacements for longer strings that embed English tokens
+    const partialMap = {
+        'AI-powered story detection': 'זיהוי סיפור בעזרת AI',
+        'STORY': 'סיפור',
+        'NEW': 'חדש',
+        'New': 'חדש',
+        'MINIMALIST': 'מינימליסטי',
+        'Minimalist': 'מינימליסטי',
+        'VINTAGE': 'וינטג׳',
+        'Vintage': 'וינטג׳',
+        'NATURE': 'טבע',
+        'Nature': 'טבע',
+        'Cinematic': 'קולנועי',
+        'Graphic': 'גרפי',
+        'Timeless elegance with ample whitespace': 'אלגנטיות נצחית עם הרבה מרווחים',
+        'Sepia tones and typewriter aesthetics': 'גווני ספיה ואסתטיקת מכונת כתיבה',
+        'Design with AI': 'עיצוב עם AI',
+        'Apply Design': 'החל עיצוב',
+        'Shipping details': 'פרטי משלוח',
+        'Select a Photo': 'בחר תמונה',
+        'Selected Photos': 'תמונות שנבחרו',
+        'Choose a template for this page': 'בחר תבנית לעמוד הזה',
+        'Loading projects...': 'טוען פרויקטים…',
+        'Loading albums...': 'טוען אלבומים…',
+        'Loading purchases...': 'טוען רכישות…',
+        'Search with AI': 'חיפוש עם AI',
+        'Searching for design inspiration...': 'מחפש השראה לעיצוב…',
+        'Design Inspiration Results': 'תוצאות השראה לעיצוב',
+        'Paper & Textures': 'נייר וטקסטורות',
+        'Page Frames': 'מסגרות עמוד',
+        'Typography': 'טיפוגרפיה',
+        'Sign in with Google': 'התחבר עם Google',
+        'Create beautiful photo books from your Google Photos': 'צרו אלבומי תמונות יפים מתמונות Google Photos שלכם',
+        'STORY': 'סיפור',
+        'Story': 'סיפור',
+        'NEW': 'חדש',
+        'New': 'חדש',
+        'MINIMALIST': 'מינימליסטי',
+        'Minimalist': 'מינימליסטי',
+        'VINTAGE': 'וינטג׳',
+        'Vintage': 'וינטג׳',
+        'NATURE': 'טבע',
+        'Nature': 'טבע',
+        'Cinematic': 'קולנועי',
+        'Graphic': 'גרפי',
+        'Vintage Botanical': 'בוטניקה וינטג׳',
+        'Inspired by 19th-century flora illustrations': 'בהשראת איורי פלורה מהמאה ה‑19',
+        'Nana Banana AI': 'ננה בננה AI',
+        'Photo Book Created!': 'הספר נוצר!',
+        'Your photo book is ready.': 'האלבום שלך מוכן.',
+        'Send to printing': 'שלח להדפסה',
+        'PDF exported successfully!': 'ה‑PDF יוצא בהצלחה!',
+        'Download PDF': 'הורד PDF',
+    };
+    let out = raw;
+    Object.entries(partialMap).forEach(([from, to]) => {
+        if (!from) return;
+        if (out.includes(from)) out = out.split(from).join(to);
+    });
+
+    // Regex replacements for strings with variable whitespace / mixed nodes
+    const regexMap = [
+        { re: /Create\s+beautiful\s+photo\s+books\s+from\s+your\s+Google\s+Photos/gi, to: 'צרו אלבומי תמונות יפים מתמונות Google Photos שלכם' },
+        // Some UIs embed these tokens with odd separators; avoid word-boundary misses.
+        { re: /new/gi, to: 'חדש' },
+        { re: /minimalist/gi, to: 'מינימליסטי' },
+        { re: /vintage/gi, to: 'וינטג׳' },
+        { re: /nature/gi, to: 'טבע' },
+        { re: /cinematic/gi, to: 'קולנועי' },
+        { re: /graphic/gi, to: 'גרפי' },
+        { re: /AI\s+analyzed\s+your\s+photos\s+and\s+found\s+a\s+narrative/gi, to: 'ה‑AI ניתח את התמונות ומצא סיפור' },
+        { re: /\bDetected\b/gi, to: 'זוהה' },
+        { re: /\bCustomize\b/gi, to: 'התאם' },
+        { re: /\bUse\s+This\b/gi, to: 'השתמש בזה' },
+        { re: /Photo\s+Book\s+Created!/gi, to: 'הספר נוצר!' },
+        { re: /Your\s+photo\s+book\s+is\s+ready\./gi, to: 'האלבום שלך מוכן.' },
+        { re: /PDF\s+exported\s+successfully!/gi, to: 'ה‑PDF יוצא בהצלחה!' },
+        { re: /Download\s+PDF/gi, to: 'הורד PDF' },
+    ];
+    regexMap.forEach(({re, to}) => {
+        try { out = out.replace(re, to); } catch { /* ignore */ }
+    });
+    return out;
+}
+
+function __i18nTranslateAttributes() {
+    const attrs = ['title', 'aria-label', 'data-tooltip', 'placeholder'];
+    document.querySelectorAll('*').forEach(el => {
+        if (!el) return;
+        if (el.closest && el.closest('script, style')) return;
+        attrs.forEach(attr => {
+            const v = el.getAttribute && el.getAttribute(attr);
+            if (!v) return;
+            const next = __i18nTranslateString(v);
+            if (next !== v) {
+                __i18nRememberAttr(el, attr, v);
+                __i18nTouchedAttrs.add({ el, attr });
+                el.setAttribute(attr, next);
+            }
+        });
+    });
+}
+
+function __i18nTranslateTextNodes() {
+    const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            if (!node || node.nodeType !== 3) return NodeFilter.FILTER_REJECT;
+            const p = node.parentElement;
+            if (!p) return NodeFilter.FILTER_REJECT;
+            const tag = (p.tagName || '').toLowerCase();
+            if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'code' || tag === 'pre') return NodeFilter.FILTER_REJECT;
+            // Skip if whitespace only
+            if (!String(node.nodeValue || '').trim()) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(node => {
+        const v = String(node.nodeValue || '');
+        const next = __i18nTranslateString(v);
+        if (next !== v) {
+            if (!__i18nTextNodeOrig.has(node)) __i18nTextNodeOrig.set(node, v);
+            __i18nTouchedTextNodes.add(node);
+            node.nodeValue = next;
+        }
+    });
+}
+
+let __i18nObserver = null;
+let __i18nScheduled = false;
+function ensureI18nObserver() {
+    if (__i18nObserver) return;
+    __i18nObserver = new MutationObserver(() => {
+        if (getUiLang() !== 'he') return;
+        if (__i18nScheduled) return;
+        __i18nScheduled = true;
+        requestAnimationFrame(() => {
+            __i18nScheduled = false;
+            try { applyTranslations(); } catch { /* ignore */ }
+        });
+    });
+    __i18nObserver.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+}
+
+function applyTranslations() {
+    if (getUiLang() !== 'he') {
+        __i18nRestoreAll();
+    }
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (!key) return;
+        el.textContent = t(key, el.textContent);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (!key) return;
+        el.setAttribute('placeholder', t(key, el.getAttribute('placeholder') || ''));
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (!key) return;
+        el.setAttribute('title', t(key, el.getAttribute('title') || ''));
+    });
+
+    // Option text (keep value stable)
+    const coverLayout = document.getElementById('coverLayout');
+    if (coverLayout) {
+        const m = {
+            'standard': getUiLang() === 'he' ? 'סטנדרט (תמונה למעלה)' : 'Standard (Photo Top)',
+            'full-bleed': getUiLang() === 'he' ? 'תמונה מלאה' : 'Full Bleed',
+            'photo-bottom': getUiLang() === 'he' ? 'תמונה למטה' : 'Photo Bottom',
+        };
+        Array.from(coverLayout.options || []).forEach(opt => {
+            if (m[opt.value]) opt.textContent = m[opt.value];
+        });
+    }
+
+    if (getUiLang() === 'he') {
+        __i18nTranslateAttributes();
+        __i18nTranslateTextNodes();
+        ensureI18nObserver();
+    }
+}
+
+function setUiLanguage(lang) {
+    state.ui.lang = lang;
+    localStorage.setItem('shoso_ui_lang', lang);
+    // In Hebrew, default to RTL; in English, default to LTR
+    if (lang === 'he') {
+        state.ui.dir = 'rtl';
+        localStorage.setItem('shoso_ui_dir', 'rtl');
+    } else if (lang === 'en') {
+        state.ui.dir = 'ltr';
+        localStorage.setItem('shoso_ui_dir', 'ltr');
+    }
+    applyUiDirection();
+    applyTranslations();
+    try { renderCurrentPage(); } catch { /* ignore */ }
+}
+
+// Expose for inline onclick handlers in index.html
+window.setUiDirection = setUiDirection;
+window.setUiLanguage = setUiLanguage;
+
+// Ensure translations apply once DOM exists (even before/without initialize)
+document.addEventListener('DOMContentLoaded', () => {
+    try { applyTranslations(); } catch { /* ignore */ }
+});
 
 function isPhotosAuthRequiredError(err) {
     const code = err && (err.code || err?.details?.code);
@@ -2688,6 +3283,9 @@ async function handleUserAuth(user) {
 async function initialize() {
     if (checkLocalhostRedirect()) return;
 
+    // Apply RTL/LTR early (auto-detect may adjust later as user types)
+    try { applyUiDirection(); } catch { /* ignore */ }
+
     // CHECK URL FOR RESTORED TEMPLATE (passed during localhost redirect)
     try {
         const params = new URLSearchParams(window.location.search);
@@ -3704,6 +4302,27 @@ function updateCoverPreview() {
                 coverFace.style.backgroundPosition = 'center';
             }
 
+            // Apply WordArt style to the VISIBLE 3D cover title/subtitle (not just legacy hidden preview)
+            if (state.coverTextStyle && window.TEXT_STYLES) {
+                const styleObj = window.TEXT_STYLES.find(s => s.id === state.coverTextStyle);
+                if (styleObj && styleObj.style) {
+                    const inner = coverFace.querySelector('.book3d-cover-inner');
+                    const h1 = inner?.querySelector('h1');
+                    const h3 = inner?.querySelector('h3');
+                    if (h1) {
+                        // Keep size control, apply the rest
+                        const applied = { ...styleObj.style };
+                        delete applied.fontSize;
+                        Object.assign(h1.style, applied);
+                    }
+                    if (h3) {
+                        const applied = { ...styleObj.style };
+                        delete applied.fontSize;
+                        Object.assign(h3.style, applied);
+                    }
+                }
+            }
+
             // Remove old overlays
             const existingOverlay = coverFace.querySelector('.template-overlay');
             if (existingOverlay) existingOverlay.remove();
@@ -3877,6 +4496,7 @@ function updateBackCoverPreview() {
     const textSize = document.getElementById('backCoverTextSize')?.value || state.backCover?.textSize || 18;
     const subtitleSize = document.getElementById('backCoverSubtitleSize')?.value || state.backCover?.subtitleSize || 12;
     const textFont = document.getElementById('backCoverTextFont')?.value || state.backCover?.textFont || 'Inter';
+    const textStyleId = document.getElementById('backCoverTextStyleSelect')?.value || state.backCover?.textStyleId || 'default';
     const showBorder = document.getElementById('backCoverShowBorder')?.checked !== false;
     const showLogo = document.getElementById('backCoverShowLogo')?.checked || false;
     const align = backCoverAlign || state.backCover?.textAlign || 'center';
@@ -3898,9 +4518,26 @@ function updateBackCoverPreview() {
         subtitleSize: parseInt(subtitleSize),
         textFont: textFont,
         textAlign: align,
+        textStyleId: textStyleId,
         showBorder: showBorder,
         showLogo: showLogo
     };
+
+    // Ensure typography dropdown is populated
+    try {
+        const sel = document.getElementById('backCoverTextStyleSelect');
+        if (sel && (sel.options.length <= 1) && Array.isArray(window.TEXT_STYLES)) {
+            const current = sel.value;
+            sel.innerHTML = `<option value="default">Default</option>` +
+                window.TEXT_STYLES.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+            if (current) sel.value = current;
+        }
+        if (sel) sel.value = textStyleId || 'default';
+    } catch { /* ignore */ }
+
+    // Apply typography CSS to previews if a style is selected
+    const styleEntry = (window.TEXT_STYLES || []).find(s => s.id === textStyleId);
+    const styleCss = styleEntry ? textStyleEntryToInlineCss(styleEntry) : '';
 
     // Update text preview
     const textPreview = document.getElementById('backCoverTextPreview');
@@ -3910,6 +4547,7 @@ function updateBackCoverPreview() {
         textPreview.style.fontSize = textSize + 'px';
         textPreview.style.fontFamily = `'${textFont}', sans-serif`;
         textPreview.style.textAlign = align;
+        if (styleCss) textPreview.style.cssText += `;${styleCss}`;
     }
 
     // Update subtitle preview
@@ -3921,6 +4559,7 @@ function updateBackCoverPreview() {
         subtitlePreview.style.opacity = '0.75';
         subtitlePreview.style.textAlign = align;
         subtitlePreview.style.display = subtitle ? 'block' : 'none';
+        if (styleCss) subtitlePreview.style.cssText += `;${styleCss}`;
     }
 
     // Update logo visibility
@@ -3948,7 +4587,16 @@ function updateBackCoverPreview() {
             el.style.backgroundColor = 'transparent';
             el.style.backgroundImage = 'none';
             face.style.backgroundColor = bgColor;
-            face.style.backgroundImage = 'none';
+            // Back cover background image if present
+            const bgImg = state.backCover?.backgroundImageUrl || state.backCover?.backgroundImageData || null;
+            if (bgImg) {
+                face.style.backgroundImage = `url("${bgImg}")`;
+                face.style.backgroundSize = 'cover';
+                face.style.backgroundPosition = 'center';
+                face.style.backgroundRepeat = 'no-repeat';
+            } else {
+                face.style.backgroundImage = 'none';
+            }
 
             // Toggle embossed border
             if (showBorder) {
@@ -3992,6 +4640,7 @@ function updateBackCoverFromState() {
     setText('backCoverTextColor', bc.textColor || '#ffffff');
     setText('backCoverTextColorText', bc.textColor || '#ffffff');
     setText('backCoverTextFont', bc.textFont || 'Inter');
+    setText('backCoverTextStyleSelect', bc.textStyleId || 'default');
 
     const textSizeEl = document.getElementById('backCoverTextSize');
     if (textSizeEl) textSizeEl.value = bc.textSize || 18;
@@ -4194,7 +4843,7 @@ function duplicatePage() {
 
 function deletePage() {
     if (state.pages.length === 0) return;
-    if (confirm('Delete this page?')) {
+    if (confirm(t('confirm_delete_page', 'Delete this page?'))) {
         state.pages.splice(state.currentPageIndex, 1);
         if (state.currentPageIndex >= state.pages.length) {
             state.currentPageIndex = Math.max(0, state.pages.length - 1);
@@ -4282,23 +4931,88 @@ function renderPageThumbnails() {
         container.innerHTML = '';
         return;
     }
-    container.innerHTML = state.pages.map((page, index) =>
-        `<div class="page-thumbnail ${index === state.currentPageIndex ? 'active' : ''}" onclick="goToPage(${index})">${index + 1}</div>`
-    ).join('');
+    const getSlotsCount = (page) => {
+        const layout = page?.layout || 'single';
+        return state.config?.LAYOUTS?.[layout]?.slots || 1;
+    };
+    const isFilled = (item) => {
+        if (!item) return false;
+        if (item.type === 'text') return String(item.content || '').trim().length > 0;
+        return !!(item.editedData || item.thumbnailUrl || item.baseUrl || item.id);
+    };
+    const getStatus = (page) => {
+        const slots = getSlotsCount(page);
+        const filled = (page?.photos || []).slice(0, slots).filter(isFilled).length;
+        if (filled <= 0) return {status: 'empty', label: getUiLang() === 'he' ? 'ריק' : 'Empty', filled, slots};
+        if (filled < slots) return {status: 'partial', label: getUiLang() === 'he' ? 'חלקי' : 'In progress', filled, slots};
+        return {status: 'complete', label: getUiLang() === 'he' ? 'מוכן' : 'Complete', filled, slots};
+    };
+    const getThumbSrc = (item) => {
+        if (!item || item.type === 'text') return null;
+        // Prefer small local/rehydrated thumbnails first
+        return item.editedData || item.thumbnailUrl || null;
+    };
+
+    container.innerHTML = state.pages.map((page, index) => {
+        const slots = getSlotsCount(page);
+        const {status, label, filled} = getStatus(page);
+        const active = index === state.currentPageIndex ? 'active' : '';
+        const slotsClass = `slots-${Math.min(4, Math.max(1, slots))}`;
+
+        const slotItems = (page?.photos || []).slice(0, slots);
+        // For 3-slot layout, render as 2x2 grid and leave 4th blank.
+        const visualSlots = slots === 3 ? 4 : slots;
+        const slotHtml = Array.from({length: visualSlots}).map((_, i) => {
+            const item = slotItems[i];
+            if (!item) return `<div class="page-thumb-slot"></div>`;
+            if (item.type === 'text') {
+                return `<div class="page-thumb-slot is-text">Aa</div>`;
+            }
+            const src = getThumbSrc(item);
+            if (src) return `<div class="page-thumb-slot"><img src="${src}" alt=""></div>`;
+            return `<div class="page-thumb-slot"></div>`;
+        }).join('');
+
+        return `
+          <div class="page-thumbnail-card status-${status} ${active}" onclick="goToPage(${index})" data-page-index="${index}">
+            <div class="page-thumb-surface" data-page-index="${index}">
+              <div class="page-thumb-badge">${label} • ${filled}/${slots}</div>
+              <div class="page-thumb-slots ${slotsClass}">
+                ${slotHtml}
+              </div>
+            </div>
+            <div class="page-thumb-meta">
+              <div class="page-thumb-num">${getUiLang() === 'he' ? 'עמוד' : 'Page'} ${index + 1}</div>
+              <div class="page-thumb-status">${label}</div>
+            </div>
+          </div>
+        `;
+    }).join('');
+
+    // Apply per-page background color/image to each thumbnail surface
+    try {
+        document.querySelectorAll('#pageThumbnails .page-thumb-surface').forEach((el) => {
+            const idx = Number(el.getAttribute('data-page-index'));
+            if (Number.isFinite(idx)) applyBackgroundToPageElement(el, idx);
+        });
+    } catch { /* ignore */ }
 }
 
 function highlightCurrentThumbnail() {
     document.querySelectorAll('.page-thumbnail').forEach((thumb, index) => {
         thumb.classList.toggle('active', index === state.currentPageIndex);
     });
+
+    // Auto-detect direction after user edits text
+    try { if ((state?.ui?.dir || 'auto') === 'auto') applyUiDirection(); } catch { /* ignore */ }
 }
 
 function updatePageIndicator() {
     if (state.currentPageIndex < 0) {
-        document.getElementById('currentPageNum').textContent = "Cover";
+        document.getElementById('currentPageNum').textContent = t('page_cover', "Cover");
         document.getElementById('totalPages').textContent = state.pages.length;
     } else if (state.currentPageIndex >= state.pages.length) {
-        document.getElementById('currentPageNum').textContent = "Back";
+        document.getElementById('currentPageNum').textContent = t('page_back', "Back");
         document.getElementById('totalPages').textContent = state.pages.length;
     } else {
         document.getElementById('currentPageNum').textContent = state.pages.length > 0 ? state.currentPageIndex + 1 : 0;
@@ -4330,6 +5044,9 @@ function renderCurrentPage() {
         preview.classList.remove('is-book-spread');
         preview.classList.add('is-cover-view');
 
+        const coverStyleEntry = (window.TEXT_STYLES || []).find(s => s.id === state.coverTextStyle);
+        const coverTypographyCss = coverStyleEntry ? textStyleEntryToInlineCss(coverStyleEntry) : '';
+
         preview.innerHTML = `
     <div class="book3d-cover-root" style="--book-thickness: ${thicknessPx}px; --cover-color: ${coverColor}; width: 62%; height: 62%; margin: auto; inset: 0;">
         <div class="book3d-cover-stage" style="transform: rotateX(10deg) rotateY(-15deg);">
@@ -4338,8 +5055,8 @@ function renderCurrentPage() {
                     <div class="cover-photo-slot" onclick="selectPhotoForCover()" style="width: 90%; height: 70%; background: #eee; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 2px dashed #ccc; cursor: pointer; overflow: hidden; position: relative; z-index: 20;">
                         ${(state.cover?.photo?.thumbnailUrl && state.cover.photo.thumbnailUrl.startsWith('data:')) || state.cover?.photoUrl ? `<img src="${(state.cover?.photo?.thumbnailUrl && state.cover.photo.thumbnailUrl.startsWith('data:')) ? state.cover.photo.thumbnailUrl : state.cover.photoUrl}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="color:#999; font-size:12px;">+ Add Cover Photo</span>'}
                     </div>
-                    <h1 style="font-size: 3em; color: ${state.cover?.titleColor || state.cover?.textColor || '#ffffff'}; font-family: ${state.cover?.titleFont || 'inherit'};">${state.cover?.title || 'My Photo Book'}</h1>
-                    <h3 style="font-size: 1.5em; color: ${state.cover?.textColor || state.cover?.titleColor || 'rgba(255,255,255,0.8)'}; margin-top: 5px; font-family: ${state.cover?.subtitleFont || 'inherit'};">${state.cover?.subtitle || 'Add a subtitle'}</h3>
+                    <h1 style="font-size: 3em; color: ${state.cover?.titleColor || state.cover?.textColor || '#ffffff'}; font-family: ${state.cover?.titleFont || 'inherit'}; ${coverTypographyCss}">${state.cover?.title || 'My Photo Book'}</h1>
+                    <h3 style="font-size: 1.5em; color: ${state.cover?.subtitleColor || state.cover?.textColor || state.cover?.titleColor || 'rgba(255,255,255,0.8)'}; margin-top: 5px; font-family: ${state.cover?.subtitleFont || 'inherit'}; ${coverTypographyCss}">${state.cover?.subtitle || 'Add a subtitle'}</h3>
                 </div>
             </div>
             <div class="book3d-cover-spine"></div>
@@ -4382,12 +5099,27 @@ function renderCurrentPage() {
         preview.classList.remove('is-book-spread');
         preview.classList.add('is-cover-view');
 
+        const bc = state.backCover || {};
+        const bcBgColor = bc.backgroundColor || '#1a1a2e';
+        const bcTextColor = bc.textColor || '#ffffff';
+        const bcTextSize = bc.textSize || 18;
+        const bcSubtitle = bc.subtitle || '';
+        const bcSubtitleSize = bc.subtitleSize || 12;
+        const bcFont = bc.textFont || 'Inter';
+        const bcAlign = bc.textAlign || 'center';
+        const bcShowBorder = bc.showBorder !== false;
+        const bcBgImg = bc.backgroundImageUrl || bc.backgroundImageData || null;
+        const bcStyleEntry = (window.TEXT_STYLES || []).find(s => s.id === bc.textStyleId);
+        const bcStyleCss = bcStyleEntry ? textStyleEntryToInlineCss(bcStyleEntry) : '';
+
         preview.innerHTML = `
     <div class="book3d-cover-root is-back" style="--book-thickness: ${thicknessPx}px; --cover-color: ${coverColor}; width: 62%; height: 62%; margin: auto; inset: 0;">
         <div class="book3d-cover-stage" style="transform: rotateX(10deg) rotateY(15deg);">
             <div class="book3d-cover-face">
-                <div class="book3d-cover-inner">
-                    <div style="font-size: 1.2em; color: white; opacity: 0.8; font-family: ${state.cover?.subtitleFont || 'inherit'}; margin-top: 20px;">${state.backCover?.text || 'The End'}</div>
+                <div class="book3d-cover-inner" style="display:flex; flex-direction:column; gap:10px; justify-content:center; padding: 24px; text-align:${bcAlign}; align-items:${bcAlign === 'left' ? 'flex-start' : (bcAlign === 'right' ? 'flex-end' : 'center')};">
+                    <div id="backCoverTextPreview" style="font-size:${bcTextSize}px; color:${bcTextColor}; font-family:'${bcFont}', sans-serif; max-width: 100%; ${bcStyleCss}">${escapeHtml(bc.text || 'The End')}</div>
+                    <div id="backCoverSubtitlePreview" style="font-size:${bcSubtitleSize}px; color:${bcTextColor}; opacity:0.75; font-family:'${bcFont}', sans-serif; display:${bcSubtitle ? 'block' : 'none'}; max-width: 100%; ${bcStyleCss}">${escapeHtml(bcSubtitle)}</div>
+                    <div id="backCoverLogoPreview" style="margin-top:18px; font-size: 12px; opacity:0.75; color:${bcTextColor}; display:${bc.showLogo ? 'block' : 'none'};">Shoso</div>
                 </div>
             </div>
             <div class="book3d-cover-spine"></div>
@@ -4395,6 +5127,22 @@ function renderCurrentPage() {
             <div class="book3d-cover-bottom"></div>
         </div>
         </div>`;
+
+        // Apply back cover background + border to the face element
+        const face = preview.querySelector('.book3d-cover-face');
+        if (face) {
+            face.style.backgroundColor = bcBgColor;
+            if (bcBgImg) {
+                face.style.backgroundImage = `url("${bcBgImg}")`;
+                face.style.backgroundSize = 'cover';
+                face.style.backgroundPosition = 'center';
+                face.style.backgroundRepeat = 'no-repeat';
+            } else {
+                face.style.backgroundImage = 'none';
+            }
+            if (bcShowBorder) face.classList.remove('no-border');
+            else face.classList.add('no-border');
+        }
 
         // Show Back Cover Settings
         const coverPanel = document.getElementById('cover-settings-panel');
@@ -4410,6 +5158,7 @@ function renderCurrentPage() {
 
         // Apply assets to back cover too (spine interactions etc)
         updateCoverPreview();
+        try { updateBackCoverFromState(); } catch { /* ignore */ }
 
         return;
     }
@@ -4482,6 +5231,7 @@ function renderCurrentPage() {
     // Setup drag/drop only for the active page slots (inactive pages have draggable=false)
     setupPhotoDragAndDrop();
     updateAlignmentControls();
+    updateTextSlotControls();
 
     // Sync controls to the active page
     const page = state.pages[state.currentPageIndex];
@@ -4610,6 +5360,37 @@ function renderDecorationSvg(dec, color, opacity, size) {
     ">${svgContent}</div>`;
 }
 
+/**
+ * Convert a TEXT_STYLES entry to inline CSS.
+ * Supports special webkit keys used by some styles.
+ * @param {Object} styleEntry - An item from window.TEXT_STYLES
+ * @return {string}
+ */
+function textStyleEntryToInlineCss(styleEntry) {
+    const style = styleEntry?.style || {};
+    const fallback = styleEntry?.fallbackStyle || {};
+    const merged = { ...fallback, ...style };
+
+    const toKebab = (key) => key
+        .replace(/^webkit/i, '') // handled separately
+        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+        .toLowerCase();
+
+    let css = '';
+    for (const [key, value] of Object.entries(merged)) {
+        if (value === undefined || value === null || value === '') continue;
+
+        if (/^webkit/i.test(key)) {
+            // e.g. webkitBackgroundClip -> -webkit-background-clip
+            const prop = '-webkit-' + toKebab(key);
+            css += `${prop}:${value};`;
+            continue;
+        }
+        css += `${toKebab(key)}:${value};`;
+    }
+    return css;
+}
+
 function renderSinglePageHtml(pageIndex, opts = {}) {
     const page = state.pages?.[pageIndex];
     const isActive = !!opts.isActive;
@@ -4642,7 +5423,9 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
         const objectPos = alignment === 'left' ? '0% 50%' : (alignment === 'right' ? '100% 50%' : '50% 50%');
         const draggable = isActive && hasPhotoData ? 'true' : 'false';
         const replaceClick = (isActive && hasPhotoData)
-            ? `onclick="showPhotoOptions(${i}, event)"`
+            ? (isTextSlot
+                ? `onclick="showTextOptions(${i}, event)"`
+                : `onclick="showPhotoOptions(${i}, event)"`)
             : '';
 
         let slotContent = '';
@@ -4652,21 +5435,22 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
             if (photo.styleId && window.TEXT_STYLES) {
                 const styleObj = window.TEXT_STYLES.find(s => s.id === photo.styleId);
                 if (styleObj && styleObj.style) {
-                    for (const [key, value] of Object.entries(styleObj.style)) {
-                        const kebabKey = key.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
-                        styleString += `${kebabKey}:${value};`;
-                    }
+                    styleString = textStyleEntryToInlineCss(styleObj);
                 }
             } else {
                 // Default fallback
                 styleString = 'font-family:sans-serif; color:#333; font-size:24px;';
             }
+            const rot = Number.isFinite(photo.rotation) ? photo.rotation : 0;
+            const fs = Number.isFinite(photo.fontSize) ? photo.fontSize : null;
+            const ss = Number.isFinite(photo.shadowStrength) ? photo.shadowStrength : 0;
+            const shadowCss = ss > 0 ? `filter: drop-shadow(0 2px ${Math.max(1, ss/10)}px rgba(0,0,0,${Math.min(0.7, ss/140)}));` : '';
             // Ensure font size scales with slot? Or fixed? 
             // For now, fixed relative to container or auto-fit could be complex. 
             // Let's use a reasonable base size and rely on the style's definition or defaults.
             // We might want to center it.
-            slotContent = `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; padding:10px; overflow:hidden; text-align:center;">
-                             <span style="${styleString} white-space: pre-wrap;">${photo.content}</span>
+            slotContent = `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; padding:16px; overflow:hidden; text-align:center;">
+                             <span style="${styleString} ${fs ? `font-size:${fs}px;` : ''} white-space: pre-wrap; word-break: break-word; display:inline-block; max-width:100%; transform: rotate(${rot}deg); transform-origin:center; line-height:1.1; ${shadowCss}">${escapeHtml(photo.content)}</span>
                            </div>`;
         } else if (hasPhoto) {
             slotContent = `<img src="${displayUrl}" alt="" draggable="false" style="object-position:${objectPos}; border-radius:${state.globalCornerRadius || 0}px;">`;
@@ -4683,9 +5467,14 @@ function renderSinglePageHtml(pageIndex, opts = {}) {
            ${replaceClick}>
            ${slotContent}
            <span class="slot-number">${i + 1}</span>
-        ${hasPhotoData ? `
+        ${hasPhotoData && !isTextSlot ? `
           <button class="edit-photo-btn" title="Edit Design" onclick="event.stopPropagation(); window.selectPhotoForSlot(${i}); window.openDesignStudio();">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:inline-block; vertical-align:middle; margin-right:2px;"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            Edit
+          </button>
+        ` : ''}
+        ${hasPhotoData && isTextSlot ? `
+          <button class="edit-photo-btn" title="Edit Text" onclick="event.stopPropagation(); openTextStudio(${i});">
             Edit
           </button>
         ` : ''}
@@ -5126,10 +5915,100 @@ function openBackgroundGallery() {
     switchGalleryTab(currentGalleryTab);
 }
 
+function triggerBackCoverBackgroundImageUpload() {
+    document.getElementById('backCoverBgImageFile')?.click();
+}
+
+async function updateBackCoverBackgroundImage(event) {
+    try {
+        const file = event?.target?.files?.[0];
+        if (!file) return;
+
+        showToast('Processing back cover background…');
+        const dataUrl = await fileToCompressedJpegDataUrl(file, { maxDimension: 2400, quality: 0.9 });
+
+        state.backCover = state.backCover || {};
+        // Store as data URL first (instant preview)
+        state.backCover.backgroundImageData = dataUrl;
+        state.backCover.backgroundImageUrl = null;
+        state.backCover.backgroundImageName = file.name || 'background.jpg';
+
+        const status = document.getElementById('backCoverBgImageStatus');
+        if (status) status.textContent = `Selected: ${state.backCover.backgroundImageName}`;
+
+        updateBackCoverPreview();
+        renderCurrentPage();
+
+        // Attempt upload to Storage for persistence + PDF friendliness
+        try {
+            const url = await uploadBackgroundImageToStorage(dataUrl, file.name);
+            if (url) {
+                state.backCover.backgroundImageUrl = url;
+                state.backCover.backgroundImageData = null;
+                updateBackCoverPreview();
+                renderCurrentPage();
+            }
+        } catch (e) {
+            console.warn('Back cover background upload failed (keeping data URL):', e);
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Failed to set back cover background', 'info');
+    } finally {
+        // Reset input so selecting the same file again triggers change
+        const input = document.getElementById('backCoverBgImageFile');
+        if (input) input.value = '';
+    }
+}
+
+function clearBackCoverBackgroundImage() {
+    state.backCover = state.backCover || {};
+    state.backCover.backgroundImageUrl = null;
+    state.backCover.backgroundImageData = null;
+    state.backCover.backgroundImageName = null;
+    const status = document.getElementById('backCoverBgImageStatus');
+    if (status) status.textContent = 'No image set';
+    updateBackCoverPreview();
+    renderCurrentPage();
+}
+
+function showInputforSearchDesign() {
+    // Ensure the gallery is open so the input is visible
+    openBackgroundGallery();
+    const c = document.getElementById('aiSearchContainer');
+    if (!c) return;
+    const isHidden = (c.style.display === 'none' || !c.style.display);
+    c.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+        const input = document.getElementById('aiDesignPrompt');
+        if (input) {
+            input.focus();
+            input.select?.();
+        }
+    }
+}
+
 function closeBackgroundGallery() {
     const modal = document.getElementById('backgroundGalleryModal');
     if (modal) modal.style.display = 'none';
 }
+
+// Close Design Gallery on backdrop click / ESC
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('backgroundGalleryModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            // Click outside the dialog closes
+            if (e.target === modal) closeBackgroundGallery();
+        });
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const m = document.getElementById('backgroundGalleryModal');
+            if (m && getComputedStyle(m).display !== 'none') closeBackgroundGallery();
+        }
+    });
+});
 
 function switchGalleryTab(tab) {
     const tabs = document.querySelectorAll('.gallery-tab');
@@ -5201,20 +6080,54 @@ function applyTextStyle(styleObj) {
     // 1. If we are on Cover, apply to Title/Subtitle
     // 2. If we are editing a Text Slot on a page, apply to that slot (TODO)
 
+    const totalPages = Array.isArray(state.pages) ? state.pages.length : 0;
+
     if (state.currentPageIndex === -1) {
         // Cover Mode
         state.coverTextStyle = styleObj.id;
-        // Store the full style object loosely or lookup by ID during render
+
+        // Apply key aspects into the cover state so the inspector reflects it.
+        const fontFamily = styleObj?.style?.fontFamily;
+        if (fontFamily) {
+            state.cover.titleFont = fontFamily;
+            state.cover.subtitleFont = fontFamily;
+        }
+        const color = styleObj?.style?.color || styleObj?.fallbackStyle?.color;
+        if (color) {
+            state.cover.titleColor = color;
+            state.cover.subtitleColor = color;
+        }
 
         showToast('Text style applied to Cover!');
-        updateCoverPreview(); // Need to update this function to reading styling
+        try { updateCoverFromState(); } catch { /* ignore */ }
+        try { renderCurrentPage(); } catch { /* ignore */ }
+    } else if (state.currentPageIndex >= totalPages) {
+        // Back Cover Mode
+        state.backCover = state.backCover || {};
+        state.backCover.textStyleId = styleObj.id;
+
+        const fontFamily = styleObj?.style?.fontFamily;
+        if (fontFamily) state.backCover.textFont = fontFamily;
+        const color = styleObj?.style?.color || styleObj?.fallbackStyle?.color;
+        if (color && (!state.backCover.textColor || state.backCover.textColor === '#ffffff')) {
+            state.backCover.textColor = color;
+        }
+
+        showToast('Text style applied to Back Cover!', 'success');
+        try { updateBackCoverFromState(); } catch { /* ignore */ }
+        try { renderCurrentPage(); } catch { /* ignore */ }
     } else {
-        // Page Mode - Check if a text slot is selected
-        // For now, let's just alert strictly for Cover as per step 1, 
-        // but user asked for "pages" too.
-        // We need to implement Text Slots first. 
-        // If no text slot selected, maybe we change default?
-        showToast('Select a text slot to apply style (Feature coming next step)');
+        // Page Mode - Apply to selected text slot if present
+        const page = state.pages?.[state.currentPageIndex];
+        const slot = state.selectedPhotoSlot;
+        const item = (page && slot !== null && slot !== undefined) ? page.photos?.[slot] : null;
+        if (item && item.type === 'text') {
+            item.styleId = styleObj.id;
+            showToast('Text style applied!', 'success');
+            renderCurrentPage();
+        } else {
+            showToast('Select a text slot to apply typography', 'info');
+        }
     }
     closeBackgroundGallery();
 }
@@ -5457,7 +6370,8 @@ function renderBackgroundGalleryItems(items) {
 
 async function searchDesignApi() {
     const grid = document.getElementById('backgroundGalleryGrid');
-    if (grid) grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px;">Searching design database... 🤖</div>';
+    const prompt = (document.getElementById('aiDesignPrompt')?.value || '').trim();
+    if (grid) grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 20px;">Searching${prompt ? ` for “${escapeHtml(prompt)}”` : ''}... 🤖</div>`;
 
     // Simulate network delay
     await new Promise(r => setTimeout(r, 1500));
@@ -5466,7 +6380,7 @@ async function searchDesignApi() {
     const mockResults = [
         {
             id: 'ai-generated-1',
-            name: 'Sunset Minimal',
+            name: prompt ? `AI: ${prompt} (Sunset Minimal)` : 'Sunset Minimal',
             category: 'AI Generated',
             thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=300&q=80',
             url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80',
@@ -5477,7 +6391,7 @@ async function searchDesignApi() {
         },
         {
             id: 'ai-generated-2',
-            name: 'Oceanic Blue',
+            name: prompt ? `AI: ${prompt} (Oceanic Blue)` : 'Oceanic Blue',
             category: 'AI Generated',
             thumbnail: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=300&q=80',
             url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=1600&q=80',
@@ -5488,7 +6402,7 @@ async function searchDesignApi() {
         },
         {
             id: 'ai-generated-3',
-            name: 'Urban Architecture',
+            name: prompt ? `Inspiration: ${prompt} (Urban Architecture)` : 'Urban Architecture',
             category: 'Inspiration',
             thumbnail: 'https://images.unsplash.com/photo-1486718448742-163732cd1544?auto=format&fit=crop&w=300&q=80',
             url: 'https://images.unsplash.com/photo-1486718448742-163732cd1544?auto=format&fit=crop&w=1600&q=80',
@@ -5518,12 +6432,12 @@ function selectBackgroundFromGallery(id) {
     const bg = textures.find(t => t.id === id);
     if (!bg) return;
 
-    if (state.pages.length === 0) return;
-
     // Use absolute URL for the background functionality
     const absUrl = new URL(bg.url, window.location.href).href;
 
-    // CHECK: Are we on the Cover or an Inner Page?
+    const totalPages = Array.isArray(state.pages) ? state.pages.length : 0;
+
+    // CHECK: Are we on the Cover, Back Cover, or an Inner Page?
     if (state.currentPageIndex < 0) {
         // === COVER ===
         state.cover.backgroundImageUrl = absUrl;
@@ -5534,6 +6448,18 @@ function selectBackgroundFromGallery(id) {
                 state.cover.titleFont = bg.theme.fonts.serif;
                 state.cover.subtitleFont = bg.theme.fonts.sans;
             }
+        }
+    } else if (state.currentPageIndex >= totalPages) {
+        // === BACK COVER ===
+        state.backCover = state.backCover || {};
+        state.backCover.backgroundImageUrl = absUrl;
+        state.backCover.backgroundImageData = null;
+        state.backCover.backgroundImageName = bg.name;
+        if (bg.theme) {
+            // Keep existing colors unless the user hasn't customized them.
+            if (!state.backCover.backgroundColor) state.backCover.backgroundColor = bg.theme.colors.bg || state.backCover.backgroundColor;
+            if (!state.backCover.textColor) state.backCover.textColor = bg.theme.colors.primary || state.backCover.textColor;
+            if (bg.theme.fonts?.sans) state.backCover.textFont = bg.theme.fonts.sans;
         }
     } else {
         // === INNER PAGE ===
@@ -5561,6 +6487,7 @@ function selectBackgroundFromGallery(id) {
     // For now, let's notify the user via console or UI
 
     closeBackgroundGallery();
+    try { updateBackCoverFromState(); } catch { /* ignore */ }
 }
 
 // Expose to window for HTML attributes
@@ -5570,6 +6497,10 @@ window.renderBackgroundGalleryItems = renderBackgroundGalleryItems;
 window.selectBackgroundFromGallery = selectBackgroundFromGallery;
 window.searchDesignApi = searchDesignApi;    // Expose functions required by Gallery UI
 window.switchGalleryTab = switchGalleryTab;
+window.showInputforSearchDesign = showInputforSearchDesign;
+window.triggerBackCoverBackgroundImageUpload = triggerBackCoverBackgroundImageUpload;
+window.updateBackCoverBackgroundImage = updateBackCoverBackgroundImage;
+window.clearBackCoverBackgroundImage = clearBackCoverBackgroundImage;
 window.applyFrameToPage = applyFrameToPage;
 window.applyFrameToAllPages = applyFrameToAllPages;
 window.showToast = showToast;
@@ -5585,9 +6516,16 @@ function applyPageBackgroundStyles(element, page, fallbackBgColor) {
     if (hasImage) {
         element.style.backgroundColor = fallbackBgColor || element.style.backgroundColor || '#ffffff';
         element.style.backgroundImage = `url("${imageSrc}")`;
-        element.style.backgroundSize = 'cover';
-        element.style.backgroundPosition = 'center';
-        element.style.backgroundRepeat = 'no-repeat';
+        // Small pattern textures (e.g. TransparentTextures) should tile, not stretch.
+        if (typeof imageSrc === 'string' && imageSrc.includes('transparenttextures.com/patterns/')) {
+            element.style.backgroundRepeat = 'repeat';
+            element.style.backgroundSize = 'auto';
+            element.style.backgroundPosition = 'top left';
+        } else {
+            element.style.backgroundSize = 'cover';
+            element.style.backgroundPosition = 'center';
+            element.style.backgroundRepeat = 'no-repeat';
+        }
     } else {
         element.style.backgroundColor = fallbackBgColor || element.style.backgroundColor || '#ffffff';
         element.style.backgroundImage = 'none';
@@ -5688,13 +6626,25 @@ function selectPhotoForSlot(slotIndex) {
         while (page.photos.length <= slotIndex) {
             page.photos.push(null);
         }
-        // Initialize photo with alignment and position data
-        page.photos[slotIndex] = {
-            ...photo,
-            alignment: 'center',
-            customX: undefined,
-            customY: undefined
-        };
+        // Support both photos and "Text/WordArt" items from the picker
+        if (photo && photo.type === 'text') {
+            page.photos[slotIndex] = {
+                type: 'text',
+                id: photo.id || ('text-' + Date.now()),
+                content: String(photo.content || ''),
+                styleId: photo.styleId || 'default',
+                rotation: 0,
+                fontSize: 32,
+            };
+        } else {
+            // Initialize photo with alignment and position data
+            page.photos[slotIndex] = {
+                ...photo,
+                alignment: 'center',
+                customX: undefined,
+                customY: undefined
+            };
+        }
         state.selectedPhotoSlot = slotIndex;
         renderCurrentPage();
     };
@@ -5714,6 +6664,13 @@ function selectPhotoSlot(slotIndex) {
     if (!page) return;
 
     const photo = page.photos[slotIndex];
+    if (photo && photo.type === 'text') {
+        // Text slots don't load into the image design editor.
+        state.selectedPhotoSlot = slotIndex;
+        renderCurrentPage();
+        try { updateTextSlotControls(); } catch { /* ignore */ }
+        return;
+    }
     if (photo && (photo.baseUrl || photo.id)) {
         state.selectedPhotoSlot = slotIndex;
         // Track for the "Apply Design" button
@@ -5832,6 +6789,211 @@ function showPhotoOptions(slotIndex, event) {
     };
 
     modal.classList.add('active');
+}
+
+function showTextOptions(slotIndex, event) {
+    if (event) event.stopPropagation();
+
+    const page = state.pages?.[state.currentPageIndex];
+    const item = page?.photos?.[slotIndex];
+    if (!item || item.type !== 'text') {
+        // Fallback to photo options if needed
+        return showPhotoOptions(slotIndex, event);
+    }
+
+    let modal = document.getElementById('textOptionsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'textOptionsModal';
+        modal.className = 'modal';
+        modal.style.zIndex = '30000';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 320px; text-align: center;">
+                <h3 style="margin-top:0;">Text Options</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;">
+                    <button id="toEditBtn" class="btn btn-primary" style="justify-content: center;">
+                        <span class="icon">✏️</span> Edit Typography
+                    </button>
+                    <button id="toReplaceBtn" class="btn btn-secondary" style="justify-content: center;">
+                        <span class="icon">🔄</span> Replace (Photo / Text)
+                    </button>
+                    <button id="toRemoveBtn" class="btn btn-secondary" style="justify-content: center; color:#dc3545; border-color:#dc3545;">
+                        <span class="icon">🗑️</span> Remove
+                    </button>
+                </div>
+                <button class="btn btn-small" onclick="closeTextOptions()">Cancel</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Bind
+    const editBtn = document.getElementById('toEditBtn');
+    const replaceBtn = document.getElementById('toReplaceBtn');
+    const removeBtn = document.getElementById('toRemoveBtn');
+
+    if (editBtn) editBtn.onclick = () => { closeTextOptions(); openTextStudio(slotIndex); };
+    if (replaceBtn) replaceBtn.onclick = () => { closeTextOptions(); selectPhotoForSlot(slotIndex); };
+    if (removeBtn) removeBtn.onclick = () => {
+        closeTextOptions();
+        const p = state.pages?.[state.currentPageIndex];
+        if (p && Array.isArray(p.photos)) {
+            p.photos[slotIndex] = null;
+            if (state.selectedPhotoSlot === slotIndex) state.selectedPhotoSlot = null;
+            renderCurrentPage();
+        }
+    };
+
+    modal.classList.add('active');
+}
+
+function closeTextOptions() {
+    document.getElementById('textOptionsModal')?.classList.remove('active');
+}
+
+function ensureTextStudioModal() {
+    if (document.getElementById('textStudioModal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'textStudioModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 720px; width: 92vw;">
+        <div class="modal-header">
+          <h3>Text Studio</h3>
+          <button class="close-btn" onclick="closeTextStudio()">&times;</button>
+        </div>
+        <div class="modal-body" style="display:flex; gap:16px; align-items:stretch;">
+          <div style="flex:1; background:#0f1015; border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:center; min-height:220px;">
+            <div id="textStudioPreview" style="text-align:center; max-width: 100%;"></div>
+          </div>
+          <div style="width: 300px; display:flex; flex-direction:column; gap:12px;">
+            <label style="font-size:12px; color:#6b7280; font-weight:700;">Text</label>
+            <textarea id="tsContent" class="edo-textarea" rows="3" placeholder="Type..." style="resize:vertical;"></textarea>
+
+            <label style="font-size:12px; color:#6b7280; font-weight:700;">Style</label>
+            <select id="tsStyle" class="edo-select"></select>
+
+            <label style="font-size:12px; color:#6b7280; font-weight:700;">Size</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <input id="tsSize" type="range" min="10" max="80" value="32" style="flex:1;">
+              <span id="tsSizeVal" style="width:48px; text-align:right; font-size:12px;">32px</span>
+            </div>
+
+            <label style="font-size:12px; color:#6b7280; font-weight:700;">Rotate</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <input id="tsRotate" type="range" min="-45" max="45" value="0" style="flex:1;">
+              <span id="tsRotateVal" style="width:40px; text-align:right; font-size:12px;">0°</span>
+            </div>
+
+            <label style="font-size:12px; color:#6b7280; font-weight:700;">Shadow</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <input id="tsShadow" type="range" min="0" max="100" value="0" style="flex:1;">
+              <span id="tsShadowVal" style="width:40px; text-align:right; font-size:12px;">0</span>
+            </div>
+
+            <button class="btn btn-primary" onclick="applyTextStudio()">Apply</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeTextStudio();
+    });
+}
+
+function openTextStudio(slotIndex) {
+    ensureTextStudioModal();
+    const modal = document.getElementById('textStudioModal');
+    const page = state.pages?.[state.currentPageIndex];
+    const item = page?.photos?.[slotIndex];
+    if (!modal || !item || item.type !== 'text') return;
+
+    state.selectedPhotoSlot = slotIndex;
+
+    const sel = document.getElementById('tsStyle');
+    const ta = document.getElementById('tsContent');
+    const size = document.getElementById('tsSize');
+    const sizeVal = document.getElementById('tsSizeVal');
+    const rot = document.getElementById('tsRotate');
+    const rotVal = document.getElementById('tsRotateVal');
+    const sh = document.getElementById('tsShadow');
+    const shVal = document.getElementById('tsShadowVal');
+
+    // Populate styles
+    if (sel) {
+        sel.innerHTML = `<option value="default">Default</option>` +
+            (window.TEXT_STYLES || []).map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+        sel.value = item.styleId || 'default';
+    }
+    if (ta) ta.value = item.content || '';
+    if (size) size.value = String(Number.isFinite(item.fontSize) ? item.fontSize : 32);
+    if (sizeVal) sizeVal.textContent = `${size.value}px`;
+    if (rot) rot.value = String(Number.isFinite(item.rotation) ? item.rotation : 0);
+    if (rotVal) rotVal.textContent = `${rot.value}°`;
+    if (sh) sh.value = String(Number.isFinite(item.shadowStrength) ? item.shadowStrength : 0);
+    if (shVal) shVal.textContent = sh.value;
+
+    const refresh = () => {
+        const styleEntry = (window.TEXT_STYLES || []).find(s => s.id === (sel?.value || item.styleId));
+        const css = styleEntry ? textStyleEntryToInlineCss(styleEntry) : 'font-family: Inter; font-weight: 700; color: #fff;';
+        const fs = parseInt(size?.value || '32', 10) || 32;
+        const r = parseInt(rot?.value || '0', 10) || 0;
+        const ss = parseInt(sh?.value || '0', 10) || 0;
+        const shadow = ss > 0 ? `filter: drop-shadow(0 2px ${Math.max(1, ss/10)}px rgba(0,0,0,${Math.min(0.7, ss/140)}));` : '';
+        const preview = document.getElementById('textStudioPreview');
+        if (preview) {
+            preview.innerHTML = `<span style="${css}; font-size:${fs}px; display:inline-block; transform: rotate(${r}deg); transform-origin:center; max-width:100%; white-space:pre-wrap; word-break:break-word; ${shadow}">${escapeHtml(ta?.value || '')}</span>`;
+        }
+        if (sizeVal) sizeVal.textContent = `${fs}px`;
+        if (rotVal) rotVal.textContent = `${r}°`;
+        if (shVal) shVal.textContent = String(ss);
+    };
+
+    // Bind live preview
+    ta?.addEventListener('input', refresh, {once: true});
+    sel?.addEventListener('change', refresh, {once: true});
+    size?.addEventListener('input', refresh, {once: true});
+    rot?.addEventListener('input', refresh, {once: true});
+    sh?.addEventListener('input', refresh, {once: true});
+    // Re-bind without once by re-adding handlers each open:
+    ta && (ta.oninput = refresh);
+    sel && (sel.onchange = refresh);
+    size && (size.oninput = refresh);
+    rot && (rot.oninput = refresh);
+    sh && (sh.oninput = refresh);
+
+    refresh();
+    modal.classList.add('active');
+}
+
+function applyTextStudio() {
+    const page = state.pages?.[state.currentPageIndex];
+    const slot = state.selectedPhotoSlot;
+    const item = page?.photos?.[slot];
+    if (!item || item.type !== 'text') return;
+
+    const sel = document.getElementById('tsStyle');
+    const ta = document.getElementById('tsContent');
+    const size = document.getElementById('tsSize');
+    const rot = document.getElementById('tsRotate');
+    const sh = document.getElementById('tsShadow');
+
+    item.content = String(ta?.value || '');
+    item.styleId = sel?.value || 'default';
+    item.fontSize = parseInt(size?.value || '32', 10) || 32;
+    item.rotation = parseInt(rot?.value || '0', 10) || 0;
+    item.shadowStrength = parseInt(sh?.value || '0', 10) || 0;
+
+    closeTextStudio();
+    renderCurrentPage();
+    updateTextSlotControls();
+}
+
+function closeTextStudio() {
+    document.getElementById('textStudioModal')?.classList.remove('active');
 }
 
 function closePhotoOptions() {
@@ -6052,6 +7214,138 @@ function updateAlignmentControls() {
     document.querySelectorAll('.btn-alignment').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.alignment === alignment);
     });
+}
+
+function ensurePageTextControls() {
+    const panel = document.getElementById('pages-settings-panel');
+    if (!panel) return;
+
+    if (document.getElementById('pageTextControlsGroup')) return;
+
+    const group = document.createElement('div');
+    group.id = 'pageTextControlsGroup';
+    group.className = 'setting-group';
+    group.style.marginTop = '14px';
+    group.style.display = 'none';
+
+    group.innerHTML = `
+      <label class="setting-label">Selected Text</label>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <select id="pageTextStyleSelect" class="edo-select" style="flex:1;">
+            <option value="default">Default</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="pageTextEditBtn" type="button">Edit</button>
+        </div>
+        <div class="sidebar-control-group flex-group" style="align-items:center;">
+          <label class="setting-label" style="min-width:80px;">Size</label>
+          <input type="range" id="pageTextSize" min="10" max="80" value="32" class="flex-expand">
+          <span id="pageTextSizeVal" style="width:45px; text-align:right; font-size:12px;">32px</span>
+        </div>
+        <div class="sidebar-control-group flex-group" style="align-items:center;">
+          <label class="setting-label" style="min-width:80px;">Rotate</label>
+          <input type="range" id="pageTextRotate" min="-45" max="45" value="0" class="flex-expand">
+          <span id="pageTextRotateVal" style="width:35px; text-align:right; font-size:12px;">0°</span>
+        </div>
+      </div>
+    `;
+
+    panel.appendChild(group);
+
+    const select = group.querySelector('#pageTextStyleSelect');
+    const size = group.querySelector('#pageTextSize');
+    const sizeVal = group.querySelector('#pageTextSizeVal');
+    const rotate = group.querySelector('#pageTextRotate');
+    const rotateVal = group.querySelector('#pageTextRotateVal');
+    const editBtn = group.querySelector('#pageTextEditBtn');
+
+    const getActiveTextItem = () => {
+        const page = state.pages?.[state.currentPageIndex];
+        const slot = state.selectedPhotoSlot;
+        const item = (page && slot !== null && slot !== undefined) ? page.photos?.[slot] : null;
+        return (item && item.type === 'text') ? item : null;
+    };
+
+    // Populate styles when available
+    const fillStyles = () => {
+        const styles = window.TEXT_STYLES || [];
+        const current = select.value;
+        select.innerHTML = `<option value="default">Default</option>` +
+            styles.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+        if (current) select.value = current;
+    };
+    fillStyles();
+
+    select.addEventListener('change', () => {
+        const item = getActiveTextItem();
+        if (!item) return;
+        item.styleId = select.value || 'default';
+        renderCurrentPage();
+    });
+
+    size.addEventListener('input', () => {
+        const item = getActiveTextItem();
+        if (!item) return;
+        const v = parseInt(size.value, 10) || 32;
+        item.fontSize = v;
+        if (sizeVal) sizeVal.textContent = `${v}px`;
+        renderCurrentPage();
+    });
+
+    rotate.addEventListener('input', () => {
+        const item = getActiveTextItem();
+        if (!item) return;
+        const v = parseInt(rotate.value, 10) || 0;
+        item.rotation = v;
+        if (rotateVal) rotateVal.textContent = `${v}°`;
+        renderCurrentPage();
+    });
+
+    editBtn.addEventListener('click', () => {
+        const item = getActiveTextItem();
+        if (!item) return;
+        const next = prompt('Edit text:', item.content || '');
+        if (next === null) return;
+        item.content = String(next);
+        renderCurrentPage();
+    });
+}
+
+function updateTextSlotControls() {
+    ensurePageTextControls();
+    const group = document.getElementById('pageTextControlsGroup');
+    if (!group) return;
+
+    const page = state.pages?.[state.currentPageIndex];
+    const slot = state.selectedPhotoSlot;
+    const item = (page && slot !== null && slot !== undefined) ? page.photos?.[slot] : null;
+    const isText = !!(item && item.type === 'text');
+
+    group.style.display = isText ? 'block' : 'none';
+    if (!isText) return;
+
+    const select = document.getElementById('pageTextStyleSelect');
+    const size = document.getElementById('pageTextSize');
+    const sizeVal = document.getElementById('pageTextSizeVal');
+    const rotate = document.getElementById('pageTextRotate');
+    const rotateVal = document.getElementById('pageTextRotateVal');
+
+    if (select) {
+        const styles = window.TEXT_STYLES || [];
+        if (select.options.length <= 1 && styles.length) {
+            select.innerHTML = `<option value="default">Default</option>` +
+                styles.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+        }
+        select.value = item.styleId || 'default';
+    }
+
+    const rot = Number.isFinite(item.rotation) ? item.rotation : 0;
+    if (rotate) rotate.value = String(rot);
+    if (rotateVal) rotateVal.textContent = `${rot}°`;
+
+    const fs = Number.isFinite(item.fontSize) ? item.fontSize : 32;
+    if (size) size.value = String(fs);
+    if (sizeVal) sizeVal.textContent = `${fs}px`;
 }
 
 function setupPhotoDragAndDrop() {
@@ -9107,11 +10401,8 @@ window.applyDesignToPhoto = function () {
 
                 showToast('Design applied successfully!');
 
-                // 4. (Optional) Auto-save project
-                if (typeof saveProject === 'function') {
-                    // Debounce/auto save
-                    saveProject({ silent: true });
-                }
+                // Persist draft locally so changes survive refresh, but don't force a Save Project prompt.
+                try { if (typeof persistDraftToStorage === 'function') persistDraftToStorage('design_applied'); } catch { /* ignore */ }
             }
         }
     } catch (e) {

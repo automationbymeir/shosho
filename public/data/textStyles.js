@@ -124,6 +124,108 @@ const TEXT_STYLES = [
             shadow: { color: 'black', offset: [2, 2], blur: 5, opacity: 0.2 }
         }
     }
+    ,
+    // --- Added set (6 more) ---
+    {
+        id: 'style-bold-serif',
+        name: 'Bold Serif',
+        category: 'Elegant',
+        previewText: 'Serif',
+        style: {
+            fontFamily: 'DM Serif Display',
+            fontWeight: '700',
+            color: '#0f172a',
+            letterSpacing: '1px'
+        },
+        pdfStyle: { font: 'Times-Bold', color: '#0F172A' }
+    },
+    {
+        id: 'style-stamp',
+        name: 'Rubber Stamp',
+        category: 'Vintage',
+        previewText: 'STAMP',
+        style: {
+            fontFamily: 'Inter',
+            fontWeight: '800',
+            color: '#7f1d1d',
+            textTransform: 'uppercase',
+            letterSpacing: '3px',
+            border: '2px solid rgba(127,29,29,0.6)',
+            padding: '6px 10px',
+            display: 'inline-block',
+            transform: 'rotate(-2deg)'
+        },
+        fallbackStyle: {
+            fontFamily: 'Inter',
+            fontWeight: '800',
+            color: '#7f1d1d'
+        },
+        pdfStyle: { font: 'Helvetica-Bold', color: '#7F1D1D' }
+    },
+    {
+        id: 'style-outline',
+        name: 'Outline',
+        category: 'Modern',
+        previewText: 'Outline',
+        style: {
+            fontFamily: 'Inter',
+            fontWeight: '900',
+            color: 'transparent',
+            webkitTextStroke: '2px #111827',
+            letterSpacing: '1px',
+            textTransform: 'uppercase'
+        },
+        fallbackStyle: {
+            color: '#111827'
+        },
+        pdfStyle: { font: 'Helvetica-Bold', color: '#111827' }
+    },
+    {
+        id: 'style-gradient-blue',
+        name: 'Ocean Gradient',
+        category: 'Modern',
+        previewText: 'Ocean',
+        style: {
+            fontFamily: 'DM Sans',
+            fontWeight: '800',
+            background: 'linear-gradient(90deg, #1d4ed8, #06b6d4)',
+            webkitBackgroundClip: 'text',
+            webkitTextFillColor: 'transparent',
+            letterSpacing: '1px'
+        },
+        fallbackStyle: {
+            color: '#1d4ed8'
+        },
+        pdfStyle: { font: 'Helvetica-Bold', color: '#1D4ED8' }
+    },
+    {
+        id: 'style-handwritten',
+        name: 'Handwritten Note',
+        category: 'Fun',
+        previewText: 'Note',
+        style: {
+            fontFamily: 'DM Sans',
+            fontWeight: '600',
+            color: '#334155',
+            fontStyle: 'italic',
+            textShadow: '0 1px 0 rgba(0,0,0,0.12)'
+        },
+        pdfStyle: { font: 'Helvetica-Oblique', color: '#334155' }
+    },
+    {
+        id: 'style-minimal-caps',
+        name: 'Minimal Caps',
+        category: 'Minimal',
+        previewText: 'CAPS',
+        style: {
+            fontFamily: 'Inter',
+            fontWeight: '700',
+            color: '#111827',
+            letterSpacing: '6px',
+            textTransform: 'uppercase'
+        },
+        pdfStyle: { font: 'Helvetica-Bold', color: '#111827' }
+    }
 ];
 
 if (typeof window !== 'undefined') {

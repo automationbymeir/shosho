@@ -64,6 +64,79 @@ const BACKGROUND_TEXTURES = [
             fonts: { serif: 'Courier Prime', sans: 'Courier New' }
         }
     },
+    // --- Added set (6 more) ---
+    {
+        id: 'linen-sage',
+        name: 'Light Paper Fibers',
+        category: 'Paper',
+        thumbnail: 'https://www.transparenttextures.com/patterns/light-paper-fibers.png',
+        url: 'https://www.transparenttextures.com/patterns/light-paper-fibers.png',
+        textColor: '#111827',
+        theme: {
+            colors: { primary: '#111827', secondary: '#6b7280', bg: '#f9fafb' },
+            fonts: { serif: 'Playfair Display', sans: 'Inter' }
+        }
+    },
+    {
+        id: 'paper-cream',
+        name: 'Rice Paper',
+        category: 'Paper',
+        thumbnail: 'https://www.transparenttextures.com/patterns/rice-paper-2.png',
+        url: 'https://www.transparenttextures.com/patterns/rice-paper-2.png',
+        textColor: '#1f2937',
+        theme: {
+            colors: { primary: '#1f2937', secondary: '#6b7280', bg: '#fffaf2' },
+            fonts: { serif: 'Merriweather', sans: 'Inter' }
+        }
+    },
+    {
+        id: 'grainy-noir',
+        name: 'Subtle Grunge',
+        category: 'Texture',
+        thumbnail: 'https://www.transparenttextures.com/patterns/subtle-grunge.png',
+        url: 'https://www.transparenttextures.com/patterns/subtle-grunge.png',
+        textColor: '#f8fafc',
+        theme: {
+            colors: { primary: '#f8fafc', secondary: '#94a3b8', bg: '#0b0f14' },
+            fonts: { serif: 'DM Serif Display', sans: 'Inter' }
+        }
+    },
+    {
+        id: 'sky-mist',
+        name: 'Cream Pixels',
+        category: 'Minimalist',
+        thumbnail: 'https://www.transparenttextures.com/patterns/cream-pixels.png',
+        url: 'https://www.transparenttextures.com/patterns/cream-pixels.png',
+        textColor: '#0f172a',
+        theme: {
+            colors: { primary: '#0f172a', secondary: '#3b82f6', bg: '#f1f7ff' },
+            fonts: { serif: 'Playfair Display', sans: 'DM Sans' }
+        }
+    },
+    {
+        id: 'terracotta-wash',
+        name: 'Concrete Wall',
+        category: 'Texture',
+        thumbnail: 'https://www.transparenttextures.com/patterns/concrete-wall.png',
+        url: 'https://www.transparenttextures.com/patterns/concrete-wall.png',
+        textColor: '#111827',
+        theme: {
+            colors: { primary: '#111827', secondary: '#6b7280', bg: '#f3f4f6' },
+            fonts: { serif: 'Merriweather', sans: 'Inter' }
+        }
+    },
+    {
+        id: 'gallery-neutral',
+        name: 'Diagonal Striped Brick',
+        category: 'Pattern',
+        thumbnail: 'https://www.transparenttextures.com/patterns/diagonal-striped-brick.png',
+        url: 'https://www.transparenttextures.com/patterns/diagonal-striped-brick.png',
+        textColor: '#111827',
+        theme: {
+            colors: { primary: '#111827', secondary: '#6b7280', bg: '#f9fafb' },
+            fonts: { serif: 'Playfair Display', sans: 'Inter' }
+        }
+    },
 ];
 
 // Frame Definitions for Design Gallery
@@ -175,6 +248,107 @@ const PAGE_FRAMES = [
         },
         pdfStyle: 'floating-dashed',
         width: 0.5
+    },
+    // --- Added set (6 more) ---
+    {
+        id: 'frame-double-ink',
+        name: 'Double Ink',
+        category: 'Vintage',
+        color: '#2f2f2f',
+        previewBorder: '3px double #2f2f2f',
+        svgGen: (w, h, color) => {
+            const inset = 18;
+            const gap = 10;
+            return `
+              <rect x="${inset}" y="${inset}" width="${w - inset * 2}" height="${h - inset * 2}" fill="none" stroke="${color}" stroke-width="2"/>
+              <rect x="${inset + gap}" y="${inset + gap}" width="${w - (inset + gap) * 2}" height="${h - (inset + gap) * 2}" fill="none" stroke="${color}" stroke-width="0.8"/>
+            `;
+        },
+        pdfStyle: 'double-ink',
+        width: 2
+    },
+    {
+        id: 'frame-corners-soft',
+        name: 'Soft Corners',
+        category: 'Minimal',
+        color: '#6b7280',
+        previewBorder: '1px solid #6b7280',
+        svgGen: (w, h, color) => {
+            const inset = 26;
+            const len = 50;
+            const sw = 2;
+            return `
+              <path d="M${inset} ${inset+len} V${inset} H${inset+len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
+              <path d="M${w-inset-len} ${inset} H${w-inset} V${inset+len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
+              <path d="M${inset} ${h-inset-len} V${h-inset} H${inset+len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
+              <path d="M${w-inset-len} ${h-inset} H${w-inset} V${h-inset-len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
+            `;
+        },
+        pdfStyle: 'corners',
+        width: 2
+    },
+    {
+        id: 'frame-dots-fine',
+        name: 'Fine Dots',
+        category: 'Modern',
+        color: '#94a3b8',
+        previewBorder: '1px dotted #94a3b8',
+        svgGen: (w, h, color) => {
+            const inset = 22;
+            return `<rect x="${inset}" y="${inset}" width="${w - inset * 2}" height="${h - inset * 2}" fill="none" stroke="${color}" stroke-width="1" stroke-dasharray="1 6" stroke-linecap="round"/>`;
+        },
+        pdfStyle: 'dots',
+        width: 1
+    },
+    {
+        id: 'frame-vignette-oval',
+        name: 'Oval Vignette',
+        category: 'Elegant',
+        color: '#64748b',
+        previewBorder: '1px solid #64748b',
+        svgGen: (w, h, color) => {
+            const inset = 34;
+            return `<ellipse cx="${w/2}" cy="${h/2}" rx="${(w - inset*2)/2}" ry="${(h - inset*2)/2}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+        },
+        pdfStyle: 'oval',
+        width: 1.5
+    },
+    {
+        id: 'frame-polaroid',
+        name: 'Polaroid',
+        category: 'Fun',
+        color: '#ffffff',
+        previewBorder: '12px solid #ffffff',
+        svgGen: (w, h, color) => {
+            const inset = 18;
+            const bottomExtra = 60;
+            return `
+              <rect x="${inset}" y="${inset}" width="${w - inset * 2}" height="${h - inset * 2}" fill="none" stroke="#ffffff" stroke-width="14"/>
+              <rect x="${inset+14}" y="${inset+14}" width="${w - (inset+14) * 2}" height="${h - (inset+14) * 2 - bottomExtra}" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+            `;
+        },
+        pdfStyle: 'polaroid',
+        width: 14
+    },
+    {
+        id: 'frame-diagonal',
+        name: 'Diagonal Corners',
+        category: 'Graphic',
+        color: '#111827',
+        previewBorder: '1px solid #111827',
+        svgGen: (w, h, color) => {
+            const inset = 24;
+            const d = 40;
+            return `
+              <path d="M${inset} ${inset+d} L${inset+d} ${inset}" fill="none" stroke="${color}" stroke-width="2"/>
+              <path d="M${w-inset-d} ${inset} L${w-inset} ${inset+d}" fill="none" stroke="${color}" stroke-width="2"/>
+              <path d="M${inset} ${h-inset-d} L${inset+d} ${h-inset}" fill="none" stroke="${color}" stroke-width="2"/>
+              <path d="M${w-inset-d} ${h-inset} L${w-inset} ${h-inset-d}" fill="none" stroke="${color}" stroke-width="2"/>
+              <rect x="${inset}" y="${inset}" width="${w - inset * 2}" height="${h - inset * 2}" fill="none" stroke="${color}" stroke-width="0.6" opacity="0.5"/>
+            `;
+        },
+        pdfStyle: 'diagonal',
+        width: 2
     },
 ];
 

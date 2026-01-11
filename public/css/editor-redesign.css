@@ -1523,7 +1523,12 @@
     pointer-events: none;
 }
 
-.layout-slot:hover .edit-photo-btn,
+.layout-slot:hover .edit-photo-btn {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
 /* Flex Group Layout Helpers */
 .flex-group {
     display: flex;
