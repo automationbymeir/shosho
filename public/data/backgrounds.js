@@ -162,7 +162,7 @@ const BACKGROUND_TEXTURES = [
 ];
 
 // Frame Definitions for Design Gallery
-const PAGE_FRAMES = [
+window.PAGE_FRAMES = [
     {
         id: 'frame-classic-gold',
         name: 'Classic Gold',
@@ -316,10 +316,10 @@ const PAGE_FRAMES = [
             const len = 50;
             const sw = 2;
             return `
-              <path d="M${inset} ${inset+len} V${inset} H${inset+len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
-              <path d="M${w-inset-len} ${inset} H${w-inset} V${inset+len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
-              <path d="M${inset} ${h-inset-len} V${h-inset} H${inset+len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
-              <path d="M${w-inset-len} ${h-inset} H${w-inset} V${h-inset-len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
+              <path d="M${inset} ${inset + len} V${inset} H${inset + len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
+              <path d="M${w - inset - len} ${inset} H${w - inset} V${inset + len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
+              <path d="M${inset} ${h - inset - len} V${h - inset} H${inset + len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
+              <path d="M${w - inset - len} ${h - inset} H${w - inset} V${h - inset - len}" fill="none" stroke="${color}" stroke-width="${sw}"/>
             `;
         },
         pdfStyle: 'corners',
@@ -350,7 +350,7 @@ const PAGE_FRAMES = [
         previewBorder: '1px solid #64748b',
         svgGen: (w, h, color) => {
             const inset = 34;
-            return `<ellipse cx="${w/2}" cy="${h/2}" rx="${(w - inset*2)/2}" ry="${(h - inset*2)/2}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+            return `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w - inset * 2) / 2}" ry="${(h - inset * 2) / 2}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
         },
         pdfStyle: 'oval',
         width: 1.5
@@ -368,7 +368,7 @@ const PAGE_FRAMES = [
             const bottomExtra = 60;
             return `
               <rect x="${inset}" y="${inset}" width="${w - inset * 2}" height="${h - inset * 2}" fill="none" stroke="#ffffff" stroke-width="14"/>
-              <rect x="${inset+14}" y="${inset+14}" width="${w - (inset+14) * 2}" height="${h - (inset+14) * 2 - bottomExtra}" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+              <rect x="${inset + 14}" y="${inset + 14}" width="${w - (inset + 14) * 2}" height="${h - (inset + 14) * 2 - bottomExtra}" fill="none" stroke="#e5e7eb" stroke-width="1"/>
             `;
         },
         pdfStyle: 'polaroid',
@@ -386,10 +386,10 @@ const PAGE_FRAMES = [
             const inset = 24;
             const d = 40;
             return `
-              <path d="M${inset} ${inset+d} L${inset+d} ${inset}" fill="none" stroke="${color}" stroke-width="2"/>
-              <path d="M${w-inset-d} ${inset} L${w-inset} ${inset+d}" fill="none" stroke="${color}" stroke-width="2"/>
-              <path d="M${inset} ${h-inset-d} L${inset+d} ${h-inset}" fill="none" stroke="${color}" stroke-width="2"/>
-              <path d="M${w-inset-d} ${h-inset} L${w-inset} ${h-inset-d}" fill="none" stroke="${color}" stroke-width="2"/>
+              <path d="M${inset} ${inset + d} L${inset + d} ${inset}" fill="none" stroke="${color}" stroke-width="2"/>
+              <path d="M${w - inset - d} ${inset} L${w - inset} ${inset + d}" fill="none" stroke="${color}" stroke-width="2"/>
+              <path d="M${inset} ${h - inset - d} L${inset + d} ${h - inset}" fill="none" stroke="${color}" stroke-width="2"/>
+              <path d="M${w - inset - d} ${h - inset} L${w - inset} ${h - inset - d}" fill="none" stroke="${color}" stroke-width="2"/>
               <rect x="${inset}" y="${inset}" width="${w - inset * 2}" height="${h - inset * 2}" fill="none" stroke="${color}" stroke-width="0.6" opacity="0.5"/>
             `;
         },
@@ -400,7 +400,7 @@ const PAGE_FRAMES = [
 
 // Image Frame Definitions (for masking + per-image frame overlays)
 // Shapes: rect | rounded | circle | oval
-const IMAGE_FRAMES = [
+window.IMAGE_FRAMES = [
     {
         id: 'imgframe-classic-gold',
         name: 'Classic Gold',
@@ -417,13 +417,13 @@ const IMAGE_FRAMES = [
             const ry = shape === 'circle' ? 500 : (shape === 'oval' ? 220 : rx);
             if (shape === 'circle' || shape === 'oval') {
                 return `
-                  <ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2) - pad}" ry="${(h/2) - pad}" fill="none" stroke="${color}" stroke-width="${strokeOuter}"/>
-                  <ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2) - pad - 30}" ry="${(h/2) - pad - 30}" fill="none" stroke="${color}" stroke-width="${strokeInner}"/>
+                  <ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad}" ry="${(h / 2) - pad}" fill="none" stroke="${color}" stroke-width="${strokeOuter}"/>
+                  <ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad - 30}" ry="${(h / 2) - pad - 30}" fill="none" stroke="${color}" stroke-width="${strokeInner}"/>
                 `;
             }
             return `
-              <rect x="${pad}" y="${pad}" width="${w - pad*2}" height="${h - pad*2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="${strokeOuter}"/>
-              <rect x="${pad+30}" y="${pad+30}" width="${w - (pad+30)*2}" height="${h - (pad+30)*2}" rx="${Math.max(8, rx-30)}" ry="${Math.max(8, ry-30)}" fill="none" stroke="${color}" stroke-width="${strokeInner}"/>
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="${strokeOuter}"/>
+              <rect x="${pad + 30}" y="${pad + 30}" width="${w - (pad + 30) * 2}" height="${h - (pad + 30) * 2}" rx="${Math.max(8, rx - 30)}" ry="${Math.max(8, ry - 30)}" fill="none" stroke="${color}" stroke-width="${strokeInner}"/>
             `;
         },
     },
@@ -440,9 +440,9 @@ const IMAGE_FRAMES = [
             const rx = shape === 'oval' ? 320 : (shape === 'rounded' ? 140 : 10);
             const ry = shape === 'oval' ? 220 : rx;
             if (shape === 'oval') {
-                return `<ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad}" ry="${(h/2)-pad}" fill="none" stroke="${color}" stroke-width="10" stroke-dasharray="6 18" stroke-linecap="round"/>`;
+                return `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad}" ry="${(h / 2) - pad}" fill="none" stroke="${color}" stroke-width="10" stroke-dasharray="6 18" stroke-linecap="round"/>`;
             }
-            return `<rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="10" stroke-dasharray="6 18" stroke-linecap="round"/>`;
+            return `<rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="10" stroke-dasharray="6 18" stroke-linecap="round"/>`;
         },
     },
     {
@@ -458,8 +458,8 @@ const IMAGE_FRAMES = [
             const rx = shape === 'rounded' ? 24 : 8;
             const innerPad = 34;
             return `
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${rx}" fill="none" stroke="#ffffff" stroke-width="36"/>
-              <rect x="${pad+innerPad}" y="${pad+innerPad}" width="${w-(pad+innerPad)*2}" height="${h-(pad+innerPad)*2 - 120}" rx="${Math.max(8, rx-10)}" ry="${Math.max(8, rx-10)}" fill="none" stroke="#e5e7eb" stroke-width="6"/>
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${rx}" fill="none" stroke="#ffffff" stroke-width="36"/>
+              <rect x="${pad + innerPad}" y="${pad + innerPad}" width="${w - (pad + innerPad) * 2}" height="${h - (pad + innerPad) * 2 - 120}" rx="${Math.max(8, rx - 10)}" ry="${Math.max(8, rx - 10)}" fill="none" stroke="#e5e7eb" stroke-width="6"/>
             `;
         },
     },
@@ -476,9 +476,9 @@ const IMAGE_FRAMES = [
             const rx = shape === 'rounded' ? 60 : 8;
             const step = 18;
             return `
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="10"/>
-              <path d="M${pad+step} ${pad} H${w-pad-step} M${pad} ${pad+step} V${h-pad-step} M${w-pad} ${pad+step} V${h-pad-step} M${pad+step} ${h-pad} H${w-pad-step}" stroke="${color}" stroke-width="6" opacity="0.9"/>
-              <path d="M${pad+step*2} ${pad+step*2} H${w-pad-step*2} V${h-pad-step*2} H${pad+step*2} Z" fill="none" stroke="${color}" stroke-width="4" opacity="0.65"/>
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="10"/>
+              <path d="M${pad + step} ${pad} H${w - pad - step} M${pad} ${pad + step} V${h - pad - step} M${w - pad} ${pad + step} V${h - pad - step} M${pad + step} ${h - pad} H${w - pad - step}" stroke="${color}" stroke-width="6" opacity="0.9"/>
+              <path d="M${pad + step * 2} ${pad + step * 2} H${w - pad - step * 2} V${h - pad - step * 2} H${pad + step * 2} Z" fill="none" stroke="${color}" stroke-width="4" opacity="0.65"/>
             `;
         },
     },
@@ -497,14 +497,14 @@ const IMAGE_FRAMES = [
             const leaf = (x, y, flipX, flipY) => `
               <g transform="translate(${x} ${y}) scale(${flipX} ${flipY})">
                 <path d="M0 60 C20 10 70 10 90 60 C70 110 20 110 0 60Z" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" opacity="0.9"/>
-                <path d="M12 60 Q45 40 78 60 Q45 80 12 60Z" fill="none" stroke="${color}" stroke-width="${sw/2}" opacity="0.55"/>
+                <path d="M12 60 Q45 40 78 60 Q45 80 12 60Z" fill="none" stroke="${color}" stroke-width="${sw / 2}" opacity="0.55"/>
               </g>`;
             return `
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="6" opacity="0.55"/>
-              ${leaf(pad-20, pad-20, 1, 1)}
-              ${leaf(w-pad+20, pad-20, -1, 1)}
-              ${leaf(pad-20, h-pad+20, 1, -1)}
-              ${leaf(w-pad+20, h-pad+20, -1, -1)}
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="6" opacity="0.55"/>
+              ${leaf(pad - 20, pad - 20, 1, 1)}
+              ${leaf(w - pad + 20, pad - 20, -1, 1)}
+              ${leaf(pad - 20, h - pad + 20, 1, -1)}
+              ${leaf(w - pad + 20, h - pad + 20, -1, -1)}
             `;
         },
     },
@@ -520,25 +520,25 @@ const IMAGE_FRAMES = [
             const pad = 90;
             const dots = 44;
             const r = 6;
-            const rect = (rx, ry) => `<rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="4" opacity="0.4"/>`;
+            const rect = (rx, ry) => `<rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="4" opacity="0.4"/>`;
             const beadDots = () => {
                 const pts = [];
                 for (let i = 0; i < dots; i++) {
                     const t = i / dots;
-                    const xTop = pad + t * (w - pad*2);
+                    const xTop = pad + t * (w - pad * 2);
                     const xBot = xTop;
-                    const yLeft = pad + t * (h - pad*2);
+                    const yLeft = pad + t * (h - pad * 2);
                     const yRight = yLeft;
                     pts.push(`<circle cx="${xTop}" cy="${pad}" r="${r}" fill="${color}" opacity="0.75"/>`);
-                    pts.push(`<circle cx="${xBot}" cy="${h-pad}" r="${r}" fill="${color}" opacity="0.75"/>`);
+                    pts.push(`<circle cx="${xBot}" cy="${h - pad}" r="${r}" fill="${color}" opacity="0.75"/>`);
                     pts.push(`<circle cx="${pad}" cy="${yLeft}" r="${r}" fill="${color}" opacity="0.75"/>`);
-                    pts.push(`<circle cx="${w-pad}" cy="${yRight}" r="${r}" fill="${color}" opacity="0.75"/>`);
+                    pts.push(`<circle cx="${w - pad}" cy="${yRight}" r="${r}" fill="${color}" opacity="0.75"/>`);
                 }
                 return pts.join('');
             };
             if (shape === 'circle' || shape === 'oval') {
                 return `
-                  <ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad}" ry="${(h/2)-pad}" fill="none" stroke="${color}" stroke-width="4" opacity="0.4"/>
+                  <ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad}" ry="${(h / 2) - pad}" fill="none" stroke="${color}" stroke-width="4" opacity="0.4"/>
                   ${beadDots()}
                 `;
             }
@@ -560,8 +560,8 @@ const IMAGE_FRAMES = [
             const rx = shape === 'rounded' ? 90 : 8;
             const gap = 26;
             return `
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="10" opacity="0.9"/>
-              <rect x="${pad+gap}" y="${pad+gap}" width="${w-(pad+gap)*2}" height="${h-(pad+gap)*2}" rx="${Math.max(8, rx-gap)}" ry="${Math.max(8, rx-gap)}" fill="none" stroke="${color}" stroke-width="3" opacity="0.6"/>
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="10" opacity="0.9"/>
+              <rect x="${pad + gap}" y="${pad + gap}" width="${w - (pad + gap) * 2}" height="${h - (pad + gap) * 2}" rx="${Math.max(8, rx - gap)}" ry="${Math.max(8, rx - gap)}" fill="none" stroke="${color}" stroke-width="3" opacity="0.6"/>
             `;
         },
     },
@@ -578,7 +578,7 @@ const IMAGE_FRAMES = [
             const scallops = 16;
             const amp = 20;
             if (shape === 'oval') {
-                return `<ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad}" ry="${(h/2)-pad}" fill="none" stroke="${color}" stroke-width="12" stroke-dasharray="2 18" stroke-linecap="round" opacity="0.9"/>`;
+                return `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad}" ry="${(h / 2) - pad}" fill="none" stroke="${color}" stroke-width="12" stroke-dasharray="2 18" stroke-linecap="round" opacity="0.9"/>`;
             }
             const rx = shape === 'rounded' ? 140 : 12;
             const path = [];
@@ -588,33 +588,33 @@ const IMAGE_FRAMES = [
             for (let i = 0; i < scallops; i++) {
                 const t = (i + 0.5) / scallops;
                 const x = x0 + t * (x1 - x0);
-                path.push(`Q ${x} ${y0-amp} ${x0 + (i+1)/scallops*(x1-x0)} ${y0}`);
+                path.push(`Q ${x} ${y0 - amp} ${x0 + (i + 1) / scallops * (x1 - x0)} ${y0}`);
             }
             // Right wave
             path.push(`L ${x1} ${y0}`);
             for (let i = 0; i < scallops; i++) {
                 const t = (i + 0.5) / scallops;
                 const y = y0 + t * (y1 - y0);
-                path.push(`Q ${x1+amp} ${y} ${x1} ${y0 + (i+1)/scallops*(y1-y0)}`);
+                path.push(`Q ${x1 + amp} ${y} ${x1} ${y0 + (i + 1) / scallops * (y1 - y0)}`);
             }
             // Bottom wave
             path.push(`L ${x1} ${y1}`);
             for (let i = 0; i < scallops; i++) {
                 const t = (i + 0.5) / scallops;
                 const x = x1 - t * (x1 - x0);
-                path.push(`Q ${x} ${y1+amp} ${x1 - (i+1)/scallops*(x1-x0)} ${y1}`);
+                path.push(`Q ${x} ${y1 + amp} ${x1 - (i + 1) / scallops * (x1 - x0)} ${y1}`);
             }
             // Left wave
             path.push(`L ${x0} ${y1}`);
             for (let i = 0; i < scallops; i++) {
                 const t = (i + 0.5) / scallops;
                 const y = y1 - t * (y1 - y0);
-                path.push(`Q ${x0-amp} ${y} ${x0} ${y1 - (i+1)/scallops*(y1-y0)}`);
+                path.push(`Q ${x0 - amp} ${y} ${x0} ${y1 - (i + 1) / scallops * (y1 - y0)}`);
             }
             path.push('Z');
             return `
               <path d="${path.join(' ')}" fill="none" stroke="${color}" stroke-width="10" opacity="0.9"/>
-              <rect x="${pad+26}" y="${pad+26}" width="${w-(pad+26)*2}" height="${h-(pad+26)*2}" rx="${Math.max(10, rx-20)}" ry="${Math.max(10, rx-20)}" fill="none" stroke="${color}" stroke-width="3" opacity="0.35"/>
+              <rect x="${pad + 26}" y="${pad + 26}" width="${w - (pad + 26) * 2}" height="${h - (pad + 26) * 2}" rx="${Math.max(10, rx - 20)}" ry="${Math.max(10, rx - 20)}" fill="none" stroke="${color}" stroke-width="3" opacity="0.35"/>
             `;
         },
     },
@@ -641,14 +641,14 @@ const IMAGE_FRAMES = [
             if (shape === 'circle' || shape === 'oval') {
                 return `
                   <defs>${glow}</defs>
-                  <ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad}" ry="${(h/2)-pad}" fill="none" stroke="${color}" stroke-width="10" filter="url(#glow)" opacity="0.9"/>
-                  <ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad-22}" ry="${(h/2)-pad-22}" fill="none" stroke="#a5f3fc" stroke-width="3" opacity="0.8"/>
+                  <ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad}" ry="${(h / 2) - pad}" fill="none" stroke="${color}" stroke-width="10" filter="url(#glow)" opacity="0.9"/>
+                  <ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad - 22}" ry="${(h / 2) - pad - 22}" fill="none" stroke="#a5f3fc" stroke-width="3" opacity="0.8"/>
                 `;
             }
             return `
               <defs>${glow}</defs>
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="10" filter="url(#glow)" opacity="0.9"/>
-              <rect x="${pad+22}" y="${pad+22}" width="${w-(pad+22)*2}" height="${h-(pad+22)*2}" rx="${Math.max(10, rx-22)}" ry="${Math.max(10, ry-22)}" fill="none" stroke="#a5f3fc" stroke-width="3" opacity="0.8"/>
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="10" filter="url(#glow)" opacity="0.9"/>
+              <rect x="${pad + 22}" y="${pad + 22}" width="${w - (pad + 22) * 2}" height="${h - (pad + 22) * 2}" rx="${Math.max(10, rx - 22)}" ry="${Math.max(10, ry - 22)}" fill="none" stroke="#a5f3fc" stroke-width="3" opacity="0.8"/>
             `;
         },
     },
@@ -663,13 +663,13 @@ const IMAGE_FRAMES = [
         svgGen: (w, h, color) => {
             const pad = 85;
             const tW = 160, tH = 60;
-            const rect = (x,y,rot) => `<g transform="translate(${x} ${y}) rotate(${rot})"><rect x="-${tW/2}" y="-${tH/2}" width="${tW}" height="${tH}" rx="10" fill="${color}" opacity="0.25"/><rect x="-${tW/2}" y="-${tH/2}" width="${tW}" height="${tH}" rx="10" fill="none" stroke="${color}" stroke-width="6" opacity="0.45"/></g>`;
+            const rect = (x, y, rot) => `<g transform="translate(${x} ${y}) rotate(${rot})"><rect x="-${tW / 2}" y="-${tH / 2}" width="${tW}" height="${tH}" rx="10" fill="${color}" opacity="0.25"/><rect x="-${tW / 2}" y="-${tH / 2}" width="${tW}" height="${tH}" rx="10" fill="none" stroke="${color}" stroke-width="6" opacity="0.45"/></g>`;
             return `
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" fill="none" stroke="${color}" stroke-width="6" opacity="0.35"/>
-              ${rect(pad+60, pad+60, -12)}
-              ${rect(w-pad-60, pad+60, 12)}
-              ${rect(pad+60, h-pad-60, 12)}
-              ${rect(w-pad-60, h-pad-60, -12)}
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" fill="none" stroke="${color}" stroke-width="6" opacity="0.35"/>
+              ${rect(pad + 60, pad + 60, -12)}
+              ${rect(w - pad - 60, pad + 60, 12)}
+              ${rect(pad + 60, h - pad - 60, 12)}
+              ${rect(w - pad - 60, h - pad - 60, -12)}
             `;
         },
     },
@@ -683,20 +683,20 @@ const IMAGE_FRAMES = [
         shapes: ['oval', 'circle'],
         svgGen: (w, h, color, shape) => {
             const pad = 105;
-            const rx = (w/2) - pad;
-            const ry = (h/2) - pad;
+            const rx = (w / 2) - pad;
+            const ry = (h / 2) - pad;
             // Simple leaf motif around ellipse
             const leaves = [];
             const count = 18;
             for (let i = 0; i < count; i++) {
                 const a = (Math.PI * 2 * i) / count;
-                const x = (w/2) + rx * Math.cos(a);
-                const y = (h/2) + ry * Math.sin(a);
+                const x = (w / 2) + rx * Math.cos(a);
+                const y = (h / 2) + ry * Math.sin(a);
                 const rot = (a * 180 / Math.PI) + 90;
                 leaves.push(`<g transform="translate(${x} ${y}) rotate(${rot})"><path d="M0 0 C10 -18 26 -18 36 0 C26 18 10 18 0 0Z" fill="none" stroke="${color}" stroke-width="6" opacity="0.55"/></g>`);
             }
             return `
-              <ellipse cx="${w/2}" cy="${h/2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="10" opacity="0.35"/>
+              <ellipse cx="${w / 2}" cy="${h / 2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="10" opacity="0.35"/>
               ${leaves.join('')}
             `;
         },
@@ -712,10 +712,10 @@ const IMAGE_FRAMES = [
         svgGen: (w, h, color, shape) => {
             const pad = 85;
             if (shape === 'circle' || shape === 'oval') {
-                return `<ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad}" ry="${(h/2)-pad}" fill="none" stroke="${color}" stroke-width="4" opacity="0.65"/>`;
+                return `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad}" ry="${(h / 2) - pad}" fill="none" stroke="${color}" stroke-width="4" opacity="0.65"/>`;
             }
             const rx = shape === 'rounded' ? 120 : 10;
-            return `<rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="4" opacity="0.65"/>`;
+            return `<rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="4" opacity="0.65"/>`;
         },
     },
     {
@@ -733,16 +733,16 @@ const IMAGE_FRAMES = [
             const dots = [];
             for (let i = 0; i < n; i++) {
                 const t = i / (n - 1);
-                dots.push(`<circle cx="${pad + t*(w-pad*2)}" cy="${pad}" r="${r}" fill="${color}" opacity="0.85"/>`);
-                dots.push(`<circle cx="${pad + t*(w-pad*2)}" cy="${h-pad}" r="${r}" fill="${color}" opacity="0.85"/>`);
-                dots.push(`<circle cx="${pad}" cy="${pad + t*(h-pad*2)}" r="${r}" fill="${color}" opacity="0.85"/>`);
-                dots.push(`<circle cx="${w-pad}" cy="${pad + t*(h-pad*2)}" r="${r}" fill="${color}" opacity="0.85"/>`);
+                dots.push(`<circle cx="${pad + t * (w - pad * 2)}" cy="${pad}" r="${r}" fill="${color}" opacity="0.85"/>`);
+                dots.push(`<circle cx="${pad + t * (w - pad * 2)}" cy="${h - pad}" r="${r}" fill="${color}" opacity="0.85"/>`);
+                dots.push(`<circle cx="${pad}" cy="${pad + t * (h - pad * 2)}" r="${r}" fill="${color}" opacity="0.85"/>`);
+                dots.push(`<circle cx="${w - pad}" cy="${pad + t * (h - pad * 2)}" r="${r}" fill="${color}" opacity="0.85"/>`);
             }
             if (shape === 'circle' || shape === 'oval') {
-                return `<ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad}" ry="${(h/2)-pad}" fill="none" stroke="${color}" stroke-width="3" opacity="0.25"/>${dots.join('')}`;
+                return `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad}" ry="${(h / 2) - pad}" fill="none" stroke="${color}" stroke-width="3" opacity="0.25"/>${dots.join('')}`;
             }
             const rx = shape === 'rounded' ? 140 : 12;
-            return `<rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="3" opacity="0.25"/>${dots.join('')}`;
+            return `<rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="3" opacity="0.25"/>${dots.join('')}`;
         },
     },
     {
@@ -761,11 +761,11 @@ const IMAGE_FRAMES = [
             for (let i = 0; i < holeCount; i++) {
                 const t = (i + 0.5) / holeCount;
                 const y = pad + t * (h - pad * 2);
-                holes.push(`<rect x="${pad-35}" y="${y-14}" width="22" height="28" rx="4" fill="${color}" opacity="0.55"/>`);
-                holes.push(`<rect x="${w-pad+13}" y="${y-14}" width="22" height="28" rx="4" fill="${color}" opacity="0.55"/>`);
+                holes.push(`<rect x="${pad - 35}" y="${y - 14}" width="22" height="28" rx="4" fill="${color}" opacity="0.55"/>`);
+                holes.push(`<rect x="${w - pad + 13}" y="${y - 14}" width="22" height="28" rx="4" fill="${color}" opacity="0.55"/>`);
             }
             return `
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="10" opacity="0.85"/>
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="10" opacity="0.85"/>
               ${holes.join('')}
             `;
         },
@@ -784,13 +784,13 @@ const IMAGE_FRAMES = [
             const ry = shape === 'oval' ? 220 : rx;
             if (shape === 'oval') {
                 return `
-                  <ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad}" ry="${(h/2)-pad}" fill="none" stroke="${color}" stroke-width="26" opacity="0.20"/>
-                  <ellipse cx="${w/2}" cy="${h/2}" rx="${(w/2)-pad-10}" ry="${(h/2)-pad-10}" fill="none" stroke="${color}" stroke-width="8" opacity="0.45"/>
+                  <ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad}" ry="${(h / 2) - pad}" fill="none" stroke="${color}" stroke-width="26" opacity="0.20"/>
+                  <ellipse cx="${w / 2}" cy="${h / 2}" rx="${(w / 2) - pad - 10}" ry="${(h / 2) - pad - 10}" fill="none" stroke="${color}" stroke-width="8" opacity="0.45"/>
                 `;
             }
             return `
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="26" opacity="0.20"/>
-              <rect x="${pad+10}" y="${pad+10}" width="${w-(pad+10)*2}" height="${h-(pad+10)*2}" rx="${Math.max(10, rx-10)}" ry="${Math.max(10, ry-10)}" fill="none" stroke="${color}" stroke-width="8" opacity="0.45"/>
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${ry}" fill="none" stroke="${color}" stroke-width="26" opacity="0.20"/>
+              <rect x="${pad + 10}" y="${pad + 10}" width="${w - (pad + 10) * 2}" height="${h - (pad + 10) * 2}" rx="${Math.max(10, rx - 10)}" ry="${Math.max(10, ry - 10)}" fill="none" stroke="${color}" stroke-width="8" opacity="0.45"/>
             `;
         },
     },
@@ -806,8 +806,8 @@ const IMAGE_FRAMES = [
             const pad = 82;
             const rx = shape === 'rounded' ? 120 : 10;
             return `
-              <rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="8" opacity="0.65"/>
-              <path d="M${pad} ${pad+160} L${pad+160} ${pad} M${w-pad} ${pad+160} L${w-pad-160} ${pad} M${pad} ${h-pad-160} L${pad+160} ${h-pad} M${w-pad} ${h-pad-160} L${w-pad-160} ${h-pad}" stroke="${color}" stroke-width="6" opacity="0.55"/>
+              <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" rx="${rx}" ry="${rx}" fill="none" stroke="${color}" stroke-width="8" opacity="0.65"/>
+              <path d="M${pad} ${pad + 160} L${pad + 160} ${pad} M${w - pad} ${pad + 160} L${w - pad - 160} ${pad} M${pad} ${h - pad - 160} L${pad + 160} ${h - pad} M${w - pad} ${h - pad - 160} L${w - pad - 160} ${h - pad}" stroke="${color}" stroke-width="6" opacity="0.55"/>
             `;
         },
     },

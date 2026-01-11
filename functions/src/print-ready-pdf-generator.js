@@ -775,12 +775,14 @@ function rtlize(text) {
     const embeddingLevels = bidi.getEmbeddingLevels(text, "ltr");
     const reorderedText = bidi.getReorderedString(text, embeddingLevels);
 
-    // Return reordered text without RLM to avoid double-reversal by smart viewers
-    return reorderedText;
+    // FIX: Prepend Left-to-Right Override (LRO) \u202D
+    // This forces PDF viewers to respect our visual ordering (which is reversed for LTR layout)
+    // and prevents them from automatically reversing the Hebrew "back" to logical order.
+    return "\u202D" + reorderedText;
   } catch (e) {
     console.warn("bidi-js failed, using fallback:", e);
     // Fallback: naive reversal
-    return Array.from(text).reverse().join("");
+    return "\u202D" + Array.from(text).reverse().join("");
   }
 }
 
