@@ -1,0 +1,687 @@
+/* AI Editor Core Styles */
+:root {
+    --bg-dark: #0f172a;
+    --bg-panel: #1e293b;
+    --bg-hover: #334155;
+    --accent: #8b5cf6;
+    /* Violet */
+    --accent-hover: #7c3aed;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #334155;
+
+    --sidebar-width: 320px;
+    --sidebar-collapsed: 64px;
+    --properties-width: 280px;
+    --timeline-height: 140px;
+    --header-height: 60px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow: hidden;
+    height: 100vh;
+}
+
+#app-container {
+    display: grid;
+    grid-template-columns: auto 1fr var(--properties-width);
+    grid-template-rows: 1fr var(--timeline-height);
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Sidebar Left */
+#sidebar-left {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    /* Span full height */
+    display: flex;
+    background-color: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    z-index: 10;
+    min-height: 0;
+    /* Critical for Grid 1fr */
+    overflow: hidden;
+    /* Prevent blowout */
+}
+
+.sidebar-nav {
+    width: var(--sidebar-collapsed);
+    background-color: #0f172a;
+    /* Darker stripe */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 20px;
+    gap: 20px;
+    border-right: 1px solid var(--border);
+}
+
+.nav-item {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-item:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.nav-item.active {
+    background-color: var(--accent);
+    color: white;
+}
+
+.sidebar-content {
+    width: calc(var(--sidebar-width) - var(--sidebar-collapsed));
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    /* Critical to stop expansion */
+}
+
+.tab-pane {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+}
+
+.tab-pane.active {
+    display: flex;
+}
+
+.panel-header {
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* Both Grid and List need scrolling and layout */
+.asset-grid,
+.asset-list {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 12px;
+    overflow-y: auto;
+    /* Ensure it takes remaining height in flex container */
+    flex: 1;
+    min-height: 0;
+    /* Critical for nested flex scrolling */
+}
+
+.asset-item {
+    aspect-ratio: 1;
+    background-color: var(--bg-hover);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: grab;
+    transition: transform 0.2s;
+    background-position: center;
+    background-size: cover;
+}
+
+.text-style-item span {
+    font-size: 32px !important;
+    /* Force larger preview */
+    pointer-events: none;
+}
+
+/* Workspace */
+#workspace {
+    grid-column: 2;
+    grid-row: 1;
+    background-color: #020617;
+    /* Very dark canvas bg */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.toolbar-top {
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 5;
+}
+
+.btn-tool {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-right: 8px;
+}
+
+.btn-tool:hover {
+    background: var(--bg-hover);
+}
+
+.btn-pill {
+    background: linear-gradient(135deg, var(--accent), #ec4899);
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    transition: transform 0.2s;
+}
+
+.btn-pill:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background-color: white;
+    color: black;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-secondary {
+    background: transparent;
+    color: white;
+    border: 1px solid var(--border);
+    padding: 10px 20px;
+    border-radius: 6px;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+#canvas-viewport {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+#canvas-container {
+    width: 80%;
+    height: 80%;
+    /* border: 1px dashed #334155; Debug outline */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Page Rendering */
+.shoso-page {
+    background: white;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    position: relative;
+    /* Aspect ratio managed by JS mostly, but defaults here */
+    width: 600px;
+    height: 400px;
+    transform-origin: center center;
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.drop-target-active {
+    outline: 2px dashed var(--accent);
+    outline-offset: -4px;
+}
+
+/* Right Sidebar */
+#sidebar-right {
+    grid-column: 3;
+    grid-row: 1;
+    background-color: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+}
+
+#properties-panel {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* Timeline */
+#timeline-bar {
+    grid-column: 2 / -1;
+    /* Span workspace to right */
+    grid-row: 2;
+    background-color: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+}
+
+#page-timeline {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 10px 0;
+    scrollbar-width: none;
+    /* Hide scrollbar */
+}
+
+.timeline-page {
+    width: 120px;
+    aspect-ratio: 3/2;
+    /* Default landscape */
+    background: #334155;
+    border-radius: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: 2px solid transparent;
+    overflow: hidden;
+    position: relative;
+}
+
+.timeline-page.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+}
+
+.btn-add-page {
+    background: var(--bg-hover);
+    border: 1px dashed var(--text-muted);
+    color: var(--text-muted);
+    padding: 0 20px;
+    height: 80px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-add-page:hover {
+    background: #334155;
+    color: white;
+    border-color: white;
+}
+
+/* Utility */
+.empty-state {
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 40px;
+    font-size: 0.9rem;
+}
+
+/* Selected State */
+.selected {
+    box-shadow: 0 0 0 2px var(--accent);
+    z-index: 100 !important;
+}
+
+/* Property Inputs */
+/* Property Inputs */
+.prop-group {
+    margin-bottom: 24px;
+}
+
+.prop-group label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.prop-group input[type="range"],
+.prop-group textarea,
+.prop-group select,
+.prop-group input[type="text"],
+.full-width {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    font-family: inherit;
+    backdrop-filter: blur(4px);
+    transition: border-color 0.2s;
+}
+
+.prop-group input:focus,
+.prop-group select:focus,
+.prop-group textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Layout Selector */
+.layout-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.layout-btn {
+    aspect-ratio: 4/3;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.layout-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.layout-btn.active {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.1);
+}
+
+/* Custom Range Slider */
+input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    padding: 0;
+    margin: 10px 0;
+    border: none;
+    backdrop-filter: none;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    margin-top: -6px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+/* Color Picker Customization */
+.color-picker-wrapper {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+    border-radius: 8px;
+    padding: 2px;
+    cursor: pointer;
+    height: 40px;
+    position: relative;
+}
+
+.color-input-hidden {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.color-icon {
+    margin-left: auto;
+    margin-right: 12px;
+    color: white;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Preview Mode */
+body.preview-mode #sidebar-left,
+body.preview-mode #sidebar-right,
+body.preview-mode .toolbar-top,
+body.preview-mode #timeline-bar {
+    display: none !important;
+}
+
+body.preview-mode #app-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+}
+
+body.preview-mode #workspace {
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+}
+
+/* Add a close preview button that only shows in preview mode */
+#btn-preview {
+    z-index: 999;
+}
+
+body.preview-mode .toolbar-top {
+    display: flex !important;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
+    width: auto;
+    padding: 10px;
+    height: auto;
+}
+
+body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
+    display: none;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+.modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--bg-panel);
+    padding: 30px;
+    border-radius: 16px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPop {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.close-btn {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    font-size: 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: white;
+}
+
+.modal-body h2 {
+    margin-top: 0;
+    font-family: 'Playfair Display', serif;
+}
+
+/* Ensure link in modal looks like a button */
+#btn-download-trigger {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    text-decoration: none;
+    margin-top: 10px;
+    width: 100%;
+}
+
+/* Magic Director Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 100001;
+    /* Above everything */
+    display: none;
+    /* Hidden by default */
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-overlay[style*="display: block"] {
+    display: flex !important;
+    /* Force flex to center content even if JS sets block */
+}
+
+/* Magic Director Modal - Specific Overrides */
+#magic-create-modal {
+    z-index: 200000 !important;
+    /* Ensure it stays on top of everything */
+}
+
+#magic-create-modal .modal-content {
+    background: #1e293b;
+    /* var(--bg-panel) */
+    background: linear-gradient(to bottom, #1e293b, #0f172a);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    /* faint purple border */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    padding: 0;
+    /* padding moved to body/header */
+    overflow: hidden;
+    max-width: 550px;
+}
+
+#magic-create-modal .modal-header {
+    background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+    /* AI Purple Gradient */
+    color: white;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#magic-create-modal .modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#magic-create-modal .modal-body {
+    padding: 24px;
+    text-align: left;
+}
+
+#magic-create-modal p {
+    color: #94a3b8;
+    /* var(--text-muted) */
+    margin-top: 0;
+    line-height: 1.5;
+}
+
+#magic-create-modal textarea {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid #334155;
+    color: #f8fafc;
+    padding: 16px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    resize: vertical;
+    margin: 16px 0 24px 0;
+    transition: all 0.2s;
+    outline: none;
+}
+
+#magic-create-modal textarea:focus {
+    border-color: #a855f7;
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+
+#magic-create-modal .button-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}

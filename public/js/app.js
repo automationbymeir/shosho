@@ -11960,3 +11960,16 @@ window.closeDesignStudio = function () {
 
 // Expose for debugging / manual refresh
 window.renderDesignStudioImageFrames = renderDesignStudioImageFrames;
+
+// ============================================
+// PDF DOWNLOAD HELPER (Global)
+// ============================================
+window.downloadPdfOnly = function() {
+    console.log("[Global] downloadPdfOnly called.");
+    if (window.pdfExport && state.pages) {
+        window.pdfExport.generatePDF(state.pages, state.cover, state.assets);
+    } else {
+        console.error("PDF Export module or State not ready.");
+        alert("Editor not ready for PDF export yet. Please wait.");
+    }
+};

@@ -89,6 +89,9 @@
   <!-- Templates Data -->
   <script src="/data/templates.js?v=v3_he_gallery_labels"></script>
   <script src="/data/backgrounds.js?v=v5_image_frames_more"></script>
+
+  <!-- PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 
 <body>
@@ -395,7 +398,8 @@
                   <button class="btn-text danger" onclick="clearSelectedPhotos()">Clear</button>
                 </div>
               </div>
-              <div id="selectedPhotosList" class="photo-grid"></div>
+              <div id="photo-library" class="photo-grid"></div>
+              <div id="selectedPhotosList" class="photo-grid" style="display:none"></div>
             </div>
           </div>
 
@@ -487,6 +491,48 @@
                     <span class="icon">✨</span> Design with AI
                   </button>
                 </div>
+              </div>
+
+              <!-- Designs (Backgrounds) -->
+              <div class="design-section">
+                <div class="design-section-title">
+                  <span class="icon icon-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <path d="M3 15h18" />
+                    </svg>
+                  </span>
+                  Designs
+                </div>
+                <div id="design-library" class="photo-grid"></div>
+              </div>
+
+              <!-- Frames (NEW) -->
+              <div class="design-section">
+                <div class="design-section-title">
+                  <span class="icon icon-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="12" cy="12" r="5" />
+                    </svg>
+                  </span>
+                  Frames
+                </div>
+                <div id="frame-library" class="photo-grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+              </div>
+
+              <!-- Text Styles -->
+              <div class="design-section">
+                <div class="design-section-title">
+                  <span class="icon icon-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M4 7V4h16v3" />
+                      <line x1="12" y1="4" x2="12" y2="20" />
+                    </svg>
+                  </span>
+                  Text Styles
+                </div>
+                <div id="text-library" class="photo-grid"></div>
               </div>
 
               <!-- Filters -->
@@ -1787,6 +1833,25 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Download Ready Modal -->
+  <div class="modal" id="pdfDownloadModal" style="z-index: 100000;">
+    <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;">
+      <div class="modal-header" style="border: none; padding-bottom: 0;">
+        <button class="close-btn"
+          onclick="document.getElementById('pdfDownloadModal').classList.remove('active')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
+        <h2>PDF Ready!</h2>
+        <p style="margin-bottom: 2rem; color: #666;">Your high-resolution PDF has been generated.</p>
+        <a id="btn-download-trigger" class="btn btn-primary btn-lg"
+          style="width: 100%; display: flex; justify-content: center; align-items: center; text-decoration: none; padding: 12px;">
+          Download PDF
+        </a>
       </div>
     </div>
   </div>

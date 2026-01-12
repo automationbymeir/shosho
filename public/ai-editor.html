@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shoso AI Editor</title>
+
+    <!-- Fonts -->
+    <script type="importmap">
+    {
+      "imports": {
+        "@google/generative-ai": "https://esm.run/@google/generative-ai"
+      }
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;500;600;700&family=DM+Serif+Display&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Editor CSS -->
+    <link rel="stylesheet" href="css/ai-editor.css">
+</head>
+
+<body class="theme-dark">
+    <div id="app-container">
+        <!-- Left Sidebar: Assets -->
+        <aside id="sidebar-left">
+            <div class="sidebar-nav">
+                <button class="nav-item active" data-tab="photos" title="Photos"><i
+                        class="fa-regular fa-images"></i></button>
+                <button class="nav-item" data-tab="designs" title="Designs"><i
+                        class="fa-solid fa-paintbrush"></i></button>
+                <button class="nav-item" data-tab="text" title="Text"><i class="fa-solid fa-font"></i></button>
+                <button class="nav-item" data-tab="ai" title="AI Generate"><i
+                        class="fa-solid fa-wand-magic-sparkles"></i></button>
+                <button class="nav-item" data-tab="frames" title="Frames"><i class="fa-regular fa-square"></i></button>
+            </div>
+
+            <div class="sidebar-content">
+                <div id="tab-photos" class="tab-pane active">
+                    <div class="panel-header">
+                        <h3>Photos</h3>
+                        <button class="btn-icon" id="btn-add-photos-sidebar"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <!-- Photo Grid Injection Point -->
+                    <div id="photo-library" class="asset-grid"></div>
+                </div>
+
+                <div id="tab-designs" class="tab-pane">
+                    <div class="panel-header">
+                        <h3>Designs</h3>
+                    </div>
+                    <div id="design-library" class="asset-list"></div>
+                </div>
+
+                <div id="tab-text" class="tab-pane">
+                    <div class="panel-header">
+                        <h3>Typography</h3>
+                    </div>
+                    <div id="text-library" class="asset-list"></div>
+                </div>
+
+                <!-- Nano Banana AI Tab -->
+                <div id="tab-ai" class="tab-pane">
+                    <div class="panel-header" style="background: linear-gradient(135deg, #1e1e2f 0%, #2d2b42 100%);">
+                        <h3 style="display:flex; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-wand-magic-sparkles" style="color: #a855f7;"></i>
+                            AI Studio
+                        </h3>
+                    </div>
+                    <div style="padding: 15px;">
+                        <p style="font-size: 0.85em; color: #aaa; margin-bottom: 10px;">
+                            Generate unique assets using <strong>Nano Banana</strong> logic.
+                        </p>
+                        <textarea id="ai-prompt-input" rows="4"
+                            placeholder="Describe an image (e.g., 'golden sunset over mountains, oil painting style')"
+                            style="width: 100%; padding: 10px; background: #333; border: 1px solid #444; color: white; border-radius: 6px; font-family: inherit; margin-bottom: 10px; resize: vertical;"></textarea>
+
+                        <button id="btn-generate-ai" class="btn-primary"
+                            style="width: 100%; justify-content: center; background: linear-gradient(90deg, #a855f7, #6366f1);">
+                            <i class="fa-solid fa-bolt"></i> Generate Asset
+                        </button>
+                    </div>
+                </div>
+
+                <div id="tab-frames" class="tab-pane">
+                    <div class="panel-header">
+                        <h3>Frames</h3>
+                    </div>
+                    <div id="frame-library" class="asset-list"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main id="workspace">
+            <div class="toolbar-top">
+                <div class="toolbar-group">
+                    <button class="btn-tool" id="btn-undo"><i class="fa-solid fa-rotate-left"></i></button>
+                    <button class="btn-tool" id="btn-redo"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+
+                <div class="toolbar-group center">
+                    <button class="btn-pill" id="btn-remix-layout" style="background: rgba(255,255,255,0.1);">
+                        <i class="fa-solid fa-shuffle"></i> Remix Layout
+                    </button>
+                    <!-- New Magic Director Button -->
+                    <button class="btn-pill" id="btn-magic-create"
+                        style="background: linear-gradient(90deg, #a855f7, #ec4899); color: white; font-weight: bold; border: none; margin-left: 10px;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Magic Create
+                    </button>
+                </div>
+
+                <div class="toolbar-group">
+                    <button class="btn-secondary" id="btn-preview">Preview</button>
+                    <button class="btn-primary" id="btn-review">Review & Order</button>
+                    <button class="btn-primary" id="btn-order-print"
+                        style="display:none; background-color: #27ae60; border-color: #27ae60;">Order Album</button>
+                </div>
+            </div>
+
+            <!-- The Infinite Canvas Area -->
+            <div id="canvas-viewport">
+                <div id="canvas-container">
+                    <!-- Pages will be rendered here by RenderEngine -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Properties -->
+        <aside id="sidebar-right">
+            <div class="panel-header">
+                <h3>Properties</h3>
+            </div>
+            <div id="properties-panel">
+                <div class="empty-state">Select an element to edit</div>
+            </div>
+        </aside>
+
+        <!-- Bottom Bar: Timeline -->
+        <footer id="timeline-bar">
+            <div class="timeline-controls">
+                <button class="btn-icon"><i class="fa-solid fa-chevron-left"></i></button>
+            </div>
+            <div id="page-timeline">
+                <!-- Page thumbnails injected here -->
+            </div>
+            <div class="timeline-controls">
+                <button class="btn-icon"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <button class="btn-add-page"><i class="fa-solid fa-plus"></i> Add Page</button>
+        </footer>
+    </div>
+
+    <!-- Data Loading -->
+    <script src="data/backgrounds.js"></script>
+    <script src="data/templates.js"></script>
+    <script src="data/textStyles.js"></script>
+
+    <!-- PDF Lib -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Firebase SDKs (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+    <!-- Google Identity Services & Picker API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <!-- Upload Options Modal -->
+    <div id="upload-options-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content"
+            style="max-width: 500px; text-align: center; position: relative; padding-top: 40px; border: 1px solid var(--border);">
+            <button class="btn-icon" onclick="document.getElementById('upload-options-modal').style.display='none'"
+                style="position: absolute; right: 15px; top: 15px; color: var(--text-muted); cursor: pointer;">
+                <i class="fa-solid fa-xmark" style="font-size: 20px;"></i>
+            </button>
+
+            <div class="modal-header"
+                style="justify-content: center; border-bottom: none; padding-bottom: 0; margin-bottom: 20px;">
+                <h3 style="font-size: 1.5rem; margin: 0;">Add Photos</h3>
+            </div>
+
+            <div class="modal-body"
+                style="display: flex; gap: 20px; padding: 0 20px 30px 20px; justify-content: center;">
+                <button id="btn-upload-local" class="btn-secondary"
+                    style="flex: 1; display: flex; align-items: center; justify-content: center; height: 60px; gap: 12px; font-size: 1.1rem;">
+                    <i class="fa-solid fa-computer" style="font-size: 20px;"></i>
+                    Computer
+                </button>
+                <button id="btn-upload-google" class="btn-primary"
+                    style="flex: 1; display: flex; align-items: center; justify-content: center; height: 60px; gap: 12px; font-size: 1.1rem; background-color: #4285F4; color: white; border: none;">
+                    <i class="fa-brands fa-google" style="font-size: 20px;"></i>
+                    Google Photos
+                </button>
+            </div>
+            <input type="file" id="file-upload-input" multiple accept="image/*" style="display: none;">
+        </div>
+    </div>
+
+    <!-- Magic Create Modal -->
+    <div id="magic-create-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Magic Director</h3>
+                <button class="btn-icon" style="color: white;"
+                    onclick="document.getElementById('magic-create-modal').style.display='none'"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Describe the album you want to create (e.g. style, theme, mood)...</p>
+                <textarea id="magic-prompt-input" rows="4"
+                    placeholder="E.g., 'A cyberpunk city trip with neon lights' or 'Watercolor baby album'"></textarea>
+
+                <div class="button-group">
+                    <button class="btn-secondary"
+                        onclick="document.getElementById('magic-create-modal').style.display='none'">Cancel</button>
+                    <button id="btn-magic-submit" class="btn-primary"
+                        style="background: linear-gradient(90deg, #a855f7, #ec4899); color: white; border: none;">
+                        <i class="fa-solid fa-bolt"></i> Create Album
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Download Modal -->
+    <div class="modal" id="pdfDownloadModal">
+        <div class="modal-content">
+            <button class="close-btn"
+                onclick="document.getElementById('pdfDownloadModal').classList.remove('active')">&times;</button>
+            <div class="modal-body">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
+                <h2>PDF Ready!</h2>
+                <p style="margin-bottom: 2rem; color: #94a3b8;">Your high-resolution PDF has been generated.</p>
+                <a id="btn-download-trigger" class="btn-pill">
+                    Download PDF
+                </a>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Editor Modules -->
+    <script src="js/config.js"></script>
+    <script type="module" src="js/ai-editor/state.js"></script>
+    <script type="module" src="js/ai-editor/layout-engine.js"></script>
+    <script type="module" src="js/ai-editor/render-engine.js"></script>
+    <script type="module" src="js/ai-editor/pdf-export.js"></script>
+    <script type="module" src="js/ai-editor/app.js"></script>
+</body>
+
+</html>
