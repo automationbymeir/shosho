@@ -82,11 +82,11 @@ class App {
         // Load mock photos for MVP
         // In real implementation, this would fetch from Google Photos API
         const mockPhotos = [
-            { id: 'p1', url: 'https://images.unsplash.com/photo-1501854140884-074cf2cb3055?auto=format&fit=crop&w=500&q=60', ratio: 1.5 },
-            { id: 'p2', url: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=500&q=60', ratio: 1.5 },
-            { id: 'p3', url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=500&q=60', ratio: 0.67 }, // Portrait
-            { id: 'p4', url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=500&q=60', ratio: 1.5 },
-            { id: 'p5', url: 'https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=500&q=60', ratio: 1.5 }
+            { id: 'p1', url: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800&q=80', ratio: 1.5 }, // Mountians
+            { id: 'p2', url: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=800&q=80', ratio: 1.5 }, // Nature
+            { id: 'p3', url: 'https://images.unsplash.com/photo-1510784722466-f2aa9c52fff6?auto=format&fit=crop&w=800&q=80', ratio: 0.67 }, // Sunset
+            { id: 'p4', url: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=800&q=80', ratio: 1.5 }, // River
+            { id: 'p5', url: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=800&q=80', ratio: 1.5 }  // Forest
         ];
 
         store.state.assets.photos = mockPhotos;
@@ -347,6 +347,25 @@ class App {
                 orderFlow.startOrderFlow(blob);
             }
         });
+
+        // Magic Create Button (V2)
+        const btnMagicCreate = document.getElementById('btn-magic-create');
+        if (btnMagicCreate) {
+            btnMagicCreate.addEventListener('click', async () => {
+                const photos = store.state.assets.photos;
+                if (!photos || photos.length < 4) {
+                    alert("Please import at least 4 photos first (use the '+' button in Photos tab).");
+                    return;
+                }
+
+                if (window.magicLauncher) {
+                    window.magicLauncher.open(photos);
+                } else {
+                    console.error("MagicLauncher module not loaded");
+                    alert("Magic Create is initializing... please try again in a moment.");
+                }
+            });
+        }
 
         // Tab Navigation
         document.querySelectorAll('.nav-item').forEach(btn => {

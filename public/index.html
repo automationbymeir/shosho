@@ -92,6 +92,13 @@
 
   <!-- PDF Generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- Helper Scripts -->
+  <script src="/js/ai-editor/schemas/photo-analysis-schema.js" type="module"></script>
+  <script src="/js/ai-editor/schemas/album-schema.js" type="module"></script>
+  <script src="/js/ai-editor/schemas/page-schema.js" type="module"></script>
+  <script src="/js/ai-editor/gemini-banana-service.js" type="module"></script>
+  <script src="/js/ai-editor/magic-create-v2.js" type="module"></script>
+  <script src="/js/ai-editor/ui-components/magic-launcher.js" type="module"></script>
 </head>
 
 <body>
@@ -449,6 +456,19 @@
                     </span>
                     <span>Auto Layout</span>
                   </button>
+
+                  <!-- MAGIC CREATE BUTTON -->
+                  <button class="tool-btn" onclick="magicLauncher.open(getSelectedPhotos())"
+                    style="background: linear-gradient(135deg, #fce7f3, #e0e7ff); border: 1px solid #c084fc;">
+                    <span class="icon" style="color: #9333ea;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path
+                          d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                    </span>
+                    <span style="color: #7e22ce; font-weight: 600;">Magic Create v2</span>
+                  </button>
+
                   <button class="tool-btn" onclick="shuffleSelectedPhotos()">
                     <span class="icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -1862,6 +1882,9 @@
   <!-- Icons (Memory Director + UI) -->
   <script src="/js/icons.js"></script>
 
+  <!-- Nano Banana AI Service -->
+  <script type="module" src="/js/ai-editor/gemini-banana-service.js"></script>
+
   <!-- Main Application Script -->
   <script src="/js/app.js?v=v84_dropdown_bounce_fix"></script>
 
@@ -1870,6 +1893,13 @@
 
   <!-- Support Chat Widget (AI + Human escalation) -->
   <!-- <script src="/js/support-chat.js"></script> -->
+  <!-- Magic Create v2 Helper -->
+  <script type="module">
+    import { store } from '/js/ai-editor/state.js';
+    window.getSelectedPhotos = () => {
+      return store.state.assets.photos || [];
+    };
+  </script>
 </body>
 
 </html>

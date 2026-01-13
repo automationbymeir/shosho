@@ -207,31 +207,7 @@
         </div>
     </div>
 
-    <!-- Magic Create Modal -->
-    <div id="magic-create-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Magic Director</h3>
-                <button class="btn-icon" style="color: white;"
-                    onclick="document.getElementById('magic-create-modal').style.display='none'"><i
-                        class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body">
-                <p>Describe the album you want to create (e.g. style, theme, mood)...</p>
-                <textarea id="magic-prompt-input" rows="4"
-                    placeholder="E.g., 'A cyberpunk city trip with neon lights' or 'Watercolor baby album'"></textarea>
 
-                <div class="button-group">
-                    <button class="btn-secondary"
-                        onclick="document.getElementById('magic-create-modal').style.display='none'">Cancel</button>
-                    <button id="btn-magic-submit" class="btn-primary"
-                        style="background: linear-gradient(90deg, #a855f7, #ec4899); color: white; border: none;">
-                        <i class="fa-solid fa-bolt"></i> Create Album
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- PDF Download Modal -->
     <div class="modal" id="pdfDownloadModal">
@@ -256,6 +232,8 @@
     <script type="module" src="js/ai-editor/layout-engine.js"></script>
     <script type="module" src="js/ai-editor/render-engine.js"></script>
     <script type="module" src="js/ai-editor/pdf-export.js"></script>
+    <script type="module" src="js/ai-editor/magic-create-v2.js"></script>
+    <script type="module" src="js/ai-editor/ui-components/magic-launcher.js"></script>
     <script type="module" src="js/ai-editor/app.js"></script>
 </body>
 

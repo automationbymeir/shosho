@@ -20,102 +20,134 @@ class AIDirector {
     async magicCreate(photos, userPrompt) {
         if (this.isWorking) return;
         this.isWorking = true;
-        this.log("Starting Magic Create...");
+        this.log("Starting Magic Create (Nano Banana Edition)...");
 
         try {
-            // STEP 0: Prepare Photos (Get Base64s for Analysis)
-            // Ideally we send low-res thumbnails to save bandwidth
-            // For now, assume we take first 10 for analysis to define the structure
-            this.log("Step 1: Analyzing Photos (Curator Agent)...");
-
-            // Extract base64/url data. If Google Photo URL, we might need to fetch blo or send URL if model supports
-            // Gemini 1.5 accepts image bytes. We need to fetch.
-            // Simplified: We verify we have some photos.
+            // STEP 1: PREPARE AND "SEE" PHOTOS
             if (photos.length === 0) throw new Error("No photos selected.");
 
-            // We'll define a 'plan' prompt
+            this.log(`Step 1: Reading ${photos.length} photos for Vision Analysis...`);
+
+            // Limit to 16 for vision context window efficiency, though 1.5 Pro handles many.
+            const visionPhotos = photos.slice(0, 16);
+            const imageBase64s = await this.fetchImagesAsBase64(visionPhotos);
+
+            this.log("Step 2: Analyzing Visuals (Nano Banana Curator)...");
+
+            // Fetch available frames for context
+            const availableFrames = window.PAGE_FRAMES
+                ? window.PAGE_FRAMES.map(f => `${f.id} (${f.name})`).join(', ')
+                : "frame-classic-gold, frame-modern-bold, frame-elegant-serif";
+
+            // CREATIVE VISION PROMPT
             const analysisPrompt = `
-                You are a professional Photo Book Curator.
-                I have ${photos.length} photos.
-                The user's theme is: "${userPrompt}".
-                
-                Please group these photos into Logical Double-Page Spreads (Pages).
-                Each spread should have 1 to 4 photos.
-                Return a JSON object with this structure:
+                You are "Nano Banana", an elite, avant-garde Design Intelligence.
+                I am showing you ${imageBase64s.length} photos from a user's collection.
+                The user's intent is: "${userPrompt}".
+
+                **YOUR MISSION:**
+                1. **VIBE CHECK**: Look deeply at the photos. What is the *real* mood? Is it sunny/vibrant? Dark/cinematic? Soft/pastel? Chaotic/fun?
+                2. **VISUAL CLUSTERING**: Group these photos into Double-Page Spreads (Pages) based on their *visual* content and time. 
+                   - Put similar "scenes" together (e.g. all food shots, all beach shots).
+                3. **DESIGN GENERATION**:
+                   - **Background**: Describe a *unique, artistic* background texture that perfectly complements the specific colors and mood you see. 
+                     - DO NOT be generic. 
+                     - Example: "A textured oil painting in varying shades of deep teal and burnt orange, mimicking the sunset shadows seen in the photos."
+                   - **Frame**: selected from [${availableFrames}]. Pick the one that fits the vibe.
+                4. **STORYTELLING**:
+                   - Title: A creative, non-generic title.
+                   - Captions: Write short, witty, or heartfelt captions based on what is *actually happening* in the photos.
+
+                Return JSON EXACTLY:
                 {
-                    "themeKeywords": ["keyword1", "keyword2"],
-                    "visualStyleDescription": "description for image generator",
+                    "bookTitle": "String",
+                    "bookSubtitle": "String",
+                    "visualStyleDescription": "String (The specific prompt for the background generator)",
+                    "suggestedFrameId": "String (id from list)",
                     "pages": [
-                        { "pageId": 1, "photoIndices": [0, 1, 2], "caption": "Fun in the sun" },
-                        ...
+                        { 
+                          "pageId": Number, 
+                          "photoIndices": [Number, Number...], 
+                          "caption": "String" 
+                        }
                     ]
                 }
-                
-                Ignore photo content verification for now, just pretend you see them and group by hypothetical timestamps or logic.
-                (Note: In real production, we'd send the image bytes. Here we trust the array indices).
             `;
 
-            // Call Gemini (Text-only mode for speed/demo if we don't upload bytes, 
-            // OR we upload bytes if we have them. Let's try Text logic first for robustness).
-            const analysis = await geminiService.analyzePhotos(analysisPrompt, []); // Empty images for now to save bandwidth
+            // Call Gemini with REAL IMAGES
+            const analysis = await geminiService.analyzePhotos(analysisPrompt, imageBase64s);
+            console.log("Nano Banana Analysis:", analysis);
 
-            console.log("AI Plan:", analysis);
-            this.log("Step 2: Generating Assets (Art Director)...");
+            // STEP 3: GENERATE ASSETS
+            this.log("Step 3: Dreaming up the Background...");
 
-            // STEP 2: Generate Theme Assets
-            // Background
-            const bgPrompt = `High quality, texture background for a photo book. Theme: ${analysis.visualStyleDescription || userPrompt}. seamless, artistic, faint pattern.`;
+            // Use the AI's *specific* visual description for the background
+            const bgPrompt = `Artistic texture background. ${analysis.visualStyleDescription}. High resolution, seamless, no text, abstract art style.`;
             const bgUrl = await geminiService.generateImage(bgPrompt);
 
-            // Frame (Simulated)
-            // We could generate a frame, or just pick a style. Let's generate a secondary 'sticker' or graphic
-            // const stickerUrl = await geminiService.generateImage(`Sticker/Clipart for ${userPrompt}, transparent background`);
+            // Frame Validation
+            let frameId = analysis.suggestedFrameId;
+            if (window.PAGE_FRAMES && !window.PAGE_FRAMES.find(f => f.id === frameId)) {
+                frameId = window.PAGE_FRAMES[0].id;
+            }
 
-            // STEP 3: Assemble Book
-            this.log("Step 3: Assembling Album...");
+            // STEP 4: ASSEMBLE
+            this.log("Step 4: Assembling Content...");
 
-            // Clear existing pages? Or append? Let's Append.
-            // Actually, "Magic Create" typically implies a fresh start or specific section.
-            // Let's create new pages.
-
-            // Register the new Background
+            // Register Background
             const bgAsset = {
                 id: 'ai_bg_' + Date.now(),
                 url: bgUrl,
                 type: 'background',
-                source: 'gemini'
+                source: 'gemini-nano-banana',
+                name: 'Nano Art: ' + (analysis.visualStyleDescription?.substring(0, 20) || 'Custom')
             };
             store.state.assets.backgrounds.push(bgAsset);
+
+            // Update Cover
+            if (store.state.cover) {
+                store.state.cover.title = analysis.bookTitle || userPrompt;
+                store.state.cover.subtitle = analysis.bookSubtitle || "Curated by Nano Banana";
+                store.notify('cover', store.state.cover);
+            }
 
             // Build Pages
             if (analysis.pages && Array.isArray(analysis.pages)) {
                 analysis.pages.forEach((plan, idx) => {
-                    // map indices to actual photo objects
                     const pagePhotos = plan.photoIndices
-                        .map(i => photos[i])
-                        .filter(p => p); // ensure existence
+                        .map(i => visionPhotos[i]) // Map back to the vision set we sent (indices must match sent array)
+                        .filter(p => p);
 
                     if (pagePhotos.length === 0) return;
 
-                    // Create Page
                     store.addPage();
                     const newPage = store.state.pages[store.state.pages.length - 1];
 
-                    // Apply Background
+                    // Apply AI Assets
                     newPage.backgroundId = bgAsset.id;
+                    newPage.frameId = frameId;
 
-                    // Apply Layout
-                    // layoutEngine uses generateLayout(photos)
-                    const layout = layoutEngine.generateLayout(pagePhotos);
-                    newPage.layout = layout;
+                    // Layout
+                    newPage.layout = layoutEngine.generateLayout(pagePhotos);
 
-                    // Assign Photos to Slots (already done by generateLayout usually, but verifying)
-                    // generateLayout returns { name, slots: [{x,y,w,h, photoId}] } where photoId is assigned
-
-                    // Add Caption (Text)
+                    // Typography
                     if (plan.caption) {
-                        // find a text slot or add random text element?
-                        // Simplified: Just console log for now, or add a text element if layout supports
+                        const textElement = {
+                            id: `txt_${Date.now()}_${idx}`,
+                            type: 'text',
+                            content: plan.caption,
+                            x: 10,
+                            y: 90,
+                            width: 80,
+                            height: 8,
+                            fontSize: 16,
+                            align: 'center',
+                            fontFamily: 'Playfair Display',
+                            color: '#1a1a1a',
+                            styleId: 'caption-default'
+                        };
+                        if (!newPage.elements) newPage.elements = [];
+                        newPage.elements.push(textElement);
                     }
                 });
             }
@@ -123,7 +155,7 @@ class AIDirector {
             store.notify('pages', store.state.pages);
             store.notify('assets', store.state.assets);
             this.log("Magic Create Complete!");
-            alert("✨ Magic Album Created!");
+            alert("✨ Nano Banana has spoken! Album Created.");
 
         } catch (e) {
             console.error("AI Director Error:", e);
@@ -131,6 +163,38 @@ class AIDirector {
         } finally {
             this.isWorking = false;
         }
+    }
+
+    /**
+     * Helper: Fetch photo URLs and convert to Base64
+     * @param {Array} photos 
+     * @returns {Promise<Array<string>>}
+     */
+    async fetchImagesAsBase64(photos) {
+        const promises = photos.map(async (p) => {
+            try {
+                // Use thumbnailUrl if available (faster), else url
+                // Note: Google Photos URLs might need proxying if CORS is an issue, 
+                // but usually thumbnail links (lh3.googleusercontent.com) are permissible for <img>.
+                // For fetch(), we might hit CORS. 
+                // If CORS fails, we might need to rely on the backend or a proxy.
+                // Assuming standard "blob fetch" works for loaded images or permitted domains.
+                const url = p.thumbnailUrl || p.url;
+                const response = await fetch(url);
+                const blob = await response.blob();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                console.warn(`Failed to fetch image ${p.id} for analysis`, e);
+                return null;
+            }
+        });
+
+        const results = await Promise.all(promises);
+        return results.filter(r => r !== null);
     }
 
     log(msg) {

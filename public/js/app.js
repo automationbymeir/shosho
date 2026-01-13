@@ -2248,6 +2248,10 @@ function setMDPaperTexture(texture) {
 /**
  * Initialize Memory Director with selected photos
  */
+
+/**
+ * Initialize Memory Director with selected photos
+ */
 async function initMemoryDirector() {
     if (!state.selectedPhotos || state.selectedPhotos.length === 0) {
         state.pendingStartMemoryDirector = true;
@@ -11964,7 +11968,7 @@ window.renderDesignStudioImageFrames = renderDesignStudioImageFrames;
 // ============================================
 // PDF DOWNLOAD HELPER (Global)
 // ============================================
-window.downloadPdfOnly = function() {
+window.downloadPdfOnly = function () {
     console.log("[Global] downloadPdfOnly called.");
     if (window.pdfExport && state.pages) {
         window.pdfExport.generatePDF(state.pages, state.cover, state.assets);
@@ -11973,3 +11977,230 @@ window.downloadPdfOnly = function() {
         alert("Editor not ready for PDF export yet. Please wait.");
     }
 };
+
+// ============================================
+// NANO BANANA MAGIC CREATE (Rebuild)
+// ============================================
+
+/**
+ * Helper: Fetch photo URLs and convert to Base64
+ */
+async function fetchImagesAsBase64(photos) {
+    const promises = photos.map(async (p) => {
+        try {
+            // Prefer thumbnail for speed/cors, fallback to full url
+            const url = p.thumbnailUrl || p.baseUrl || p.url;
+            if (!url) return null;
+
+            const response = await fetch(url);
+            const blob = await response.blob();
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve({ id: p.id, base64: reader.result.split(',')[1] }); // Remove data prefix
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            console.warn(`Failed to fetch image ${p.id}`, e);
+            return null;
+        }
+    });
+
+    const results = await Promise.all(promises);
+    return results.filter(r => r !== null);
+}
+
+/**
+ * Main Entry Point for Magic Create
+ */
+async function startMagicCreate() {
+    console.log("Starting Nano Banana Magic Create...");
+
+    // 1. Validation & Auto-Select for Dev
+    if ((!state.selectedPhotos || state.selectedPhotos.length === 0) && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+        console.warn("Dev Mode: Auto-selecting photos for Magic Create...");
+        // Use existing assets or default mocks
+        if (state.assets && state.assets.photos && state.assets.photos.length >= 5) {
+            state.selectedPhotos = state.assets.photos;
+        } else {
+            // Fallback mocks
+            state.selectedPhotos = [
+                { id: 'p1', url: 'https://images.unsplash.com/photo-1501854140884-074cf2cb3055?auto=format&fit=crop&w=500&q=60' },
+                { id: 'p2', url: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=500&q=60' },
+                { id: 'p3', url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=500&q=60' },
+                { id: 'p4', url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=500&q=60' },
+                { id: 'p5', url: 'https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=500&q=60' }
+            ];
+        }
+    }
+
+    if (!state.selectedPhotos || state.selectedPhotos.length < 5) {
+        alert("Please select at least 5 photos first.");
+        return;
+    }
+
+    const btn = document.getElementById('btn-magic-create');
+    const originalText = btn ? btn.innerHTML : 'Magic Create';
+    if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+        btn.disabled = true;
+    }
+
+    // 2. Init Service
+    if (window.geminiService && !window.geminiService.genAI) {
+        const key = "AIzaSyCw0jvaapxUWW7zMWSTIzY2cNQf-0GkfPk"; // Hardcoded from ai-editor/app.js
+        window.geminiService.init(key);
+    }
+
+    if (!window.geminiService || !window.geminiService.genAI) {
+        alert("AI Service not available. Please refresh.");
+        if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+        return;
+    }
+
+    try {
+        // 3. Prepare Images (Vision)
+        // Limit to 16 to respect quotas/latency
+        const subset = state.selectedPhotos.slice(0, 16);
+        const images = await fetchImagesAsBase64(subset);
+
+        if (images.length === 0) throw new Error("Could not load any photo data.");
+
+        // 4. Analyze (Nano Banana Vibe Check)
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-brain fa-bounce"></i> Dreaming...';
+
+        const analysisPrompt = `
+            You are Nano Banana, an elite, avant-garde Design Intelligence.
+            Your mission is to curate a high-end photo book from a set of user photos.
+            
+            I have provided ${images.length} photos.
+            
+            YOUR CREATIVE PROCESS:
+            1. **Vibe Check**: Analyze the visual content, colors, mood, and setting of the actual photos. What is the "soul" of this collection?
+            2. **Visual Clustering**: Group these photos into logical spreads (2-4 photos per spread) based on their visual similarity and narrative flow.
+            3. **Design Direction**:
+               - Create a HIGHLY SPECIFIC, ARTISTIC prompt for a background texture that matches the vibe. Do NOT say "generic gradient". Say "a soft watercolor wash in indigo and sand, wet-on-wet technique, paper texture" or "cyberpunk neon grid with bokeh, dark mode".
+               - The background prompt must be suitable for an image generator.
+               - Choose a Frame Style from: "frame-classic-gold", "frame-modern-bold", "frame-elegant-serif", "frame-botanical-leaf", "frame-geometric-modern".
+
+            Return a strict JSON object:
+            {
+                "bookTitle": "Creative Title Based on Content",
+                "visualStyleDescription": "Your detailed background texture prompt",
+                "suggestedFrameId": "frame-modern-bold",
+                "spreads": [
+                    { 
+                        "photoIndices": [0, 1, 2],
+                        "caption": "Creative caption based on what is clearly visible"
+                    }
+                ]
+            }
+        `;
+
+        const analysis = await window.geminiService.analyzePhotos(analysisPrompt, images.map(i => i.base64));
+        console.log("Nano Banana Analysis:", analysis);
+
+        // 5. Generate Asset (Creation)
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-paintbrush fa-flip"></i> Painting...';
+
+        const bgPrompt = `Texture for photo book background. ${analysis.visualStyleDescription}. High resolution, seamless pattern, artistic style, no text, no realistic photos, just abstract texture.`;
+        const bgUrl = await window.geminiService.generateImage(bgPrompt);
+
+        // 6. Apply to Book
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Assembling...';
+
+        // Add Background Asset
+        // Ensure backgrounds array exists
+        if (!state.assets.backgrounds) state.assets.backgrounds = [];
+
+        const bgAsset = {
+            id: 'ai_bg_' + Date.now(),
+            url: bgUrl,
+            name: 'Nano Banana Custom',
+            generated: true,
+            category: 'AI'
+        };
+        state.assets.backgrounds.push(bgAsset);
+
+        // Cover Update
+        if (state.cover) {
+            state.cover.title = analysis.bookTitle || state.cover.title;
+        }
+
+        // Create Spreads
+        if (analysis.spreads) {
+            analysis.spreads.forEach(spread => {
+                const pagePhotos = spread.photoIndices.map(idx => subset[idx]).filter(Boolean);
+                if (pagePhotos.length === 0) return;
+
+                // Add Page
+                // We use helper if available or manual
+                // Reuse addPage() logic usually available in global scope if app.js exposes it
+                // app.js has window.addPage line 8303 (I didn't verify line number but usually yes)
+                // Let's manually push to state to be safe
+
+                const newPage = {
+                    id: 'page_' + Date.now() + Math.random(),
+                    layout: { slots: pagePhotos.length, name: `Collage (${pagePhotos.length})` }, // Simple mock layout object
+                    photos: Array(pagePhotos.length).fill(null).map((_, i) => ({
+                        ...pagePhotos[i], // Copy photo data
+                        edited: false
+                    })),
+                    background: { type: 'image', url: bgUrl, color: '#ffffff', opacity: 1 },
+                    frameId: analysis.suggestedFrameId,
+                    elements: [] // Text elements
+                };
+
+                // Add Caption if present
+                if (spread.caption) {
+                    newPage.elements.push({
+                        id: 'txt_' + Date.now(),
+                        type: 'text',
+                        content: spread.caption,
+                        x: 10, y: 90, width: 80, fontSize: 14,
+                        fontFamily: 'Playfair Display', color: '#333333', align: 'center',
+                        rotation: 0
+                    });
+                }
+
+                state.pages.push(newPage);
+            });
+
+            // Trigger Render
+            if (typeof renderPageThumbnails === 'function') renderPageThumbnails();
+            if (typeof updatePageIndicator === 'function') updatePageIndicator();
+
+            state.currentPageIndex = Math.max(0, state.pages.length - analysis.spreads.length);
+            if (typeof renderCurrentPage === 'function') renderCurrentPage();
+        }
+
+        alert("✨ Magic Create Complete! ✨\nNano Banana has designed your book.");
+
+    } catch (e) {
+        console.error("Magic Create Error:", e);
+        alert("Magic Create encountered an anomaly: " + e.message);
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+}
+
+// Bind Global Listener
+document.addEventListener('DOMContentLoaded', () => {
+    // Retry finding button in case of dynamic injection
+    const interval = setInterval(() => {
+        const btn = document.getElementById('btn-magic-create');
+        if (btn) {
+            // Remove old listeners by cloning
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', startMagicCreate);
+            console.log("Nano Banana Magic Create Button Activated 🍌");
+            clearInterval(interval);
+        }
+    }, 1000);
+
+    // Clear interval after 10s
+    setTimeout(() => clearInterval(interval), 10000);
+});
