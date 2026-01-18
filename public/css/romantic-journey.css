@@ -1,0 +1,75 @@
+/* romantic-journey.css */
+
+.album-page.romantic-journey {
+    position: relative;
+    width: 800px;
+    margin: 0 auto;
+    aspect-ratio: 800/600;
+    background-color: #F5F2EF;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    /* Ensure clean edges for PDF export */
+    box-sizing: border-box;
+}
+
+/* Photo Slots */
+.album-page.romantic-journey .photo-slot {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+    z-index: 5;
+    /* Photos above background, below text/decor */
+}
+
+.album-page.romantic-journey .photo-slot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Typography */
+.album-page.romantic-journey .text-element {
+    z-index: 10;
+    pointer-events: auto;
+    /* Allow text editing clicks if needed */
+}
+
+/* Font Families - Assumes loaded via Google Fonts or @font-face */
+.album-page.romantic-journey .text-title,
+.album-page.romantic-journey .text-heading,
+.album-page.romantic-journey .text-script,
+.album-page.romantic-journey .text-chapter,
+.album-page.romantic-journey .text-quote {
+    font-family: 'Pinyon Script', cursive;
+    font-weight: 400;
+}
+
+.album-page.romantic-journey .text-body,
+.album-page.romantic-journey .text-subtitle,
+.album-page.romantic-journey .text-date {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+}
+
+.album-page.romantic-journey .text-sans,
+.album-page.romantic-journey .text-bold {
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* Decorations */
+.album-page.romantic-journey .decoration {
+    z-index: 1;
+    /* Behind photos usually, or adjust in JSON z-index if supported */
+}
+
+/* Title Card Component */
+.album-page.romantic-journey .title-card {
+    background-color: #C4956A;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 20;
+    /* Floating above photos */
+}

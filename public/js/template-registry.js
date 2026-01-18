@@ -1,0 +1,51 @@
+// template-registry.js
+
+const ALBUM_TEMPLATES = {
+    'romantic-journey-v1': {
+        id: 'romantic-journey-v1',
+        name: 'Romantic Journey',
+        description: 'Elegant couple & wedding album',
+        thumbnail: '/assets/templates/romantic-journey-thumb.jpg',
+        category: 'wedding',
+        minPhotos: 20,
+        configPath: '/templates/romantic-journey-template.json'
+    },
+    'photography-portfolio-v1': {
+        id: 'photography-portfolio-v1',
+        name: 'Photography Portfolio',
+        description: 'Professional studio & portfolio showcase',
+        thumbnail: '/assets/templates/photography-portfolio-thumb.jpg',
+        category: 'portfolio',
+        minPhotos: 15,
+        configPath: '/templates/photography-portfolio-template.json'
+    },
+    'travel-journey-v1': {
+        id: 'travel-journey-v1',
+        name: 'Travel Journey',
+        description: 'Clean, elegant travel photo album',
+        thumbnail: '/assets/templates/travel-journey-thumb.jpg',
+        category: 'travel',
+        minPhotos: 15,
+        configPath: '/templates/travel-journey-template.json'
+    },
+    'family-roots-v1': {
+        id: 'family-roots-v1',
+        name: 'Family Roots',
+        description: 'A timeless album for family memories',
+        thumbnail: '/assets/templates/family-roots-thumb.jpg',
+        category: 'family',
+        minPhotos: 10,
+        configPath: '/templates/family-roots-template.json'
+    },
+    'bar-mitzvah-v1': {
+        id: 'bar-mitzvah-v1',
+        name: 'Bar Mitzvah (בר מצווה)',
+        description: 'Elegant Hebrew design with RTL support',
+        thumbnail: 'assets/templates/bar-mitzvah-preview.png',
+        category: 'celebration',
+        minPhotos: 20,
+        configPath: '/templates/bar-mitzvah-template.json'
+    }
+};
+
+window.ALBUM_TEMPLATES = ALBUM_TEMPLATES;

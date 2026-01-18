@@ -11,6 +11,17 @@ import { aiDirector } from './ai-director.js';
 import { orderFlow } from './order-flow.js';
 import { authService } from './firebase-auth.js';
 import { persistenceService } from './persistence-service.js';
+import { TemplateSidebar } from './ui-components/template-sidebar.js';
+import { PhotographyPortfolioRenderer } from './templates/photography-portfolio-renderer.js';
+import { RomanticJourneyRenderer } from './templates/romantic-journey-renderer.js';
+import { TravelJourneyRenderer } from './templates/travel-journey-renderer.js';
+import { FamilyRootsRenderer } from './templates/family-roots-renderer.js';
+import { BarMitzvahRenderer } from './templates/bar-mitzvah-renderer.js';
+
+
+
+// Expose for debugging
+window.pdfExport = pdfExport;
 
 class App {
     constructor() {
@@ -25,6 +36,7 @@ class App {
         this.renderer = new RenderEngine('canvas-container');
         this.state = store.state; // Direct access ref
         this.bindEvents();
+        this.createHoverTooltip();
         this.loadAssets();
 
         // Auth Init
@@ -56,12 +68,32 @@ class App {
                     store.notify('pages', store.state.pages);
                     store.notify('cover', store.state.cover);
                     this.renderer.renderAssetSidebar(); // Refresh assets
+
+                    // Initialize Template Sidebar (New)
+                    this.templateSidebar = new TemplateSidebar('template-library', this);
+                    this.templateSidebar.init();
+
+                    // PDF Export Hydration: Restore Template Config
+                    // We must correctly load the template config so the exporter knows how to render pages
+                    const activeTemplateId = (store.state.pages && store.state.pages[0] ? store.state.pages[0].templateId : null) ||
+                        (store.state.cover ? store.state.cover.templateId : null);
+
+                    if (activeTemplateId && this.templateSidebar.manager) {
+                        console.log("[App] Restoring template config for:", activeTemplateId);
+                        try {
+                            await this.templateSidebar.manager.loadTemplate(activeTemplateId);
+                            pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
+                            console.log("[App] PDF Template Config restored.");
+                        } catch (e) {
+                            console.error("Failed to restore template config:", e);
+                        }
+                    }
+
                     // Refresh current view
                     if (store.state.viewMode === 'cover') {
                         this.renderer.renderCover(store.state.cover, store.state.assets);
                     } else {
-                        const p = store.state.pages.find(pg => pg.id === store.state.activePageId);
-                        if (p) this.renderer.renderPage(p, store.state.assets, store.state.selection);
+                        this.renderActivePage();
                     }
 
                     alert(`Welcome back, ${user.displayName}! Your project has been restored.`);
@@ -74,8 +106,52 @@ class App {
             // Don't save on ephemeral props if desired, but for now save everything
             if (prop !== 'selection' && prop !== 'user') {
                 this.saveDebounced(state);
+
+                // Update Timeline Preview for Active Page dynamically
+                this.updateActivePagePreview();
             }
         });
+    }
+
+    renderActivePage() {
+        const p = store.state.pages.find(pg => pg.id === store.state.activePageId);
+        if (!p) return;
+
+        // Check for Specialized Renderer
+        // We need access to the Template Config for the renderer. 
+        // We assume TemplateSidebar has the manager with the config loaded.
+        if (p.templateId === 'photography-portfolio-v1' || p.templateId === 'romantic-journey-v1' || p.templateId === 'travel-journey-v1' || p.templateId === 'family-roots-v1' || p.templateId === 'bar-mitzvah-v1') {
+            const manager = this.templateSidebar?.manager;
+            if (manager && manager.config && manager.config.templateId === p.templateId) {
+
+                let renderer = null;
+                if (p.templateId === 'photography-portfolio-v1') {
+                    renderer = new PhotographyPortfolioRenderer(manager.config);
+                } else if (p.templateId === 'romantic-journey-v1') {
+                    renderer = new RomanticJourneyRenderer(manager.config);
+                } else if (p.templateId === 'travel-journey-v1') {
+                    renderer = new TravelJourneyRenderer(manager.config);
+                } else if (p.templateId === 'family-roots-v1') {
+                    renderer = new FamilyRootsRenderer(manager.config);
+                } else if (p.templateId === 'bar-mitzvah-v1') {
+                    renderer = new BarMitzvahRenderer(manager.config);
+                }
+
+                if (renderer && p.rawLayoutId) {
+                    const layout = manager.config.pageLayouts.find(l => l.layoutId === p.rawLayoutId);
+                    if (layout) {
+                        const el = renderer.renderPage(layout, p.photos || [], p.textContent || {});
+                        const container = document.getElementById('canvas-container');
+                        container.innerHTML = '';
+                        container.appendChild(el);
+                        return; // Successfully used custom renderer
+                    }
+                }
+            }
+        }
+
+        // Fallback to Default RenderEngine
+        this.renderer.renderPage(p, store.state.assets, store.state.selection);
     }
 
     async loadAssets() {
@@ -94,6 +170,69 @@ class App {
 
         // Initialize with one page
         store.addPage();
+
+        // Initialize Template Sidebar (New) - ensures it loads even without auth restore
+        this.templateSidebar = new TemplateSidebar('template-library', this);
+        this.templateSidebar.init();
+    }
+
+    /**
+     * Render a full album generated by a template
+     * @param {Array} pages - Array of DOM elements
+     */
+    /**
+     * Render a full album generated by a template
+     * @param {Array} newPages - Array of Page State Objects
+     */
+    renderAlbumPages(input) {
+        let newPages = [];
+        let newCover = null;
+
+        if (Array.isArray(input)) {
+            newPages = input;
+        } else if (input && typeof input === 'object') {
+            newPages = input.pages || [];
+            newCover = input.cover || null;
+        }
+
+        if (newCover) {
+            store.state.cover = newCover;
+            // Notify subscribers about cover update
+            // store.notify('cover', newCover);
+        }
+
+        if (newPages && newPages.length > 0) {
+            console.log(`[App] Applying template with ${newPages.length} pages`);
+
+            store.state.pages = newPages;
+            store.state.activePageId = newPages[0].id;
+
+            // Notify subscribers
+            store.notify('pages', store.state.pages);
+            store.notify('activePageId', store.state.activePageId);
+
+            // Sync PDF Config
+            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
+                console.log("[App] Syncing PDF Template Config...");
+                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
+            }
+
+            // Force re-render of current view
+            this.renderActivePage();
+
+        }
+    }
+
+
+    createHoverTooltip() {
+        if (document.getElementById('photo-preview-tooltip')) return;
+        const tooltip = document.createElement('div');
+        tooltip.id = 'photo-preview-tooltip';
+        tooltip.style.position = 'fixed';
+        tooltip.style.zIndex = '9999';
+        tooltip.style.pointerEvents = 'none';
+        tooltip.style.display = 'none';
+        document.body.appendChild(tooltip);
     }
 
     bindEvents() {
@@ -124,15 +263,32 @@ class App {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
             canvas.classList.add('drop-target-active');
+
+            // Drag Feedback: Highlight Slot
+            const slot = e.target.closest('.photo-slot');
+            document.querySelectorAll('.photo-slot.drag-over-slot').forEach(el => {
+                if (el !== slot) el.classList.remove('drag-over-slot');
+            });
+            if (slot) {
+                slot.classList.add('drag-over-slot');
+            }
         });
 
         canvas.addEventListener('dragleave', (e) => {
-            canvas.classList.remove('drop-target-active');
+            // We can't simply remove detected slot class here because it fires when entering children
+            // Logic in dragover handles the "switch" between slots correctly.
+            // If we leave the canvas entirely, we should clear?
+            // Checking e.relatedTarget to see if we left the browser window or canvas container
+            if (e.relatedTarget && !canvas.contains(e.relatedTarget)) {
+                canvas.classList.remove('drop-target-active');
+                document.querySelectorAll('.drag-over-slot').forEach(el => el.classList.remove('drag-over-slot'));
+            }
         });
 
         canvas.addEventListener('drop', (e) => {
             e.preventDefault();
             canvas.classList.remove('drop-target-active');
+            document.querySelectorAll('.drag-over-slot').forEach(el => el.classList.remove('drag-over-slot'));
 
             const data = e.dataTransfer.getData('application/json');
             if (!data) return;
@@ -197,20 +353,106 @@ class App {
         // Canvas Interaction (Selection)
         // ----------------------------------------------------
         // We use event delegation on the canvas-viewport or render container
+        // We use event delegation on the canvas-viewport or render container
+        // Photo Removal Handler
+        canvas.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.btn-remove-slot-photo');
+            if (removeBtn) {
+                e.preventDefault();
+                e.stopImmediatePropagation(); // Prevent other listeners on the same element (selection)
+
+                const slotIndex = parseInt(removeBtn.dataset.slotIndex);
+                if (isNaN(slotIndex)) return;
+
+                // Use a non-blocking way if confirm is annoying, but for now strict confirm is okay.
+                // Note: If the user moves mouse during click, it might be treated as drag.
+                // We trust the click event here.
+                if (confirm('Remove photo from this page?')) {
+                    const page = store.state.pages.find(p => p.id === store.state.activePageId);
+                    if (page && page.photos) {
+                        page.photos.splice(slotIndex, 1);
+                        store.notify('pages', store.state.pages);
+                        // renderActivePage is triggered by notify subscription
+                    }
+                }
+            }
+        });
+
         canvas.addEventListener('click', (e) => {
             // Check if clicked on a selectable item
             const target = e.target.closest('[data-selectable-id]');
+
+            // Clear previous selection frames
+            document.querySelectorAll('.selection-frame').forEach(el => el.style.display = 'none');
+            // Remove editable status if clicking elsewhere
+            document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+                el.contentEditable = 'false';
+                el.style.cursor = 'pointer';
+                // We should have saved on blur, but let's ensure cleanup
+            });
+
             if (target) {
                 const id = target.dataset.selectableId;
                 const type = target.dataset.selectableType;
-
-                // For text types, the ID is unique element ID
-                // For photo types, in our current simple model, ID is photoId. 
-                // (Ideally slots should have unique IDs independent of photo)
                 store.state.selection = id;
+
+                // Show selection frame if text
+                if (type === 'text') {
+                    const frame = target.querySelector('.selection-frame');
+                    if (frame) frame.style.display = 'block';
+
+                    // Indication: One click = Select/Move (Hand/Pointer)
+                    // Double click = Edit (Text)
+                    target.style.cursor = 'grab';
+                }
             } else {
                 // Deselect if clicking background
                 store.state.selection = null;
+            }
+        });
+
+        // Double Click to Edit Text
+        canvas.addEventListener('dblclick', (e) => {
+            const target = e.target.closest('[data-selectable-type="text"]');
+            if (target) {
+                e.stopPropagation(); // Prevent other triggers
+                target.contentEditable = 'true';
+                target.focus();
+                target.style.cursor = 'text';
+                target.style.outline = 'none'; // Browser outline might conflict with frame
+
+                // Hide frame while editing to remove clutter? Or keep it? keeping it is fine.
+
+                // Save on blur
+                const id = target.dataset.selectableId;
+                const saveHandler = () => {
+                    const newContent = target.textContent;
+                    // Update State
+                    const page = store.state.pages.find(p => p.id === store.state.activePageId);
+                    if (page) {
+                        // Check elements array
+                        if (page.elements) {
+                            const el = page.elements.find(el => el.id === id); // id match elementId in renderer
+                            // Wait, logic in renderer used textEl.elementId as selectableId.
+                            // But textEl in JSON might not have unique runtime content? 
+                            // convertToState creates 'text_' unique IDs.
+                            // Photography renderer used `element.dataset.selectableId = textEl.elementId`.
+                            // If `textEl` comes from JSON layout, it's "title", "subtitle".
+                            // convertToState maps these to `textContent` object.
+                            // So we need to update `textContent[id]` in page state.
+
+                            if (!page.textContent) page.textContent = {};
+                            page.textContent[id] = newContent;
+
+                            store.notify('pages', store.state.pages);
+                        }
+                    }
+
+                    target.contentEditable = 'false';
+                    target.style.cursor = 'grab';
+                    target.removeEventListener('blur', saveHandler);
+                };
+                target.addEventListener('blur', saveHandler);
             }
         });
 
@@ -221,11 +463,23 @@ class App {
         let dragTargetId = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
+        let initialMouseX = 0;
+        let initialMouseY = 0;
+        const DRAG_THRESHOLD = 5; // px
 
         canvas.addEventListener('mousedown', (e) => {
+            // Priority: Check if clicking a control button first!
+            if (e.target.closest('.btn-remove-slot-photo') || e.target.closest('.delete-btn')) {
+                return; // Let standard click handler flow
+            }
+
             const target = e.target.closest('[data-selectable-type="text"]');
             if (target) {
-                isDraggingText = true;
+                // Prepare for drag, but don't commit yet
+                initialMouseX = e.clientX;
+                initialMouseY = e.clientY;
+
+                isDraggingText = false; // Wait for move
                 dragTargetId = target.dataset.selectableId;
 
                 // Calculate offset
@@ -233,14 +487,23 @@ class App {
                 dragOffsetX = e.clientX - rect.left;
                 dragOffsetY = e.clientY - rect.top;
 
-                // Set selection
+                // Set selection immediately for visual feedback? 
+                // Creating selection state on mousedown is fine.
                 store.state.selection = dragTargetId;
-                e.stopPropagation(); // prevent other clicks
+                // e.stopPropagation(); // Don't stop propagation yet, might need to dblclick?
+                // Actually, if we stop propagation, dblclick still fires on element.
             }
         });
 
         window.addEventListener('mousemove', (e) => {
-            if (!isDraggingText || !dragTargetId) return;
+            if (!dragTargetId) return;
+
+            // Check Threshold if not yet dragging
+            if (!isDraggingText) {
+                const dist = Math.sqrt(Math.pow(e.clientX - initialMouseX, 2) + Math.pow(e.clientY - initialMouseY, 2));
+                if (dist < DRAG_THRESHOLD) return; // Ignore small movements
+                isDraggingText = true; // Activate drag
+            }
 
             const targetEl = document.querySelector(`[data-selectable-id="${dragTargetId}"]`);
             if (!targetEl) return;
@@ -298,6 +561,19 @@ class App {
 
             // Option A: Just download
             console.log("[App] Preview clicked. Generating PDF...");
+
+            // Ensure config is up to date
+            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
+                console.log("[App] Syncing Template Config to PDF Export manually:", this.templateSidebar.manager.config.templateId);
+                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
+            } else {
+                console.warn("[App] Template Config NOT synced (missing sidebar/manager/config)", {
+                    sidebar: !!this.templateSidebar,
+                    manager: !!(this.templateSidebar && this.templateSidebar.manager),
+                    config: !!(this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config)
+                });
+            }
+
             pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
 
             // Option B: Toggle mode AND download? 
@@ -314,16 +590,68 @@ class App {
         document.getElementById('btn-remix-layout').addEventListener('click', () => {
             const state = store.state;
             const page = state.pages.find(p => p.id === state.activePageId);
-            if (page && page.photos && page.photos.length > 0) {
-                // Pass current layout name to cycle
-                const currentName = page.layout ? page.layout.name : null;
-                const newLayout = layoutEngine.getNextLayout(page.photos, currentName);
-                if (newLayout) {
-                    store.pushState('Remix Layout');
-                    page.layout = newLayout;
-                    store.notify('pages', state.pages);
-                    console.log('[App] Remixed layout to:', newLayout.name);
+            if (!page) return;
+
+            let newLayout = null;
+
+            // Strategy A: Template-based Remix
+            if (page.templateId && this.templateSidebar && this.templateSidebar.templateManager) {
+                const tm = this.templateSidebar.templateManager;
+                const currentLayoutId = page.layout ? page.layout.id : null;
+                const photoCount = page.photos ? page.photos.length : (page.layout.slots ? page.layout.slots.length : 0);
+
+                // 1. Get next layout ID
+                const nextLayoutId = tm.getAlternativeLayoutId(currentLayoutId, photoCount);
+
+                if (nextLayoutId) {
+                    // 2. Regenerate entire page state (keeping photos)
+                    const newPage = tm.regeneratePage(page, nextLayoutId);
+
+                    if (newPage) {
+                        console.log('[App] Remixed template layout to:', newPage.layout.name);
+
+                        // Replace the page in state
+                        const index = state.pages.findIndex(p => p.id === page.id);
+                        if (index !== -1) {
+                            const newPages = [...state.pages];
+                            newPages[index] = newPage;
+                            store.state.pages = newPages;
+
+                            // Ensure selection is cleared if element gone
+                            store.state.selection = null;
+
+                            // Force properties panel update
+                            this.updatePropertiesPanel(store.state);
+                        }
+                        return; // Done
+                    }
                 }
+            }
+
+            // Strategy B: Default Layout Engine Remix (Fallback)
+            if (!newLayout && page.photos && page.photos.length > 0) {
+                const currentName = page.layout ? page.layout.name : null;
+                newLayout = layoutEngine.getNextLayout(page.photos, currentName);
+            }
+
+            if (newLayout) {
+                store.pushState('Remix Layout');
+
+                // If it's a template layout, we might need to handle elements (decorations) too?
+                // For now, simplify: just replacing slots. 
+                // Ideally TemplateManager should return full page state for remix, but let's stick to layout swap.
+                // NOTE: If template layout changes, decoration elements usually change too!
+                // This is a limitation: TemplateManager.getAlternativeLayout only returns slots.
+                // We might need to regenerate the page completely with new layout?
+                // For V1, let's just swap slots and see. (Decorations might conflict).
+
+                // Correction: To handle decorations properly, we should re-generate the page state 
+                // but keeping the same photos.
+                // But doing that for a single page is tricky if assignments are global.
+                // Let's accept mixing slots for now, or improve later.
+
+                page.layout = newLayout;
+                store.notify('pages', state.pages);
             }
         });
 
@@ -331,6 +659,12 @@ class App {
         // 1. Review (Download PDF)
         document.getElementById('btn-review').addEventListener('click', () => {
             console.log("Generating Review PDF...");
+
+            // Ensure config is up to date
+            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
+                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
+            }
+
             // Standard export for review
             pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
 
@@ -341,6 +675,12 @@ class App {
         // 2. Order (Simulate Checkout)
         document.getElementById('btn-order-print').addEventListener('click', async () => {
             console.log("Starting Order Flow...");
+
+            // Ensure config is up to date
+            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
+                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
+            }
+
             // Generate Blob
             const blob = await pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
             if (blob) {
@@ -437,6 +777,87 @@ class App {
                     // Reset input
                     fileInput.value = '';
                 }
+            });
+        }
+
+        // ----------------------------------------------------
+        // Navigation & History Actions
+        // ----------------------------------------------------
+
+        // Page Navigation
+        const btnPrev = document.getElementById('btn-prev-page');
+        const btnNext = document.getElementById('btn-next-page');
+
+        if (btnPrev && btnNext) {
+            btnPrev.addEventListener('click', () => {
+                const state = store.state;
+                if (state.viewMode === 'cover') return; // Can't go back from cover (unless wrapping?)
+
+                const currentIndex = state.pages.findIndex(p => p.id === state.activePageId);
+                if (currentIndex > 0) {
+                    store.state.activePageId = state.pages[currentIndex - 1].id;
+                    store.notify('activePageId', store.state.activePageId);
+                    this.renderActivePage(); // Trigger render
+                    this.updateTimeline(state.pages, store.state.activePageId);
+                } else {
+                    // Go to cover?
+                    store.state.viewMode = 'cover';
+                    store.notify('viewMode', 'cover');
+                    this.renderer.renderCover(state.cover, state.assets);
+                    this.updateTimeline(state.pages, null); // Highlight cover in timeline
+                }
+            });
+
+            btnNext.addEventListener('click', () => {
+                const state = store.state;
+                if (state.viewMode === 'cover') {
+                    // Go to first page
+                    store.state.viewMode = 'pages';
+                    store.notify('viewMode', 'pages');
+                    if (state.pages.length > 0) {
+                        store.state.activePageId = state.pages[0].id; // Ensure active page is set
+                        store.notify('activePageId', store.state.activePageId);
+                        this.renderActivePage(); // Trigger render
+                    }
+                    this.updateTimeline(state.pages, store.state.activePageId);
+                    return;
+                }
+
+                const currentIndex = state.pages.findIndex(p => p.id === state.activePageId);
+                if (currentIndex < state.pages.length - 1) {
+                    store.state.activePageId = state.pages[currentIndex + 1].id;
+                    store.notify('activePageId', store.state.activePageId);
+                    this.renderActivePage(); // Trigger render
+                    this.updateTimeline(state.pages, store.state.activePageId);
+                }
+            });
+        }
+
+        // Undo / Redo
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+
+        if (btnUndo) {
+            btnUndo.addEventListener('click', () => {
+                store.undo();
+                // After undo, state is restored. We need to re-render everything.
+                this.renderActivePage(); // Or detect what changed? renderActivePage is safest.
+                if (store.state.viewMode === 'cover') {
+                    this.renderer.renderCover(store.state.cover, store.state.assets);
+                }
+                this.updatePropertiesPanel(store.state);
+            });
+        }
+
+        if (btnRedo) {
+            btnRedo.addEventListener('click', () => {
+                store.redo();
+                // After redo, re-render
+                this.renderActivePage();
+                if (store.state.viewMode === 'cover') {
+                    this.renderer.renderCover(store.state.cover, store.state.assets);
+                }
+                this.updatePropertiesPanel(store.state);
             });
         }
 
@@ -1283,9 +1704,62 @@ class App {
             const el = document.createElement('div');
             el.className = 'asset-item';
             el.draggable = true;
-            el.innerHTML = `<img src="${photo.url}" draggable="false">`;
+            el.style.position = 'relative';
+            el.innerHTML = `
+                <img src="${photo.url}" draggable="false" style="width:100%; height:100%; object-fit:cover;">
+                <button class="btn-delete-asset" title="Remove Photo" style="position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,0.6); color:white; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; line-height:1;">×</button>
+            `;
+
+            el.addEventListener('mouseenter', () => el.querySelector('.btn-delete-asset').style.display = 'flex');
+            el.addEventListener('mouseleave', () => el.querySelector('.btn-delete-asset').style.display = 'none');
+
+            el.querySelector('.btn-delete-asset').addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('Remove this photo?')) {
+                    const idx = store.state.assets.photos.findIndex(p => p.id === photo.id);
+                    if (idx > -1) {
+                        store.state.assets.photos.splice(idx, 1);
+                        this.renderAssetSidebar();
+                    }
+                }
+            });
+
             el.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('application/json', JSON.stringify({ type: 'photo', id: photo.id }));
+            });
+
+            // Hover Preview
+            el.addEventListener('mouseenter', (e) => {
+                const tooltip = document.getElementById('photo-preview-tooltip');
+                if (tooltip) {
+                    tooltip.innerHTML = `<img src="${photo.url}" style="max-width:400px; max-height:400px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); display:block; background:#fff;">`;
+                    tooltip.style.display = 'block';
+                    tooltip.style.top = (e.clientY + 10) + 'px';
+                    tooltip.style.left = (e.clientX + 20) + 'px';
+                }
+            });
+            el.addEventListener('mousemove', (e) => {
+                const tooltip = document.getElementById('photo-preview-tooltip');
+                if (tooltip && tooltip.style.display === 'block') {
+                    // Update position
+                    let top = e.clientY + 10;
+                    let left = e.clientX + 20;
+
+                    // Simple boundary check to prevent going off screen right/bottom
+                    if (left + 400 > window.innerWidth) {
+                        left = e.clientX - 420; // Flip to left
+                    }
+                    if (top + 400 > window.innerHeight) {
+                        top = window.innerHeight - 420; // Cap bottom
+                    }
+
+                    tooltip.style.top = top + 'px';
+                    tooltip.style.left = left + 'px';
+                }
+            });
+            el.addEventListener('mouseleave', () => {
+                const tooltip = document.getElementById('photo-preview-tooltip');
+                if (tooltip) tooltip.style.display = 'none';
             });
             photoGrid.appendChild(el);
         });
@@ -1409,38 +1883,194 @@ class App {
 
     updateTimeline(pages, activeId) {
         const tl = document.getElementById('page-timeline');
+        if (!tl) return;
         tl.innerHTML = '';
 
-        // Cover Button
-        const coverEl = document.createElement('div');
-        coverEl.className = `timeline-page ${store.state.viewMode === 'cover' ? 'active' : ''}`;
-        coverEl.textContent = 'C';
-        coverEl.style.color = 'white';
-        coverEl.style.backgroundColor = '#444';
-        coverEl.style.display = 'flex';
-        coverEl.style.alignItems = 'center';
-        coverEl.style.justifyContent = 'center';
-        coverEl.style.border = '1px solid #666';
-        coverEl.addEventListener('click', () => {
-            store.state.viewMode = 'cover';
-        });
-        tl.appendChild(coverEl);
+        // Template Dimension Logic - Single Source of Truth
+        const manager = this.templateSidebar?.manager;
+        const DESIGN_DEFAULTS = { width: 800, height: 600 };
+        let rw = DESIGN_DEFAULTS.width;
+        let rh = DESIGN_DEFAULTS.height;
 
+        // Try to get active layout dimensions
+        if (manager && manager.config && manager.config.designSystem && manager.config.designSystem.canvas) {
+            rw = manager.config.designSystem.canvas.scaledWidth || manager.config.designSystem.canvas.width || rw;
+            rh = manager.config.designSystem.canvas.scaledHeight || manager.config.designSystem.canvas.height || rh;
+        }
+
+        // Calculate Scale to fit Timeline Height (approx 100px)
+        const TARGET_HEIGHT = 100;
+        const scale = TARGET_HEIGHT / rh;
+
+        // ===========================================
+        // 1. Render Cover Preview
+        // ===========================================
+        if (store.state.cover) {
+            const coverEl = document.createElement('div');
+            coverEl.className = `timeline-page cover ${store.state.viewMode === 'cover' ? 'active' : ''}`;
+
+            // Container Styling to match scaled aspect ratio
+            coverEl.style.width = `${rw * scale}px`;
+            coverEl.style.height = `${rh * scale}px`;
+            coverEl.style.flexShrink = '0';
+            coverEl.style.position = 'relative';
+            coverEl.style.overflow = 'hidden';
+            coverEl.style.border = '1px solid #ccc';
+            coverEl.style.marginRight = '8px'; // Spacing
+
+            coverEl.onclick = () => {
+                store.state.viewMode = 'cover';
+                store.state.activePageId = null;
+                store.notify('viewMode', 'cover');
+                this.renderCover(store.state.cover, store.state.assets);
+                this.updateTimeline(store.state.pages, null);
+            };
+
+            const preview = document.createElement('div');
+            preview.style.cssText = `
+                width: ${rw}px; 
+                height: ${rh}px; 
+                position: absolute; 
+                top: 0; 
+                left: 0; 
+                transform: scale(${scale}); 
+                transform-origin: top left; 
+                pointer-events: none; 
+                background: white;
+            `;
+
+            let renderedCover = null;
+            // Specialized Rendering
+            if (manager && manager.config && manager.config.templateId) {
+                let renderer = null;
+                const activeTemplateId = manager.config.templateId;
+
+                // Keep the instantiation logic simple for now
+                // In a real generic system, manager would provide the renderer instance directly
+                if (window.TravelJourneyRenderer && activeTemplateId === 'travel-journey-v1') renderer = new TravelJourneyRenderer(manager.config);
+                else if (window.PhotographyPortfolioRenderer && activeTemplateId === 'photography-portfolio-v1') renderer = new PhotographyPortfolioRenderer(manager.config);
+                else if (window.RomanticJourneyRenderer && activeTemplateId === 'romantic-journey-v1') renderer = new RomanticJourneyRenderer(manager.config);
+
+                if (renderer && renderer.renderCover) {
+                    renderedCover = renderer.renderCover(store.state.cover, store.state.assets);
+                }
+            }
+
+            if (renderedCover) {
+                preview.appendChild(renderedCover);
+            } else {
+                // Fallback Legacy Cover
+                preview.innerHTML = `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:${store.state.cover.color || '#fff'}; color:#000; font-size:40px;">${store.state.cover.title || 'Cover'}</div>`;
+            }
+
+            coverEl.appendChild(preview);
+
+            // "C" Label
+            const label = document.createElement('div');
+            label.textContent = "Cover";
+            label.style.cssText = "position:absolute; bottom:2px; left:2px; background:rgba(0,0,0,0.5); color:white; font-size:10px; padding:2px 4px; border-radius:2px;";
+            coverEl.appendChild(label);
+
+            tl.appendChild(coverEl);
+        }
+
+        // ===========================================
+        // 2. Render Pages
+        // ===========================================
         pages.forEach((page, idx) => {
             const el = document.createElement('div');
             el.className = `timeline-page ${page.id === activeId && store.state.viewMode !== 'cover' ? 'active' : ''}`;
-            el.textContent = idx + 1;
-            el.style.color = 'white';
-            el.style.display = 'flex';
-            el.style.alignItems = 'center';
-            el.style.justifyContent = 'center';
+            el.style.width = `${rw * scale}px`;
+            el.style.height = `${rh * scale}px`;
+            el.style.flexShrink = '0';
+            el.style.position = 'relative';
+            el.style.overflow = 'hidden';
+            el.style.backgroundColor = '#fff';
+            el.style.marginRight = '8px';
+
+            const previewContainer = document.createElement('div');
+            previewContainer.style.cssText = `
+                width: ${rw}px; 
+                height: ${rh}px; 
+                position: absolute; 
+                top: 0; 
+                left: 0; 
+                transform: scale(${scale});  
+                transform-origin: 0 0;
+                pointer-events: none;
+                background-color: ${page.background || '#fff'};
+            `;
+
+            let renderedContent = null;
+            if (manager && manager.config && manager.config.templateId === page.templateId) {
+                let renderer = null;
+                // Same renderer logic
+                if (window.TravelJourneyRenderer && page.templateId === 'travel-journey-v1') renderer = new TravelJourneyRenderer(manager.config);
+                else if (window.PhotographyPortfolioRenderer && page.templateId === 'photography-portfolio-v1') renderer = new PhotographyPortfolioRenderer(manager.config);
+                else if (window.RomanticJourneyRenderer && page.templateId === 'romantic-journey-v1') renderer = new RomanticJourneyRenderer(manager.config);
+
+                if (renderer && page.rawLayoutId) {
+                    const layoutDef = manager.config.pageLayouts.find(l => l.layoutId === page.rawLayoutId);
+                    if (layoutDef) {
+                        renderedContent = renderer.renderPage(layoutDef, page.photos, page.textContent);
+                    }
+                }
+            }
+
+            // Fallback to generic RenderEngine helper if available
+            if (!renderedContent && this.renderer && this.renderer.renderPageElement) {
+                renderedContent = this.renderer.renderPageElement(page);
+            }
+
+            // Ultimate Fallback: Simple Boxes
+            if (!renderedContent) {
+                renderedContent = document.createElement('div');
+                renderedContent.style.width = '100%';
+                renderedContent.style.height = '100%';
+                renderedContent.style.backgroundColor = page.background || '#fff';
+                if (page.layout && page.layout.slots) {
+                    page.layout.slots.forEach((slot, i) => {
+                        const box = document.createElement('div');
+                        box.style.position = 'absolute';
+                        box.style.left = slot.x + '%';
+                        box.style.top = slot.y + '%';
+                        box.style.width = slot.w + '%';
+                        box.style.height = slot.h + '%';
+                        box.style.backgroundColor = '#ccc';
+                        if (page.photos[i]) {
+                            const img = document.createElement('img');
+                            img.src = page.photos[i].url;
+                            img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'cover';
+                            box.appendChild(img);
+                        }
+                        renderedContent.appendChild(box);
+                    });
+                }
+            }
+
+            if (renderedContent) {
+                previewContainer.appendChild(renderedContent);
+            }
+
+            el.appendChild(previewContainer);
+
+            const numLabel = document.createElement('span');
+            numLabel.textContent = idx + 1;
+            numLabel.style.cssText = 'position:absolute; bottom:2px; right:2px; color:#000; font-size:10px; font-weight:bold; background:rgba(255,255,255,0.7); padding:1px 3px; border-radius:3px; z-index:10;';
+            el.appendChild(numLabel);
 
             el.addEventListener('click', () => {
-                store.state.viewMode = 'pages'; // Switch back to pages
+                store.state.viewMode = 'pages';
                 store.state.activePageId = page.id;
+                this.updateTimeline(pages, page.id); // Re-render to update active state
             });
             tl.appendChild(el);
         });
+    }
+
+    updateActivePagePreview() {
+        if (!store.state.pages) return;
+        this.updateTimeline(store.state.pages, store.state.activePageId);
     }
 
     static init() {

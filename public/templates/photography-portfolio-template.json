@@ -1,0 +1,1402 @@
+{
+    "templateId": "photography-portfolio-v1",
+    "templateName": "Photography Portfolio",
+    "templateDescription": "A bold, professional photography portfolio template featuring warm terracotta tones, elegant brush script typography, and dynamic photo collage layouts perfect for photographers, studios, and creative professionals showcasing their work.",
+    "version": "1.0.0",
+    "category": "portfolio",
+    "tags": [
+        "photography",
+        "portfolio",
+        "studio",
+        "professional",
+        "creative",
+        "modern",
+        "warm",
+        "elegant"
+    ],
+    "minPhotos": 15,
+    "maxPhotos": 80,
+    "recommendedPhotos": 40,
+    "designSystem": {
+        "colors": {
+            "background": "#BD8465",
+            "backgroundAlt": "#B27555",
+            "accent": "#FFFFFF",
+            "text": {
+                "primary": "#FFFFFF",
+                "secondary": "rgba(255,255,255,0.85)",
+                "light": "rgba(255,255,255,0.7)"
+            }
+        },
+        "typography": {
+            "script": {
+                "family": "Allura",
+                "fallback": "Pacifico, Satisfy, cursive",
+                "weights": [
+                    400
+                ],
+                "usage": "titles, category names, decorative headings"
+            },
+            "sans": {
+                "family": "Poppins",
+                "fallback": "Montserrat, Open Sans, sans-serif",
+                "weights": [
+                    300,
+                    400,
+                    500,
+                    600,
+                    700
+                ],
+                "usage": "subtitles, body text, labels, navigation"
+            }
+        },
+        "spacing": {
+            "pagePadding": "4%",
+            "photoGap": "2%",
+            "textMargin": "5%",
+            "headerHeight": "8%"
+        },
+        "photoStyles": {
+            "default": {
+                "borderRadius": "0px",
+                "shadow": "none",
+                "border": "none"
+            },
+            "rounded": {
+                "borderRadius": "8px",
+                "shadow": "0 4px 20px rgba(0,0,0,0.15)",
+                "border": "none"
+            },
+            "pill": {
+                "borderRadius": "100px",
+                "shadow": "none",
+                "border": "none"
+            }
+        }
+    },
+    "headerFooter": {
+        "header": {
+            "enabled": true,
+            "height": "8%",
+            "elements": [
+                {
+                    "type": "studioName",
+                    "position": "left",
+                    "style": {
+                        "font": "sans",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "primary"
+                    },
+                    "placeholder": "Studio Name"
+                },
+                {
+                    "type": "year",
+                    "position": "right",
+                    "style": {
+                        "font": "sans",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "primary"
+                    },
+                    "placeholder": "2024"
+                }
+            ]
+        },
+        "footer": {
+            "enabled": false
+        }
+    },
+    "pageLayouts": [
+        {
+            "layoutId": "cover-hero",
+            "layoutName": "Hero Cover",
+            "pageType": "cover",
+            "description": "Full-bleed hero photo with centered script title overlay",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero_portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "title",
+                    "position": {
+                        "x": "50%",
+                        "y": "50%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "96px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Photography",
+                    "editable": true
+                },
+                {
+                    "elementId": "subtitle",
+                    "type": "subtitle",
+                    "position": {
+                        "x": "50%",
+                        "y": "62%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "72px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Portfolio",
+                    "editable": true
+                },
+                {
+                    "elementId": "handle",
+                    "type": "handle",
+                    "position": {
+                        "x": "50%",
+                        "y": "88%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center",
+                        "textTransform": "uppercase",
+                        "letterSpacing": "2px"
+                    },
+                    "placeholder": "@YOURSTUDIO",
+                    "editable": true
+                }
+            ],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "about-studio",
+            "layoutName": "About Studio",
+            "pageType": "content",
+            "description": "Introduction page with photo left and text content right",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "4%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "76%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "greeting",
+                    "type": "greeting",
+                    "position": {
+                        "x": "72%",
+                        "y": "25%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "64px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Hello!",
+                    "editable": true
+                },
+                {
+                    "elementId": "intro",
+                    "type": "intro",
+                    "position": {
+                        "x": "55%",
+                        "y": "42%"
+                    },
+                    "size": {
+                        "width": "40%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "24px",
+                        "weight": 300,
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "We",
+                    "editable": true
+                },
+                {
+                    "elementId": "introScript",
+                    "type": "introAccent",
+                    "position": {
+                        "x": "65%",
+                        "y": "42%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "28px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "Are",
+                    "editable": true
+                },
+                {
+                    "elementId": "studioName",
+                    "type": "studioName",
+                    "position": {
+                        "x": "55%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "40%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "42px",
+                        "weight": 700,
+                        "color": "primary",
+                        "align": "left",
+                        "lineHeight": "1.2"
+                    },
+                    "placeholder": "Studio\nName",
+                    "editable": true
+                },
+                {
+                    "elementId": "description",
+                    "type": "body",
+                    "position": {
+                        "x": "55%",
+                        "y": "72%"
+                    },
+                    "size": {
+                        "width": "40%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "left",
+                        "lineHeight": "1.6"
+                    },
+                    "placeholder": "Add a little bit of body text",
+                    "editable": true
+                }
+            ],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "table-of-contents",
+            "layoutName": "Table of Contents",
+            "pageType": "toc",
+            "description": "Six category thumbnails in a 2x3 grid with labels",
+            "photoSlots": [
+                {
+                    "slotId": "cat1",
+                    "position": {
+                        "x": "8%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "26%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "cat2",
+                    "position": {
+                        "x": "37%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "26%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "cat3",
+                    "position": {
+                        "x": "66%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "26%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "cat4",
+                    "position": {
+                        "x": "8%",
+                        "y": "58%"
+                    },
+                    "size": {
+                        "width": "26%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "cat5",
+                    "position": {
+                        "x": "37%",
+                        "y": "58%"
+                    },
+                    "size": {
+                        "width": "26%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "cat6",
+                    "position": {
+                        "x": "66%",
+                        "y": "58%"
+                    },
+                    "size": {
+                        "width": "26%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "title",
+                    "position": {
+                        "x": "50%",
+                        "y": "6%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "48px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "List",
+                    "editable": true
+                },
+                {
+                    "elementId": "titleSans",
+                    "type": "titleAccent",
+                    "position": {
+                        "x": "58%",
+                        "y": "6%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "32px",
+                        "weight": 300,
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "of Content.",
+                    "editable": true
+                },
+                {
+                    "elementId": "label1",
+                    "type": "label",
+                    "position": {
+                        "x": "21%",
+                        "y": "52%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "photo models.",
+                    "editable": true
+                },
+                {
+                    "elementId": "label2",
+                    "type": "label",
+                    "position": {
+                        "x": "50%",
+                        "y": "52%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "maternity photo.",
+                    "editable": true
+                },
+                {
+                    "elementId": "label3",
+                    "type": "label",
+                    "position": {
+                        "x": "79%",
+                        "y": "52%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "group photo.",
+                    "editable": true
+                },
+                {
+                    "elementId": "label4",
+                    "type": "label",
+                    "position": {
+                        "x": "21%",
+                        "y": "92%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "sports photo.",
+                    "editable": true
+                },
+                {
+                    "elementId": "label5",
+                    "type": "label",
+                    "position": {
+                        "x": "50%",
+                        "y": "92%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "event photo.",
+                    "editable": true
+                },
+                {
+                    "elementId": "label6",
+                    "type": "label",
+                    "position": {
+                        "x": "79%",
+                        "y": "92%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "product photos.",
+                    "editable": true
+                }
+            ],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "category-hero-left",
+            "layoutName": "Category - Hero Left",
+            "pageType": "category",
+            "description": "Large hero photo left, three stacked photos right, category title bottom",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "4%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "48%",
+                        "height": "76%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "right1",
+                    "position": {
+                        "x": "55%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "22%",
+                        "height": "24%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "right2",
+                    "position": {
+                        "x": "55%",
+                        "y": "38%"
+                    },
+                    "size": {
+                        "width": "22%",
+                        "height": "24%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "right3",
+                    "position": {
+                        "x": "55%",
+                        "y": "64%"
+                    },
+                    "size": {
+                        "width": "22%",
+                        "height": "24%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "categoryTitle",
+                    "type": "categoryTitle",
+                    "position": {
+                        "x": "72%",
+                        "y": "82%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "56px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "Category",
+                    "editable": true
+                },
+                {
+                    "elementId": "categorySubtitle",
+                    "type": "categorySubtitle",
+                    "position": {
+                        "x": "82%",
+                        "y": "90%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "18px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "left"
+                    },
+                    "placeholder": "photo.",
+                    "editable": true
+                }
+            ],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "category-hero-grid",
+            "layoutName": "Category - Hero with Grid",
+            "pageType": "category",
+            "description": "Large hero photo left, 2x2 grid right, category title bottom",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "4%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "76%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "grid1",
+                    "position": {
+                        "x": "49%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "24%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "grid2",
+                    "position": {
+                        "x": "75%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "22%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "grid3",
+                    "position": {
+                        "x": "49%",
+                        "y": "50%"
+                    },
+                    "size": {
+                        "width": "28%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "grid4",
+                    "position": {
+                        "x": "79%",
+                        "y": "50%"
+                    },
+                    "size": {
+                        "width": "18%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "categoryTitle",
+                    "type": "categoryTitle",
+                    "position": {
+                        "x": "65%",
+                        "y": "82%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "56px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "Sports",
+                    "editable": true
+                },
+                {
+                    "elementId": "categorySubtitle",
+                    "type": "categorySubtitle",
+                    "position": {
+                        "x": "82%",
+                        "y": "90%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "18px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "left"
+                    },
+                    "placeholder": "photo.",
+                    "editable": true
+                }
+            ],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "category-collage",
+            "layoutName": "Category - Collage",
+            "pageType": "category",
+            "description": "Four photos in asymmetric collage arrangement with category title",
+            "photoSlots": [
+                {
+                    "slotId": "topLeft",
+                    "position": {
+                        "x": "4%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "28%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "topCenter",
+                    "position": {
+                        "x": "34%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "26%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "square",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "62%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "34%",
+                        "height": "52%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "70%",
+                        "y": "66%"
+                    },
+                    "size": {
+                        "width": "26%",
+                        "height": "26%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "categoryTitle",
+                    "type": "categoryTitle",
+                    "position": {
+                        "x": "8%",
+                        "y": "78%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "56px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "Product",
+                    "editable": true
+                },
+                {
+                    "elementId": "categorySubtitle",
+                    "type": "categorySubtitle",
+                    "position": {
+                        "x": "35%",
+                        "y": "86%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "18px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "left"
+                    },
+                    "placeholder": "photo.",
+                    "editable": true
+                }
+            ],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "gallery-six",
+            "layoutName": "Gallery - Six Photos",
+            "pageType": "gallery",
+            "description": "Six photos in 2x3 grid layout",
+            "photoSlots": [
+                {
+                    "slotId": "photo1",
+                    "position": {
+                        "x": "4%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo2",
+                    "position": {
+                        "x": "36%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "28%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo3",
+                    "position": {
+                        "x": "66%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo4",
+                    "position": {
+                        "x": "4%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo5",
+                    "position": {
+                        "x": "36%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "28%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo6",
+                    "position": {
+                        "x": "66%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "gallery-four-large",
+            "layoutName": "Gallery - Four Large",
+            "pageType": "gallery",
+            "description": "Four photos in 2x2 grid, larger sizes",
+            "photoSlots": [
+                {
+                    "slotId": "photo1",
+                    "position": {
+                        "x": "4%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "45%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo2",
+                    "position": {
+                        "x": "51%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "45%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo3",
+                    "position": {
+                        "x": "4%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "45%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo4",
+                    "position": {
+                        "x": "51%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "45%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "full-bleed-single",
+            "layoutName": "Full Bleed Single",
+            "pageType": "showcase",
+            "description": "Single full-bleed photo for hero showcase",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                }
+            ],
+            "textElements": [],
+            "decorations": [],
+            "hasHeader": false
+        },
+        {
+            "layoutId": "duo-horizontal",
+            "layoutName": "Duo Horizontal",
+            "pageType": "gallery",
+            "description": "Two photos side by side",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "4%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "52%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [],
+            "decorations": [],
+            "hasHeader": true
+        },
+        {
+            "layoutId": "thank-you",
+            "layoutName": "Thank You",
+            "pageType": "closing",
+            "description": "Full-bleed photo with centered thank you message",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "closing"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "thank",
+                    "type": "title",
+                    "position": {
+                        "x": "50%",
+                        "y": "45%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "96px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Thank",
+                    "editable": true
+                },
+                {
+                    "elementId": "you",
+                    "type": "title",
+                    "position": {
+                        "x": "50%",
+                        "y": "58%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "96px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "you.",
+                    "editable": true
+                }
+            ],
+            "decorations": [],
+            "hasHeader": false
+        },
+        {
+            "layoutId": "contact",
+            "layoutName": "Contact",
+            "pageType": "closing",
+            "description": "Contact information page with photo",
+            "photoSlots": [
+                {
+                    "slotId": "portrait",
+                    "position": {
+                        "x": "10%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "35%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "contactTitle",
+                    "type": "title",
+                    "position": {
+                        "x": "70%",
+                        "y": "25%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "56px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Let's Work",
+                    "editable": true
+                },
+                {
+                    "elementId": "contactSubtitle",
+                    "type": "subtitle",
+                    "position": {
+                        "x": "70%",
+                        "y": "38%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "48px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Together",
+                    "editable": true
+                },
+                {
+                    "elementId": "email",
+                    "type": "contact",
+                    "position": {
+                        "x": "70%",
+                        "y": "55%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "hello@studio.com",
+                    "editable": true
+                },
+                {
+                    "elementId": "phone",
+                    "type": "contact",
+                    "position": {
+                        "x": "70%",
+                        "y": "62%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "+1 234 567 8900",
+                    "editable": true
+                },
+                {
+                    "elementId": "website",
+                    "type": "contact",
+                    "position": {
+                        "x": "70%",
+                        "y": "69%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "www.studio.com",
+                    "editable": true
+                }
+            ],
+            "decorations": [],
+            "hasHeader": true
+        }
+    ],
+    "defaultPageSequence": [
+        {
+            "layoutId": "cover-hero",
+            "required": true
+        },
+        {
+            "layoutId": "about-studio",
+            "required": false
+        },
+        {
+            "layoutId": "table-of-contents",
+            "required": false
+        },
+        {
+            "layoutId": "category-hero-left",
+            "required": false
+        },
+        {
+            "layoutId": "gallery-six",
+            "required": false
+        },
+        {
+            "layoutId": "category-hero-grid",
+            "required": false
+        },
+        {
+            "layoutId": "gallery-four-large",
+            "required": false
+        },
+        {
+            "layoutId": "category-collage",
+            "required": false
+        },
+        {
+            "layoutId": "duo-horizontal",
+            "required": false
+        },
+        {
+            "layoutId": "full-bleed-single",
+            "required": false
+        },
+        {
+            "layoutId": "thank-you",
+            "required": true
+        }
+    ],
+    "photoAssignmentRules": {
+        "heroDetection": {
+            "preferLandscape": true,
+            "preferFaces": true,
+            "preferHighQuality": true,
+            "avoidSimilarConsecutive": true
+        },
+        "groupingStrategy": "by_category_similarity",
+        "minimumPhotosPerPage": 1,
+        "maximumPhotosPerPage": 6,
+        "categoryDetection": {
+            "portrait": [
+                "person",
+                "face",
+                "model"
+            ],
+            "product": [
+                "object",
+                "still-life",
+                "commercial"
+            ],
+            "event": [
+                "group",
+                "party",
+                "celebration"
+            ],
+            "sports": [
+                "action",
+                "athlete",
+                "fitness"
+            ],
+            "maternity": [
+                "pregnancy",
+                "baby-bump",
+                "expecting"
+            ]
+        }
+    },
+    "autoGenerateText": {
+        "enabled": true,
+        "defaultTitles": {
+            "cover": [
+                "Photography Portfolio",
+                "Creative Works",
+                "Portfolio"
+            ],
+            "categories": [
+                "Models",
+                "Maternity",
+                "Group",
+                "Sports",
+                "Events",
+                "Product",
+                "Portrait",
+                "Wedding",
+                "Commercial",
+                "Fashion"
+            ],
+            "closing": [
+                "Thank you.",
+                "Let's Connect",
+                "Get in Touch"
+            ]
+        }
+    },
+    "themeVariants": [
+        {
+            "variantId": "terracotta",
+            "name": "Terracotta",
+            "colors": {
+                "background": "#BD8465",
+                "backgroundAlt": "#B27555"
+            }
+        },
+        {
+            "variantId": "charcoal",
+            "name": "Charcoal",
+            "colors": {
+                "background": "#2D2D2D",
+                "backgroundAlt": "#1A1A1A"
+            }
+        },
+        {
+            "variantId": "navy",
+            "name": "Navy",
+            "colors": {
+                "background": "#1E3A5F",
+                "backgroundAlt": "#152D4A"
+            }
+        },
+        {
+            "variantId": "forest",
+            "name": "Forest",
+            "colors": {
+                "background": "#2D4A3E",
+                "backgroundAlt": "#1E3A2E"
+            }
+        },
+        {
+            "variantId": "burgundy",
+            "name": "Burgundy",
+            "colors": {
+                "background": "#722F37",
+                "backgroundAlt": "#5A252C"
+            }
+        }
+    ]
+}

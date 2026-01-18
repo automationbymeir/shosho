@@ -1,0 +1,426 @@
+/**
+ * FamilyRootsRenderer
+ * Complete page renderer with text alignment support
+ */
+
+/* eslint-disable no-unused-vars */
+
+/**
+ * TextAlignmentRenderer
+ * Handles precise text positioning for the Family Roots template
+ */
+class TextAlignmentRenderer {
+    constructor(designSystem) {
+        this.ds = designSystem;
+        this.baselineUnit = 8;
+    }
+
+    /**
+     * Calculate CSS for text element alignment
+     * @param {Object} textEl - Text element definition from template
+     * @returns {Object} - CSS properties object
+     */
+    getAlignmentCSS(textEl) {
+        const css = {
+            position: 'absolute',
+            top: textEl.position.y,
+        };
+
+        // Handle horizontal alignment
+        const alignment = textEl.alignment || {};
+
+        if (alignment.horizontal === 'center' || (textEl.style && textEl.style.align === 'center')) {
+            css.left = textEl.position.x;
+            css.transform = 'translateX(-50%)';
+            css.textAlign = 'center';
+        } else if (alignment.horizontal === 'right') {
+            css.right = textEl.position.x;
+            css.left = 'auto';
+            css.textAlign = 'right';
+        } else {
+            // Default to left alignment
+            css.left = textEl.position.x;
+            css.textAlign = (textEl.style && textEl.style.align) || 'left';
+        }
+
+        // Handle width for multi-line text
+        if (textEl.size && textEl.size.width) {
+            css.width = textEl.size.width;
+        }
+
+        return css;
+    }
+
+    /**
+     * Calculate caption position centered under a photo slot
+     * @param {Object} photoSlot - Photo slot definition
+     * @param {number} verticalOffset - Pixels below photo
+     * @returns {Object} - Position object {x, y}
+     */
+    getCaptionPositionUnderPhoto(photoSlot, verticalOffset = 12) {
+        const photoX = parseFloat(photoSlot.position.x);
+        const photoY = parseFloat(photoSlot.position.y);
+        const photoWidth = parseFloat(photoSlot.size.width);
+        const photoHeight = parseFloat(photoSlot.size.height);
+
+        return {
+            x: `${photoX + photoWidth / 2}%`,
+            y: `${photoY + photoHeight + (verticalOffset / 600 * 100)}%`
+        };
+    }
+}
+
+class FamilyRootsRenderer {
+    constructor(templateConfig) {
+        this.config = templateConfig || {}; // Handle empty config gracefully
+        this.ds = this.config.designSystem || {};
+
+        // Ensure nested DS objects exist to prevent crashes
+        this.ds.colors = this.ds.colors || {
+            background: '#FAF9F6',
+            decorative: { border: '#DDD', shadow: 'rgba(0,0,0,0.1)' }
+        };
+        this.ds.colors.text = this.ds.colors.text || { primary: '#333' };
+        this.ds.typography = this.ds.typography || {};
+        this.ds.photoStyles = this.ds.photoStyles || {};
+        this.ds.canvas = this.ds.canvas || { width: 800, height: 600 };
+
+        this.alignmentRenderer = new TextAlignmentRenderer(this.ds);
+    }
+
+    renderPage(pageLayout, photos, textContent) {
+        const page = document.createElement('div');
+        page.className = `album-page family-roots ${pageLayout.layoutId}`;
+
+        // Default aspect ratio if not in DS
+        const width = this.ds.canvas.width || 800;
+        const height = this.ds.canvas.height || 600;
+
+        page.style.cssText = `
+      position: relative;
+      width: 100%;
+      aspect-ratio: ${width}/${height};
+      background-color: ${this.ds.colors.background};
+      overflow: hidden;
+    `;
+
+        // Render decorations first (behind photos)
+        this.renderDecorations(page, pageLayout.decorations);
+
+        // Render photo slots
+        if (pageLayout.photoSlots) {
+            pageLayout.photoSlots.forEach((slot, index) => {
+                const photo = photos[index];
+                // Render slot even if no photo, to show placeholder/drop zone
+                this.renderPhotoSlot(page, slot, photo, index);
+            });
+        }
+
+        // Render text elements with precise alignment
+        if (pageLayout.textElements) {
+            pageLayout.textElements.forEach(textEl => {
+                const content = textContent[textEl.elementId] || textEl.placeholder;
+                this.renderTextElement(page, textEl, content, textContent);
+            });
+        }
+
+        return page;
+    }
+
+    renderTextElement(page, textEl, content, fullTextContent) {
+        const element = document.createElement('div');
+        element.className = `text-element text-${textEl.type}`;
+        element.dataset.selectableType = 'text';
+        element.dataset.selectableId = textEl.elementId;
+        if (textEl.editable !== false) {
+            element.contentEditable = 'false'; // Controlled by app.js double click
+        }
+
+        // Get font configuration
+        const fontKey = textEl.style ? textEl.style.font : 'body';
+        const fontConfig = this.ds.typography[fontKey] || { family: 'sans-serif', fallback: 'arial' };
+
+        const colorKey = textEl.style ? textEl.style.color : 'primary';
+        const color = this.resolveColor(colorKey);
+
+        const fontSize = textEl.style ? textEl.style.size : '14px';
+        const fontWeight = textEl.style ? textEl.style.weight : 400;
+
+        // Build base styles
+        let styles = `
+      position: absolute;
+      top: ${textEl.position.y};
+      font-family: ${fontConfig.family}, ${fontConfig.fallback};
+      font-size: ${fontSize};
+      font-weight: ${fontWeight};
+      color: ${color};
+      z-index: 10;
+      cursor: grab;
+    `;
+
+        // Apply alignment
+        const alignCSS = this.alignmentRenderer.getAlignmentCSS(textEl);
+        styles += `
+      left: ${alignCSS.left || 'auto'};
+      ${alignCSS.right ? `right: ${alignCSS.right};` : ''}
+      ${alignCSS.transform ? `transform: ${alignCSS.transform};` : ''}
+      text-align: ${alignCSS.textAlign};
+      ${alignCSS.width ? `width: ${alignCSS.width};` : ''}
+    `;
+
+        // Apply optional styles
+        if (textEl.style) {
+            if (textEl.style.fontStyle) {
+                styles += `font-style: ${textEl.style.fontStyle};`;
+            }
+            if (textEl.style.letterSpacing) {
+                styles += `letter-spacing: ${textEl.style.letterSpacing};`;
+            }
+            if (textEl.style.textTransform) {
+                styles += `text-transform: ${textEl.style.textTransform};`;
+            }
+            if (textEl.style.lineHeight) {
+                styles += `line-height: ${textEl.style.lineHeight};`;
+            }
+        }
+
+        element.style.cssText = styles;
+
+        // Handle multi-line content safe replacement
+        if (content) {
+            element.innerHTML = content.replace(/\n/g, '<br>');
+        } else {
+            element.innerHTML = '';
+        }
+
+        page.appendChild(element);
+    }
+
+    renderPhotoSlot(page, slot, photo, index) {
+        const container = document.createElement('div');
+        container.className = `photo-slot photo-${slot.photoStyle || 'default'}`;
+        container.dataset.slotId = slot.slotId; // Identify slot for drag drop
+
+        const styleName = slot.photoStyle || 'default';
+        const style = this.ds.photoStyles[styleName] || { borderRadius: '0px', shadow: 'none', border: 'none' };
+
+        let containerStyles = `
+      position: absolute;
+      left: ${slot.position.x};
+      top: ${slot.position.y};
+      width: ${slot.size.width};
+      height: ${slot.size.height};
+      overflow: hidden;
+      border-radius: ${style.borderRadius};
+      box-shadow: ${style.shadow};
+      ${style.border ? `border: ${style.border};` : ''}
+      z-index: ${slot.zIndex || 1};
+      background-color: rgba(0,0,0,0.03); /* Placeholder bg */
+    `;
+
+        // Handle rotation for overlapping photo effect
+        if (slot.rotation) {
+            containerStyles += `transform: rotate(${slot.rotation});`;
+        }
+
+        container.style.cssText = containerStyles;
+
+        if (photo) {
+            const img = document.createElement('img');
+            img.src = photo.url || photo.baseUrl || photo.src; // Prioritize URL
+            img.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: ${slot.photoFit || 'cover'};
+        display: block;
+        `;
+            container.appendChild(img);
+
+            // Add Remove Button
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn-remove-slot-photo';
+            removeBtn.innerHTML = '×';
+            removeBtn.dataset.slotIndex = index;
+            removeBtn.title = "Remove photo";
+            // CRITICAL FIX: pointer-events: auto to ensure clickability
+            removeBtn.style.cssText = `
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            line-height: 1;
+            padding-bottom: 2px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: auto; 
+        `;
+
+            container.addEventListener('mouseenter', () => removeBtn.style.opacity = '1');
+            container.addEventListener('mouseleave', () => removeBtn.style.opacity = '0');
+            container.appendChild(removeBtn);
+        } else {
+            // Placeholder text or icon could go here
+            const help = document.createElement('div');
+            help.innerText = "+";
+            help.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color: #CCC; font-size: 24px pointer-events: none;";
+            container.appendChild(help);
+        }
+
+        page.appendChild(container);
+    }
+
+    renderDecorations(page, decorations) {
+        if (!decorations) return;
+
+        decorations.forEach(dec => {
+            if (dec.type === 'flourish') {
+                this.renderFlourish(page, dec);
+            } else if (dec.type === 'border') {
+                this.renderBorder(page, dec);
+            } else if (dec.type === 'line') {
+                this.renderLine(page, dec);
+            } else if (dec.type === 'quoteMarks') {
+                this.renderQuoteMarks(page, dec);
+            } else if (dec.type === 'corner') {
+                this.renderCorner(page, dec);
+            }
+        });
+    }
+
+    renderFlourish(page, decoration) {
+        // Placeholder for flourish SVG
+        const flourish = document.createElement('div');
+        flourish.className = 'decoration-flourish';
+        // Use a simple CSS shape or SVG data URI if available. 
+        // Using a simple unicode char for now as placeholder if svg not provided
+        flourish.innerHTML = '~ ❦ ~';
+        flourish.style.cssText = `
+      position: absolute;
+      left: ${decoration.position.x};
+      top: ${decoration.position.y};
+      transform: translateX(-50%);
+      width: ${decoration.size.width};
+      height: ${decoration.size.height};
+      opacity: 0.6;
+      color: #D4C4B0; 
+      font-size: 24px;
+      text-align: center;
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+    `;
+        page.appendChild(flourish);
+    }
+
+    renderBorder(page, decoration) {
+        const border = document.createElement('div');
+        border.className = 'decoration-border';
+        border.style.cssText = `
+      position: absolute;
+      left: ${decoration.position.x};
+      top: ${decoration.position.y};
+      width: ${decoration.size.width};
+      height: ${decoration.size.height};
+      border: ${decoration.style === 'double' ? '4px double' : '1px solid'} ${this.ds.colors.decorative.border};
+      pointer-events: none;
+    `;
+        page.appendChild(border);
+    }
+
+    renderLine(page, decoration) {
+        const line = document.createElement('div');
+        line.className = 'decoration-line';
+        line.style.cssText = `
+      position: absolute;
+      left: ${decoration.position.x};
+      top: ${decoration.position.y};
+      width: ${decoration.size.width};
+      height: ${decoration.size.height};
+      background-color: ${decoration.color || this.ds.colors.decorative.border};
+    `;
+        page.appendChild(line);
+    }
+
+    renderQuoteMarks(page, decoration) {
+        const mark = document.createElement('div');
+        mark.innerHTML = '❝';
+        mark.style.cssText = `
+        position: absolute;
+        left: ${decoration.position.x};
+        top: ${decoration.position.y};
+        font-size: ${decoration.size};
+        color: ${decoration.color || '#D4C4B0'};
+        opacity: 0.5;
+        font-family: serif;
+      `;
+        page.appendChild(mark);
+    }
+
+    renderCorner(page, decoration) {
+        // If "positions" is array, render multiple
+        const positions = decoration.positions || ['topLeft'];
+        positions.forEach(pos => {
+            const corner = document.createElement('div');
+            // Simple visual representation of a corner
+            corner.style.cssText = `
+            position: absolute;
+            width: ${decoration.size || '40px'};
+            height: ${decoration.size || '40px'};
+            border-color: ${decoration.color || '#B8956E'};
+            pointer-events: none;
+          `;
+
+            if (pos === 'topLeft') {
+                corner.style.top = '6%';
+                corner.style.left = '6%';
+                corner.style.borderTop = '2px solid';
+                corner.style.borderLeft = '2px solid';
+            } else if (pos === 'topRight') {
+                corner.style.top = '6%';
+                corner.style.right = '6%';
+                corner.style.borderTop = '2px solid';
+                corner.style.borderRight = '2px solid';
+            } else if (pos === 'bottomLeft') {
+                corner.style.bottom = '6%';
+                corner.style.left = '6%';
+                corner.style.borderBottom = '2px solid';
+                corner.style.borderLeft = '2px solid';
+            } else if (pos === 'bottomRight') {
+                corner.style.bottom = '6%';
+                corner.style.right = '6%';
+                corner.style.borderBottom = '2px solid';
+                corner.style.borderRight = '2px solid';
+            }
+            page.appendChild(corner);
+        });
+    }
+
+    resolveColor(colorKey) {
+        const colors = this.ds.colors;
+        if (!colors) return colorKey;
+        if (colorKey === 'primary') return colors.text.primary;
+        if (colorKey === 'secondary') return colors.text.secondary;
+        if (colorKey === 'light') return colors.text.light;
+        if (colorKey === 'inverse') return colors.text.inverse;
+        return colorKey;
+    }
+}
+
+// Export for usage
+// Export for usage
+if (typeof window !== 'undefined') {
+    window.FamilyRootsRenderer = FamilyRootsRenderer;
+}
+
+export { FamilyRootsRenderer };

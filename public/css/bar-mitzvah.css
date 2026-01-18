@@ -1,0 +1,25 @@
+/* Bar Mitzvah Template Styles */
+
+/* Ensure Fonts are available */
+@import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;700&family=Secular+One&display=swap');
+
+.album-page.bar-mitzvah {
+    font-family: 'Heebo', sans-serif;
+    direction: rtl;
+}
+
+/* Typography Overrides if needed */
+.text-display {
+    font-family: 'Frank Ruhl Libre', serif;
+}
+
+.text-heading {
+    font-family: 'Heebo', sans-serif;
+}
+
+.text-decorative {
+    font-family: 'Secular One', sans-serif;
+}
+
+/* Selection Frame Override for RTL might be tricky, checking... */
+/* RenderEngine's default selection frame should work if it uses absolute bounding box. */

@@ -1,0 +1,1441 @@
+{
+    "templateId": "romantic-journey-v1",
+    "templateName": "Romantic Journey",
+    "templateDescription": "An elegant couple/wedding album template featuring warm earth tones, script typography, and sophisticated layouts perfect for engagement, wedding, and anniversary albums.",
+    "version": "1.0.0",
+    "category": "wedding",
+    "tags": [
+        "romantic",
+        "wedding",
+        "couples",
+        "engagement",
+        "anniversary",
+        "elegant"
+    ],
+    "minPhotos": 20,
+    "maxPhotos": 60,
+    "recommendedPhotos": 35,
+    "designSystem": {
+        "colors": {
+            "background": "#EDE8E3",
+            "backgroundAlt": "#F5F2EF",
+            "accent": "#C4956A",
+            "accentDark": "#B07D4F",
+            "text": {
+                "primary": "#2D2926",
+                "secondary": "#5A5552",
+                "light": "#8A8583"
+            }
+        },
+        "typography": {
+            "script": {
+                "family": "Pinyon Script",
+                "fallback": "Great Vibes, cursive",
+                "weights": [
+                    400
+                ],
+                "usage": "titles, headings, decorative text"
+            },
+            "serif": {
+                "family": "Cormorant Garamond",
+                "fallback": "Playfair Display, Georgia, serif",
+                "weights": [
+                    400,
+                    500,
+                    600
+                ],
+                "usage": "subtitles, dates, body text"
+            },
+            "sans": {
+                "family": "Montserrat",
+                "fallback": "Open Sans, sans-serif",
+                "weights": [
+                    400,
+                    500,
+                    600,
+                    700
+                ],
+                "usage": "UI elements, small caps"
+            }
+        },
+        "spacing": {
+            "pagePadding": "5%",
+            "photoGap": "2%",
+            "textMargin": "4%"
+        },
+        "photoStyles": {
+            "default": {
+                "borderRadius": "0px",
+                "shadow": "0 4px 20px rgba(0,0,0,0.1)",
+                "border": "none"
+            },
+            "rounded": {
+                "borderRadius": "8px",
+                "shadow": "0 4px 20px rgba(0,0,0,0.1)",
+                "border": "none"
+            }
+        }
+    },
+    "decorativeElements": {
+        "accentRectangle": {
+            "type": "rectangle",
+            "color": "#C4956A",
+            "sizes": {
+                "small": {
+                    "width": "8%",
+                    "height": "15%"
+                },
+                "medium": {
+                    "width": "10%",
+                    "height": "25%"
+                },
+                "large": {
+                    "width": "12%",
+                    "height": "35%"
+                }
+            }
+        },
+        "accentBar": {
+            "type": "rectangle",
+            "color": "#C4956A",
+            "height": "8%",
+            "width": "100%"
+        },
+        "underline": {
+            "type": "line",
+            "color": "#2D2926",
+            "thickness": "1px",
+            "style": "solid"
+        }
+    },
+    "pageLayouts": [
+        {
+            "layoutId": "cover",
+            "layoutName": "Cover Page",
+            "pageType": "cover",
+            "description": "Single hero photo with script title below",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "5%",
+                        "y": "5%"
+                    },
+                    "size": {
+                        "width": "90%",
+                        "height": "70%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero_romantic"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "title",
+                    "position": {
+                        "y": "78%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "72px",
+                        "color": "accent",
+                        "align": "center"
+                    },
+                    "placeholder": "Names & Names",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "story-left-photo",
+            "layoutName": "Story with Left Photo",
+            "pageType": "content",
+            "description": "Large photo on left with decorative rectangles, text content on right",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "0%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "55%",
+                        "height": "80%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "heading",
+                    "type": "heading",
+                    "position": {
+                        "x": "60%",
+                        "y": "30%"
+                    },
+                    "size": {
+                        "width": "30%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "42px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "How We Met",
+                    "editable": true,
+                    "hasUnderline": true
+                },
+                {
+                    "elementId": "body",
+                    "type": "body",
+                    "position": {
+                        "x": "60%",
+                        "y": "42%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "maxHeight": "40%"
+                    },
+                    "style": {
+                        "font": "serif",
+                        "size": "14px",
+                        "color": "secondary",
+                        "align": "left",
+                        "lineHeight": "1.6"
+                    },
+                    "placeholder": "Share your story here...",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "element": "accentRectangle",
+                    "size": "medium",
+                    "position": {
+                        "x": "0%",
+                        "y": "5%"
+                    }
+                },
+                {
+                    "element": "accentRectangle",
+                    "size": "small",
+                    "position": {
+                        "x": "0%",
+                        "y": "85%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "two-photos-vertical",
+            "layoutName": "Two Photos Vertical Stack",
+            "pageType": "content",
+            "description": "Two photos stacked vertically with minimal spacing",
+            "photoSlots": [
+                {
+                    "slotId": "top",
+                    "position": {
+                        "x": "15%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "70%",
+                        "height": "46%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottom",
+                    "position": {
+                        "x": "15%",
+                        "y": "51%"
+                    },
+                    "size": {
+                        "width": "70%",
+                        "height": "46%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "title-card-overlay",
+            "layoutName": "Title Card with Photo",
+            "pageType": "content",
+            "description": "Full-width photo with floating title card overlay",
+            "photoSlots": [
+                {
+                    "slotId": "background",
+                    "position": {
+                        "x": "0%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "80%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "titleCard",
+                    "type": "card",
+                    "position": {
+                        "x": "50%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "30%"
+                    },
+                    "background": "accent",
+                    "children": [
+                        {
+                            "elementId": "title",
+                            "type": "title",
+                            "style": {
+                                "font": "script",
+                                "size": "42px",
+                                "color": "primary",
+                                "align": "center"
+                            },
+                            "placeholder": "Our First Date",
+                            "editable": true
+                        },
+                        {
+                            "elementId": "location",
+                            "type": "subtitle",
+                            "style": {
+                                "font": "serif",
+                                "size": "14px",
+                                "color": "primary",
+                                "align": "center"
+                            },
+                            "placeholder": "at Location Name",
+                            "editable": true
+                        },
+                        {
+                            "elementId": "date",
+                            "type": "date",
+                            "style": {
+                                "font": "serif",
+                                "size": "14px",
+                                "color": "primary",
+                                "align": "center"
+                            },
+                            "placeholder": "Sunday, 22 January, 2020",
+                            "editable": true
+                        }
+                    ]
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "story-top-text",
+            "layoutName": "Story Text Above Photos",
+            "pageType": "content",
+            "description": "Script title and text at top, two photos below",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "5%",
+                        "y": "35%"
+                    },
+                    "size": {
+                        "width": "60%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "67%",
+                        "y": "35%"
+                    },
+                    "size": {
+                        "width": "28%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "heading",
+                    "type": "heading",
+                    "position": {
+                        "x": "5%",
+                        "y": "5%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "56px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "The Story Begins",
+                    "editable": true
+                },
+                {
+                    "elementId": "body",
+                    "type": "body",
+                    "position": {
+                        "x": "5%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "90%",
+                        "maxHeight": "12%"
+                    },
+                    "style": {
+                        "font": "serif",
+                        "size": "16px",
+                        "color": "secondary",
+                        "align": "left",
+                        "lineHeight": "1.6"
+                    },
+                    "placeholder": "Share your story here...",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "element": "accentBar",
+                    "position": {
+                        "x": "0%",
+                        "y": "92%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "three-photo-collage-a",
+            "layoutName": "Three Photo Collage (Large Left)",
+            "pageType": "content",
+            "description": "One large photo on left, two smaller stacked on right",
+            "photoSlots": [
+                {
+                    "slotId": "large",
+                    "position": {
+                        "x": "5%",
+                        "y": "5%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "90%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "57%",
+                        "y": "5%"
+                    },
+                    "size": {
+                        "width": "38%",
+                        "height": "44%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "57%",
+                        "y": "51%"
+                    },
+                    "size": {
+                        "width": "38%",
+                        "height": "44%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "story-right-photo",
+            "layoutName": "Story with Right Photo",
+            "pageType": "content",
+            "description": "Text content on left with accent bar, large photo on right",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "45%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "55%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "heading",
+                    "type": "heading",
+                    "position": {
+                        "x": "5%",
+                        "y": "55%"
+                    },
+                    "size": {
+                        "width": "35%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "48px",
+                        "color": "primary",
+                        "align": "right"
+                    },
+                    "placeholder": "We Grow Together",
+                    "editable": true
+                },
+                {
+                    "elementId": "body",
+                    "type": "body",
+                    "position": {
+                        "x": "5%",
+                        "y": "68%"
+                    },
+                    "size": {
+                        "width": "35%",
+                        "maxHeight": "25%"
+                    },
+                    "style": {
+                        "font": "serif",
+                        "size": "15px",
+                        "color": "secondary",
+                        "align": "right",
+                        "lineHeight": "1.6"
+                    },
+                    "placeholder": "Share your story here...",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "element": "accentRectangle",
+                    "size": "large",
+                    "position": {
+                        "x": "0%",
+                        "y": "10%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "two-photos-angled",
+            "layoutName": "Two Photos with Angles",
+            "pageType": "content",
+            "description": "Script title with two angled photos and decorative rectangles",
+            "photoSlots": [
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "40%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "55%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "rotation": 0,
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "5%",
+                        "y": "45%"
+                    },
+                    "size": {
+                        "width": "55%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "rotation": 0,
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "heading",
+                    "type": "heading",
+                    "position": {
+                        "x": "5%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "35%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "42px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "We Start Our\nBusiness Together",
+                    "editable": true
+                },
+                {
+                    "elementId": "subtitle",
+                    "type": "subtitle",
+                    "position": {
+                        "x": "5%",
+                        "y": "32%"
+                    },
+                    "style": {
+                        "font": "serif",
+                        "size": "16px",
+                        "color": "secondary",
+                        "align": "left"
+                    },
+                    "placeholder": "Up and down\nalways with you",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "element": "accentRectangle",
+                    "size": "medium",
+                    "position": {
+                        "x": "35%",
+                        "y": "42%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "three-photo-pyramid",
+            "layoutName": "Three Photo Pyramid",
+            "pageType": "content",
+            "description": "One large photo on top, two smaller below",
+            "photoSlots": [
+                {
+                    "slotId": "top",
+                    "position": {
+                        "x": "15%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "70%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "5%",
+                        "y": "60%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "37%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "51%",
+                        "y": "60%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "37%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "milestone-left",
+            "layoutName": "Milestone with Photo Left",
+            "pageType": "milestone",
+            "description": "Large photo on left (2/3), milestone text on right",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "65%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoHint": "milestone"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "scriptText",
+                    "type": "accent",
+                    "position": {
+                        "x": "70%",
+                        "y": "60%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "48px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "She said",
+                    "editable": true
+                },
+                {
+                    "elementId": "boldText",
+                    "type": "heading",
+                    "position": {
+                        "x": "70%",
+                        "y": "70%"
+                    },
+                    "style": {
+                        "font": "sans",
+                        "size": "72px",
+                        "weight": 700,
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "YES!",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "four-photo-grid",
+            "layoutName": "Four Photo Grid",
+            "pageType": "content",
+            "description": "2x2 grid of equal photos",
+            "photoSlots": [
+                {
+                    "slotId": "topLeft",
+                    "position": {
+                        "x": "5%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "46%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "51%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "46%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "5%",
+                        "y": "51%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "46%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "51%",
+                        "y": "51%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "46%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "three-photos-title-bottom",
+            "layoutName": "Three Photos with Title Below",
+            "pageType": "content",
+            "description": "Three equal photos in a row with script title centered below",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "3%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "65%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "center",
+                    "position": {
+                        "x": "35.5%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "65%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "68%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "65%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "title",
+                    "position": {
+                        "x": "50%",
+                        "y": "78%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "48px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "I'm Yours\nYou are Mine",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "element": "accentBar",
+                    "position": {
+                        "x": "0%",
+                        "y": "70%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "two-photos-accents",
+            "layoutName": "Two Photos with Accent Blocks",
+            "pageType": "content",
+            "description": "Two large photos with decorative accent rectangles",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "8%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "85%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "52%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "85%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [],
+            "decorations": [
+                {
+                    "element": "accentRectangle",
+                    "size": "small",
+                    "position": {
+                        "x": "0%",
+                        "y": "80%"
+                    }
+                },
+                {
+                    "element": "accentRectangle",
+                    "size": "small",
+                    "position": {
+                        "x": "92%",
+                        "y": "0%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "two-photos-quote-bottom",
+            "layoutName": "Two Photos with Quote Below",
+            "pageType": "content",
+            "description": "Large photo left, smaller right, script quote centered below",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "60%",
+                        "height": "65%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "62%",
+                        "y": "5%"
+                    },
+                    "size": {
+                        "width": "35%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "quote",
+                    "type": "quote",
+                    "position": {
+                        "x": "50%",
+                        "y": "78%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "42px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Against the World\nWith You",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "chapter-header",
+            "layoutName": "Chapter Header",
+            "pageType": "chapter",
+            "description": "Script title at top with two photos below and accent rectangle",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "0%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "70%",
+                        "height": "75%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "secondary",
+                    "position": {
+                        "x": "72%",
+                        "y": "25%"
+                    },
+                    "size": {
+                        "width": "25%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "chapterTitle",
+                    "type": "chapter",
+                    "position": {
+                        "x": "5%",
+                        "y": "3%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "56px",
+                        "color": "primary",
+                        "align": "left"
+                    },
+                    "placeholder": "Summer 2022",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "element": "accentRectangle",
+                    "size": "medium",
+                    "position": {
+                        "x": "88%",
+                        "y": "75%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "three-photos-chapter",
+            "layoutName": "Three Photos Chapter Header",
+            "pageType": "chapter",
+            "description": "Script chapter title with three equal photos below",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "3%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "70%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "center",
+                    "position": {
+                        "x": "35.5%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "70%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "68%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "70%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "chapterTitle",
+                    "type": "chapter",
+                    "position": {
+                        "x": "50%",
+                        "y": "8%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "64px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Christmas 2022",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "wedding-chapter",
+            "layoutName": "Wedding Day Chapter",
+            "pageType": "chapter",
+            "description": "Wedding Day title, date below, three photos with accent bar",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "3%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "center",
+                    "position": {
+                        "x": "35.5%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "68%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "31%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "chapter",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "style": {
+                        "font": "script",
+                        "size": "64px",
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Wedding Day",
+                    "editable": true
+                },
+                {
+                    "elementId": "date",
+                    "type": "date",
+                    "position": {
+                        "x": "50%",
+                        "y": "88%"
+                    },
+                    "style": {
+                        "font": "serif",
+                        "size": "24px",
+                        "color": "primary",
+                        "align": "center",
+                        "letterSpacing": "8px"
+                    },
+                    "placeholder": "02 . 02 . 2023",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "element": "accentBar",
+                    "position": {
+                        "x": "0%",
+                        "y": "78%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "large-small-right",
+            "layoutName": "Large Photo with Small Right",
+            "pageType": "content",
+            "description": "Large hero photo on left, smaller accent photo bottom right",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "3%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "65%",
+                        "height": "90%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "accent",
+                    "position": {
+                        "x": "70%",
+                        "y": "50%"
+                    },
+                    "size": {
+                        "width": "27%",
+                        "height": "43%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "four-photo-asymmetric",
+            "layoutName": "Four Photo Asymmetric Grid",
+            "pageType": "content",
+            "description": "Large photo top-left, three smaller photos arranged around",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "3%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "55%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "60%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "37%",
+                        "height": "27%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "3%",
+                        "y": "60%"
+                    },
+                    "size": {
+                        "width": "55%",
+                        "height": "37%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "60%",
+                        "y": "32%"
+                    },
+                    "size": {
+                        "width": "37%",
+                        "height": "65%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "single-hero-centered",
+            "layoutName": "Single Hero Centered",
+            "pageType": "closing",
+            "description": "Single large photo centered on page",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "10%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "80%",
+                        "height": "80%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "closing"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        }
+    ],
+    "defaultPageSequence": [
+        {
+            "layoutId": "cover",
+            "required": true
+        },
+        {
+            "layoutId": "story-left-photo",
+            "required": false
+        },
+        {
+            "layoutId": "two-photos-vertical",
+            "required": false
+        },
+        {
+            "layoutId": "title-card-overlay",
+            "required": false
+        },
+        {
+            "layoutId": "story-top-text",
+            "required": false
+        },
+        {
+            "layoutId": "three-photo-collage-a",
+            "required": false
+        },
+        {
+            "layoutId": "story-right-photo",
+            "required": false
+        },
+        {
+            "layoutId": "two-photos-angled",
+            "required": false
+        },
+        {
+            "layoutId": "three-photo-pyramid",
+            "required": false
+        },
+        {
+            "layoutId": "milestone-left",
+            "required": false
+        },
+        {
+            "layoutId": "four-photo-grid",
+            "required": false
+        },
+        {
+            "layoutId": "three-photos-title-bottom",
+            "required": false
+        },
+        {
+            "layoutId": "two-photos-accents",
+            "required": false
+        },
+        {
+            "layoutId": "two-photos-quote-bottom",
+            "required": false
+        },
+        {
+            "layoutId": "chapter-header",
+            "required": false
+        },
+        {
+            "layoutId": "three-photos-chapter",
+            "required": false
+        },
+        {
+            "layoutId": "wedding-chapter",
+            "required": false
+        },
+        {
+            "layoutId": "large-small-right",
+            "required": false
+        },
+        {
+            "layoutId": "four-photo-asymmetric",
+            "required": false
+        },
+        {
+            "layoutId": "single-hero-centered",
+            "required": true
+        }
+    ],
+    "photoAssignmentRules": {
+        "heroDetection": {
+            "preferLandscape": true,
+            "preferFaces": true,
+            "preferHighQuality": true,
+            "avoidSimilarConsecutive": true
+        },
+        "groupingStrategy": "chronological_with_similarity",
+        "minimumPhotosPerPage": 1,
+        "maximumPhotosPerPage": 4
+    },
+    "autoGenerateText": {
+        "enabled": true,
+        "defaultTitles": {
+            "cover": "Our Love Story",
+            "chapters": [
+                "How We Met",
+                "First Dates",
+                "Adventures Together",
+                "Growing Together",
+                "The Proposal",
+                "Wedding Day"
+            ],
+            "quotes": [
+                "Forever & Always",
+                "You are my today and all of my tomorrows",
+                "Together is a beautiful place to be",
+                "I'm Yours, You are Mine"
+            ]
+        }
+    }
+}

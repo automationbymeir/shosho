@@ -1,0 +1,270 @@
+/**
+ * RomanticJourneyRenderer
+ * Renders pages according to the Romantic Journey template spec
+ */
+export class RomanticJourneyRenderer {
+    constructor(templateConfig) {
+        this.config = templateConfig;
+        this.designSystem = templateConfig.designSystem;
+    }
+
+    /**
+     * Render a single page
+     * @param {Object} pageLayout - Layout definition from template
+     * @param {Array} photos - Photos assigned to this page
+     * @param {Object} textContent - User-provided or AI-generated text
+     * @returns {HTMLElement} - Rendered page element
+     */
+    renderPage(pageLayout, photos, textContent = {}) {
+        if (!pageLayout) {
+            console.error("RomanticJourneyRenderer: No page layout provided");
+            return document.createElement('div');
+        }
+
+        const page = document.createElement('div');
+        page.className = 'album-page romantic-journey';
+        page.style.backgroundColor = this.designSystem.colors.background;
+        // Aspect ratio handled by CSS, but good to enforce if inline styles needed
+
+        // Render decorations first (behind everything)
+        this.renderDecorations(page, pageLayout.decorations);
+
+        // Render photo slots
+        if (pageLayout.photoSlots) {
+            pageLayout.photoSlots.forEach((slot, index) => {
+                // Photos might be fewer than slots if user didn't select enough
+                const photo = photos[index];
+                if (photo) {
+                    this.renderPhotoSlot(page, slot, photo);
+                } else {
+                    // Optional: Render empty slot placeholder
+                    this.renderEmptySlot(page, slot);
+                }
+            });
+        }
+
+        // Render text elements
+        if (pageLayout.textElements) {
+            pageLayout.textElements.forEach(textEl => {
+                // Handle nested children for complex elements like title cards
+                if (textEl.children) {
+                    this.renderComplexTextElement(page, textEl, textContent);
+                } else {
+                    const content = textContent[textEl.elementId] || textEl.placeholder;
+                    this.renderTextElement(page, textEl, content);
+                }
+            });
+        }
+
+        return page;
+    }
+
+    renderPhotoSlot(page, slot, photo) {
+        const container = document.createElement('div');
+        container.className = 'photo-slot';
+        container.style.cssText = `
+      position: absolute;
+      left: ${slot.position.x};
+      top: ${slot.position.y};
+      width: ${slot.size.width};
+      height: ${slot.size.height};
+      overflow: hidden;
+      ${slot.rotation ? `transform: rotate(${slot.rotation}deg);` : ''}
+      ${this.getPhotoStyle(slot)}
+    `;
+
+        const img = document.createElement('img');
+        // Handle both direct URL strings and object structures (from Google Photos or local)
+        img.src = photo.baseUrl || photo.url || photo.src || (photo.indexOf && photo.indexOf('data:') === 0 ? photo : '');
+
+        img.style.cssText = `
+      width: 100%;
+      height: 100%;
+      object-fit: ${slot.photoFit || 'cover'};
+    `;
+
+        // Error handling for broken images
+        img.onerror = () => {
+            img.src = 'assets/placeholder-image.png'; // Todo: Ensure this asset exists or use a data URI
+        };
+
+        container.appendChild(img);
+        page.appendChild(container);
+    }
+
+    renderEmptySlot(page, slot) {
+        const container = document.createElement('div');
+        container.className = 'photo-slot empty-slot';
+        container.style.cssText = `
+      position: absolute;
+      left: ${slot.position.x};
+      top: ${slot.position.y};
+      width: ${slot.size.width};
+      height: ${slot.size.height};
+      background-color: rgba(0,0,0,0.05);
+      border: 1px dashed #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      ${slot.rotation ? `transform: rotate(${slot.rotation}deg);` : ''}
+    `;
+        container.innerHTML = '<span style="color:#999; font-size: 24px;">+</span>';
+        page.appendChild(container);
+
+    }
+
+    getPhotoStyle(slot) {
+        // Apply rounded corners or other styles from design system based on slot config or defaults
+        const styleKey = slot.style || 'default';
+        const styleConfig = this.designSystem.photoStyles[styleKey] || this.designSystem.photoStyles.default;
+
+        let css = '';
+        if (styleConfig.borderRadius) css += `border-radius: ${styleConfig.borderRadius};`;
+        if (styleConfig.border) css += `border: ${styleConfig.border};`;
+        // shadow often handled by class, but can be inline too
+        return css;
+    }
+
+    renderTextElement(container, textEl, content) {
+        const element = document.createElement('div');
+        element.className = `text-element text-${textEl.type}`;
+        element.dataset.id = textEl.elementId; // For potential editing interactions
+
+        const fontConfig = this.designSystem.typography[textEl.style.font] || this.designSystem.typography.sans;
+        const color = this.resolveColor(textEl.style.color);
+
+        // Calculate font family string
+        const fontFamily = fontConfig.family ? `'${fontConfig.family}', ${fontConfig.fallback}` : 'sans-serif';
+
+        element.style.cssText = `
+      position: absolute;
+      left: ${textEl.position.x};
+      top: ${textEl.position.y};
+      ${textEl.size ? `width: ${textEl.size.width};` : ''}
+      font-family: ${fontFamily};
+      font-size: ${textEl.style.size};
+      font-weight: ${textEl.style.weight || 400};
+      color: ${color};
+      text-align: ${textEl.style.align || 'left'};
+      ${textEl.style.lineHeight ? `line-height: ${textEl.style.lineHeight};` : ''}
+      ${textEl.style.letterSpacing ? `letter-spacing: ${textEl.style.letterSpacing};` : ''}
+      transform: translateX(${textEl.style.align === 'center' ? '-50%' : '0'});
+      white-space: pre-wrap; /* Preserve newlines */
+    `;
+
+        // Handle multiline content if passed as raw string with \n
+        element.textContent = content;
+
+        // Add underline if specified
+        if (textEl.hasUnderline) {
+            const underline = document.createElement('div');
+            underline.className = 'text-underline';
+            const underlineConfig = this.config.decorativeElements?.underline || { color: color, height: '1px' };
+            underline.style.cssText = `
+        width: 100%;
+        height: ${underlineConfig.thickness || '1px'};
+        background-color: ${this.resolveColor(underlineConfig.color)};
+        margin-top: 8px;
+      `;
+            element.appendChild(underline);
+        }
+
+        container.appendChild(element);
+    }
+
+    renderComplexTextElement(page, parentEl, textContent) {
+        // Example: Title Card which is a container with background and child text elements
+        if (parentEl.type === 'card') {
+            const card = document.createElement('div');
+            card.className = 'title-card';
+
+            const bg = this.resolveColor(parentEl.background);
+
+            card.style.cssText = `
+            position: absolute;
+            left: ${parentEl.position.x};
+            top: ${parentEl.position.y};
+            width: ${parentEl.size.width};
+            height: ${parentEl.size.height};
+            background-color: ${bg};
+            transform: translate(-50%, -50%); /* Centered by default logic usually */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+          `;
+
+            page.appendChild(card);
+
+            // Render children relative to the card? 
+            // The JSON spec uses absolute positioning for children too? 
+            // If the children in JSON don't have positions, we assume flow layout inside the flex container.
+            // IF they DO have positions, we might need relative container.
+            // Looking at JSON: Title Card children don't have x/y, just styles. So flex flow is correct.
+
+            parentEl.children.forEach(child => {
+                const content = textContent[child.elementId] || child.placeholder;
+                const childEl = document.createElement('div');
+                const fontConfig = this.designSystem.typography[child.style.font];
+                const color = this.resolveColor(child.style.color);
+                const fontFamily = fontConfig.family ? `'${fontConfig.family}', ${fontConfig.fallback}` : 'sans-serif';
+
+                childEl.style.cssText = `
+                font-family: ${fontFamily};
+                font-size: ${child.style.size};
+                color: ${color};
+                text-align: ${child.style.align};
+                margin-bottom: 4px;
+              `;
+                childEl.textContent = content;
+                card.appendChild(childEl);
+            });
+        }
+    }
+
+    renderDecorations(page, decorations) {
+        if (!decorations) return;
+
+        decorations.forEach(dec => {
+            const element = document.createElement('div');
+            element.className = 'decoration';
+
+            const config = this.config.decorativeElements[dec.element];
+            if (!config) return;
+
+            // Size might be a preset string (small/medium) or using default from config
+            let width, height;
+            if (config.sizes && dec.size && config.sizes[dec.size]) {
+                width = config.sizes[dec.size].width;
+                height = config.sizes[dec.size].height;
+            } else {
+                width = config.width || '100px';
+                height = config.height || '100px';
+            }
+
+            element.style.cssText = `
+        position: absolute;
+        left: ${dec.position.x};
+        top: ${dec.position.y};
+        width: ${width};
+        height: ${height};
+        background-color: ${this.resolveColor(config.color)};
+        pointer-events: none;
+      `;
+
+            page.appendChild(element);
+        });
+    }
+
+    resolveColor(colorKey) {
+        if (!colorKey) return '#000000';
+        const colors = this.designSystem.colors;
+        if (colorKey === 'primary') return colors.text.primary;
+        if (colorKey === 'secondary') return colors.text.secondary;
+        if (colorKey === 'accent') return colors.accent;
+        if (colorKey === 'accentDark') return colors.accentDark;
+        if (colorKey.startsWith('#') || colorKey.startsWith('rgb')) return colorKey;
+        return colorKey;
+    }
+}

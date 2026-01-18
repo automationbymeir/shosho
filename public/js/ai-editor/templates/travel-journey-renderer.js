@@ -1,0 +1,292 @@
+/**
+ * TravelJourneyRenderer
+ * Renders pages according to the Travel Journey template spec
+ */
+export class TravelJourneyRenderer {
+    constructor(templateConfig) {
+        this.config = templateConfig;
+        this.designSystem = templateConfig.designSystem;
+        this.canvas = templateConfig.designSystem.canvas;
+    }
+
+    /**
+     * Render a single page
+     * @param {Object} pageLayout - Layout definition from template
+     * @param {Array} photos - Photos assigned to this page
+     * @param {Object} textContent - User-provided or AI-generated text
+     * @returns {HTMLElement} - Rendered page element
+     */
+    renderPage(pageLayout, photos, textContent = {}) {
+        const page = document.createElement('div');
+        page.className = 'album-page travel-journey';
+        page.style.cssText = `
+      position: relative;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      aspect-ratio: ${this.canvas.width}/${this.canvas.height};
+      background-color: ${this.designSystem.colors.background};
+      overflow: hidden;
+      margin: auto;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    `;
+
+        // Render photo slots
+        if (pageLayout.photoSlots) {
+            pageLayout.photoSlots.forEach((slot, index) => {
+                const photo = photos[index];
+                if (photo) {
+                    this.renderPhotoSlot(page, slot, photo, index);
+                }
+            });
+        }
+
+        // Render decorations (overlays, etc.)
+        if (pageLayout.decorations) {
+            pageLayout.decorations.forEach(decoration => {
+                this.renderDecoration(page, decoration);
+            });
+        }
+
+        // Render text elements
+        if (pageLayout.textElements) {
+            pageLayout.textElements.forEach(textEl => {
+                const content = textContent[textEl.elementId] || textEl.placeholder;
+                this.renderTextElement(page, textEl, content);
+            });
+        }
+
+        return page;
+    }
+
+    renderCover(coverState, assets) {
+        // Reuse renderPage logic but with cover-specific layout if defined, or custom build
+        // Travel Journey Cover: Full bleed photo + Title Overlay
+
+        const page = document.createElement('div');
+        page.className = 'album-page travel-journey-cover';
+        page.style.cssText = `
+            position: relative;
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: ${this.canvas.width}/${this.canvas.height};
+            background-color: ${this.designSystem.colors.background || '#fff'};
+            overflow: hidden;
+            margin: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        // Background Photo (Full Bleed? Or specific slot?)
+        // Design Spec: "Clean, white backgrounds" but cover might be full photo?
+        // Let's assume standard cover layout from template JSON or fallback
+        // Current fallback logic:
+
+        // 1. Background Photo
+        if (coverState.frontPhotoId) {
+            const photo = assets.photos.find(p => p.id === coverState.frontPhotoId);
+            if (photo) {
+                const img = document.createElement('img');
+                img.src = photo.url || photo.baseUrl;
+                img.style.cssText = `
+                    position: absolute;
+                    top: 0; left: 0;
+                    width: 100%; height: 100%;
+                    object-fit: cover;
+                    z-index: 0;
+                    opacity: ${coverState.layout === 'full-bleed' ? 1 : 0.9}; 
+                 `;
+                page.appendChild(img);
+            }
+        }
+
+        // 2. Title Overlay
+        const titleContainer = document.createElement('div');
+        titleContainer.style.cssText = `
+            position: absolute;
+            z-index: 10;
+            text-align: center;
+            width: 80%;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.85); /* Boxed title for Travel Journey style */
+            border: 2px solid ${this.designSystem.colors.accent};
+        `;
+
+        const h1 = document.createElement('h1');
+        h1.textContent = coverState.title || 'My Journey';
+        h1.style.cssText = `
+            font-family: 'Playfair Display', serif; /* Or ${this.designSystem.typography.title.family} */
+            font-size: 48px;
+            color: ${this.designSystem.colors.text.title};
+            margin: 0 0 10px 0;
+        `;
+
+        const h2 = document.createElement('h2');
+        h2.textContent = coverState.subtitle || '2026';
+        h2.style.cssText = `
+            font-family: 'Lato', sans-serif;
+            font-size: 24px;
+            color: ${this.designSystem.colors.text.primary};
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        `;
+
+        titleContainer.appendChild(h1);
+        titleContainer.appendChild(h2);
+        page.appendChild(titleContainer);
+
+        return page;
+    }
+
+    renderPhotoSlot(page, slot, photo, index) {
+        const container = document.createElement('div');
+        container.className = 'photo-slot';
+
+        container.style.cssText = `
+      position: absolute;
+      left: ${slot.position.x};
+      top: ${slot.position.y};
+      width: ${slot.size.width};
+      height: ${slot.size.height};
+      overflow: hidden;
+    `;
+
+        const img = document.createElement('img');
+        img.src = photo.url || photo.baseUrl || photo.src;
+        img.alt = photo.description || '';
+        img.style.cssText = `
+      width: 100%;
+      height: 100%;
+      object-fit: ${slot.photoFit || 'cover'};
+    `;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn-remove-slot-photo';
+        removeBtn.innerHTML = '×';
+        removeBtn.dataset.slotIndex = index;
+        removeBtn.title = "Remove photo";
+        removeBtn.style.cssText = `
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            line-height: 1;
+            padding-bottom: 2px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: auto;
+        `;
+
+        container.addEventListener('mouseenter', () => removeBtn.style.opacity = '1');
+        container.addEventListener('mouseleave', () => removeBtn.style.opacity = '0');
+
+        container.appendChild(img);
+        container.appendChild(removeBtn);
+        page.appendChild(container);
+    }
+
+    renderDecoration(page, decoration) {
+        if (decoration.type === 'overlay') {
+            const overlay = document.createElement('div');
+            overlay.className = 'decoration-overlay';
+            overlay.style.cssText = `
+        position: absolute;
+        left: ${decoration.position.x};
+        top: ${decoration.position.y};
+        width: ${decoration.size.width};
+        height: ${decoration.size.height};
+        background-color: ${decoration.style.backgroundColor};
+        border-radius: ${decoration.style.borderRadius || '0'};
+        z-index: 5;
+      `;
+            page.appendChild(overlay);
+        }
+    }
+
+    renderTextElement(page, textEl, content) {
+        const element = document.createElement('div');
+        element.className = `text-element text-${textEl.type}`;
+        // Add interaction hooks
+        element.dataset.selectableId = textEl.elementId;
+        element.dataset.selectableType = 'text';
+
+        const fontConfig = this.designSystem.typography[textEl.style.font] || this.designSystem.typography.body;
+        const color = this.resolveColor(textEl.style.color);
+        // Ensure fallbacks
+        const fontFamily = fontConfig ? `${fontConfig.family}, ${fontConfig.fallback}` : 'sans-serif';
+
+        element.style.cssText = `
+      position: absolute;
+      left: ${textEl.position.x};
+      top: ${textEl.position.y};
+      ${textEl.size ? `width: ${textEl.size.width};` : 'width: auto; max-width: 90%;'}
+      font-family: ${fontFamily};
+      font-size: ${textEl.style.size};
+      font-weight: ${textEl.style.weight || 400};
+      ${textEl.style.style ? `font-style: ${textEl.style.style};` : ''}
+      color: ${color};
+      text-align: ${textEl.style.align || 'left'};
+      ${textEl.style.lineHeight ? `line-height: ${textEl.style.lineHeight};` : ''}
+      ${textEl.style.textShadow ? `text-shadow: ${textEl.style.textShadow};` : ''}
+      z-index: 10;
+      cursor: pointer;
+      pointer-events: auto;
+    `;
+
+        // Transform handling
+        let transformX = '0';
+        let transformY = '0';
+        if (textEl.style.align === 'center') transformX = '-50%';
+        if (textEl.position.y === '50%' || textEl.type === 'title') transformY = '-50%'; // Heuristic
+        // Override if simple logic
+        // Usually center alignment implies center anchor
+
+        if (transformX !== '0' || transformY !== '0') {
+            element.style.transform = `translate(${transformX}, ${transformY})`;
+        }
+
+        element.textContent = content;
+
+        // Selection Frame
+        const frame = document.createElement('div');
+        frame.className = 'selection-frame';
+        frame.style.cssText = `
+        position: absolute;
+        top: -4px; right: -4px; bottom: -4px; left: -4px;
+        border: 2px solid #398458; /* Theme accent */
+        display: none;
+        pointer-events: none;
+    `;
+        element.appendChild(frame);
+
+        page.appendChild(element);
+    }
+
+    resolveColor(colorKey) {
+        const colors = this.designSystem.colors;
+        if (!colorKey) return colors.text.primary;
+        if (colorKey === 'primary') return colors.text.primary;
+        if (colorKey === 'title') return colors.text.title;
+        if (colorKey === 'light') return colors.text.light;
+        // Check if it's a hex
+        if (colorKey.startsWith('#') || colorKey.startsWith('rgb')) return colorKey;
+        return colors.text.primary;
+    }
+}

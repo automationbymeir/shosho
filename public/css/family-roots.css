@@ -1,0 +1,202 @@
+/* family-roots.css */
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+.album-page.family-roots {
+    position: relative;
+    width: 800px;
+    margin: 0 auto;
+    aspect-ratio: 800/600;
+    background-color: #F8F5F0;
+    overflow: hidden;
+    font-family: 'Nunito', sans-serif;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   TEXT ALIGNMENT CLASSES
+   ============================================ */
+
+/* Horizontal centering - THE STANDARD METHOD */
+.text-element.align-center {
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+/* Left alignment with explicit positioning */
+.text-element.align-left {
+    text-align: left;
+}
+
+/* Right alignment for absolute positioned elements */
+.text-element.align-right {
+    right: 6%;
+    left: auto;
+    text-align: right;
+}
+
+/* Multi-line text containers */
+.text-element.multi-line {
+    /* Must have explicit width for proper line breaks */
+    display: block;
+}
+
+/* ============================================
+   TYPOGRAPHY STYLES
+   ============================================ */
+
+/* Display font - Cormorant Garamond */
+.text-display,
+.text-element.text-display {
+    font-family: 'Cormorant Garamond', 'Libre Baskerville', Georgia, serif;
+    font-weight: 600;
+    color: #3A2E26;
+}
+
+/* Heading font */
+.text-heading,
+.text-element.text-heading {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-weight: 500;
+    color: #3A2E26;
+}
+
+/* Body font - Nunito */
+.text-body,
+.text-element.text-body {
+    font-family: 'Nunito', 'Source Sans Pro', sans-serif;
+    font-weight: 300;
+    color: #6B5E54;
+}
+
+/* Script accent font - Pinyon Script */
+.text-accent,
+.text-element.text-accent {
+    font-family: 'Pinyon Script', 'Great Vibes', cursive;
+    font-weight: 400;
+    color: #B8956E;
+}
+
+/* Caption style */
+.text-caption,
+.text-element.text-caption {
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    color: #8A7D72;
+}
+
+/* ============================================
+   PHOTO STYLES
+   ============================================ */
+
+.photo-slot {
+    position: absolute;
+    overflow: hidden;
+}
+
+.photo-slot.photo-default {
+    border-radius: 0;
+    box-shadow: 0 4px 20px rgba(58, 46, 38, 0.1);
+}
+
+.photo-slot.photo-framed {
+    border: 8px solid #FFFFFF;
+    box-shadow: 0 4px 20px rgba(58, 46, 38, 0.12);
+}
+
+.photo-slot.photo-rounded {
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(58, 46, 38, 0.1);
+}
+
+.photo-slot.photo-oval {
+    border-radius: 50%;
+    border: 6px solid #FFFFFF;
+    box-shadow: 0 4px 20px rgba(58, 46, 38, 0.15);
+}
+
+.photo-slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ============================================
+   DECORATIVE ELEMENTS
+   ============================================ */
+
+.decoration-flourish {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.decoration-border {
+    pointer-events: none;
+    border: 4px double #D4C4B0;
+}
+
+.decoration-line {
+    pointer-events: none;
+    background-color: #D4C4B0;
+}
+
+/* ============================================
+   THEME VARIANTS
+   ============================================ */
+
+.family-roots.navy .text-display,
+.family-roots.navy .text-heading {
+    color: #2C3E50;
+}
+
+.family-roots.navy .text-accent {
+    color: #85929E;
+}
+
+.family-roots.forest .text-display,
+.family-roots.forest .text-heading {
+    color: #4A5D4A;
+}
+
+.family-roots.forest .text-accent {
+    color: #8B9D77;
+}
+
+.family-roots.plum .text-display,
+.family-roots.plum .text-heading {
+    color: #5D4E6D;
+}
+
+.family-roots.plum .text-accent {
+    color: #A89BB5;
+}
+
+.family-roots.rust .text-display,
+.family-roots.rust .text-heading {
+    color: #8B4513;
+}
+
+.family-roots.rust .text-accent {
+    color: #CD853F;
+}
+
+/* ============================================
+   RESPONSIVE SCALING
+   ============================================ */
+
+
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+    .album-page.family-roots {
+        page-break-after: always;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

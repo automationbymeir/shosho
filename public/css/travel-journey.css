@@ -1,0 +1,87 @@
+/* travel-journey.css */
+
+.album-page.travel-journey {
+    position: relative;
+    width: 800px;
+    margin: 0 auto;
+    aspect-ratio: 792/612;
+    background-color: #FFFFFF;
+    overflow: hidden;
+}
+
+/* Photo slots */
+.album-page.travel-journey .photo-slot {
+    z-index: 1;
+}
+
+.album-page.travel-journey .photo-slot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Text elements */
+.album-page.travel-journey .text-element {
+    z-index: 10;
+}
+
+.album-page.travel-journey .text-title,
+.album-page.travel-journey .text-locationTitle {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    color: #398458;
+}
+
+.album-page.travel-journey .text-body,
+.album-page.travel-journey .text-description {
+    font-family: 'Lato', sans-serif;
+    color: #545454;
+}
+
+.album-page.travel-journey .text-quote {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    color: #545454;
+}
+
+/* Cover overlay */
+.album-page.travel-journey .decoration-overlay {
+    z-index: 5;
+}
+
+/* Theme variants */
+.album-page.travel-journey.ocean .text-title,
+.album-page.travel-journey.ocean .text-locationTitle {
+    color: #2E6B8A;
+}
+
+.album-page.travel-journey.sunset .text-title,
+.album-page.travel-journey.sunset .text-locationTitle {
+    color: #C4622D;
+}
+
+.album-page.travel-journey.desert .text-title,
+.album-page.travel-journey.desert .text-locationTitle {
+    color: #A67C52;
+}
+
+.album-page.travel-journey.mountain .text-title,
+.album-page.travel-journey.mountain .text-locationTitle {
+    color: #4A5568;
+}
+
+.album-page.travel-journey.tropical .text-title,
+.album-page.travel-journey.tropical .text-locationTitle {
+    color: #0D9488;
+}
+
+/* Responsive adjustments */
+
+
+/* Print styles */
+@media print {
+    .album-page.travel-journey {
+        page-break-after: always;
+    }
+}

@@ -1,0 +1,1745 @@
+{
+    "templateId": "bar-mitzvah-v1",
+    "templateName": "בר מצווה - Bar Mitzvah",
+    "templateDescription": "תבנית אלגנטית לאלבום בר/בת מצווה המשלבת עיצוב מודרני עם מסורת יהודית. צבעי כחול כהה וזהב, טיפוגרפיה עברית מהודרת, ופריסות מותאמות לחגיגה המשפחתית.",
+    "version": "1.0.0",
+    "category": "celebration",
+    "tags": [
+        "bar-mitzvah",
+        "bat-mitzvah",
+        "בר-מצווה",
+        "בת-מצווה",
+        "jewish",
+        "hebrew",
+        "celebration",
+        "family",
+        "tradition"
+    ],
+    "language": "he",
+    "direction": "rtl",
+    "minPhotos": 25,
+    "maxPhotos": 150,
+    "recommendedPhotos": 70,
+    "previewImage": "assets/templates/bar-mitzvah-preview.png",
+    "designSystem": {
+        "canvas": {
+            "width": 800,
+            "height": 600,
+            "aspectRatio": "4:3",
+            "scaledWidth": 1200,
+            "scaledHeight": 900
+        },
+        "direction": "rtl",
+        "colors": {
+            "background": "#FAFAFA",
+            "backgroundAlt": "#F0EDE8",
+            "accent": {
+                "primary": "#1B365D",
+                "secondary": "#C9A227",
+                "tertiary": "#E8DFD0"
+            },
+            "text": {
+                "primary": "#1B365D",
+                "secondary": "#4A5568",
+                "gold": "#C9A227",
+                "light": "#718096",
+                "inverse": "#FFFFFF"
+            },
+            "decorative": {
+                "gold": "#C9A227",
+                "goldLight": "#E8DFD0",
+                "navy": "#1B365D",
+                "border": "#D4AF37"
+            }
+        },
+        "typography": {
+            "display": {
+                "family": "Frank Ruhl Libre",
+                "fallback": "David, Times New Roman, serif",
+                "weights": [
+                    400,
+                    500,
+                    700
+                ],
+                "usage": "שם החוגג, כותרות ראשיות"
+            },
+            "heading": {
+                "family": "Heebo",
+                "fallback": "Arial Hebrew, Arial, sans-serif",
+                "weights": [
+                    400,
+                    500,
+                    600,
+                    700
+                ],
+                "usage": "כותרות משנה, תאריכים"
+            },
+            "body": {
+                "family": "Heebo",
+                "fallback": "Arial Hebrew, Arial, sans-serif",
+                "weights": [
+                    300,
+                    400,
+                    500
+                ],
+                "usage": "טקסט גוף, תיאורים"
+            },
+            "decorative": {
+                "family": "Secular One",
+                "fallback": "Impact, Arial Black, sans-serif",
+                "weights": [
+                    400
+                ],
+                "usage": "מזל טוב, אלמנטים דקורטיביים"
+            }
+        },
+        "spacing": {
+            "pagePadding": "6%",
+            "photoGap": "3%",
+            "textMargin": "8%",
+            "lineHeight": {
+                "tight": "1.3",
+                "normal": "1.6",
+                "relaxed": "1.9"
+            }
+        },
+        "photoStyles": {
+            "default": {
+                "borderRadius": "0px",
+                "shadow": "0 4px 20px rgba(27, 54, 93, 0.12)",
+                "border": "none"
+            },
+            "goldFrame": {
+                "borderRadius": "0px",
+                "shadow": "0 6px 25px rgba(27, 54, 93, 0.15)",
+                "border": "4px solid #C9A227"
+            },
+            "rounded": {
+                "borderRadius": "12px",
+                "shadow": "0 4px 16px rgba(27, 54, 93, 0.1)",
+                "border": "none"
+            },
+            "circle": {
+                "borderRadius": "50%",
+                "shadow": "0 4px 20px rgba(27, 54, 93, 0.15)",
+                "border": "4px solid #C9A227"
+            },
+            "softFrame": {
+                "borderRadius": "4px",
+                "shadow": "0 4px 20px rgba(27, 54, 93, 0.1)",
+                "border": "6px solid #FFFFFF",
+                "outerShadow": "0 2px 10px rgba(0,0,0,0.1)"
+            }
+        },
+        "decorativeElements": {
+            "starOfDavid": {
+                "type": "svg",
+                "color": "#C9A227",
+                "opacity": 0.15
+            },
+            "goldLine": {
+                "height": "2px",
+                "color": "#C9A227"
+            },
+            "ornament": {
+                "type": "geometric",
+                "color": "#C9A227"
+            }
+        }
+    },
+    "textAlignmentSystem": {
+        "description": "מערכת יישור טקסט עברית RTL - חיונית לתצוגה נכונה",
+        "direction": "rtl",
+        "principles": [
+            "כל אלמנטי הטקסט משתמשים ב-direction: rtl",
+            "טקסט ממורכז: left: 50%; transform: translateX(-50%); text-align: center",
+            "טקסט מיושר לימין: right: X%; text-align: right (ברירת מחדל ל-RTL)",
+            "טקסט מיושר לשמאל: left: X%; text-align: left",
+            "כיתוביות מתחת לתמונות ממורכזות ביחס לתמונה"
+        ],
+        "alignmentModes": {
+            "pageCenter": {
+                "method": "left: 50%; transform: translateX(-50%)",
+                "textAlign": "center",
+                "direction": "rtl",
+                "usage": "כותרות, ברכות, טקסט ממורכז"
+            },
+            "rightAligned": {
+                "method": "right: 6%",
+                "textAlign": "right",
+                "direction": "rtl",
+                "usage": "טקסט סיפורי, תיאורים - ברירת מחדל לעברית"
+            },
+            "photoAligned": {
+                "method": "center calculated from photo position",
+                "textAlign": "center",
+                "direction": "rtl",
+                "usage": "כיתוביות מתחת לתמונות"
+            }
+        },
+        "rtlConsiderations": {
+            "importantNote": "בעברית, הטקסט זורם מימין לשמאל",
+            "defaultAlign": "right",
+            "numbersAndDates": "מספרים נשארים LTR בתוך טקסט RTL",
+            "mixedContent": "השתמש ב-unicode-bidi: embed עבור תוכן מעורב"
+        }
+    },
+    "pageLayouts": [
+        {
+            "layoutId": "cover-elegant",
+            "layoutName": "שער - עיצוב אלגנטי",
+            "pageType": "cover",
+            "description": "עמוד שער עם תמונה מרכזית, שם החוגג וקישוטי זהב",
+            "photoSlots": [
+                {
+                    "slotId": "mainPortrait",
+                    "position": {
+                        "x": "25%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "55%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "goldFrame",
+                    "photoHint": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "barMitzvahLabel",
+                    "type": "decorative",
+                    "content": "בר מצווה",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "18px",
+                        "weight": 500,
+                        "color": "#C9A227",
+                        "align": "center",
+                        "letterSpacing": "4px"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "childName",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "72%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "52px",
+                        "weight": 700,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "placeholder": "דניאל כהן",
+                    "editable": true
+                },
+                {
+                    "elementId": "hebrewDate",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "82%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "16px",
+                        "weight": 400,
+                        "color": "#4A5568",
+                        "align": "center",
+                        "letterSpacing": "2px"
+                    },
+                    "placeholder": "י״ג באדר תשפ״ה",
+                    "editable": true
+                },
+                {
+                    "elementId": "gregorianDate",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "88%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "#718096",
+                        "align": "center"
+                    },
+                    "placeholder": "15 במרץ 2025",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "goldLine",
+                    "position": {
+                        "x": "30%",
+                        "y": "70%"
+                    },
+                    "size": {
+                        "width": "40%",
+                        "height": "2px"
+                    }
+                },
+                {
+                    "type": "goldLine",
+                    "position": {
+                        "x": "30%",
+                        "y": "92%"
+                    },
+                    "size": {
+                        "width": "40%",
+                        "height": "2px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "mazal-tov-spread",
+            "layoutName": "מזל טוב - כפולה חגיגית",
+            "pageType": "intro",
+            "description": "עמוד פתיחה עם ברכת מזל טוב גדולה",
+            "photoSlots": [],
+            "textElements": [
+                {
+                    "elementId": "mazalTov",
+                    "type": "decorative",
+                    "content": "מזל טוב",
+                    "position": {
+                        "x": "50%",
+                        "y": "40%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "decorative",
+                        "size": "72px",
+                        "weight": 400,
+                        "color": "#C9A227",
+                        "align": "center"
+                    },
+                    "editable": false
+                },
+                {
+                    "elementId": "blessingText",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "55%"
+                    },
+                    "size": {
+                        "width": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "18px",
+                        "weight": 400,
+                        "color": "#4A5568",
+                        "align": "center",
+                        "lineHeight": "1.8"
+                    },
+                    "placeholder": "היום הזה מסמן את כניסתך לעול המצוות.\nמי ייתן ותמשיך לצמוח, להתפתח ולהאיר את העולם.",
+                    "editable": true
+                },
+                {
+                    "elementId": "childNameSmall",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "72%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "24px",
+                        "weight": 600,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "placeholder": "דניאל",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "starOfDavid",
+                    "position": {
+                        "x": "50%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "80px",
+                        "height": "80px"
+                    },
+                    "opacity": 0.1
+                },
+                {
+                    "type": "ornament",
+                    "position": {
+                        "x": "50%",
+                        "y": "80%"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "family-portrait",
+            "layoutName": "המשפחה",
+            "pageType": "family",
+            "description": "תמונה משפחתית גדולה עם כותרת",
+            "photoSlots": [
+                {
+                    "slotId": "familyPhoto",
+                    "position": {
+                        "x": "8%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "84%",
+                        "height": "62%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "softFrame",
+                    "photoHint": "group"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "sectionTitle",
+                    "type": "heading",
+                    "content": "המשפחה",
+                    "position": {
+                        "x": "50%",
+                        "y": "6%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "32px",
+                        "weight": 600,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "familyNames",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "86%"
+                    },
+                    "size": {
+                        "width": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "#4A5568",
+                        "align": "center",
+                        "lineHeight": "1.6"
+                    },
+                    "placeholder": "אבא ואמא, הסבים והסבתות, האחים והאחיות - כל המשפחה יחד",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "goldLine",
+                    "position": {
+                        "x": "35%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "2px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "torah-moment",
+            "layoutName": "עליה לתורה",
+            "pageType": "milestone",
+            "description": "רגע העלייה לתורה - תמונה גדולה עם כותרת",
+            "photoSlots": [
+                {
+                    "slotId": "torahPhoto",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "78%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default",
+                    "photoHint": "ceremony"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "momentTitle",
+                    "type": "display",
+                    "content": "עליה לתורה",
+                    "position": {
+                        "x": "50%",
+                        "y": "83%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "36px",
+                        "weight": 600,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "parasha",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "#718096",
+                        "align": "center"
+                    },
+                    "placeholder": "פרשת וירא",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "story-right-photo",
+            "layoutName": "סיפור - תמונה מימין",
+            "pageType": "story",
+            "description": "תמונה בצד ימין עם טקסט סיפורי משמאל",
+            "photoSlots": [
+                {
+                    "slotId": "storyPhoto",
+                    "position": {
+                        "x": "44%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "80%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "storyTitle",
+                    "type": "heading",
+                    "position": {
+                        "x": "6%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "34%"
+                    },
+                    "alignment": {
+                        "horizontal": "right",
+                        "method": "text-align: right;",
+                        "direction": "rtl",
+                        "note": "בעברית - יישור לימין הוא ברירת המחדל"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "28px",
+                        "weight": 600,
+                        "color": "#1B365D",
+                        "align": "right",
+                        "lineHeight": "1.4"
+                    },
+                    "placeholder": "ההכנות לקראת היום הגדול",
+                    "editable": true
+                },
+                {
+                    "elementId": "storyText",
+                    "type": "body",
+                    "position": {
+                        "x": "6%",
+                        "y": "32%"
+                    },
+                    "size": {
+                        "width": "34%"
+                    },
+                    "alignment": {
+                        "horizontal": "right",
+                        "method": "text-align: right;",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "#4A5568",
+                        "align": "right",
+                        "lineHeight": "1.9"
+                    },
+                    "placeholder": "חודשים של הכנה, לימוד הפרשה וההפטרה, בחירת הנושא לדרשה - כל אלה הובילו לרגע המיוחד הזה.\n\nצפינו לראות את הילד שלנו עולה לתורה, וליבנו מלא גאווה.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "story-left-photo",
+            "layoutName": "סיפור - תמונה משמאל",
+            "pageType": "story",
+            "description": "תמונה בצד שמאל עם טקסט סיפורי מימין",
+            "photoSlots": [
+                {
+                    "slotId": "storyPhoto",
+                    "position": {
+                        "x": "6%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "80%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "storyTitle",
+                    "type": "heading",
+                    "position": {
+                        "x": "60%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "34%"
+                    },
+                    "alignment": {
+                        "horizontal": "right",
+                        "method": "text-align: right;",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "28px",
+                        "weight": 600,
+                        "color": "#1B365D",
+                        "align": "right",
+                        "lineHeight": "1.4"
+                    },
+                    "placeholder": "רגעים של שמחה",
+                    "editable": true
+                },
+                {
+                    "elementId": "storyText",
+                    "type": "body",
+                    "position": {
+                        "x": "60%",
+                        "y": "32%"
+                    },
+                    "size": {
+                        "width": "34%"
+                    },
+                    "alignment": {
+                        "horizontal": "right",
+                        "method": "text-align: right;",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "#4A5568",
+                        "align": "right",
+                        "lineHeight": "1.9"
+                    },
+                    "placeholder": "החגיגה עם כל המשפחה והחברים הקרובים. רגעים של אושר טהור שנזכור לתמיד.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "grid-four-celebration",
+            "layoutName": "גלריה - ארבע תמונות",
+            "pageType": "gallery",
+            "description": "רשת 2x2 עם כיתוביות",
+            "photoSlots": [
+                {
+                    "slotId": "photo1",
+                    "position": {
+                        "x": "4%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo2",
+                    "position": {
+                        "x": "52%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo3",
+                    "position": {
+                        "x": "4%",
+                        "y": "54%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo4",
+                    "position": {
+                        "x": "52%",
+                        "y": "54%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "pageTitle",
+                    "type": "heading",
+                    "content": "רגעים מהחגיגה",
+                    "position": {
+                        "x": "50%",
+                        "y": "3%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "24px",
+                        "weight": 500,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "caption1",
+                    "type": "caption",
+                    "position": {
+                        "x": "26%",
+                        "y": "50%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 26%; transform: translateX(-50%);",
+                        "direction": "rtl",
+                        "note": "ממורכז מתחת לתמונה: 4% + 44%/2 = 26%"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "#718096",
+                        "align": "center"
+                    },
+                    "placeholder": "עם סבא וסבתא",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption2",
+                    "type": "caption",
+                    "position": {
+                        "x": "74%",
+                        "y": "50%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 74%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "#718096",
+                        "align": "center"
+                    },
+                    "placeholder": "החברים הכי טובים",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption3",
+                    "type": "caption",
+                    "position": {
+                        "x": "26%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 26%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "#718096",
+                        "align": "center"
+                    },
+                    "placeholder": "ריקודים",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption4",
+                    "type": "caption",
+                    "position": {
+                        "x": "74%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 74%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "#718096",
+                        "align": "center"
+                    },
+                    "placeholder": "עוגת הבר מצווה",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "grid-six",
+            "layoutName": "גלריה - שש תמונות",
+            "pageType": "gallery",
+            "description": "רשת 3x2 לתמונות מהחגיגה",
+            "photoSlots": [
+                {
+                    "slotId": "photo1",
+                    "position": {
+                        "x": "3%",
+                        "y": "14%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo2",
+                    "position": {
+                        "x": "35%",
+                        "y": "14%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo3",
+                    "position": {
+                        "x": "67%",
+                        "y": "14%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo4",
+                    "position": {
+                        "x": "3%",
+                        "y": "54%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo5",
+                    "position": {
+                        "x": "35%",
+                        "y": "54%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo6",
+                    "position": {
+                        "x": "67%",
+                        "y": "54%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "36%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "pageTitle",
+                    "type": "heading",
+                    "content": "עוד רגעים יפים",
+                    "position": {
+                        "x": "50%",
+                        "y": "4%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "24px",
+                        "weight": 500,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "collage-five",
+            "layoutName": "קולאז׳ - חמש תמונות",
+            "pageType": "gallery",
+            "description": "פריסה דינמית א-סימטרית",
+            "photoSlots": [
+                {
+                    "slotId": "large",
+                    "position": {
+                        "x": "3%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "58%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "64%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "33%",
+                        "height": "29%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "middleRight",
+                    "position": {
+                        "x": "64%",
+                        "y": "34%"
+                    },
+                    "size": {
+                        "width": "33%",
+                        "height": "29%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "3%",
+                        "y": "66%"
+                    },
+                    "size": {
+                        "width": "33%",
+                        "height": "31%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "38%",
+                        "y": "66%"
+                    },
+                    "size": {
+                        "width": "59%",
+                        "height": "31%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "hero-full",
+            "layoutName": "תמונת גיבור מלאה",
+            "pageType": "showcase",
+            "description": "תמונה אחת בגודל מלא",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "hero-with-caption",
+            "layoutName": "תמונת גיבור עם כיתוב",
+            "pageType": "showcase",
+            "description": "תמונה גדולה עם פס כיתוב בתחתית",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "82%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "caption",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "87%"
+                    },
+                    "size": {
+                        "width": "90%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "20px",
+                        "weight": 500,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "placeholder": "הרגע שחיכינו לו",
+                    "editable": true
+                },
+                {
+                    "elementId": "subcaption",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "93%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "12px",
+                        "weight": 300,
+                        "color": "#718096",
+                        "align": "center"
+                    },
+                    "placeholder": "בית הכנסת",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "quote-blessing",
+            "layoutName": "ברכה",
+            "pageType": "quote",
+            "description": "עמוד ברכה או ציטוט מעורר השראה",
+            "photoSlots": [],
+            "textElements": [
+                {
+                    "elementId": "quoteText",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "38%"
+                    },
+                    "size": {
+                        "width": "75%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "28px",
+                        "weight": 500,
+                        "color": "#1B365D",
+                        "align": "center",
+                        "lineHeight": "1.7"
+                    },
+                    "placeholder": "״ברוך אתה ה׳ אלוקינו מלך העולם,\nשפטרני מעונשו של זה״",
+                    "editable": true
+                },
+                {
+                    "elementId": "quoteSource",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "62%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "#C9A227",
+                        "align": "center",
+                        "letterSpacing": "2px"
+                    },
+                    "placeholder": "— ברכת האב",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "starOfDavid",
+                    "position": {
+                        "x": "50%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "60px",
+                        "height": "60px"
+                    },
+                    "opacity": 0.12
+                },
+                {
+                    "type": "goldLine",
+                    "position": {
+                        "x": "35%",
+                        "y": "70%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "2px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "grandparents",
+            "layoutName": "הסבים והסבתות",
+            "pageType": "family",
+            "description": "ארבע תמונות מעוגלות של סבים וסבתות עם שמות",
+            "photoSlots": [
+                {
+                    "slotId": "grandparent1",
+                    "position": {
+                        "x": "10%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "18%",
+                        "height": "30%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "circle"
+                },
+                {
+                    "slotId": "grandparent2",
+                    "position": {
+                        "x": "32%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "18%",
+                        "height": "30%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "circle"
+                },
+                {
+                    "slotId": "grandparent3",
+                    "position": {
+                        "x": "54%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "18%",
+                        "height": "30%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "circle"
+                },
+                {
+                    "slotId": "grandparent4",
+                    "position": {
+                        "x": "76%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "18%",
+                        "height": "30%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "circle"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "pageTitle",
+                    "type": "heading",
+                    "content": "הסבים והסבתות",
+                    "position": {
+                        "x": "50%",
+                        "y": "8%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "28px",
+                        "weight": 600,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "name1",
+                    "type": "body",
+                    "position": {
+                        "x": "19%",
+                        "y": "58%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 19%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 500,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "placeholder": "סבא יוסף",
+                    "editable": true
+                },
+                {
+                    "elementId": "name2",
+                    "type": "body",
+                    "position": {
+                        "x": "41%",
+                        "y": "58%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 41%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 500,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "placeholder": "סבתא רחל",
+                    "editable": true
+                },
+                {
+                    "elementId": "name3",
+                    "type": "body",
+                    "position": {
+                        "x": "63%",
+                        "y": "58%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 63%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 500,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "placeholder": "סבא משה",
+                    "editable": true
+                },
+                {
+                    "elementId": "name4",
+                    "type": "body",
+                    "position": {
+                        "x": "85%",
+                        "y": "58%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 85%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 500,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "placeholder": "סבתא שרה",
+                    "editable": true
+                },
+                {
+                    "elementId": "blessing",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "72%"
+                    },
+                    "size": {
+                        "width": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "#4A5568",
+                        "align": "center",
+                        "lineHeight": "1.7",
+                        "fontStyle": "italic"
+                    },
+                    "placeholder": "״הסבים והסבתות שלי הם השורשים של העץ שלנו.\nתודה שאתם חלק מהיום המיוחד שלי.״",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "goldLine",
+                    "position": {
+                        "x": "30%",
+                        "y": "66%"
+                    },
+                    "size": {
+                        "width": "40%",
+                        "height": "1px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "thank-you",
+            "layoutName": "תודה",
+            "pageType": "closing",
+            "description": "עמוד סיום עם הודיה",
+            "photoSlots": [
+                {
+                    "slotId": "closingPhoto",
+                    "position": {
+                        "x": "25%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "goldFrame"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "thankYou",
+                    "type": "decorative",
+                    "content": "תודה",
+                    "position": {
+                        "x": "50%",
+                        "y": "58%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "decorative",
+                        "size": "48px",
+                        "weight": 400,
+                        "color": "#C9A227",
+                        "align": "center"
+                    },
+                    "editable": false
+                },
+                {
+                    "elementId": "closingMessage",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "70%"
+                    },
+                    "size": {
+                        "width": "75%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "16px",
+                        "weight": 400,
+                        "color": "#4A5568",
+                        "align": "center",
+                        "lineHeight": "1.8"
+                    },
+                    "placeholder": "תודה לכל המשפחה והחברים היקרים\nשחגגו איתנו את היום המיוחד הזה.\nנזכור את הרגעים האלה לתמיד.",
+                    "editable": true
+                },
+                {
+                    "elementId": "familySignature",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "88%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "18px",
+                        "weight": 600,
+                        "color": "#1B365D",
+                        "align": "center"
+                    },
+                    "placeholder": "משפחת כהן",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "goldLine",
+                    "position": {
+                        "x": "35%",
+                        "y": "64%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "2px"
+                    }
+                },
+                {
+                    "type": "ornament",
+                    "position": {
+                        "x": "50%",
+                        "y": "94%"
+                    }
+                }
+            ]
+        }
+    ],
+    "defaultPageSequence": [
+        {
+            "layoutId": "cover-elegant",
+            "required": true
+        },
+        {
+            "layoutId": "mazal-tov-spread",
+            "required": false
+        },
+        {
+            "layoutId": "family-portrait",
+            "required": false
+        },
+        {
+            "layoutId": "torah-moment",
+            "required": false
+        },
+        {
+            "layoutId": "story-right-photo",
+            "required": false
+        },
+        {
+            "layoutId": "grid-four-celebration",
+            "required": false
+        },
+        {
+            "layoutId": "story-left-photo",
+            "required": false
+        },
+        {
+            "layoutId": "collage-five",
+            "required": false
+        },
+        {
+            "layoutId": "grandparents",
+            "required": false
+        },
+        {
+            "layoutId": "quote-blessing",
+            "required": false
+        },
+        {
+            "layoutId": "grid-six",
+            "required": false
+        },
+        {
+            "layoutId": "hero-with-caption",
+            "required": false
+        },
+        {
+            "layoutId": "thank-you",
+            "required": true
+        }
+    ],
+    "autoGenerateText": {
+        "enabled": true,
+        "language": "he",
+        "defaultTitles": {
+            "ceremony": [
+                "עליה לתורה",
+                "קריאה בתורה",
+                "הרגע המרגש"
+            ],
+            "family": [
+                "המשפחה",
+                "ביחד",
+                "כולנו יחד"
+            ],
+            "celebration": [
+                "החגיגה",
+                "שמחה",
+                "ריקודים ושירה"
+            ],
+            "closing": [
+                "תודה",
+                "להתראות",
+                "עד הבר מצווה הבא"
+            ]
+        },
+        "blessings": [
+            "ברוך אתה ה׳ אלוקינו מלך העולם, שפטרני מעונשו של זה",
+            "יברכך ה׳ וישמרך",
+            "מי שברך אבותינו...",
+            "שהחיינו וקיימנו והגיענו לזמן הזה"
+        ]
+    },
+    "themeVariants": [
+        {
+            "variantId": "navy-gold",
+            "name": "כחול כהה וזהב",
+            "nameEn": "Navy & Gold",
+            "colors": {
+                "accent": {
+                    "primary": "#1B365D",
+                    "secondary": "#C9A227"
+                }
+            }
+        },
+        {
+            "variantId": "burgundy-gold",
+            "name": "בורדו וזהב",
+            "nameEn": "Burgundy & Gold",
+            "colors": {
+                "accent": {
+                    "primary": "#722F37",
+                    "secondary": "#C9A227"
+                }
+            }
+        },
+        {
+            "variantId": "forest-gold",
+            "name": "ירוק יער וזהב",
+            "nameEn": "Forest & Gold",
+            "colors": {
+                "accent": {
+                    "primary": "#2D4A3E",
+                    "secondary": "#C9A227"
+                }
+            }
+        },
+        {
+            "variantId": "royal-silver",
+            "name": "סגול מלכותי וכסף",
+            "nameEn": "Royal Purple & Silver",
+            "colors": {
+                "accent": {
+                    "primary": "#4A3B6B",
+                    "secondary": "#A8A8A8"
+                }
+            }
+        },
+        {
+            "variantId": "black-gold",
+            "name": "שחור וזהב",
+            "nameEn": "Black & Gold",
+            "colors": {
+                "accent": {
+                    "primary": "#1A1A1A",
+                    "secondary": "#D4AF37"
+                }
+            }
+        }
+    ]
+}

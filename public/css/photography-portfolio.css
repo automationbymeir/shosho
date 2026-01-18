@@ -1,0 +1,119 @@
+/* photography-portfolio.css */
+
+.album-page.photography-portfolio,
+.shoso-page.photography-portfolio-v1 {
+    /* Added .shoso-page.template-id selector */
+    position: relative;
+    width: 800px;
+    margin: 0 auto;
+    aspect-ratio: 16/9;
+    background-color: #FFFFFF;
+    overflow: hidden;
+}
+
+/* Header styling */
+.album-page .page-header,
+.shoso-page .page-header {
+    pointer-events: none;
+}
+
+.album-page .page-header .studio-name,
+.album-page .page-header .year,
+.shoso-page .page-header .studio-name,
+.shoso-page .page-header .year {
+    font-family: 'Poppins', sans-serif;
+    color: #FFFFFF;
+}
+
+/* Photo slots */
+.album-page .photo-slot,
+.shoso-page .photo-slot {
+    z-index: 1;
+}
+
+.album-page .photo-slot.rounded,
+.shoso-page .photo-slot.rounded {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.album-page .photo-slot.pill,
+.shoso-page .photo-slot.pill {
+    border-radius: 100px;
+    overflow: hidden;
+}
+
+.album-page .photo-slot img,
+.shoso-page .page-slot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Text elements */
+.album-page .text-element,
+.shoso-page .text-element {
+    z-index: 10;
+    color: #FFFFFF;
+}
+
+.album-page .text-title,
+.album-page .text-categoryTitle,
+.album-page .text-greeting,
+.shoso-page .element-text.text-title,
+.shoso-page .element-text.text-categoryTitle {
+    font-family: 'Allura', cursive;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.album-page .text-subtitle,
+.album-page .text-categorySubtitle,
+.album-page .text-label,
+.album-page .text-body,
+.shoso-page .element-text.text-subtitle {
+    font-family: 'Poppins', sans-serif;
+}
+
+.album-page .text-studioName,
+.shoso-page .element-text.text-studioName {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+}
+
+/* Theme variants */
+.album-page.photography-portfolio.charcoal,
+.shoso-page.photography-portfolio-v1.charcoal {
+    background-color: #2D2D2D;
+}
+
+.album-page.photography-portfolio.navy,
+.shoso-page.photography-portfolio-v1.navy {
+    background-color: #1E3A5F;
+}
+
+.album-page.photography-portfolio.forest,
+.shoso-page.photography-portfolio-v1.forest {
+    background-color: #2D4A3E;
+}
+
+.album-page.photography-portfolio.burgundy,
+.shoso-page.photography-portfolio-v1.burgundy {
+    background-color: #722F37;
+}
+
+/* Cover page specific */
+.album-page.cover-hero .text-title,
+.shoso-page.cover-hero .text-title {
+    font-size: 96px;
+}
+
+/* Category labels */
+.album-page .text-label,
+.shoso-page .text-label {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.85;
+}
+
+/* Responsive adjustments */

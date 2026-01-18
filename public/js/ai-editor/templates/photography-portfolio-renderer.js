@@ -1,0 +1,240 @@
+/**
+ * PhotographyPortfolioRenderer
+ * Renders pages according to the Photography Portfolio template spec
+ */
+export class PhotographyPortfolioRenderer {
+    constructor(templateConfig) {
+        this.config = templateConfig;
+        this.designSystem = templateConfig.designSystem;
+    }
+
+    /**
+     * Render a single page
+     * @param {Object} pageLayout - Layout definition from template (Full JSON object for the layout)
+     * @param {Array} photos - Photos assigned to this page
+     * @param {Object} textContent - User-provided or AI-generated text
+     * @returns {HTMLElement} - Rendered page element
+     */
+    renderPage(pageLayout, photos, textContent = {}) {
+        if (!pageLayout) {
+            console.error("PhotographyPortfolioRenderer: No page layout provided");
+            return document.createElement('div');
+        }
+
+        const page = document.createElement('div');
+        page.className = 'album-page photography-portfolio';
+        // Add variant class if strictly needed, but CSS selectors use .photography-portfolio
+        // We can add specific variant class if passed in config (not implemented in JSON yet, but supported in CSS)
+        // Defaulting to base style.
+
+        page.style.backgroundColor = this.designSystem.colors.background;
+
+        // Render Header
+        if (pageLayout.hasHeader && this.config.headerFooter?.header?.enabled) {
+            this.renderHeader(page, textContent);
+        }
+
+        // Render photo slots
+        if (pageLayout.photoSlots) {
+            pageLayout.photoSlots.forEach((slot, index) => {
+                const photo = photos[index];
+                if (photo) {
+                    this.renderPhotoSlot(page, slot, photo);
+                } else {
+                    // Optional: Render empty slot placeholder
+                    this.renderEmptySlot(page, slot);
+                }
+            });
+        }
+
+        // Render text elements
+        if (pageLayout.textElements) {
+            pageLayout.textElements.forEach(textEl => {
+                const content = textContent[textEl.elementId] || textEl.placeholder;
+                this.renderTextElement(page, textEl, content);
+            });
+        }
+
+        // Render decorations
+        this.renderDecorations(page, pageLayout.decorations);
+
+        return page;
+    }
+
+    renderHeader(page, textContent) {
+        const headerConfig = this.config.headerFooter.header;
+        const header = document.createElement('div');
+        header.className = 'page-header';
+        header.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: ${headerConfig.height};
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            padding: 0 ${this.designSystem.spacing.pagePadding};
+            box-sizing: border-box;
+        `;
+
+        headerConfig.elements.forEach(el => {
+            const span = document.createElement('span');
+            // Assuming simplified left/right positioning from JSON
+            if (el.position === 'left') span.style.marginRight = 'auto';
+            if (el.position === 'right') span.style.marginLeft = 'auto';
+
+            const fontConfig = this.designSystem.typography[el.style.font];
+            const fontFamily = fontConfig.family ? `'${fontConfig.family}', ${fontConfig.fallback}` : 'sans-serif';
+
+            span.className = `header-element ${el.type}`;
+            span.style.fontFamily = fontFamily;
+            span.style.fontSize = el.style.size;
+            span.style.fontWeight = el.style.weight;
+            span.style.color = this.resolveColor(el.style.color);
+            span.textContent = textContent[el.type] || el.placeholder; // 'Studio Name' or '2024'
+
+            header.appendChild(span);
+        });
+
+        page.appendChild(header);
+    }
+
+    renderPhotoSlot(page, slot, photo) {
+        const container = document.createElement('div');
+        container.className = `photo-slot ${slot.photoStyle || ''}`; // e.g. 'rounded'
+        container.style.cssText = `
+            position: absolute;
+            left: ${slot.position.x};
+            top: ${slot.position.y};
+            width: ${slot.size.width};
+            height: ${slot.size.height};
+            overflow: hidden;
+            ${this.getPhotoStyle(slot)}
+        `;
+
+        const img = document.createElement('img');
+        img.src = photo.baseUrl || photo.url || photo.src || (photo.indexOf && photo.indexOf('data:') === 0 ? photo : '');
+        img.style.cssText = `
+            width: 100%;
+            height: 100%;
+            object-fit: ${slot.photoFit || 'cover'};
+        `;
+
+        img.onerror = () => { img.src = 'assets/placeholder-image.png'; };
+        container.appendChild(img);
+        page.appendChild(container);
+    }
+
+    renderEmptySlot(page, slot) {
+        const container = document.createElement('div');
+        container.className = 'photo-slot empty-slot';
+        container.style.cssText = `
+            position: absolute;
+            left: ${slot.position.x};
+            top: ${slot.position.y};
+            width: ${slot.size.width};
+            height: ${slot.size.height};
+            background-color: rgba(255,255,255,0.1);
+            border: 1px dashed rgba(255,255,255,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        container.innerHTML = '<span style="color:rgba(255,255,255,0.5); font-size: 24px;">+</span>';
+        page.appendChild(container);
+    }
+
+    getPhotoStyle(slot) {
+        const styleKey = slot.photoStyle || 'default';
+        const styleConfig = this.designSystem.photoStyles[styleKey] || this.designSystem.photoStyles.default;
+
+        let css = '';
+        if (styleConfig.borderRadius) css += `border-radius: ${styleConfig.borderRadius};`;
+        if (styleConfig.border && styleConfig.border !== 'none') css += `border: ${styleConfig.border};`;
+        if (styleConfig.shadow && styleConfig.shadow !== 'none') css += `box-shadow: ${styleConfig.shadow};`;
+        return css;
+    }
+
+    renderTextElement(container, textEl, content) {
+        const element = document.createElement('div');
+        element.className = `text-element text-${textEl.elementId} text-${textEl.type}`;
+        element.dataset.selectableId = textEl.elementId;
+        element.dataset.selectableType = 'text'; // Critical for selection logic in app.js
+
+        const fontConfig = this.designSystem.typography[textEl.style.font] || this.designSystem.typography.sans;
+        const color = this.resolveColor(textEl.style.color);
+        const fontFamily = fontConfig.family ? `'${fontConfig.family}', ${fontConfig.fallback}` : 'sans-serif';
+
+        element.style.cssText = `
+            position: absolute;
+            left: ${textEl.position.x};
+            top: ${textEl.position.y};
+            ${textEl.size ? `width: ${textEl.size.width};` : 'width: auto; max-width: 80%;'}
+            font-family: ${fontFamily};
+            font-size: ${textEl.style.size};
+            font-weight: ${textEl.style.weight || 400};
+            color: ${color};
+            text-align: ${textEl.style.align || 'left'};
+            ${textEl.style.lineHeight ? `line-height: ${textEl.style.lineHeight};` : ''}
+            ${textEl.style.letterSpacing ? `letter-spacing: ${textEl.style.letterSpacing};` : ''}
+            ${textEl.style.textTransform ? `text-transform: ${textEl.style.textTransform};` : ''}
+            white-space: pre-wrap;
+            cursor: pointer; /* Indication of interaction */
+            z-index: 100; /* Ensure above photos */
+            pointer-events: auto;
+        `;
+
+        // Transform Logic for Centering
+        let transformX = '0';
+        let transformY = '0';
+
+        // Horizontal Sync
+        if (textEl.style.align === 'center' || textEl.position.x === '50%') {
+            transformX = '-50%';
+        }
+
+        // Vertical Sync
+        if (textEl.position.y === '50%' || textEl.type === 'title' || textEl.type === 'hero-title') {
+            transformY = '-50%';
+        }
+
+        if (transformX !== '0' || transformY !== '0') {
+            element.style.transform = `translate(${transformX}, ${transformY})`;
+        }
+
+        element.textContent = content;
+
+        // Add visual frame for selection state (hidden by default)
+        const frame = document.createElement('div');
+        frame.className = 'selection-frame';
+        frame.style.cssText = `
+            position: absolute;
+            top: -4px; right: -4px; bottom: -4px; left: -4px;
+            border: 2px solid #2563eb;
+            display: none;
+            pointer-events: none;
+        `;
+        element.appendChild(frame);
+
+        container.appendChild(element);
+    }
+
+    renderDecorations(page, decorations) {
+        if (!decorations) return;
+        decorations.forEach(dec => {
+            // ... minimal decoration logic if needed ...
+        });
+    }
+
+    resolveColor(colorKey) {
+        if (!colorKey) return '#000000';
+        const colors = this.designSystem.colors;
+        if (colorKey === 'primary') return colors.text.primary;
+        if (colorKey === 'secondary') return colors.text.secondary;
+        if (colorKey === 'accent') return colors.accent;
+        if (colorKey === 'background') return colors.background;
+        if (colorKey.startsWith('#') || colorKey.startsWith('rgb')) return colorKey;
+        return colorKey;
+    }
+}

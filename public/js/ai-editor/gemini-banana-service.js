@@ -120,8 +120,20 @@ class GeminiBananaService {
             }
         } catch (e) {
             console.warn("[GeminiBanana] Image generation failed, returning mock:", e);
-            // Return a placeholder image from Unsplash or similar
-            // Using a high-quality random image
+
+            // Intelligent Mock Images based on Prompt
+            const p = prompt.toLowerCase();
+            if (p.includes("texture") || p.includes("paper")) {
+                return "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=1000&q=80"; // Paper texture
+            } else if (p.includes("gradient")) {
+                return "https://images.unsplash.com/photo-1557683311-eac922347aa1?auto=format&fit=crop&w=1000&q=80"; // Blue gradient
+            } else if (p.includes("watercolor")) {
+                return "https://images.unsplash.com/photo-1516546453174-5e1098a4b4af?auto=format&fit=crop&w=1000&q=80"; // Abstract watercolor
+            } else if (p.includes("abstract")) {
+                return "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1000&q=80"; // Abstract shapes
+            }
+
+            // Default Fallback
             return "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800&q=80";
         }
 
@@ -347,68 +359,100 @@ class GeminiBananaService {
         } catch (e) {
             console.warn('[GeminiBanana] Page design failed, using mock:', e);
 
-            // --- Dynamic Mock Generator ---
+            // --- Dynamic Mock Generator (High Fidelity) ---
             const photoCount = pageContext.photoDescriptions.length;
             const designSys = pageContext.designSystem || { primaryColor: "#000000", fontFamily: { heading: "Serif" } };
+            const isCover = pageContext.pageType === 'cover';
 
             // 1. Select Layout Template based on photo count
             let mockLayout = { gridType: "smart-auto", photoSlots: [] };
 
             if (photoCount === 1) {
-                // Hero Layout
+                // Hero Layout with Frame
                 mockLayout.photoSlots = [
-                    { photoIndex: 0, position: { x: 0, y: 0 }, size: { width: 100, height: 100 }, rotation: 0 }
+                    {
+                        photoIndex: 0,
+                        position: { x: 10, y: 15 },
+                        size: { width: 80, height: 70 },
+                        rotation: -2,
+                        frame: { type: "polaroid", color: "#fff", shadow: true }
+                    }
                 ];
             } else if (photoCount === 2) {
-                // Side by Side
+                // Organic Overlap
                 mockLayout.photoSlots = [
-                    { photoIndex: 0, position: { x: 5, y: 10 }, size: { width: 42.5, height: 80 }, rotation: -2, frame: { type: "white-border" } },
-                    { photoIndex: 1, position: { x: 52.5, y: 10 }, size: { width: 42.5, height: 80 }, rotation: 1, frame: { type: "white-border" } }
+                    {
+                        photoIndex: 0,
+                        position: { x: 8, y: 15 },
+                        size: { width: 45, height: 60 },
+                        rotation: -3,
+                        frame: { type: "white-border", color: "#fff", shadow: true }
+                    },
+                    {
+                        photoIndex: 1,
+                        position: { x: 48, y: 25 },
+                        size: { width: 45, height: 60 },
+                        rotation: 4,
+                        frame: { type: "white-border", color: "#fff", shadow: true }
+                    }
                 ];
             } else if (photoCount === 3) {
-                // Hero Left + 2 Right
+                // Trio Scatter
                 mockLayout.photoSlots = [
-                    { photoIndex: 0, position: { x: 5, y: 5 }, size: { width: 45, height: 90 }, rotation: 0 },
-                    { photoIndex: 1, position: { x: 55, y: 5 }, size: { width: 40, height: 42.5 }, rotation: 0 },
-                    { photoIndex: 2, position: { x: 55, y: 52.5 }, size: { width: 40, height: 42.5 }, rotation: 0 }
+                    { photoIndex: 0, position: { x: 5, y: 10 }, size: { width: 40, height: 40 }, rotation: -5, frame: { type: "polaroid" } },
+                    { photoIndex: 1, position: { x: 55, y: 10 }, size: { width: 40, height: 40 }, rotation: 5, frame: { type: "polaroid" } },
+                    { photoIndex: 2, position: { x: 30, y: 55 }, size: { width: 45, height: 35 }, rotation: 0, frame: { type: "white-border" } }
                 ];
             } else {
-                // Grid for 4+
+                // Grid/Collage for 4+
                 mockLayout.photoSlots = pageContext.photoDescriptions.map((_, idx) => ({
                     photoIndex: idx,
-                    position: { x: (idx % 2) * 50 + 5, y: Math.floor(idx / 2) * 50 + 5 },
-                    size: { width: 40, height: 40 },
-                    rotation: 0
+                    position: { x: (idx % 2) * 45 + 5, y: Math.floor(idx / 2) * 35 + 15 },
+                    size: { width: 40, height: 30 },
+                    rotation: (idx % 2 === 0 ? -1 : 1),
+                    frame: { type: "white-border" }
                 }));
             }
 
             // 2. Generate Context-Aware Text
             const textElements = [];
 
-            if (pageContext.pageType === 'cover') {
+            if (isCover) {
                 textElements.push({
-                    id: "txt-title", type: "title", content: pageContext.chapterTitle || "My Adventure",
-                    position: { x: 50, y: 80 },
-                    style: { fontSize: 60, color: "#ffffff", fontFamily: designSys.fontFamily.heading, textAlign: "center", textShadow: "0 2px 10px rgba(0,0,0,0.5)" }
+                    id: "txt-title", type: "title", content: pageContext.chapterTitle || "Epic Adventure",
+                    position: { x: 50, y: 45 }, // Centered on cover
+                    style: { fontSize: 72, color: "#ffffff", fontFamily: designSys.fontFamily.heading, textAlign: "center", textShadow: "0 4px 15px rgba(0,0,0,0.6)" }
                 });
             } else if (photoCount > 0) {
-                // Caption
-                const captions = ["A beautiful moment", "Unforgettable memories", "The journey begins", "Captured in time", "Pure joy"];
+                // Caption - Positioned carefully at bottom
+                const captions = [
+                    "Moments like these...",
+                    "Exploring the unknown",
+                    "Soaking in the view",
+                    "Time stands still",
+                    "Adventures filling our souls"
+                ];
                 const randomCaption = captions[pageContext.pageIndex % captions.length];
 
                 textElements.push({
                     id: "txt-cap", type: "caption", content: randomCaption,
-                    position: { x: 50, y: 92 },
-                    style: { fontSize: 18, color: designSys.primaryColor, fontFamily: designSys.fontFamily.body, textAlign: "center" }
+                    position: { x: 50, y: 88 }, // Safer bottom margin
+                    style: { fontSize: 20, color: "#333333", fontFamily: designSys.fontFamily.body, textAlign: "center", backgroundColor: "rgba(255,255,255,0.7)", padding: "5px 15px", borderRadius: "4px" }
                 });
             }
+
+            // 3. Generated Background Construction
+            // We'll simulate a prompt that will trigger our mock image generator's logic
+            const bgKeywords = ["texture", "paper", "watercolor", "gradient", "abstract"];
+            const keyword = bgKeywords[pageContext.pageIndex % bgKeywords.length];
 
             return {
                 pageId: pageContext.pageId,
                 pageType: pageContext.pageType,
                 background: {
-                    type: "solid",
-                    color: (pageContext.pageIndex % 2 === 0) ? "#ffffff" : "#f8f9fa" // Alternating subtle backgrounds
+                    type: "generated", // Force 'generated' to test asset pipeline
+                    imagePrompt: `A subtle ${keyword} background in ${designSys.primaryColor} tones`,
+                    fallbackColor: (pageContext.pageIndex % 2 === 0) ? "#f8f9fa" : "#ffffff"
                 },
                 layout: mockLayout,
                 textElements: textElements,

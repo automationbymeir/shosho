@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;500;600;700&family=DM+Serif+Display&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,300;0,400;0,700;1,400&family=Allura&family=Cinzel:wght@400;600&family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Montserrat:ital,wght@0,300;0,400;0,600;1,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Rubik:wght@300;400;500;700&display=swap"
         rel="stylesheet">
 
     <!-- Icons -->
@@ -25,6 +25,11 @@
 
     <!-- Editor CSS -->
     <link rel="stylesheet" href="css/ai-editor.css">
+    <link rel="stylesheet" href="css/photography-portfolio.css">
+    <link rel="stylesheet" href="css/travel-journey.css">
+    <link rel="stylesheet" href="css/bar-mitzvah.css">
+    <!-- Travel Journey Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 
 <body class="theme-dark">
@@ -34,6 +39,8 @@
             <div class="sidebar-nav">
                 <button class="nav-item active" data-tab="photos" title="Photos"><i
                         class="fa-regular fa-images"></i></button>
+                <button class="nav-item" data-tab="templates" title="Templates"><i
+                        class="fa-solid fa-book-open"></i></button>
                 <button class="nav-item" data-tab="designs" title="Designs"><i
                         class="fa-solid fa-paintbrush"></i></button>
                 <button class="nav-item" data-tab="text" title="Text"><i class="fa-solid fa-font"></i></button>
@@ -50,6 +57,13 @@
                     </div>
                     <!-- Photo Grid Injection Point -->
                     <div id="photo-library" class="asset-grid"></div>
+                </div>
+
+                <div id="tab-templates" class="tab-pane">
+                    <div class="panel-header">
+                        <h3>Templates</h3>
+                    </div>
+                    <div id="template-library" class="asset-list"></div>
                 </div>
 
                 <div id="tab-designs" class="tab-pane">
@@ -146,13 +160,13 @@
         <!-- Bottom Bar: Timeline -->
         <footer id="timeline-bar">
             <div class="timeline-controls">
-                <button class="btn-icon"><i class="fa-solid fa-chevron-left"></i></button>
+                <button class="btn-icon" id="btn-prev-page"><i class="fa-solid fa-chevron-left"></i></button>
             </div>
             <div id="page-timeline">
                 <!-- Page thumbnails injected here -->
             </div>
             <div class="timeline-controls">
-                <button class="btn-icon"><i class="fa-solid fa-chevron-right"></i></button>
+                <button class="btn-icon" id="btn-next-page"><i class="fa-solid fa-chevron-right"></i></button>
             </div>
             <button class="btn-add-page"><i class="fa-solid fa-plus"></i> Add Page</button>
         </footer>
@@ -162,6 +176,7 @@
     <script src="data/backgrounds.js"></script>
     <script src="data/templates.js"></script>
     <script src="data/textStyles.js"></script>
+    <script src="js/template-registry.js?v=debug2"></script>
 
     <!-- PDF Lib -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -234,7 +249,17 @@
     <script type="module" src="js/ai-editor/pdf-export.js"></script>
     <script type="module" src="js/ai-editor/magic-create-v2.js"></script>
     <script type="module" src="js/ai-editor/ui-components/magic-launcher.js"></script>
-    <script type="module" src="js/ai-editor/app.js"></script>
+    <script type="module" src="js/ai-editor/app.js?v=debug2"></script>
+
+    <!-- New Template System -->
+    <!-- Moved to data section -->
+    <link rel="stylesheet" href="css/romantic-journey.css">
+
+    <!-- Fonts for Romantic Journey -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
 </body>
 
 </html>

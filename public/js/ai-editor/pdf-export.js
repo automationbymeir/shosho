@@ -6,8 +6,14 @@
 import { layoutEngine } from './layout-engine.js';
 
 export class PDFExport {
-    constructor() {
+    constructor(templateConfig) {
         this.doc = null;
+        this.templateConfig = templateConfig || {};
+    }
+
+    setTemplateConfig(config) {
+        this.templateConfig = config;
+        console.log("PDF: Template Config updated", config ? config.id : 'null');
     }
 
     async generatePDF(pages, cover, assets, returnBlob = false) {
@@ -20,6 +26,7 @@ export class PDFExport {
 
         const { jsPDF } = window.jspdf;
         console.log("PDF: jsPDF loaded. Creating doc...");
+        this.hebrewFontLoaded = false;
 
         try {
             // Use 'pt' units to better align with the hardcoded "pixel-like" values 
@@ -32,7 +39,10 @@ export class PDFExport {
             });
             console.log("PDF: Doc created (pt units).");
 
-            // 1. Render Cover
+            // 1. Load Hebrew Font
+            await this.loadHebrewFont();
+
+            // 2. Render Cover
             console.log("PDF: Rendering Cover...");
             await this.renderCoverToPDF(cover, assets);
 
@@ -82,9 +92,9 @@ export class PDFExport {
             }
             // Text Overlay
             this.doc.setFontSize(24);
-            this.doc.text(cover.title, width / 2, height - 30, { align: 'center' });
+            this.doc.text(this.processText(cover.title), width / 2, height - 30, { align: 'center' });
             this.doc.setFontSize(14);
-            this.doc.text(cover.subtitle, width / 2, height - 20, { align: 'center' });
+            this.doc.text(this.processText(cover.subtitle), width / 2, height - 20, { align: 'center' });
         } else {
             // Standard
             if (cover.frontPhotoId) {
@@ -92,15 +102,36 @@ export class PDFExport {
                 await this.drawImage(cover.frontPhotoId, width * 0.1, height * 0.1, width * 0.8, height * 0.6, assets);
             }
             this.doc.setFontSize(24);
-            this.doc.text(cover.title, width / 2, height - 80, { align: 'center' });
+            this.doc.text(this.processText(cover.title), width / 2, height - 80, { align: 'center' });
             this.doc.setFontSize(14);
-            this.doc.text(cover.subtitle, width / 2, height - 60, { align: 'center' });
+            this.doc.text(this.processText(cover.subtitle), width / 2, height - 60, { align: 'center' });
         }
     }
 
     async renderPageToPDF(page, assets) {
         const width = this.doc.internal.pageSize.getWidth();
         const height = this.doc.internal.pageSize.getHeight();
+
+        // 0. Hydrate Layout Definition (if available)
+        let layoutDef = null;
+        // Fix: Check multiple properties for layout ID (rawLayoutId is used by TemplateManager)
+        const targetLayoutId = page.layoutId || page.rawLayoutId || (page.layout ? page.layout.id : null);
+
+        if (this.templateConfig && this.templateConfig.pageLayouts && targetLayoutId) {
+            layoutDef = this.templateConfig.pageLayouts.find(l => l.layoutId === targetLayoutId);
+            if (layoutDef) {
+                console.log(`PDF: Hydrating page ${page.id} with layout ${targetLayoutId}`);
+                console.log(`PDF: Layout Stats - Slots: ${layoutDef.photoSlots?.length}, Text: ${layoutDef.textElements?.length}, Decos: ${layoutDef.decorations?.length}`);
+            } else {
+                console.warn(`PDF: Layout ${targetLayoutId} not found in template config!`);
+            }
+        } else if (page.layout && page.layout.slots) {
+            // Fallback to legacy page.layout object if fully populated (has slots)
+            layoutDef = page.layout;
+            console.log(`PDF: Using legacy page.layout for page ${page.id}`);
+        } else {
+            console.warn(`PDF: No layout definition found for page ${page.id} (targetId: ${targetLayoutId})`);
+        }
 
         // 1. Background
         await this.drawBackground(page.background, null, width, height);
@@ -109,67 +140,229 @@ export class PDFExport {
         if (page.pageFrameId && window.PAGE_FRAMES) {
             const frameDef = window.PAGE_FRAMES.find(f => f.id === page.pageFrameId);
             if (frameDef) {
-                const svgContent = frameDef.svgGen(width, height, frameDef.color);
-                await this.drawSvg(svgContent, 0, 0, width, height);
-            }
-        }
-
-        // 3. Layout Slots
-        let layoutSlots = [];
-        if (page.layout && page.layout.slots) {
-            layoutSlots = page.layout.slots;
-        } else if (page.photos && page.photos.length > 0) {
-            const generated = layoutEngine.generateLayout(page.photos);
-            if (generated) layoutSlots = generated.slots;
-        }
-
-        if (layoutSlots.length > 0) {
-            for (const slot of layoutSlots) {
-                const x = (slot.x / 100) * width;
-                const y = (slot.y / 100) * height;
-                const w = (slot.width / 100) * width;
-                const h = (slot.height / 100) * height;
-
-                if (slot.photoId) {
-                    // Draw Photo
-                    await this.drawImage(slot.photoId, x, y, w, h, assets);
-
-                    // Draw Photo Frame (SVG)
-                    const frameId = slot.frameId || page.imageFrameId;
-                    if (frameId && window.IMAGE_FRAMES) {
-                        const frameDef = window.IMAGE_FRAMES.find(f => f.id === frameId);
-                        if (frameDef) {
-                            const shape = slot.shape || page.imageShape || 'rect';
-                            const color = slot.frameColor || page.imageFrameColor || frameDef.color;
-                            // Generate SVG string for this slot
-                            const svgContent = frameDef.svgGen(w, h, color, shape);
-                            // Draw it at slot coordinates
-                            await this.drawSvg(svgContent, x, y, w, h);
-                        }
-                    } else {
-                        // Minimal default border if no frame selected? Or clean?
-                        // Leaving clean as default.
-                    }
+                // Draw SVG Frame
+                // Note: Frame usually adds borders/SVGs on top or behind?
+                // If it's a "frame" it might be on top, but here it seemed to be drawing a background too?
+                // The legacy code drew background again. Let's trust page.background handled in step 1.
+                // Just draw the frame if it's an overlay or border.
+                try {
+                    const svgContent = frameDef.svgGen(width, height, frameDef.color);
+                    await this.drawSvg(svgContent, 0, 0, width, height);
+                } catch (e) {
+                    console.warn("PDF: Failed to draw frame", e);
                 }
             }
         }
 
-        // 4. Text Elements
-        if (page.elements) {
-            page.elements.filter(el => el.type === 'text').forEach(text => {
-                const x = (text.x / 100) * width;
+        // 3. Photos
+        // Use layout photo slots if available/hydrated. 
+        // If layoutDef comes from page.layout, it has .slots, not .photoSlots.
+        const photoSlots = (layoutDef && layoutDef.photoSlots) ? layoutDef.photoSlots :
+            (layoutDef && layoutDef.slots) ? layoutDef.slots :
+                page.slots;
+
+        if (photoSlots) {
+            console.log(`PDF: Processing ${photoSlots.length} photo slots...`);
+            // We need to map the user's photos (array) to these slots
+            // user photos are in page.photos or derived from page.slots in legacy
+            const userPhotos = page.photos || []; // Assuming array of photo objects or asset IDs
+            console.log(`PDF: User photos available: ${userPhotos.length}`, userPhotos);
+
+            for (let i = 0; i < photoSlots.length; i++) {
+                const slot = photoSlots[i];
+                const photo = userPhotos[i]; // Simple index matching for now
+
+                if (photo) {
+                    const sX = (slot.position && slot.position.x !== undefined) ? slot.position.x : slot.x;
+                    const sY = (slot.position && slot.position.y !== undefined) ? slot.position.y : slot.y;
+                    const sW = (slot.size && slot.size.width !== undefined) ? slot.size.width : slot.width;
+                    const sH = (slot.size && slot.size.height !== undefined) ? slot.size.height : slot.height;
+
+                    // Ensure we have numbers
+                    const x = (parseFloat(sX) / 100) * width;
+                    const y = (parseFloat(sY) / 100) * height;
+                    const w = (parseFloat(sW) / 100) * width;
+                    const h = (parseFloat(sH) / 100) * height;
+
+                    // Slot specific styling (border radius / frame)
+                    // If template has photoStyles, use them
+                    // ... (Simplifying for now, standard drawImage)
+                    await this.drawImage(photo.assetId || photo.id || photo, x, y, w, h, assets, slot);
+                } else {
+                    console.log(`PDF: No photo for slot ${i}`);
+                }
+            }
+        } else {
+            console.log("PDF: No photo slots defined.");
+        }
+
+        // 4. Decorations (from Layout Definition)
+        const decorations = (layoutDef && layoutDef.decorations) ? layoutDef.decorations : page.decorations;
+        if (decorations) {
+            this.renderDecorations(decorations, width, height);
+        }
+
+        // 5. Text Elements (from Layout Definition, merged with Content)
+        // If layoutDef is page.layout, it usually doesn't have textElements. page.elements does.
+        const textElements = (layoutDef && layoutDef.textElements) ? layoutDef.textElements :
+            (page.elements && page.elements.length > 0) ? page.elements :
+                null;
+
+        if (textElements) {
+            console.log(`PDF: Processing ${textElements.length} text elements...`);
+            // If hydrating, we need to merge with page.textContent
+            // page.textContent is { elementId: "Actual Text" }
+            textElements.forEach(textDef => {
+                // Merge content
+                let contentToRender = textDef.content || textDef.placeholder;
+                if (page.textContent && page.textContent[textDef.elementId]) {
+                    contentToRender = page.textContent[textDef.elementId];
+                }
+
+                const tX = (textDef.position && textDef.position.x !== undefined) ? textDef.position.x : textDef.x;
+                const tY = (textDef.position && textDef.position.y !== undefined) ? textDef.position.y : textDef.y;
+
+                // Construct a temporary text object for rendering logic
+                const text = {
+                    ...textDef,
+                    content: contentToRender || "",
+                    x: parseFloat(tX), // Remove % string if present
+                    y: parseFloat(tY),
+                    fontSize: textDef.style ? parseInt(textDef.style.size) : (textDef.fontSize || 12),
+                    fontFamily: textDef.style ? textDef.style.font : (textDef.fontFamily || 'body'),
+                    color: textDef.style ? textDef.style.color : (textDef.color || '#000000'),
+                    alignment: textDef.alignment || { horizontal: textDef.align || 'left' }, // Normalize
+                    style: textDef.style
+                };
+
+                if (!text.content) {
+                    console.log(`PDF: Skipping empty text element ${textDef.elementId}`);
+                    return; // Skip empty text
+                }
+
+                // Remove '%' if it was parsed as NaN (e.g. "50%"), strictly speaking parseFloat handles "50%" -> 50 correctly.
+
+                let x = 0;
+                let align = 'left';
+
+                // Determine Alignment & Position Logic (Mirroring BarMitzvahRenderer)
+                const alignMethod = (text.alignment && text.alignment.method) || '';
+                const hAlign = (text.alignment && text.alignment.horizontal) || (text.style && text.style.align) || 'left';
+
+                if (alignMethod.includes('transform: translateX(-50%)') || hAlign === 'center') {
+                    // Center Aligned
+                    x = width / 2; // Default center
+                    if (text.x) x = (text.x / 100) * width; // Should be around 50%
+                    align = 'center';
+                } else if (alignMethod.includes('right:') || hAlign === 'right') {
+                    // Right Aligned
+                    // In template, x likely represents "right: 6%" -> distance from right edge
+                    const rightOffset = text.x || 6;
+                    x = width - ((rightOffset / 100) * width);
+                    align = 'right';
+                } else {
+                    // Left Aligned (DefaultL)
+                    const leftOffset = text.x || 6;
+                    x = (leftOffset / 100) * width;
+                    align = 'left';
+                }
+
                 const y = (text.y / 100) * height;
 
                 const fontSizePt = text.fontSize ? (text.fontSize * 0.75) : 12; // px to pt approx
                 this.doc.setFontSize(fontSizePt);
 
-                const fontName = this.mapFont(text.fontFamily, text.styleId);
+                const fontName = this.mapFont(text.fontFamily, text.styleId, text.content);
                 this.doc.setFont(fontName, "normal");
 
-                this.doc.setTextColor(text.color || '#000000');
-                this.doc.text(text.content, x, y + (fontSizePt / 2));
+                const rawColor = text.color || (text.style && text.style.color) || '#000000';
+                const safeColor = this.resolveColorSafe(rawColor);
+                this.doc.setTextColor(safeColor);
+
+                const processedContent = this.processText(text.content);
+                if (!processedContent) return;
+
+                // Validate Coordinates
+                if (isNaN(x) || isNaN(y)) {
+                    console.warn("PDF: Invalid coordinates for text", text, { x, y });
+                    return;
+                }
+
+                // Debug Log
+                // console.log(`PDF: Drawing text "${processedContent.substring(0, 10)}..." at ${x.toFixed(1)},${y.toFixed(1)} align:${align}`);
+
+                try {
+                    this.doc.text(String(processedContent), x, y + (fontSizePt / 2), { align: align });
+                } catch (e) {
+                    console.error("PDF: Failed to render text element:", processedContent, e);
+                    // Fallback: Default Font
+                    try {
+                        this.doc.setFont("helvetica", "normal");
+                        this.doc.text(String(processedContent), x, y + (fontSizePt / 2), { align: align });
+                    } catch (e2) {
+                        console.error("PDF: Fallback failed too", e2);
+                    }
+                }
             });
+        } else {
+            console.log("PDF: No text elements defined.");
         }
+    }
+
+    renderDecorations(decorations, pageWidth, pageHeight) {
+        if (!decorations) return;
+
+        decorations.forEach(dec => {
+            const x = (parseFloat(dec.position.x) / 100) * pageWidth;
+            const y = (parseFloat(dec.position.y) / 100) * pageHeight;
+            const w = (dec.size && dec.size.width) ? (parseFloat(dec.size.width) / 100) * pageWidth : 0;
+            const h = (dec.size && dec.size.height) ? (parseFloat(dec.size.height) / 100) * pageHeight : 0;
+
+            const color = this.resolveColorSafe(dec.color || 'gold');
+            this.doc.setDrawColor(color);
+            this.doc.setFillColor(color);
+
+            if (dec.type === 'goldLine') {
+                this.doc.setLineWidth(2); // thicker line
+                this.doc.rect(x, y, w, 2, 'F'); // Draw as filled rect for consistency
+            } else if (dec.type === 'starOfDavid') {
+                // Approximate Star of David with two triangles
+                // Center x,y. Size w,h.
+                // This is a rough drawing for PDF vector.
+                const cx = x;
+                const cy = y;
+                const r = w / 2; // Radius approx
+
+                // Set opacity if needed - jsPDF handling of opacity isn't great in standard mode without GState
+                // We'll draw lines.
+                this.doc.setLineWidth(1);
+
+                // Triangle 1 (Point Up)
+                this.doc.triangle(
+                    cx, cy - r,
+                    cx - (r * 0.866), cy + (r * 0.5),
+                    cx + (r * 0.866), cy + (r * 0.5),
+                    'S'
+                );
+
+                // Triangle 2 (Point Down)
+                this.doc.triangle(
+                    cx, cy + r,
+                    cx - (r * 0.866), cy - (r * 0.5),
+                    cx + (r * 0.866), cy - (r * 0.5),
+                    'S'
+                );
+
+            } else if (dec.type === 'ornament') {
+                // Simple diamond
+                const r = 10;
+                this.doc.setLineWidth(1);
+                this.doc.line(x, y - r, x + r, y);
+                this.doc.line(x + r, y, x, y + r);
+                this.doc.line(x, y + r, x - r, y);
+                this.doc.line(x - r, y, x, y - r);
+            }
+        });
     }
 
     // --- Helpers ---
@@ -433,7 +626,120 @@ export class PDFExport {
         });
     }
 
-    mapFont(fontFamily, textStyleId) {
+
+
+    resolveColorSafe(color) {
+        if (!color) return '#000000';
+
+        // Handle Bar Mitzvah Template abstract names
+        const PALETTE = {
+            'primary': '#1B365D',
+            'secondary': '#4A5568',
+            'light': '#718096',
+            'gold': '#C9A227',
+            'navy': '#1B365D',
+            'white': '#FFFFFF'
+        };
+
+        if (PALETTE[color]) return PALETTE[color];
+
+        // If it's a valid hex/rgb string, return it
+        if (typeof color === 'string') {
+            if (color.startsWith('#')) return color;
+            if (color.startsWith('rgb')) return color;
+        }
+
+        // Fallback for unknown strings to avoid crash
+        console.warn('PDF: Unknown color encountered, using black:', color);
+        return '#000000';
+    }
+
+    async loadHebrewFont() {
+        if (this.hebrewFontLoaded) return;
+        try {
+            console.log("PDF: Fetching Hebrew Font (Alef)...");
+            const response = await fetch('fonts/Alef-Regular.ttf');
+            if (!response.ok) throw new Error("Font fetch failed: " + response.statusText);
+
+            const blob = await response.blob();
+            const reader = new FileReader();
+
+            return new Promise((resolve, reject) => {
+                reader.onloadend = () => {
+                    if (!reader.result) {
+                        console.error("PDF: Font load result empty");
+                        resolve();
+                        return;
+                    }
+                    // reader.result is "data:font/ttf;base64,..."
+                    const parts = reader.result.split(',');
+                    const base64data = parts.length > 1 ? parts[1] : null;
+
+                    console.log("PDF: Hebrew font base64 length:", base64data ? base64data.length : 0);
+                    if (base64data) {
+                        console.log("PDF: Base64 first 20 chars:", base64data.substring(0, 20));
+                        if (base64data.substring(0, 20).includes('PCFET0NUWQ')) { // "<!DOCTY" in base64
+                            console.error("PDF: Font file seems to be HTML (404/Error page). Aborting font load.");
+                            this.hebrewFontLoaded = false;
+                            resolve();
+                            return;
+                        }
+
+                        try {
+                            // Register Alef as "Rubik" to satisfy existing mapFont logic without refactoring
+                            this.doc.addFileToVFS('Alef-Regular.ttf', base64data);
+                            this.doc.addFont('Alef-Regular.ttf', 'Rubik', 'normal');
+
+                            // Verify Font Usability
+                            console.log("PDF: Verifying Hebrew font...");
+                            this.doc.setFont('Rubik', 'normal');
+                            this.hebrewFontLoaded = true;
+                            console.log("PDF: Hebrew Font Loaded and Verified.");
+                            resolve();
+                        } catch (e) {
+                            console.error("PDF: Error registering or verifying font", e);
+                            this.hebrewFontLoaded = false;
+                            resolve(); // Resolve anyway to allow fallback
+                        }
+                    } else {
+                        console.warn("PDF: Empty or invalid font data");
+                        resolve();
+                    }
+                };
+                reader.onerror = (e) => {
+                    console.error("PDF: FileReader error", e);
+                    reject(e);
+                };
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            console.warn("PDF: Could not load Hebrew font. Text may not render correctly.", e);
+            // Non-blocking
+        }
+    }
+
+    processText(text) {
+        if (!text) return "";
+        // Check for Hebrew
+        if (/[\u0590-\u05FF]/.test(text)) {
+            // Simple visual reversal for PDF rendering
+            // We remove control characters to avoid font issues
+            // Note: This relies on the font supporting the glyphs.
+            return text.split('').reverse().join('');
+        }
+        return text;
+    }
+
+    mapFont(fontFamily, textStyleId, content) {
+        // 0. Priorities Hebrew
+        if (content && /[\u0590-\u05FF]/.test(content)) {
+            if (this.hebrewFontLoaded) {
+                return 'Rubik';
+            } else {
+                console.warn("PDF: Hebrew content detected but font not loaded. Using fallback.");
+                return 'helvetica';
+            }
+        }
         // Basic mapping to Standard PDF Fonts
         // Standard: times, helvetica, courier
 

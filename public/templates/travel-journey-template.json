@@ -1,0 +1,1159 @@
+{
+    "templateId": "travel-journey-v1",
+    "templateName": "Travel Journey",
+    "templateDescription": "A clean, elegant travel photo album template featuring white backgrounds, forest green accents, and sophisticated layouts perfect for documenting trips, vacations, and destination adventures.",
+    "version": "1.0.0",
+    "category": "travel",
+    "tags": [
+        "travel",
+        "vacation",
+        "destination",
+        "trip",
+        "adventure",
+        "nature",
+        "tourism",
+        "journey",
+        "clean",
+        "minimal"
+    ],
+    "minPhotos": 15,
+    "maxPhotos": 100,
+    "recommendedPhotos": 50,
+    "designSystem": {
+        "canvas": {
+            "width": 792,
+            "height": 612,
+            "aspectRatio": "4:3",
+            "scaledWidth": 1056,
+            "scaledHeight": 816
+        },
+        "colors": {
+            "background": "#FFFFFF",
+            "accent": "#398458",
+            "text": {
+                "primary": "#545454",
+                "title": "#398458",
+                "light": "#777777"
+            }
+        },
+        "typography": {
+            "title": {
+                "family": "Playfair Display",
+                "fallback": "Georgia, Times New Roman, serif",
+                "weights": [
+                    400,
+                    600,
+                    700
+                ],
+                "style": "italic",
+                "usage": "location titles, chapter headings"
+            },
+            "body": {
+                "family": "Lato",
+                "fallback": "Open Sans, Helvetica, Arial, sans-serif",
+                "weights": [
+                    300,
+                    400,
+                    700
+                ],
+                "usage": "body text, captions, descriptions"
+            }
+        },
+        "spacing": {
+            "pagePadding": "0",
+            "photoGap": "7px",
+            "textMargin": "5%",
+            "titleTopMargin": "6%",
+            "bodyBottomMargin": "8%"
+        },
+        "photoStyles": {
+            "default": {
+                "borderRadius": "0px",
+                "shadow": "none",
+                "border": "none"
+            }
+        }
+    },
+    "pageLayouts": [
+        {
+            "layoutId": "cover-grid",
+            "layoutName": "Cover Grid",
+            "pageType": "cover",
+            "description": "Four photos in 2x2 grid with centered title overlay",
+            "photoSlots": [
+                {
+                    "slotId": "topLeft",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "0%",
+                        "y": "50.7%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "50.7%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "destination",
+                    "type": "title",
+                    "position": {
+                        "x": "50%",
+                        "y": "50%"
+                    },
+                    "style": {
+                        "font": "title",
+                        "size": "72px",
+                        "weight": 600,
+                        "color": "title",
+                        "align": "center",
+                        "textShadow": "0 2px 10px rgba(255,255,255,0.9)"
+                    },
+                    "placeholder": "Destination Name",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "overlay",
+                    "position": {
+                        "x": "25%",
+                        "y": "35%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "30%"
+                    },
+                    "style": {
+                        "backgroundColor": "rgba(255,255,255,0.85)",
+                        "borderRadius": "0px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "title-hero",
+            "layoutName": "Title Hero",
+            "pageType": "intro",
+            "description": "Title at top, large landscape photo below",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "16%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "68%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "destination",
+                    "type": "title",
+                    "position": {
+                        "x": "50%",
+                        "y": "7%"
+                    },
+                    "style": {
+                        "font": "title",
+                        "size": "56px",
+                        "weight": 600,
+                        "style": "italic",
+                        "color": "title",
+                        "align": "center"
+                    },
+                    "placeholder": "Destination Name",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "text-two-photos",
+            "layoutName": "Text + Two Photos",
+            "pageType": "content",
+            "description": "Body text at top, two photos side by side below",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "0%",
+                        "y": "17.5%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "82.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "17.5%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "82.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "description",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "90%"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center",
+                        "lineHeight": "1.7"
+                    },
+                    "placeholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "location-page",
+            "layoutName": "Location Page",
+            "pageType": "location",
+            "description": "Green title at top, single landscape photo, body text below",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "0%",
+                        "y": "16%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "68%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "location"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "locationTitle",
+                    "type": "locationTitle",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "style": {
+                        "font": "title",
+                        "size": "42px",
+                        "weight": 600,
+                        "style": "italic",
+                        "color": "title",
+                        "align": "center"
+                    },
+                    "placeholder": "Place Name",
+                    "editable": true
+                },
+                {
+                    "elementId": "description",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "87%"
+                    },
+                    "size": {
+                        "width": "90%"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center",
+                        "lineHeight": "1.7"
+                    },
+                    "placeholder": "Description of this beautiful location and your experiences there.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "hero-three-thumbnails",
+            "layoutName": "Hero + Three Thumbnails",
+            "pageType": "gallery",
+            "description": "Large hero landscape at top, three thumbnails in row below",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "66.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "thumb1",
+                    "position": {
+                        "x": "0%",
+                        "y": "67.5%"
+                    },
+                    "size": {
+                        "width": "32.3%",
+                        "height": "32.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "thumb2",
+                    "position": {
+                        "x": "33.2%",
+                        "y": "67.5%"
+                    },
+                    "size": {
+                        "width": "33.6%",
+                        "height": "32.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "thumb3",
+                    "position": {
+                        "x": "67.7%",
+                        "y": "67.5%"
+                    },
+                    "size": {
+                        "width": "32.3%",
+                        "height": "32.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "tall-left-stacked-right",
+            "layoutName": "Tall Left + Stacked Right",
+            "pageType": "gallery",
+            "description": "Large portrait photo left, two landscape photos stacked right",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "50.7%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "hero-two-bottom",
+            "layoutName": "Hero + Two Bottom",
+            "pageType": "gallery",
+            "description": "Wide landscape hero at top, two photos at bottom (one smaller)",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "0%",
+                        "y": "50.7%"
+                    },
+                    "size": {
+                        "width": "58.8%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "59.6%",
+                        "y": "50.7%"
+                    },
+                    "size": {
+                        "width": "40.4%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "hero-strip",
+            "layoutName": "Hero + Panoramic Strip",
+            "pageType": "gallery",
+            "description": "Large hero at top, wide panoramic strip below",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "66.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "strip",
+                    "position": {
+                        "x": "0%",
+                        "y": "67.5%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "32.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "panoramic"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "stacked-left-tall-right",
+            "layoutName": "Stacked Left + Tall Right",
+            "pageType": "gallery",
+            "description": "Two landscape photos stacked left, tall portrait right",
+            "photoSlots": [
+                {
+                    "slotId": "topLeft",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "66.4%",
+                        "height": "49.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "0%",
+                        "y": "50.6%"
+                    },
+                    "size": {
+                        "width": "66.4%",
+                        "height": "49.4%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "67.3%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "32.7%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "two-tall-photos",
+            "layoutName": "Two Tall Photos",
+            "pageType": "gallery",
+            "description": "Two tall portrait photos side by side",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "84.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "84.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "text-hero",
+            "layoutName": "Text + Hero",
+            "pageType": "content",
+            "description": "Body text at top, large hero photo below",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "16%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "84%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "description",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "90%"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center",
+                        "lineHeight": "1.7"
+                    },
+                    "placeholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "single-centered",
+            "layoutName": "Single Centered Photo",
+            "pageType": "showcase",
+            "description": "Single centered photo with margin on sides",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "29.7%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "70.3%",
+                        "height": "77.8%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "single-left",
+            "layoutName": "Single Left Photo",
+            "pageType": "showcase",
+            "description": "Single photo aligned left with space on right",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "0%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "70.3%",
+                        "height": "77.8%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "hero-two-small",
+            "layoutName": "Hero + Two Small Below",
+            "pageType": "gallery",
+            "description": "Wide hero at top, two smaller photos below",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "49.5%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "0%",
+                        "y": "60.7%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "24.8%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "60.7%"
+                    },
+                    "size": {
+                        "width": "49.5%",
+                        "height": "24.8%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "two-centered",
+            "layoutName": "Two Centered Photos",
+            "pageType": "gallery",
+            "description": "Two photos centered with margins",
+            "photoSlots": [
+                {
+                    "slotId": "left",
+                    "position": {
+                        "x": "3.5%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "46%",
+                        "height": "69.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                },
+                {
+                    "slotId": "right",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "46%",
+                        "height": "69.3%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "portrait"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "full-bleed",
+            "layoutName": "Full Bleed",
+            "pageType": "showcase",
+            "description": "Single full-bleed photo covering entire page",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape",
+                    "photoHint": "hero"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "quote-two-photos",
+            "layoutName": "Quote + Two Photos",
+            "pageType": "content",
+            "description": "Quote text in center, strip photos above and below",
+            "photoSlots": [
+                {
+                    "slotId": "top",
+                    "position": {
+                        "x": "4%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "92%",
+                        "height": "28%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "panoramic"
+                },
+                {
+                    "slotId": "bottom",
+                    "position": {
+                        "x": "4%",
+                        "y": "44.2%"
+                    },
+                    "size": {
+                        "width": "92%",
+                        "height": "55.8%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "quote",
+                    "type": "quote",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "size": {
+                        "width": "85%"
+                    },
+                    "style": {
+                        "font": "title",
+                        "size": "24px",
+                        "weight": 400,
+                        "style": "italic",
+                        "color": "primary",
+                        "align": "center",
+                        "lineHeight": "1.6"
+                    },
+                    "placeholder": "\"The world is a book and those who do not travel read only one page.\"",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "closing-grid",
+            "layoutName": "Closing Grid",
+            "pageType": "closing",
+            "description": "Four photos in 2x2 grid, ending page",
+            "photoSlots": [
+                {
+                    "slotId": "topLeft",
+                    "position": {
+                        "x": "0.13%",
+                        "y": "1.7%"
+                    },
+                    "size": {
+                        "width": "44.3%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "45.3%",
+                        "y": "1.7%"
+                    },
+                    "size": {
+                        "width": "44.2%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "0.13%",
+                        "y": "37.9%"
+                    },
+                    "size": {
+                        "width": "44.3%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "45.3%",
+                        "y": "37.9%"
+                    },
+                    "size": {
+                        "width": "44.2%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "preferredAspect": "landscape"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "thanks",
+                    "type": "title",
+                    "position": {
+                        "x": "50%",
+                        "y": "82%"
+                    },
+                    "style": {
+                        "font": "title",
+                        "size": "36px",
+                        "weight": 600,
+                        "style": "italic",
+                        "color": "title",
+                        "align": "center"
+                    },
+                    "placeholder": "The End",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        }
+    ],
+    "defaultPageSequence": [
+        {
+            "layoutId": "cover-grid",
+            "required": true
+        },
+        {
+            "layoutId": "title-hero",
+            "required": false
+        },
+        {
+            "layoutId": "hero-three-thumbnails",
+            "required": false
+        },
+        {
+            "layoutId": "text-two-photos",
+            "required": false
+        },
+        {
+            "layoutId": "location-page",
+            "required": false
+        },
+        {
+            "layoutId": "tall-left-stacked-right",
+            "required": false
+        },
+        {
+            "layoutId": "hero-two-bottom",
+            "required": false
+        },
+        {
+            "layoutId": "text-hero",
+            "required": false
+        },
+        {
+            "layoutId": "location-page",
+            "required": false
+        },
+        {
+            "layoutId": "hero-strip",
+            "required": false
+        },
+        {
+            "layoutId": "stacked-left-tall-right",
+            "required": false
+        },
+        {
+            "layoutId": "location-page",
+            "required": false
+        },
+        {
+            "layoutId": "two-tall-photos",
+            "required": false
+        },
+        {
+            "layoutId": "single-centered",
+            "required": false
+        },
+        {
+            "layoutId": "hero-two-small",
+            "required": false
+        },
+        {
+            "layoutId": "full-bleed",
+            "required": false
+        },
+        {
+            "layoutId": "quote-two-photos",
+            "required": false
+        },
+        {
+            "layoutId": "location-page",
+            "required": false
+        },
+        {
+            "layoutId": "two-centered",
+            "required": false
+        },
+        {
+            "layoutId": "closing-grid",
+            "required": true
+        }
+    ],
+    "photoAssignmentRules": {
+        "heroDetection": {
+            "preferLandscape": true,
+            "preferHighQuality": true,
+            "preferScenic": true,
+            "avoidSimilarConsecutive": true
+        },
+        "groupingStrategy": "chronological_by_location",
+        "minimumPhotosPerPage": 1,
+        "maximumPhotosPerPage": 4,
+        "locationDetection": {
+            "groupByGeoLocation": true,
+            "groupByDate": true,
+            "minimumPhotosPerLocation": 3
+        }
+    },
+    "autoGenerateText": {
+        "enabled": true,
+        "defaultTitles": {
+            "cover": [
+                "Trip to {destination}",
+                "Journey to {destination}",
+                "{destination} Adventure"
+            ],
+            "locations": [
+                "Place One",
+                "Place Two",
+                "Place Three",
+                "Place Four",
+                "Place Five"
+            ],
+            "closing": [
+                "The End",
+                "Until Next Time",
+                "Memories Made"
+            ]
+        },
+        "defaultDescriptions": {
+            "placeholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+        },
+        "defaultQuotes": [
+            "The world is a book and those who do not travel read only one page.",
+            "Travel is the only thing you buy that makes you richer.",
+            "Adventure awaits.",
+            "Not all those who wander are lost.",
+            "Life is short and the world is wide."
+        ]
+    },
+    "themeVariants": [
+        {
+            "variantId": "forest",
+            "name": "Forest Green",
+            "colors": {
+                "accent": "#398458",
+                "text": {
+                    "title": "#398458"
+                }
+            }
+        },
+        {
+            "variantId": "ocean",
+            "name": "Ocean Blue",
+            "colors": {
+                "accent": "#2E6B8A",
+                "text": {
+                    "title": "#2E6B8A"
+                }
+            }
+        },
+        {
+            "variantId": "sunset",
+            "name": "Sunset Orange",
+            "colors": {
+                "accent": "#C4622D",
+                "text": {
+                    "title": "#C4622D"
+                }
+            }
+        },
+        {
+            "variantId": "desert",
+            "name": "Desert Sand",
+            "colors": {
+                "accent": "#A67C52",
+                "text": {
+                    "title": "#A67C52"
+                }
+            }
+        },
+        {
+            "variantId": "mountain",
+            "name": "Mountain Slate",
+            "colors": {
+                "accent": "#4A5568",
+                "text": {
+                    "title": "#4A5568"
+                }
+            }
+        },
+        {
+            "variantId": "tropical",
+            "name": "Tropical Teal",
+            "colors": {
+                "accent": "#0D9488",
+                "text": {
+                    "title": "#0D9488"
+                }
+            }
+        }
+    ]
+}

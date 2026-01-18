@@ -1,0 +1,1785 @@
+{
+    "templateId": "family-roots-v1",
+    "templateName": "Family Roots",
+    "templateDescription": "A warm, timeless family photo book template featuring ivory backgrounds, burgundy accents, and elegant serif typography. Designed to celebrate generations, everyday moments, and the stories that bind families together.",
+    "version": "1.0.0",
+    "category": "family",
+    "tags": [
+        "family",
+        "generations",
+        "memories",
+        "classic",
+        "warm",
+        "elegant",
+        "timeless",
+        "heritage",
+        "home"
+    ],
+    "minPhotos": 20,
+    "maxPhotos": 120,
+    "recommendedPhotos": 60,
+    "designSystem": {
+        "canvas": {
+            "width": 800,
+            "height": 600,
+            "aspectRatio": "4:3",
+            "scaledWidth": 1200,
+            "scaledHeight": 900
+        },
+        "colors": {
+            "background": "#F8F5F0",
+            "backgroundAlt": "#EDE8E0",
+            "accent": {
+                "primary": "#7B4040",
+                "secondary": "#B8956E",
+                "tertiary": "#D4C4B0"
+            },
+            "text": {
+                "primary": "#3A2E26",
+                "secondary": "#6B5E54",
+                "light": "#8A7D72",
+                "inverse": "#F8F5F0"
+            },
+            "decorative": {
+                "border": "#D4C4B0",
+                "shadow": "rgba(58, 46, 38, 0.08)",
+                "overlay": "rgba(123, 64, 64, 0.85)"
+            }
+        },
+        "typography": {
+            "display": {
+                "family": "Cormorant Garamond",
+                "fallback": "Libre Baskerville, Georgia, Times New Roman, serif",
+                "weights": [
+                    400,
+                    500,
+                    600,
+                    700
+                ],
+                "usage": "family name, chapter titles, milestone headings"
+            },
+            "heading": {
+                "family": "Cormorant Garamond",
+                "fallback": "Libre Baskerville, Georgia, serif",
+                "weights": [
+                    500,
+                    600
+                ],
+                "usage": "section titles, photo captions"
+            },
+            "body": {
+                "family": "Nunito",
+                "fallback": "Source Sans Pro, Open Sans, sans-serif",
+                "weights": [
+                    300,
+                    400,
+                    600
+                ],
+                "usage": "descriptions, dates, body text"
+            },
+            "accent": {
+                "family": "Pinyon Script",
+                "fallback": "Great Vibes, Tangerine, cursive",
+                "weights": [
+                    400
+                ],
+                "usage": "decorative words, 'The', 'Our', 'Family'"
+            }
+        },
+        "spacing": {
+            "pagePadding": "6%",
+            "photoGap": "3%",
+            "textMargin": "8%",
+            "lineHeight": {
+                "tight": "1.2",
+                "normal": "1.5",
+                "relaxed": "1.8"
+            }
+        },
+        "photoStyles": {
+            "default": {
+                "borderRadius": "0px",
+                "shadow": "0 4px 20px rgba(58, 46, 38, 0.1)",
+                "border": "none"
+            },
+            "framed": {
+                "borderRadius": "0px",
+                "shadow": "0 4px 20px rgba(58, 46, 38, 0.12)",
+                "border": "8px solid #FFFFFF",
+                "outerBorder": "1px solid #D4C4B0"
+            },
+            "rounded": {
+                "borderRadius": "8px",
+                "shadow": "0 4px 16px rgba(58, 46, 38, 0.1)",
+                "border": "none"
+            },
+            "oval": {
+                "borderRadius": "50%",
+                "shadow": "0 4px 20px rgba(58, 46, 38, 0.15)",
+                "border": "6px solid #FFFFFF"
+            }
+        },
+        "decorativeElements": {
+            "flourish": {
+                "type": "svg",
+                "color": "#D4C4B0",
+                "opacity": 0.6
+            },
+            "border": {
+                "style": "double",
+                "width": "4px",
+                "color": "#D4C4B0"
+            },
+            "corner": {
+                "type": "ornament",
+                "color": "#B8956E",
+                "size": "40px"
+            }
+        }
+    },
+    "textAlignmentSystem": {
+        "description": "Comprehensive text alignment rules for consistent, beautiful typography",
+        "principles": [
+            "All centered text uses transform: translateX(-50%) from left: 50%",
+            "Multi-line text blocks use text-align with explicit width containers",
+            "Vertical positioning uses percentage-based top values for scalability",
+            "Caption text aligns to photo edges, not page edges",
+            "Script/decorative text slightly offset above main titles for visual hierarchy"
+        ],
+        "alignmentModes": {
+            "pageCenter": {
+                "method": "left: 50%; transform: translateX(-50%)",
+                "textAlign": "center",
+                "usage": "titles, quotes, centered captions"
+            },
+            "photoAligned": {
+                "method": "match photo slot left position",
+                "textAlign": "left or right based on photo position",
+                "usage": "captions directly under/beside photos"
+            },
+            "marginAligned": {
+                "method": "left: pagePadding or right: pagePadding",
+                "textAlign": "left or right",
+                "usage": "side-aligned story text, dates"
+            },
+            "baselineGrid": {
+                "method": "snap to 8px baseline grid",
+                "lineHeight": "multiple of 8px",
+                "usage": "body text for vertical rhythm"
+            }
+        },
+        "verticalRhythm": {
+            "baseUnit": 8,
+            "titleSpacing": "24px (3 units)",
+            "paragraphSpacing": "16px (2 units)",
+            "captionOffset": "12px (1.5 units)"
+        }
+    },
+    "pageLayouts": [
+        {
+            "layoutId": "cover-overlap",
+            "layoutName": "Cover - Overlapping Photos",
+            "pageType": "cover",
+            "description": "Three overlapping photos with family name overlay and decorative script",
+            "photoSlots": [
+                {
+                    "slotId": "back",
+                    "position": {
+                        "x": "8%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "45%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "framed",
+                    "rotation": "-3deg",
+                    "zIndex": 1
+                },
+                {
+                    "slotId": "middle",
+                    "position": {
+                        "x": "30%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "45%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "framed",
+                    "rotation": "2deg",
+                    "zIndex": 2
+                },
+                {
+                    "slotId": "front",
+                    "position": {
+                        "x": "50%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "45%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "framed",
+                    "rotation": "-1deg",
+                    "zIndex": 3
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "scriptAccent",
+                    "type": "accent",
+                    "position": {
+                        "x": "50%",
+                        "y": "76%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "accent",
+                        "size": "36px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "The",
+                    "editable": true
+                },
+                {
+                    "elementId": "familyName",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "82%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "56px",
+                        "weight": 600,
+                        "color": "primary",
+                        "align": "center",
+                        "letterSpacing": "3px",
+                        "textTransform": "uppercase"
+                    },
+                    "placeholder": "SMITH FAMILY",
+                    "editable": true
+                },
+                {
+                    "elementId": "year",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "90%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center",
+                        "letterSpacing": "4px"
+                    },
+                    "placeholder": "2024",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "flourish",
+                    "position": {
+                        "x": "50%",
+                        "y": "76%"
+                    },
+                    "size": {
+                        "width": "120px",
+                        "height": "20px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "chapter-intro",
+            "layoutName": "Chapter Introduction",
+            "pageType": "chapter",
+            "description": "Elegant chapter opener with decorative borders and centered title",
+            "photoSlots": [],
+            "textElements": [
+                {
+                    "elementId": "chapterScript",
+                    "type": "accent",
+                    "position": {
+                        "x": "50%",
+                        "y": "38%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "accent",
+                        "size": "42px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "Chapter One",
+                    "editable": true
+                },
+                {
+                    "elementId": "chapterTitle",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "48%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "48px",
+                        "weight": 600,
+                        "color": "primary",
+                        "align": "center",
+                        "letterSpacing": "2px"
+                    },
+                    "placeholder": "Our Story Begins",
+                    "editable": true
+                },
+                {
+                    "elementId": "chapterSubtitle",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "58%"
+                    },
+                    "size": {
+                        "width": "60%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)",
+                        "textAlign": "center"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "16px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "center",
+                        "lineHeight": "1.8"
+                    },
+                    "placeholder": "Every family has a story. This is ours.",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "border",
+                    "position": {
+                        "x": "10%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "80%",
+                        "height": "80%"
+                    },
+                    "style": "double"
+                },
+                {
+                    "type": "corner",
+                    "positions": [
+                        "topLeft",
+                        "topRight",
+                        "bottomLeft",
+                        "bottomRight"
+                    ]
+                }
+            ]
+        },
+        {
+            "layoutId": "story-left",
+            "layoutName": "Story - Photo Left",
+            "pageType": "story",
+            "description": "Large photo on left with story text aligned on right",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "6%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "80%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "storyTitle",
+                    "type": "heading",
+                    "position": {
+                        "x": "62%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "32%"
+                    },
+                    "alignment": {
+                        "horizontal": "left",
+                        "method": "text-align: left",
+                        "note": "Left edge aligns with photo right edge + margin"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "32px",
+                        "weight": 600,
+                        "color": "primary",
+                        "align": "left",
+                        "lineHeight": "1.3"
+                    },
+                    "placeholder": "A Day to Remember",
+                    "editable": true
+                },
+                {
+                    "elementId": "storyDate",
+                    "type": "body",
+                    "position": {
+                        "x": "62%",
+                        "y": "32%"
+                    },
+                    "size": {
+                        "width": "32%"
+                    },
+                    "alignment": {
+                        "horizontal": "left",
+                        "method": "text-align: left"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "left",
+                        "letterSpacing": "2px",
+                        "textTransform": "uppercase"
+                    },
+                    "placeholder": "June 15, 2024",
+                    "editable": true
+                },
+                {
+                    "elementId": "storyText",
+                    "type": "body",
+                    "position": {
+                        "x": "62%",
+                        "y": "38%"
+                    },
+                    "size": {
+                        "width": "32%"
+                    },
+                    "alignment": {
+                        "horizontal": "left",
+                        "method": "text-align: left",
+                        "verticalRhythm": "16px paragraph spacing"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "left",
+                        "lineHeight": "1.8"
+                    },
+                    "placeholder": "Some moments become the threads that weave through the fabric of our family story. This was one of those moments—a day filled with laughter, love, and the simple joy of being together.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "story-right",
+            "layoutName": "Story - Photo Right",
+            "pageType": "story",
+            "description": "Large photo on right with story text aligned on left",
+            "photoSlots": [
+                {
+                    "slotId": "main",
+                    "position": {
+                        "x": "44%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "80%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "storyTitle",
+                    "type": "heading",
+                    "position": {
+                        "x": "6%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "32%"
+                    },
+                    "alignment": {
+                        "horizontal": "left",
+                        "method": "text-align: left"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "32px",
+                        "weight": 600,
+                        "color": "primary",
+                        "align": "left",
+                        "lineHeight": "1.3"
+                    },
+                    "placeholder": "Growing Together",
+                    "editable": true
+                },
+                {
+                    "elementId": "storyDate",
+                    "type": "body",
+                    "position": {
+                        "x": "6%",
+                        "y": "32%"
+                    },
+                    "size": {
+                        "width": "32%"
+                    },
+                    "alignment": {
+                        "horizontal": "left",
+                        "method": "text-align: left"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "left",
+                        "letterSpacing": "2px",
+                        "textTransform": "uppercase"
+                    },
+                    "placeholder": "Summer 2024",
+                    "editable": true
+                },
+                {
+                    "elementId": "storyText",
+                    "type": "body",
+                    "position": {
+                        "x": "6%",
+                        "y": "38%"
+                    },
+                    "size": {
+                        "width": "32%"
+                    },
+                    "alignment": {
+                        "horizontal": "left",
+                        "method": "text-align: left",
+                        "verticalRhythm": "16px paragraph spacing"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "left",
+                        "lineHeight": "1.8"
+                    },
+                    "placeholder": "Year by year, we watch them grow. Each milestone a reminder of how quickly time passes, and how precious these moments truly are.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "generations",
+            "layoutName": "Generations",
+            "pageType": "feature",
+            "description": "Three oval portraits representing different generations with names",
+            "photoSlots": [
+                {
+                    "slotId": "gen1",
+                    "position": {
+                        "x": "12%",
+                        "y": "25%"
+                    },
+                    "size": {
+                        "width": "22%",
+                        "height": "40%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "oval"
+                },
+                {
+                    "slotId": "gen2",
+                    "position": {
+                        "x": "39%",
+                        "y": "25%"
+                    },
+                    "size": {
+                        "width": "22%",
+                        "height": "40%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "oval"
+                },
+                {
+                    "slotId": "gen3",
+                    "position": {
+                        "x": "66%",
+                        "y": "25%"
+                    },
+                    "size": {
+                        "width": "22%",
+                        "height": "40%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "oval"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "pageTitle",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "8%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "36px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center",
+                        "fontStyle": "italic"
+                    },
+                    "placeholder": "Three Generations",
+                    "editable": true
+                },
+                {
+                    "elementId": "name1",
+                    "type": "body",
+                    "position": {
+                        "x": "23%",
+                        "y": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)",
+                        "note": "Centered under each oval photo"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 600,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Grandma Rose",
+                    "editable": true
+                },
+                {
+                    "elementId": "name2",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 600,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Mom",
+                    "editable": true
+                },
+                {
+                    "elementId": "name3",
+                    "type": "body",
+                    "position": {
+                        "x": "77%",
+                        "y": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 600,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Little Emma",
+                    "editable": true
+                },
+                {
+                    "elementId": "years",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "85%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 300,
+                        "color": "light",
+                        "align": "center",
+                        "letterSpacing": "3px"
+                    },
+                    "placeholder": "1954 · 1982 · 2020",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "line",
+                    "position": {
+                        "x": "20%",
+                        "y": "78%"
+                    },
+                    "size": {
+                        "width": "60%",
+                        "height": "1px"
+                    },
+                    "color": "#D4C4B0"
+                }
+            ]
+        },
+        {
+            "layoutId": "milestone-hero",
+            "layoutName": "Milestone Hero",
+            "pageType": "milestone",
+            "description": "Full-width hero photo with milestone title overlay at bottom",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "78%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "milestoneTitle",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "84%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "42px",
+                        "weight": 600,
+                        "color": "primary",
+                        "align": "center",
+                        "fontStyle": "italic"
+                    },
+                    "placeholder": "First Day of School",
+                    "editable": true
+                },
+                {
+                    "elementId": "milestoneDate",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center",
+                        "letterSpacing": "3px",
+                        "textTransform": "uppercase"
+                    },
+                    "placeholder": "September 2024",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "grid-four-captioned",
+            "layoutName": "Four Photos Grid with Captions",
+            "pageType": "gallery",
+            "description": "2x2 grid with individual captions below each photo",
+            "photoSlots": [
+                {
+                    "slotId": "topLeft",
+                    "position": {
+                        "x": "6%",
+                        "y": "6%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "52%",
+                        "y": "6%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "6%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "52%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "caption1",
+                    "type": "caption",
+                    "position": {
+                        "x": "27%",
+                        "y": "46%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)",
+                        "note": "Centered under photo slot"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "Morning smiles",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption2",
+                    "type": "caption",
+                    "position": {
+                        "x": "73%",
+                        "y": "46%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "Backyard adventures",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption3",
+                    "type": "caption",
+                    "position": {
+                        "x": "27%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "Sunday dinner",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption4",
+                    "type": "caption",
+                    "position": {
+                        "x": "73%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "Bedtime stories",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "quote-page",
+            "layoutName": "Quote Page",
+            "pageType": "quote",
+            "description": "Centered family quote with decorative elements",
+            "photoSlots": [],
+            "textElements": [
+                {
+                    "elementId": "quoteText",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "40%"
+                    },
+                    "size": {
+                        "width": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)",
+                        "textAlign": "center",
+                        "note": "Multi-line quote centered in container"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "32px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center",
+                        "fontStyle": "italic",
+                        "lineHeight": "1.6"
+                    },
+                    "placeholder": "\"Family is not an important thing.\nIt's everything.\"",
+                    "editable": true
+                },
+                {
+                    "elementId": "quoteAttribution",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "62%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center",
+                        "letterSpacing": "2px"
+                    },
+                    "placeholder": "— Michael J. Fox",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "quoteMarks",
+                    "position": {
+                        "x": "15%",
+                        "y": "32%"
+                    },
+                    "size": "48px",
+                    "color": "#D4C4B0"
+                },
+                {
+                    "type": "flourish",
+                    "position": {
+                        "x": "50%",
+                        "y": "70%"
+                    },
+                    "size": {
+                        "width": "100px",
+                        "height": "16px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "collage-five",
+            "layoutName": "Five Photo Collage",
+            "pageType": "gallery",
+            "description": "Dynamic asymmetric layout with five photos of varying sizes",
+            "photoSlots": [
+                {
+                    "slotId": "large",
+                    "position": {
+                        "x": "4%",
+                        "y": "4%"
+                    },
+                    "size": {
+                        "width": "55%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "topRight",
+                    "position": {
+                        "x": "62%",
+                        "y": "4%"
+                    },
+                    "size": {
+                        "width": "34%",
+                        "height": "29%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "middleRight",
+                    "position": {
+                        "x": "62%",
+                        "y": "35%"
+                    },
+                    "size": {
+                        "width": "34%",
+                        "height": "29%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "bottomLeft",
+                    "position": {
+                        "x": "4%",
+                        "y": "66%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "30%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "bottomRight",
+                    "position": {
+                        "x": "36%",
+                        "y": "66%"
+                    },
+                    "size": {
+                        "width": "60%",
+                        "height": "30%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "side-by-side",
+            "layoutName": "Side by Side Comparison",
+            "pageType": "comparison",
+            "description": "Two photos side by side with 'Then' and 'Now' labels",
+            "photoSlots": [
+                {
+                    "slotId": "then",
+                    "position": {
+                        "x": "6%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "58%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "framed"
+                },
+                {
+                    "slotId": "now",
+                    "position": {
+                        "x": "52%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "58%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "framed"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "thenLabel",
+                    "type": "accent",
+                    "position": {
+                        "x": "27%",
+                        "y": "8%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "accent",
+                        "size": "32px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "Then",
+                    "editable": true
+                },
+                {
+                    "elementId": "nowLabel",
+                    "type": "accent",
+                    "position": {
+                        "x": "73%",
+                        "y": "8%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "accent",
+                        "size": "32px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "Now",
+                    "editable": true
+                },
+                {
+                    "elementId": "thenYear",
+                    "type": "body",
+                    "position": {
+                        "x": "27%",
+                        "y": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "2004",
+                    "editable": true
+                },
+                {
+                    "elementId": "nowYear",
+                    "type": "body",
+                    "position": {
+                        "x": "73%",
+                        "y": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "2024",
+                    "editable": true
+                },
+                {
+                    "elementId": "comparisonTitle",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "88%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "24px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center",
+                        "fontStyle": "italic"
+                    },
+                    "placeholder": "Twenty Years of Love",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "full-bleed-hero",
+            "layoutName": "Full Bleed Hero",
+            "pageType": "showcase",
+            "description": "Single photo covering entire page, perfect for impactful moments",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "hero-with-caption",
+            "layoutName": "Hero with Caption Bar",
+            "pageType": "showcase",
+            "description": "Large hero photo with caption bar at bottom",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "82%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "caption",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "88%"
+                    },
+                    "size": {
+                        "width": "90%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)",
+                        "textAlign": "center"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "22px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center",
+                        "fontStyle": "italic"
+                    },
+                    "placeholder": "The moment we became a family of four",
+                    "editable": true
+                },
+                {
+                    "elementId": "date",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "94%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center",
+                        "letterSpacing": "2px",
+                        "textTransform": "uppercase"
+                    },
+                    "placeholder": "March 15, 2024",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "everyday-grid",
+            "layoutName": "Everyday Moments Grid",
+            "pageType": "gallery",
+            "description": "Six equal photos in 3x2 grid celebrating daily life",
+            "photoSlots": [
+                {
+                    "slotId": "photo1",
+                    "position": {
+                        "x": "4%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo2",
+                    "position": {
+                        "x": "35.5%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo3",
+                    "position": {
+                        "x": "67%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo4",
+                    "position": {
+                        "x": "4%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo5",
+                    "position": {
+                        "x": "35.5%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                },
+                {
+                    "slotId": "photo6",
+                    "position": {
+                        "x": "67%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "35%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "rounded"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "sectionTitle",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "28px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center",
+                        "fontStyle": "italic"
+                    },
+                    "placeholder": "Everyday Moments",
+                    "editable": true
+                },
+                {
+                    "elementId": "subtitle",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "12px",
+                        "weight": 300,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "It's the little things that mean the most",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "closing-dedication",
+            "layoutName": "Closing Dedication",
+            "pageType": "closing",
+            "description": "Final page with heartfelt dedication and family photo",
+            "photoSlots": [
+                {
+                    "slotId": "family",
+                    "position": {
+                        "x": "25%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "50%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "framed"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "dedication",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "66%"
+                    },
+                    "size": {
+                        "width": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)",
+                        "textAlign": "center"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "24px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center",
+                        "fontStyle": "italic",
+                        "lineHeight": "1.7"
+                    },
+                    "placeholder": "To our children and their children—\nmay you always know how deeply you are loved.",
+                    "editable": true
+                },
+                {
+                    "elementId": "familyName",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "84%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "16px",
+                        "weight": 600,
+                        "color": "secondary",
+                        "align": "center",
+                        "letterSpacing": "3px",
+                        "textTransform": "uppercase"
+                    },
+                    "placeholder": "The Smith Family",
+                    "editable": true
+                },
+                {
+                    "elementId": "year",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "90%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "transform: translateX(-50%)"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "2024",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "flourish",
+                    "position": {
+                        "x": "50%",
+                        "y": "62%"
+                    },
+                    "size": {
+                        "width": "80px",
+                        "height": "12px"
+                    }
+                }
+            ]
+        }
+    ],
+    "defaultPageSequence": [
+        {
+            "layoutId": "cover-overlap",
+            "required": true
+        },
+        {
+            "layoutId": "chapter-intro",
+            "required": false
+        },
+        {
+            "layoutId": "story-left",
+            "required": false
+        },
+        {
+            "layoutId": "collage-five",
+            "required": false
+        },
+        {
+            "layoutId": "milestone-hero",
+            "required": false
+        },
+        {
+            "layoutId": "grid-four-captioned",
+            "required": false
+        },
+        {
+            "layoutId": "story-right",
+            "required": false
+        },
+        {
+            "layoutId": "quote-page",
+            "required": false
+        },
+        {
+            "layoutId": "generations",
+            "required": false
+        },
+        {
+            "layoutId": "everyday-grid",
+            "required": false
+        },
+        {
+            "layoutId": "side-by-side",
+            "required": false
+        },
+        {
+            "layoutId": "hero-with-caption",
+            "required": false
+        },
+        {
+            "layoutId": "full-bleed-hero",
+            "required": false
+        },
+        {
+            "layoutId": "closing-dedication",
+            "required": true
+        }
+    ],
+    "photoAssignmentRules": {
+        "heroDetection": {
+            "preferLandscape": true,
+            "preferFaces": true,
+            "preferGroups": true,
+            "preferHighQuality": true
+        },
+        "groupingStrategy": "chronological_with_events",
+        "minimumPhotosPerPage": 0,
+        "maximumPhotosPerPage": 6,
+        "familyDetection": {
+            "groupPhotos": true,
+            "portraitPhotos": true,
+            "candid": true,
+            "milestones": true
+        }
+    },
+    "autoGenerateText": {
+        "enabled": true,
+        "familyNamePlaceholder": "{familyName} Family",
+        "chapterTitles": [
+            "Our Story Begins",
+            "Growing Together",
+            "Everyday Magic",
+            "Milestones & Memories",
+            "Generations of Love"
+        ],
+        "defaultQuotes": [
+            "Family is not an important thing. It's everything.",
+            "The love of a family is life's greatest blessing.",
+            "In family life, love is the oil that eases friction.",
+            "Family: where life begins and love never ends.",
+            "Home is where your story begins."
+        ]
+    },
+    "themeVariants": [
+        {
+            "variantId": "burgundy",
+            "name": "Burgundy Classic",
+            "colors": {
+                "accent": {
+                    "primary": "#7B4040",
+                    "secondary": "#B8956E"
+                }
+            }
+        },
+        {
+            "variantId": "navy",
+            "name": "Navy Heritage",
+            "colors": {
+                "accent": {
+                    "primary": "#2C3E50",
+                    "secondary": "#85929E"
+                }
+            }
+        },
+        {
+            "variantId": "forest",
+            "name": "Forest Sage",
+            "colors": {
+                "accent": {
+                    "primary": "#4A5D4A",
+                    "secondary": "#8B9D77"
+                }
+            }
+        },
+        {
+            "variantId": "plum",
+            "name": "Plum Elegance",
+            "colors": {
+                "accent": {
+                    "primary": "#5D4E6D",
+                    "secondary": "#A89BB5"
+                }
+            }
+        },
+        {
+            "variantId": "rust",
+            "name": "Autumn Rust",
+            "colors": {
+                "accent": {
+                    "primary": "#8B4513",
+                    "secondary": "#CD853F"
+                }
+            }
+        }
+    ]
+}

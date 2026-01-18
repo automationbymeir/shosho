@@ -32,7 +32,16 @@ export class RenderEngine {
             } else {
                 pageEl.style.backgroundColor = theme.url;
             }
-        } else if (page.background && page.background.startsWith('#')) {
+        } else if (typeof page.background === 'object' && page.background.imageUrl) {
+            // Magic Create V2 Generated Background Object
+            pageEl.style.backgroundImage = `url('${page.background.imageUrl}')`;
+            pageEl.style.backgroundSize = 'cover';
+        } else if (typeof page.background === 'string' && (page.background.startsWith('http') || page.background.startsWith('data:'))) {
+            // Direct URL
+            pageEl.style.backgroundImage = `url('${page.background}')`;
+            pageEl.style.backgroundSize = 'cover';
+        } else if (typeof page.background === 'string' && page.background.startsWith('#')) {
+            // Solid Color
             pageEl.style.backgroundColor = page.background;
         }
 
@@ -151,39 +160,93 @@ export class RenderEngine {
             }
         }
 
-        // 4. Render Text Elements (Overlay)
+        // 4. Render Elements (Text, Shapes, etc.)
         if (page.elements) {
-            page.elements.filter(el => el.type === 'text').forEach(textEl => {
+            page.elements.forEach(el => {
                 const domEl = document.createElement('div');
-                domEl.className = 'page-element text-element';
+                domEl.className = `page-element element-${el.type}`;
                 domEl.style.position = 'absolute';
-                domEl.style.left = `${textEl.x}%`;
-                domEl.style.top = `${textEl.y}%`;
-                domEl.style.minWidth = '200px'; // Initial width
-                domEl.style.maxWidth = `${textEl.width || 50}%`;
-                domEl.style.zIndex = 10;
+                domEl.style.left = `${el.x}%`;
+                domEl.style.top = `${el.y}%`;
+                if (el.zIndex !== undefined) domEl.style.zIndex = el.zIndex;
 
-                // Style Application
-                const styleDef = window.TEXT_STYLES?.find(s => s.id === textEl.styleId);
-                const cssStyle = styleDef ? styleDef.style : {};
-                Object.assign(domEl.style, cssStyle);
+                // Common Selection Data
+                domEl.dataset.selectableType = el.type;
+                domEl.dataset.selectableId = el.id;
 
-                // Overrides
-                if (textEl.fontSize) domEl.style.fontSize = `${textEl.fontSize}px`;
-                if (textEl.color) domEl.style.color = textEl.color;
-                if (textEl.fontFamily) domEl.style.fontFamily = textEl.fontFamily;
-                if (textEl.textAlign) domEl.style.textAlign = textEl.textAlign;
+                if (el.type === 'text') {
+                    domEl.classList.add('text-element');
+                    domEl.style.minWidth = '200px';
+                    domEl.style.maxWidth = `${el.width || 50}%`;
+                    if (!el.zIndex) domEl.style.zIndex = 10; // Default text zIndex
 
-                domEl.textContent = textEl.content;
+                    // Style Application
+                    const styleDef = window.TEXT_STYLES?.find(s => s.id === el.styleId);
+                    const cssStyle = styleDef ? styleDef.style : {};
+                    Object.assign(domEl.style, cssStyle);
 
-                // Selection
-                if (textEl.id === selectionId) {
+                    // Overrides
+                    if (el.fontSize) domEl.style.fontSize = `${el.fontSize}px`;
+                    if (el.color) domEl.style.color = el.color;
+                    if (el.fontFamily) domEl.style.fontFamily = el.fontFamily;
+                    if (el.textAlign) domEl.style.textAlign = el.textAlign;
+
+                    domEl.textContent = el.content;
+
+                    // Hebrew / RTL Support
+                    const isHebrew = /[\u0590-\u05FF]/.test(el.content);
+                    if (isHebrew) {
+                        domEl.dir = 'rtl';
+                        domEl.style.direction = 'rtl';
+                        // If no explicit alignment, default to right for Hebrew
+                        if (!el.textAlign && !domEl.style.textAlign) {
+                            domEl.style.textAlign = 'right';
+                        }
+                        // Ensure font supports Hebrew
+                        if (!el.fontFamily || !el.fontFamily.includes('Rubik')) {
+                            // Append Rubik as fallback if not present, or valid fallback
+                            domEl.style.fontFamily = `Rubik, ${domEl.style.fontFamily || 'sans-serif'}`;
+                        }
+                    }
+                } else if (el.type === 'shape') {
+                    domEl.classList.add('shape-element');
+                    domEl.style.width = `${el.width}%`;
+                    domEl.style.height = `${el.height}%`;
+                    domEl.style.backgroundColor = el.color;
+                    if (!el.zIndex) domEl.style.zIndex = 1; // Default shape zIndex (low)
+                } else if (el.type === 'container') {
+                    // Flexbox Container Logic
+                    domEl.classList.add('container-element');
+                    domEl.style.width = `${el.width}%`;
+                    domEl.style.height = `${el.height}%`;
+                    domEl.style.display = 'flex';
+                    domEl.style.flexDirection = 'column';
+                    domEl.style.alignItems = 'center';
+                    domEl.style.justifyContent = 'center';
+                    domEl.style.backgroundColor = el.backgroundColor || 'transparent';
+                    if (!el.zIndex) domEl.style.zIndex = 20; // Default high for cards
+
+                    // Render Children
+                    if (el.elements && Array.isArray(el.elements)) {
+                        el.elements.forEach(child => {
+                            const childEl = document.createElement('div');
+                            // Simple styles
+                            if (child.fontSize) childEl.style.fontSize = `${child.fontSize}px`;
+                            if (child.fontFamily) childEl.style.fontFamily = child.fontFamily;
+                            if (child.color) childEl.style.color = child.color;
+                            if (child.textAlign) childEl.style.textAlign = child.textAlign;
+                            childEl.style.marginBottom = '4px';
+                            childEl.textContent = child.content;
+                            domEl.appendChild(childEl);
+                        });
+                    }
+                }
+
+                // Selection (Visual Only - handled by CSS)
+                if (el.id === selectionId) {
                     domEl.classList.add('selected');
                     domEl.style.border = '2px solid var(--color-primary, #6366f1)';
                 }
-
-                domEl.dataset.selectableType = 'text';
-                domEl.dataset.selectableId = textEl.id;
 
                 pageEl.appendChild(domEl);
             });
