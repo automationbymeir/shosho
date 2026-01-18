@@ -97,11 +97,7 @@ class FamilyRootsRenderer {
         const height = this.ds.canvas.height || 600;
 
         page.style.cssText = `
-      position: relative;
-      width: 100%;
-      aspect-ratio: ${width}/${height};
       background-color: ${this.ds.colors.background};
-      overflow: hidden;
     `;
 
         // Render decorations first (behind photos)

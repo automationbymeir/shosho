@@ -254,6 +254,19 @@ body {
     transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+/* Consistent sizing for all album pages from templates */
+.album-page {
+    background: white;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    position: relative;
+    /* Fixed size to match templates' design system (800x600 = 4:3 ratio) */
+    width: 800px;
+    height: 600px;
+    transform-origin: center center;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
 .drop-target-active {
     outline: 2px dashed var(--accent);
     outline-offset: -4px;

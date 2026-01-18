@@ -97,11 +97,7 @@ class BarMitzvahRenderer {
         const height = this.ds.canvas ? this.ds.canvas.height : 600;
 
         page.style.cssText = `
-            position: relative;
-            width: 100%;
-            aspect-ratio: ${width}/${height};
             background-color: ${this.ds.colors.background};
-            overflow: hidden;
             direction: rtl; /* Global RTL */
         `;
 
@@ -158,13 +154,33 @@ class BarMitzvahRenderer {
         `;
 
         const alignCSS = this.alignmentRenderer.getAlignmentCSS(textEl);
-        styles += `
-            left: ${alignCSS.left || 'auto'};
-            right: ${alignCSS.right || 'auto'};
-            ${alignCSS.transform ? `transform: ${alignCSS.transform};` : ''}
-            text-align: ${alignCSS.textAlign || 'right'};
-            ${alignCSS.width ? `width: ${alignCSS.width};` : ''}
-        `;
+
+        // Only add properties that are explicitly defined to avoid "undefined" in CSS
+        if (alignCSS.left !== undefined && alignCSS.left !== 'auto') {
+            styles += `left: ${alignCSS.left};`;
+        } else if (alignCSS.left === 'auto') {
+            styles += `left: auto;`;
+        }
+
+        if (alignCSS.right !== undefined && alignCSS.right !== 'auto') {
+            styles += `right: ${alignCSS.right};`;
+        } else if (alignCSS.right === 'auto') {
+            styles += `right: auto;`;
+        }
+
+        if (alignCSS.transform) {
+            styles += `transform: ${alignCSS.transform};`;
+        }
+
+        if (alignCSS.textAlign) {
+            styles += `text-align: ${alignCSS.textAlign};`;
+        } else {
+            styles += `text-align: right;`; // Default for RTL
+        }
+
+        if (alignCSS.width) {
+            styles += `width: ${alignCSS.width};`;
+        }
 
         if (textEl.style) {
             if (textEl.style.letterSpacing) styles += `letter-spacing: ${textEl.style.letterSpacing};`;

@@ -1,12 +1,7 @@
 /* travel-journey.css */
 
 .album-page.travel-journey {
-    position: relative;
-    width: 800px;
-    margin: 0 auto;
-    aspect-ratio: 792/612;
     background-color: #FFFFFF;
-    overflow: hidden;
 }
 
 /* Photo slots */

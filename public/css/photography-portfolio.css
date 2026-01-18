@@ -2,13 +2,7 @@
 
 .album-page.photography-portfolio,
 .shoso-page.photography-portfolio-v1 {
-    /* Added .shoso-page.template-id selector */
-    position: relative;
-    width: 800px;
-    margin: 0 auto;
-    aspect-ratio: 16/9;
     background-color: #FFFFFF;
-    overflow: hidden;
 }
 
 /* Header styling */

@@ -20,16 +20,7 @@ export class TravelJourneyRenderer {
         const page = document.createElement('div');
         page.className = 'album-page travel-journey';
         page.style.cssText = `
-      position: relative;
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: 100%;
-      aspect-ratio: ${this.canvas.width}/${this.canvas.height};
       background-color: ${this.designSystem.colors.background};
-      overflow: hidden;
-      margin: auto;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
     `;
 
         // Render photo slots
@@ -67,16 +58,7 @@ export class TravelJourneyRenderer {
         const page = document.createElement('div');
         page.className = 'album-page travel-journey-cover';
         page.style.cssText = `
-            position: relative;
-            width: auto;
-            height: auto;
-            max-width: 100%;
-            max-height: 100%;
-            aspect-ratio: ${this.canvas.width}/${this.canvas.height};
             background-color: ${this.designSystem.colors.background || '#fff'};
-            overflow: hidden;
-            margin: auto;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
             display: flex;
             align-items: center;
             justify-content: center;

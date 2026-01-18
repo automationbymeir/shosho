@@ -35,8 +35,52 @@ export class TemplateManager {
     }
 
     /**
+     * Generate complete album including cover as first page
+     * @param {Array} photos
+     * @returns {Array} Array of Page Objects (State) including cover
+     */
+    generateAlbumWithCover(photos) {
+        if (!this.config) {
+            console.error("Template not loaded");
+            return [];
+        }
+
+        const allPages = [];
+
+        // 1. Generate Cover Page
+        const coverLayout = this.config.pageLayouts.find(l => l.pageType === 'cover' || l.layoutId === 'cover' || l.layoutId === 'cover-elegant');
+        if (coverLayout) {
+            // Use first photo for cover
+            const coverPhotos = photos.length > 0 ? [photos[0]] : [];
+            const coverTextContent = this.generateCoverTextContent();
+
+            const coverAssignment = {
+                layout: coverLayout,
+                photos: coverPhotos,
+                textContent: coverTextContent
+            };
+
+            const coverPage = this.convertToState(coverAssignment, 0);
+            allPages.push(coverPage);
+        }
+
+        // 2. Generate Content Pages (skip photos used in cover)
+        const contentPhotos = coverLayout ? photos.slice(1) : photos;
+        const assigner = new PhotoAssigner(this.config, contentPhotos);
+        const assignments = assigner.assignPhotos();
+
+        const contentPages = assignments.map((assignment, index) => {
+            return this.convertToState(assignment, index + 1);
+        });
+
+        allPages.push(...contentPages);
+
+        return allPages;
+    }
+
+    /**
      * Generate content pages State Objects from photos
-     * @param {Array} photos 
+     * @param {Array} photos
      * @returns {Array} Array of Page Objects (State)
      */
     generateAlbum(photos) {
@@ -45,7 +89,7 @@ export class TemplateManager {
             return [];
         }
 
-        // Filter out cover photo if handled separately? 
+        // Filter out cover photo if handled separately?
         // For now, let's assume photos passed here are for content pages.
         const assigner = new PhotoAssigner(this.config, photos);
         const assignments = assigner.assignPhotos();
@@ -53,6 +97,29 @@ export class TemplateManager {
         return assignments.map((assignment, index) => {
             return this.convertToState(assignment, index);
         });
+    }
+
+    /**
+     * Generate text content for cover page
+     * @returns {Object} Text content keyed by elementId
+     */
+    generateCoverTextContent() {
+        if (!this.config || !this.config.autoGenerateText) {
+            return {
+                childName: 'Daniel Cohen',
+                hebrewDate: 'י״ג באדר תשפ״ה',
+                gregorianDate: '15 במרץ 2025',
+                barMitzvahLabel: 'בר מצווה'
+            };
+        }
+
+        // Use default values from config or fallbacks
+        return {
+            childName: this.config.autoGenerateText.childName || 'דניאל כהן',
+            hebrewDate: this.config.autoGenerateText.hebrewDate || 'י״ג באדר תשפ״ה',
+            gregorianDate: this.config.autoGenerateText.gregorianDate || '15 במרץ 2025',
+            barMitzvahLabel: this.config.autoGenerateText.barMitzvahLabel || 'בר מצווה'
+        };
     }
 
     /**

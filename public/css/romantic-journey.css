@@ -1,13 +1,7 @@
 /* romantic-journey.css */
 
 .album-page.romantic-journey {
-    position: relative;
-    width: 800px;
-    margin: 0 auto;
-    aspect-ratio: 800/600;
     background-color: #F5F2EF;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     /* Ensure clean edges for PDF export */
     box-sizing: border-box;
 }

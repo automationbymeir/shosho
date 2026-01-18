@@ -242,8 +242,9 @@ class App {
                 if (state.viewMode === 'cover') {
                     this.renderer.renderCover(state.cover, state.assets);
                 } else {
-                    const activePage = state.pages.find(p => p.id === state.activePageId);
-                    this.renderer.renderPage(activePage, state.assets, state.selection);
+                    // IMPORTANT: Use renderActivePage() instead of renderer.renderPage()
+                    // This ensures template-specific renderers are used consistently
+                    this.renderActivePage();
                 }
 
                 this.updateTimeline(state.pages, state.activePageId);
