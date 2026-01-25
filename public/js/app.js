@@ -3755,8 +3755,9 @@ async function loadPicker() {
             btn.innerHTML = '🔎 Waiting for you to click "Done"...';
             statusMsg.innerHTML = 'Please select photos in the popup window and click <b>Done</b>.';
 
+            const startTime = Date.now();
             if (state.pollingInterval) clearInterval(state.pollingInterval);
-            state.pollingInterval = setInterval(checkSession, 2000);
+            state.pollingInterval = setInterval(() => checkSession(startTime), 2000);
         } else {
             alert('Error creating session: ' + result.message);
             btn.disabled = false;
@@ -3848,8 +3849,24 @@ async function handleLocalFileUpload(event) {
 
 const THUMBNAIL_BATCH_SIZE = 5;
 
-async function checkSession() {
+async function checkSession(startTime) {
     if (!state.sessionId) return;
+
+    // Timeout check (60 seconds)
+    if (startTime && (Date.now() - startTime > 60000)) {
+        clearInterval(state.pollingInterval);
+        state.pollingInterval = null;
+        state.sessionId = null;
+
+        const isHebrew = getUiLang() === 'he';
+        const msg = isHebrew
+            ? 'החיבור ל-Google Photos התנתק. אם החלון נפתח אך הופיעה שגיאה, ייתכן שכתובת האתר לא מורשית ב-Google Cloud Console.'
+            : 'Connection timed out. If the Picker opened but showed an error, please ensure this domain is authorized in <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>.';
+
+        document.getElementById('picker-message').innerHTML = `<span style="color:red; display:block; margin-top:10px; line-height:1.4;">${msg}</span>`;
+        resetPickerButton();
+        return;
+    }
 
     try {
         const result = await callFunction('checkPickerSession', { sessionId: state.sessionId });
@@ -12046,9 +12063,16 @@ async function startMagicCreate() {
     }
 
     // 2. Init Service
+    // 2. Init Service
     if (window.geminiService && !window.geminiService.genAI) {
-        const key = "AIzaSyCw0jvaapxUWW7zMWSTIzY2cNQf-0GkfPk"; // Hardcoded from ai-editor/app.js
-        window.geminiService.init(key);
+        // Try config or storage
+        const storedKey = localStorage.getItem('gemini_api_key');
+        if (storedKey) {
+            window.geminiService.init(storedKey);
+        } else {
+            // Try to find the app instance which might have loaded config
+            console.warn("[MagicCreate] Gemini Service not active. Please ensure API Key is configured.");
+        }
     }
 
     if (!window.geminiService || !window.geminiService.genAI) {

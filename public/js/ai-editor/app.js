@@ -2419,8 +2419,12 @@ class App {
 
                 // Auto-Init with User's Key if not set
                 if (!geminiService.apiKey) {
-                    // User provided key: AIzaSyCw0jvaapxUWW7zMWSTIzY2cNQf-0GkfPk
-                    geminiService.init("AIzaSyCw0jvaapxUWW7zMWSTIzY2cNQf-0GkfPk");
+                    const storedKey = localStorage.getItem('gemini_api_key');
+                    if (storedKey) geminiService.init(storedKey);
+                    else {
+                        alert("Please configure your Gemini API Key in settings or local config.");
+                        return;
+                    }
                 }
 
                 btnGenerateAI.textContent = 'Generating...';

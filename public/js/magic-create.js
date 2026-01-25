@@ -116,8 +116,11 @@ window.MagicCreate = class MagicCreate {
         // Ensure service is ready (assumes window.geminiService is exposed from index.html)
         if (!window.geminiService) throw new Error("Gemini Service not found (geminiService).");
 
-        // Init if needed (using the known key)
-        window.geminiService.init("AIzaSyCw0jvaapxUWW7zMWSTIzY2cNQf-0GkfPk");
+        // Init if needed (check localStorage or global config)
+        if (!window.geminiService.genAI) {
+            const storedKey = localStorage.getItem('gemini_api_key');
+            if (storedKey) window.geminiService.init(storedKey);
+        }
 
         // get available frames from global if possible
         const frameOptions = window.PAGE_FRAMES ? window.PAGE_FRAMES.map(f => f.id).join(", ") : "simple, ornate, modern";
