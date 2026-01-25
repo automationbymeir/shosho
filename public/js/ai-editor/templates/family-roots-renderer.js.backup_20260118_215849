@@ -88,7 +88,7 @@ class FamilyRootsRenderer {
         this.alignmentRenderer = new TextAlignmentRenderer(this.ds);
     }
 
-    renderPage(pageLayout, photos, textContent = {}, textPositions = {}) {
+    renderPage(pageLayout, photos, textContent) {
         const page = document.createElement('div');
         page.className = `album-page family-roots ${pageLayout.layoutId}`;
 
@@ -116,15 +116,14 @@ class FamilyRootsRenderer {
         if (pageLayout.textElements) {
             pageLayout.textElements.forEach(textEl => {
                 const content = textContent[textEl.elementId] || textEl.placeholder;
-                const customPos = textPositions[textEl.elementId];
-                this.renderTextElement(page, textEl, content, customPos);
+                this.renderTextElement(page, textEl, content, textContent);
             });
         }
 
         return page;
     }
 
-    renderTextElement(page, textEl, content, customPos = null) {
+    renderTextElement(page, textEl, content, fullTextContent) {
         const element = document.createElement('div');
         element.className = `text-element text-${textEl.type}`;
         element.dataset.selectableType = 'text';
@@ -147,7 +146,7 @@ class FamilyRootsRenderer {
         // Build base styles
         let styles = `
       position: absolute;
-      top: ${customPos && customPos.y !== undefined ? customPos.y : textEl.position.y};
+      top: ${textEl.position.y};
       font-family: ${fontConfig.family}, ${fontConfig.fallback};
       font-size: ${fontSize};
       font-weight: ${fontWeight};
@@ -159,7 +158,7 @@ class FamilyRootsRenderer {
         // Apply alignment
         const alignCSS = this.alignmentRenderer.getAlignmentCSS(textEl);
         styles += `
-      left: ${customPos && customPos.x !== undefined ? customPos.x : (alignCSS.left || 'auto')};
+      left: ${alignCSS.left || 'auto'};
       ${alignCSS.right ? `right: ${alignCSS.right};` : ''}
       ${alignCSS.transform ? `transform: ${alignCSS.transform};` : ''}
       text-align: ${alignCSS.textAlign};
@@ -233,26 +232,13 @@ class FamilyRootsRenderer {
 
         if (photo) {
             const img = document.createElement('img');
-
-            // Priority: thumbnailUrl (Base64) to avoid 403, then url/baseUrl
-            const isString = typeof photo === 'string';
-            img.src = isString ? photo : (photo.thumbnailUrl || photo.baseUrl || photo.url || photo.src || '');
-
+            img.src = photo.url || photo.baseUrl || photo.src; // Prioritize URL
             img.style.cssText = `
         width: 100%;
         height: 100%;
         object-fit: ${slot.photoFit || 'cover'};
         display: block;
         `;
-
-            img.onerror = () => {
-                // Try fallback if thumbnail fails
-                if (!isString && photo.url && img.src !== photo.url) {
-                    img.src = photo.url;
-                } else {
-                    img.src = 'assets/placeholder-image.png';
-                }
-            };
             container.appendChild(img);
 
             // Add drag event listeners for photo swapping

@@ -124,7 +124,7 @@ async function checkPickerSession(userId, sessionId) {
   const oauth2Client = await auth.getOAuth2Client(userId);
 
   if (!oauth2Client) {
-    return {error: "Not authorized"};
+    return { error: "Not authorized" };
   }
 
   const accessToken = oauth2Client.credentials.access_token;
@@ -140,7 +140,7 @@ async function checkPickerSession(userId, sessionId) {
     const code = response.status;
     if (code !== 200) {
       console.log("Poll failed:", code);
-      return {error: `Failed to poll session: ${code}`};
+      return { error: `Failed to poll session: ${code}` };
     }
 
     const session = await response.json();
@@ -160,10 +160,10 @@ async function checkPickerSession(userId, sessionId) {
     }
 
     // Still waiting for user
-    return {complete: false};
+    return { complete: false };
   } catch (e) {
     console.log("checkPickerSession error:", e.toString());
-    return {error: e.toString()};
+    return { error: e.toString() };
   }
 }
 
@@ -227,7 +227,7 @@ async function fetchThumbnailBatch(userId, baseUrls) {
 
   if (!oauth2Client) {
     console.log("fetchThumbnailBatch: No OAuth access");
-    return {success: false, error: "No auth", thumbnails: []};
+    return { success: false, error: "No auth", thumbnails: [] };
   }
 
   const accessToken = oauth2Client.credentials.access_token;
@@ -237,18 +237,32 @@ async function fetchThumbnailBatch(userId, baseUrls) {
   for (let i = 0; i < baseUrls.length; i++) {
     const baseUrl = baseUrls[i];
     try {
-      // Add size parameter for thumbnail
-      // Use larger thumbnails so the app UI looks sharp (album grid + MD spreads).
-      // Some saved projects may already have size parameters appended (e.g. "=w1200-h1200").
-      // Normalize before appending our preferred thumb size.
+      // Use smaller thumbnails for better performance and smaller payload
       const normalizedBaseUrl = normalizeGooglePhotoBaseUrl(baseUrl);
-      const url = `${normalizedBaseUrl}=w800-h800`;
+      const url = `${normalizedBaseUrl}=w200-h200`;
+
+      console.log(`[Thumbnail] Fetching: ${url}`);
 
       // Some Google Photos URLs are publicly accessible for a while, but
       // Picker-returned URLs can require OAuth. Try without auth first,
       // then retry with Bearer token on common auth failures.
-      let response = await fetch(url, {method: "GET"});
+      let response;
+      try {
+        response = await fetch(url, { method: "GET" });
+      } catch (networkErr) {
+        console.error(`[Thumbnail] Network failed for ${url}:`, networkErr);
+        // Fallback to error placeholder immediately if network fails (e.g. DNS)
+        thumbnails.push({
+          baseUrl: baseUrl,
+          thumbnailUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNjY2MiLz48dGV4dCB4PSI1MCIlIiB5PSI1MCUiIGR5PSIuM2VtIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzU1NSI+RXJyb3I8L3RleHQ+PC9zdmc+',
+          success: false,
+          error: networkErr.toString()
+        });
+        continue;
+      }
+
       if (response.status === 401 || response.status === 403) {
+        console.log(`[Thumbnail] Public fetch failed (${response.status}), retrying with Token...`);
         response = await fetch(url, {
           method: "GET",
           headers: {
@@ -262,22 +276,26 @@ async function fetchThumbnailBatch(userId, baseUrls) {
         const b64 = buffer.toString("base64");
         const mimeType = response.headers.get("content-type") || "image/jpeg";
 
-        // Return as data URI so browser can display without auth
         thumbnails.push({
-          // Keep the caller's original baseUrl as the key so the client can map correctly
-          // even if it stored a URL with size params.
           baseUrl: baseUrl,
           thumbnailUrl: `data:${mimeType};base64,${b64}`,
           success: true,
         });
         console.log("Thumbnail fetched successfully for index", i);
       } else {
-        console.log("Thumbnail fetch failed:", response.status);
-        thumbnails.push({baseUrl: baseUrl, thumbnailUrl: null, success: false});
+        const errText = await response.text();
+        console.error(`[Thumbnail] Fetch failed: ${response.status} - ${errText.substring(0, 100)} for URL: ${url}`);
+        // Fallback to placeholder on HTTP error
+        thumbnails.push({
+          baseUrl: baseUrl,
+          thumbnailUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNjY2MiLz48dGV4dCB4PSI1MCIlIiB5PSI1MCUiIGR5PSIuM2VtIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzU1NSI+NDAzPC90ZXh0Pjwvc3ZnPg==',
+          success: false,
+          error: response.status
+        });
       }
     } catch (e) {
-      console.log("Error fetching thumbnail:", e.toString());
-      thumbnails.push({baseUrl: baseUrl, thumbnailUrl: null, success: false});
+      console.error("[Thumbnail] Exception:", e.toString());
+      thumbnails.push({ baseUrl: baseUrl, thumbnailUrl: null, success: false, error: e.toString() });
     }
   }
 
@@ -297,7 +315,7 @@ async function fetchHighResImage(userId, url) {
   const oauth2Client = await auth.getOAuth2Client(userId);
 
   if (!oauth2Client) {
-    return {success: false, error: "No auth"};
+    return { success: false, error: "No auth" };
   }
 
   const accessToken = oauth2Client.credentials.access_token;
@@ -324,10 +342,10 @@ async function fetchHighResImage(userId, url) {
         dataUri: `data:${mimeType};base64,${b64}`,
       };
     } else {
-      return {success: false, error: `Upstream ${response.status}`};
+      return { success: false, error: `Upstream ${response.status}` };
     }
   } catch (e) {
-    return {success: false, error: e.toString()};
+    return { success: false, error: e.toString() };
   }
 }
 
@@ -342,7 +360,7 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
   const oauth2Client = await auth.getOAuth2Client(userId);
 
   if (!oauth2Client) {
-    return {success: false, error: "No auth"};
+    return { success: false, error: "No auth" };
   }
 
   const accessToken = oauth2Client.credentials.access_token;
@@ -351,7 +369,7 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
     return {
       success: true,
       urls: {},
-      inputDebug: {receivedCount: 0, receivedType: typeof mediaItemIds},
+      inputDebug: { receivedCount: 0, receivedType: typeof mediaItemIds },
     };
   }
 
@@ -388,7 +406,7 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
         console.log("[DEBUG_SCOPES] Token Scopes:", tokenInfo.scope);
         if (tokenInfo.scope && !tokenInfo.scope.includes("photoslibrary.readonly")) {
           console.error("[DEBUG_SCOPES] CRITICAL: Missing photoslibrary.readonly scope!");
-          errors.push({error: "MISSING_SCOPE", details: tokenInfo.scope});
+          errors.push({ error: "MISSING_SCOPE", details: tokenInfo.scope });
         }
       } catch (e) {
         console.error("[DEBUG_SCOPES] Failed to inspect token:", e);
@@ -404,8 +422,8 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
       if (response.status !== 200) {
         const text = await response.text();
         console.error("refreshMediaItemUrls batchGet failed:", response.status, text);
-        errors.push({chunkIds: chunk, status: response.status, text: text});
-        debugData.responses.push({status: response.status, text: text});
+        errors.push({ chunkIds: chunk, status: response.status, text: text });
+        debugData.responses.push({ status: response.status, text: text });
         continue;
       }
 
@@ -437,7 +455,7 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
     } catch (e) {
       console.error("refreshMediaItemUrls chunk error:", e);
       if (!errors) errors = [];
-      errors.push({error: e.toString()});
+      errors.push({ error: e.toString() });
     }
   }
 

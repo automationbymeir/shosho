@@ -15,7 +15,7 @@ export class PhotographyPortfolioRenderer {
      * @param {Object} textContent - User-provided or AI-generated text
      * @returns {HTMLElement} - Rendered page element
      */
-    renderPage(pageLayout, photos, textContent = {}, textPositions = {}) {
+    renderPage(pageLayout, photos, textContent = {}) {
         if (!pageLayout) {
             console.error("PhotographyPortfolioRenderer: No page layout provided");
             return document.createElement('div');
@@ -51,8 +51,7 @@ export class PhotographyPortfolioRenderer {
         if (pageLayout.textElements) {
             pageLayout.textElements.forEach(textEl => {
                 const content = textContent[textEl.elementId] || textEl.placeholder;
-                const customPos = textPositions[textEl.elementId];
-                this.renderTextElement(page, textEl, content, customPos);
+                this.renderTextElement(page, textEl, content);
             });
         }
 
@@ -123,25 +122,14 @@ export class PhotographyPortfolioRenderer {
         `;
 
         const img = document.createElement('img');
-
-        // Priority: thumbnailUrl (Base64) to avoid 403, then url/baseUrl
-        const isString = typeof photo === 'string';
-        img.src = isString ? photo : (photo.thumbnailUrl || photo.baseUrl || photo.url || photo.src || '');
-
+        img.src = photo.baseUrl || photo.url || photo.src || (photo.indexOf && photo.indexOf('data:') === 0 ? photo : '');
         img.style.cssText = `
             width: 100%;
             height: 100%;
             object-fit: ${slot.photoFit || 'cover'};
         `;
 
-        img.onerror = () => {
-            // Try fallback if thumbnail fails
-            if (!isString && photo.url && img.src !== photo.url) {
-                img.src = photo.url;
-            } else {
-                img.src = 'assets/placeholder-image.png';
-            }
-        };
+        img.onerror = () => { img.src = 'assets/placeholder-image.png'; };
         container.appendChild(img);
 
         // Add drag event listeners for photo swapping
@@ -196,7 +184,7 @@ export class PhotographyPortfolioRenderer {
         return css;
     }
 
-    renderTextElement(container, textEl, content, customPos = null) {
+    renderTextElement(container, textEl, content) {
         const element = document.createElement('div');
         element.className = `text-element text-${textEl.elementId} text-${textEl.type}`;
         element.dataset.selectableId = textEl.elementId;
@@ -208,8 +196,8 @@ export class PhotographyPortfolioRenderer {
 
         element.style.cssText = `
             position: absolute;
-      left: ${customPos && customPos.x !== undefined ? customPos.x : textEl.position.x};
-      top: ${customPos && customPos.y !== undefined ? customPos.y : textEl.position.y};
+            left: ${textEl.position.x};
+            top: ${textEl.position.y};
             ${textEl.size ? `width: ${textEl.size.width};` : 'width: auto; max-width: 80%;'}
             font-family: ${fontFamily};
             font-size: ${textEl.style.size};

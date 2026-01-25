@@ -89,7 +89,7 @@ class BarMitzvahRenderer {
         this.alignmentRenderer = new TextAlignmentRenderer(this.ds);
     }
 
-    renderPage(pageLayout, photos, textContent) {
+    renderPage(pageLayout, photos, textContent, textPositions = {}) {
         const page = document.createElement('div');
         page.className = `album-page bar-mitzvah ${pageLayout.layoutId}`;
 
@@ -116,20 +116,24 @@ class BarMitzvahRenderer {
         if (pageLayout.textElements) {
             pageLayout.textElements.forEach(textEl => {
                 const content = textContent[textEl.elementId] || textEl.placeholder;
-                this.renderTextElement(page, textEl, content);
+                const customPos = textPositions[textEl.elementId];
+                this.renderTextElement(page, textEl, content, customPos);
             });
         }
 
         return page;
     }
 
-    renderTextElement(page, textEl, content) {
+    renderTextElement(page, textEl, content, customPos = null) {
         const element = document.createElement('div');
         element.className = `text-element text-${textEl.type}`;
         element.dataset.selectableType = 'text';
         element.dataset.selectableId = textEl.elementId;
+        // Text editing is controlled by app.js double-click handler
+        // Start as non-editable to allow dragging
         if (textEl.editable !== false) {
             element.contentEditable = 'false';
+            element.setAttribute('spellcheck', 'false');
         }
 
         const fontKey = textEl.style ? textEl.style.font : 'body';
@@ -141,9 +145,13 @@ class BarMitzvahRenderer {
         const fontSize = textEl.style ? textEl.style.size : '14px';
         const fontWeight = textEl.style ? textEl.style.weight : 400;
 
+        // Use custom position if available, otherwise use layout position
+        const topPos = customPos ? customPos.y : textEl.position.y;
+        const leftPos = customPos ? customPos.x : null;
+
         let styles = `
             position: absolute;
-            top: ${textEl.position.y};
+            top: ${topPos};
             font-family: '${fontConfig.family}', ${fontConfig.fallback};
             font-size: ${fontSize};
             font-weight: ${fontWeight};
@@ -155,31 +163,46 @@ class BarMitzvahRenderer {
 
         const alignCSS = this.alignmentRenderer.getAlignmentCSS(textEl);
 
-        // Only add properties that are explicitly defined to avoid "undefined" in CSS
-        if (alignCSS.left !== undefined && alignCSS.left !== 'auto') {
-            styles += `left: ${alignCSS.left};`;
-        } else if (alignCSS.left === 'auto') {
-            styles += `left: auto;`;
-        }
-
-        if (alignCSS.right !== undefined && alignCSS.right !== 'auto') {
-            styles += `right: ${alignCSS.right};`;
-        } else if (alignCSS.right === 'auto') {
-            styles += `right: auto;`;
-        }
-
-        if (alignCSS.transform) {
-            styles += `transform: ${alignCSS.transform};`;
-        }
-
-        if (alignCSS.textAlign) {
-            styles += `text-align: ${alignCSS.textAlign};`;
+        // If custom position exists, use it for left/right instead of alignment
+        if (customPos && customPos.x) {
+            styles += `left: ${customPos.x};`;
+            // Don't set transform or right when using custom position
+            if (alignCSS.textAlign) {
+                styles += `text-align: ${alignCSS.textAlign};`;
+            } else {
+                styles += `text-align: right;`; // Default for RTL
+            }
+            if (alignCSS.width) {
+                styles += `width: ${alignCSS.width};`;
+            }
         } else {
-            styles += `text-align: right;`; // Default for RTL
-        }
+            // Use alignment system
+            // Only add properties that are explicitly defined to avoid "undefined" in CSS
+            if (alignCSS.left !== undefined && alignCSS.left !== 'auto') {
+                styles += `left: ${alignCSS.left};`;
+            } else if (alignCSS.left === 'auto') {
+                styles += `left: auto;`;
+            }
 
-        if (alignCSS.width) {
-            styles += `width: ${alignCSS.width};`;
+            if (alignCSS.right !== undefined && alignCSS.right !== 'auto') {
+                styles += `right: ${alignCSS.right};`;
+            } else if (alignCSS.right === 'auto') {
+                styles += `right: auto;`;
+            }
+
+            if (alignCSS.transform) {
+                styles += `transform: ${alignCSS.transform};`;
+            }
+
+            if (alignCSS.textAlign) {
+                styles += `text-align: ${alignCSS.textAlign};`;
+            } else {
+                styles += `text-align: right;`; // Default for RTL
+            }
+
+            if (alignCSS.width) {
+                styles += `width: ${alignCSS.width};`;
+            }
         }
 
         if (textEl.style) {
@@ -197,6 +220,13 @@ class BarMitzvahRenderer {
         const container = document.createElement('div');
         container.className = `photo-slot photo-${slot.photoStyle || 'default'}`;
         container.dataset.slotId = slot.slotId;
+
+        // Make draggable for photo swapping
+        container.draggable = true;
+        container.dataset.selectableType = 'photo';
+        if (photo) {
+            container.dataset.selectableId = photo.id || `photo-${index}`;
+        }
 
         const styleName = slot.photoStyle || 'default';
         const styleConfig = this.ds.photoStyles ? this.ds.photoStyles[styleName] : {};
@@ -217,6 +247,7 @@ class BarMitzvahRenderer {
             z-index: ${slot.zIndex || 1};
             background-color: rgba(0,0,0,0.03);
             direction: ltr; /* Reset direction for image container */
+            cursor: pointer;
         `;
 
         if (styleConfig.outerShadow) {
@@ -225,15 +256,44 @@ class BarMitzvahRenderer {
 
         container.style.cssText = containerStyles;
 
+        // Add drag event listeners for photo swapping
+        if (photo) {
+            container.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('application/json', JSON.stringify({
+                    type: 'slot-swap',
+                    photoId: photo.id || `photo-${index}`,
+                    slotId: slot.slotId
+                }));
+                container.style.opacity = '0.5';
+            });
+            container.addEventListener('dragend', () => {
+                container.style.opacity = '1';
+            });
+        }
+
         if (photo) {
             const img = document.createElement('img');
-            img.src = photo.url || photo.baseUrl || photo.src;
+
+            // Priority: thumbnailUrl (Base64) to avoid 403, then url/baseUrl
+            const isString = typeof photo === 'string';
+            img.src = isString ? photo : (photo.thumbnailUrl || photo.baseUrl || photo.url || photo.src || '');
+
             img.style.cssText = `
                 width: 100%;
                 height: 100%;
                 object-fit: ${slot.photoFit || 'cover'};
                 display: block;
             `;
+
+            img.onerror = () => {
+                // Try fallback if thumbnail fails
+                if (!isString && photo.url && img.src !== photo.url) {
+                    img.src = photo.url;
+                } else {
+                    img.src = 'assets/placeholder-image.png';
+                }
+            };
             container.appendChild(img);
 
             const removeBtn = document.createElement('button');

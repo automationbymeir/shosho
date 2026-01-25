@@ -1,7 +1,7 @@
-const {google} = require("googleapis");
+const { google } = require("googleapis");
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
-const {FieldValue} = require("firebase-admin/firestore");
+const { FieldValue } = require("firebase-admin/firestore");
 
 // OAuth2 Configuration
 // These should be set in Firebase Functions config or environment variables
@@ -59,23 +59,46 @@ function getOauthConfig() {
   console.log(`[DEBUG_AUTH] isEmulator detection: ${isEmulator}. ` +
     `Env Keys: ${Object.keys(process.env).filter((k) => k.includes("EMULATOR")).join(", ")}`);
 
-  // Use localhost:5001 to match typical browser context
+  // Use localhost:5000 (Hosting) to match the app origin and use the rewrite rule.
+  // This avoids Cross-Origin issues between Port 5000 (App) and 5001 (Functions).
   const defaultRedirect = isEmulator ?
-    "http://localhost:5001/shoso-photobook/us-central1/oauthCallback" :
+    "http://localhost:5000/oauth/callback" :
     "https://shoso-photobook.web.app/oauth/callback";
 
   if (isEmulator) {
     console.log("Running in emulator mode, using local redirect URI:", defaultRedirect);
   }
 
-  const redirectUri = envRedirectUri ||
+  /* 
+     Fix for Emulator:
+     If we are running in the emulator, we MUST use the localhost redirect URI.
+     The .env or runtimeconfig.json often have the production URI hardcoded, which overrides the dynamic default.
+     We force the dynamic default (localhost) if isEmulator is detected.
+  */
+  /* 
+     Fix for Emulator:
+     If we are running in the emulator, we MUST use the localhost redirect URI.
+     The .env or runtimeconfig.json often have the production URI hardcoded, which overrides the dynamic default.
+     We force the dynamic default (localhost) if isEmulator is detected.
+  */
+  const redirectUri = isEmulator ? defaultRedirect : (
+    envRedirectUri ||
     runtimeCfg.google?.redirect_uri ||
     runtimeCfg.google?.redirectUri ||
     cfg.google?.redirect_uri ||
     cfg.google?.redirectUri ||
-    defaultRedirect;
+    defaultRedirect
+  );
 
-  return {clientId, clientSecret, redirectUri};
+  if (isEmulator) {
+    console.log("\n\n=================================================================================");
+    console.log("⚠️  EMULATOR OAUTH CONFIGURATION REQUIRED  ⚠️");
+    console.log("You must whitelist this Redirect URI in your Google Cloud Console:");
+    console.log(`👉  ${redirectUri}`);
+    console.log("=================================================================================\n\n");
+  }
+
+  return { clientId, clientSecret, redirectUri };
 }
 
 const SCOPES = [
@@ -91,15 +114,15 @@ const SCOPES = [
  * @return {Promise<OAuth2Client>} Configured OAuth2 client
  */
 async function getOAuth2Client(userId) {
-  const {clientId, clientSecret, redirectUri} = getOauthConfig();
+  const { clientId, clientSecret, redirectUri } = getOauthConfig();
   if (!clientId || !clientSecret) {
     console.error("Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env vars");
     return null;
   }
   const oauth2Client = new google.auth.OAuth2(
-      clientId,
-      clientSecret,
-      redirectUri,
+    clientId,
+    clientSecret,
+    redirectUri,
   );
 
   if (userId) {
@@ -109,15 +132,15 @@ async function getOAuth2Client(userId) {
 
     if (tokenDoc.exists) {
       const tokens = tokenDoc.data();
-      console.log(`[DEBUG_AUTH] Token found for userId: ${userId}`);
+      console.log(`[DEBUG_AUTH] Token found for userId: ${userId} in project: ${process.env.GCLOUD_PROJECT || 'unknown'}`);
       oauth2Client.setCredentials(tokens);
 
       // Check if token needs refresh
       if (tokens.expiry_date && tokens.expiry_date < Date.now()) {
         console.log(`[DEBUG_AUTH] Token for userId: ${userId} is expired, attempting refresh.`);
         try {
-          const {credentials} = await oauth2Client.refreshAccessToken();
-          await db.collection("oauth_tokens").doc(userId).set(credentials, {merge: true});
+          const { credentials } = await oauth2Client.refreshAccessToken();
+          await db.collection("oauth_tokens").doc(userId).set(credentials, { merge: true });
           oauth2Client.setCredentials(credentials);
           console.log(`[DEBUG_AUTH] Token for userId: ${userId} refreshed successfully.`);
         } catch (error) {
@@ -129,7 +152,7 @@ async function getOAuth2Client(userId) {
         console.log(`[DEBUG_AUTH] Token for userId: ${userId} is still valid.`);
       }
     } else {
-      console.log(`[DEBUG_AUTH] No token found for userId: ${userId}`);
+      console.log(`[DEBUG_AUTH] No token found for userId: ${userId} in collection 'oauth_tokens' (Project: ${process.env.GCLOUD_PROJECT}).`);
       return null; // No tokens stored
     }
   }
@@ -143,7 +166,7 @@ async function getOAuth2Client(userId) {
  * @return {Promise<Object>} Authorization URL and state
  */
 async function getAuthorizationUrl(userId) {
-  const {clientId, clientSecret, redirectUri} = getOauthConfig();
+  const { clientId, clientSecret, redirectUri } = getOauthConfig();
   if (!clientId || !clientSecret) {
     return {
       status: "CONFIG_ERROR",
@@ -151,9 +174,9 @@ async function getAuthorizationUrl(userId) {
     };
   }
   const oauth2Client = new google.auth.OAuth2(
-      clientId,
-      clientSecret,
-      redirectUri,
+    clientId,
+    clientSecret,
+    redirectUri,
   );
 
   const authUrl = oauth2Client.generateAuthUrl({
@@ -176,7 +199,7 @@ async function getAuthorizationUrl(userId) {
  */
 async function handleCallback(query) {
   console.log("[DEBUG_AUTH] handleCallback INVOKED. Query:", JSON.stringify(query));
-  const {code, state} = query;
+  const { code, state } = query;
 
   if (!code) {
     console.log("[DEBUG_AUTH] No authorization code received.");
@@ -198,7 +221,7 @@ async function handleCallback(query) {
   console.log(`[DEBUG_AUTH] Processing callback for userId: ${userId}`);
 
   try {
-    const {clientId, clientSecret, redirectUri} = getOauthConfig();
+    const { clientId, clientSecret, redirectUri } = getOauthConfig();
     if (!clientId || !clientSecret) {
       console.error("[DEBUG_AUTH] Server OAuth config missing.");
       return {
@@ -207,12 +230,12 @@ async function handleCallback(query) {
       };
     }
     const oauth2Client = new google.auth.OAuth2(
-        clientId,
-        clientSecret,
-        redirectUri,
+      clientId,
+      clientSecret,
+      redirectUri,
     );
 
-    const {tokens} = await oauth2Client.getToken(code);
+    const { tokens } = await oauth2Client.getToken(code);
     console.log(`[DEBUG_AUTH] Received tokens for userId: ${userId}`);
 
     // Store tokens in Firestore

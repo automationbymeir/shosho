@@ -16,7 +16,7 @@ export class TravelJourneyRenderer {
      * @param {Object} textContent - User-provided or AI-generated text
      * @returns {HTMLElement} - Rendered page element
      */
-    renderPage(pageLayout, photos, textContent = {}, textPositions = {}) {
+    renderPage(pageLayout, photos, textContent = {}) {
         const page = document.createElement('div');
         page.className = 'album-page travel-journey';
         page.style.cssText = `
@@ -44,8 +44,7 @@ export class TravelJourneyRenderer {
         if (pageLayout.textElements) {
             pageLayout.textElements.forEach(textEl => {
                 const content = textContent[textEl.elementId] || textEl.placeholder;
-                const customPos = textPositions[textEl.elementId];
-                this.renderTextElement(page, textEl, content, customPos);
+                this.renderTextElement(page, textEl, content);
             });
         }
 
@@ -75,8 +74,7 @@ export class TravelJourneyRenderer {
             const photo = assets.photos.find(p => p.id === coverState.frontPhotoId);
             if (photo) {
                 const img = document.createElement('img');
-                // Priority: thumbnailUrl (Base64) to avoid 403
-                img.src = photo.thumbnailUrl || photo.url || photo.baseUrl;
+                img.src = photo.url || photo.baseUrl;
                 img.style.cssText = `
                     position: absolute;
                     top: 0; left: 0;
@@ -85,8 +83,6 @@ export class TravelJourneyRenderer {
                     z-index: 0;
                     opacity: ${coverState.layout === 'full-bleed' ? 1 : 0.9}; 
                  `;
-
-                img.onerror = () => { img.src = photo.url || 'assets/placeholder-image.png'; };
                 page.appendChild(img);
             }
         }
@@ -134,13 +130,6 @@ export class TravelJourneyRenderer {
         const container = document.createElement('div');
         container.className = 'photo-slot';
 
-
-        // Make draggable for photo swapping
-        container.draggable = true;
-        container.dataset.selectableType = 'photo';
-        if (photo) {
-            container.dataset.selectableId = photo.id || `photo-${index}`;
-        }
         container.style.cssText = `
       position: absolute;
       left: ${slot.position.x};
@@ -148,46 +137,16 @@ export class TravelJourneyRenderer {
       width: ${slot.size.width};
       height: ${slot.size.height};
       overflow: hidden;
-      cursor: pointer;
     `;
 
         const img = document.createElement('img');
-
-        // Priority: thumbnailUrl (Base64) to avoid 403, then url/baseUrl
-        const isString = typeof photo === 'string';
-        img.src = isString ? photo : (photo.thumbnailUrl || photo.baseUrl || photo.url || photo.src || '');
-
+        img.src = photo.url || photo.baseUrl || photo.src;
         img.alt = photo.description || '';
         img.style.cssText = `
       width: 100%;
       height: 100%;
       object-fit: ${slot.photoFit || 'cover'};
     `;
-
-        img.onerror = () => {
-            // Try fallback if thumbnail fails
-            if (!isString && photo.url && img.src !== photo.url) {
-                img.src = photo.url;
-            } else {
-                img.src = 'assets/placeholder-image.png';
-            }
-        };
-
-        // Add drag event listeners for photo swapping
-        if (photo) {
-            container.addEventListener('dragstart', (e) => {
-                e.stopPropagation();
-                e.dataTransfer.setData('application/json', JSON.stringify({
-                    type: 'slot-swap',
-                    photoId: photo.id || `photo-${index}`,
-                    slotId: slot.slotId
-                }));
-                container.style.opacity = '0.5';
-            });
-            container.addEventListener('dragend', () => {
-                container.style.opacity = '1';
-            });
-        }
 
         const removeBtn = document.createElement('button');
         removeBtn.className = 'btn-remove-slot-photo';
@@ -243,7 +202,7 @@ export class TravelJourneyRenderer {
         }
     }
 
-    renderTextElement(page, textEl, content, customPos = null) {
+    renderTextElement(page, textEl, content) {
         const element = document.createElement('div');
         element.className = `text-element text-${textEl.type}`;
         // Add interaction hooks
@@ -257,8 +216,8 @@ export class TravelJourneyRenderer {
 
         element.style.cssText = `
       position: absolute;
-      left: ${customPos && customPos.x !== undefined ? customPos.x : textEl.position.x};
-      top: ${customPos && customPos.y !== undefined ? customPos.y : textEl.position.y};
+      left: ${textEl.position.x};
+      top: ${textEl.position.y};
       ${textEl.size ? `width: ${textEl.size.width};` : 'width: auto; max-width: 90%;'}
       font-family: ${fontFamily};
       font-size: ${textEl.style.size};

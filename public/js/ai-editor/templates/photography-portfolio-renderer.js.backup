@@ -15,7 +15,7 @@ export class PhotographyPortfolioRenderer {
      * @param {Object} textContent - User-provided or AI-generated text
      * @returns {HTMLElement} - Rendered page element
      */
-    renderPage(pageLayout, photos, textContent = {}, textPositions = {}) {
+    renderPage(pageLayout, photos, textContent = {}) {
         if (!pageLayout) {
             console.error("PhotographyPortfolioRenderer: No page layout provided");
             return document.createElement('div');
@@ -39,10 +39,10 @@ export class PhotographyPortfolioRenderer {
             pageLayout.photoSlots.forEach((slot, index) => {
                 const photo = photos[index];
                 if (photo) {
-                    this.renderPhotoSlot(page, slot, photo, index);
+                    this.renderPhotoSlot(page, slot, photo);
                 } else {
                     // Optional: Render empty slot placeholder
-                    this.renderEmptySlot(page, slot, index);
+                    this.renderEmptySlot(page, slot);
                 }
             });
         }
@@ -51,8 +51,7 @@ export class PhotographyPortfolioRenderer {
         if (pageLayout.textElements) {
             pageLayout.textElements.forEach(textEl => {
                 const content = textContent[textEl.elementId] || textEl.placeholder;
-                const customPos = textPositions[textEl.elementId];
-                this.renderTextElement(page, textEl, content, customPos);
+                this.renderTextElement(page, textEl, content);
             });
         }
 
@@ -104,13 +103,6 @@ export class PhotographyPortfolioRenderer {
     renderPhotoSlot(page, slot, photo) {
         const container = document.createElement('div');
         container.className = `photo-slot ${slot.photoStyle || ''}`; // e.g. 'rounded'
-
-        // Make draggable for photo swapping
-        container.draggable = true;
-        container.dataset.selectableType = 'photo';
-        if (photo) {
-            container.dataset.selectableId = photo.id || slot.slotId;
-        }
         container.style.cssText = `
             position: absolute;
             left: ${slot.position.x};
@@ -118,56 +110,25 @@ export class PhotographyPortfolioRenderer {
             width: ${slot.size.width};
             height: ${slot.size.height};
             overflow: hidden;
-            cursor: pointer;
             ${this.getPhotoStyle(slot)}
         `;
 
         const img = document.createElement('img');
-
-        // Priority: thumbnailUrl (Base64) to avoid 403, then url/baseUrl
-        const isString = typeof photo === 'string';
-        img.src = isString ? photo : (photo.thumbnailUrl || photo.baseUrl || photo.url || photo.src || '');
-
+        img.src = photo.baseUrl || photo.url || photo.src || (photo.indexOf && photo.indexOf('data:') === 0 ? photo : '');
         img.style.cssText = `
             width: 100%;
             height: 100%;
             object-fit: ${slot.photoFit || 'cover'};
         `;
 
-        img.onerror = () => {
-            // Try fallback if thumbnail fails
-            if (!isString && photo.url && img.src !== photo.url) {
-                img.src = photo.url;
-            } else {
-                img.src = 'assets/placeholder-image.png';
-            }
-        };
+        img.onerror = () => { img.src = 'assets/placeholder-image.png'; };
         container.appendChild(img);
-
-        // Add drag event listeners for photo swapping
-        if (photo) {
-            container.addEventListener('dragstart', (e) => {
-                e.stopPropagation();
-                e.dataTransfer.setData('application/json', JSON.stringify({
-                    type: 'slot-swap',
-                    photoId: photo.id || slot.slotId,
-                    slotId: slot.slotId
-                }));
-                container.style.opacity = '0.5';
-            });
-            container.addEventListener('dragend', () => {
-                container.style.opacity = '1';
-            });
-        }
         page.appendChild(container);
     }
 
-    renderEmptySlot(page, slot, index) {
+    renderEmptySlot(page, slot) {
         const container = document.createElement('div');
         container.className = 'photo-slot empty-slot';
-        // Mark as empty slot with index for drop handling
-        container.dataset.selectableType = 'empty-slot';
-        container.dataset.slotIndex = index;
         container.style.cssText = `
             position: absolute;
             left: ${slot.position.x};
@@ -179,9 +140,8 @@ export class PhotographyPortfolioRenderer {
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
         `;
-        container.innerHTML = '<span style="color:rgba(255,255,255,0.5); font-size: 24px; pointer-events: none;">+</span>';
+        container.innerHTML = '<span style="color:rgba(255,255,255,0.5); font-size: 24px;">+</span>';
         page.appendChild(container);
     }
 
@@ -196,7 +156,7 @@ export class PhotographyPortfolioRenderer {
         return css;
     }
 
-    renderTextElement(container, textEl, content, customPos = null) {
+    renderTextElement(container, textEl, content) {
         const element = document.createElement('div');
         element.className = `text-element text-${textEl.elementId} text-${textEl.type}`;
         element.dataset.selectableId = textEl.elementId;
@@ -208,8 +168,8 @@ export class PhotographyPortfolioRenderer {
 
         element.style.cssText = `
             position: absolute;
-      left: ${customPos && customPos.x !== undefined ? customPos.x : textEl.position.x};
-      top: ${customPos && customPos.y !== undefined ? customPos.y : textEl.position.y};
+            left: ${textEl.position.x};
+            top: ${textEl.position.y};
             ${textEl.size ? `width: ${textEl.size.width};` : 'width: auto; max-width: 80%;'}
             font-family: ${fontFamily};
             font-size: ${textEl.style.size};

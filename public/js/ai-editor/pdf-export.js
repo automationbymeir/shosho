@@ -4,6 +4,7 @@
  */
 
 import { layoutEngine } from './layout-engine.js';
+import { authService } from './firebase-auth.js';
 
 export class PDFExport {
     constructor(templateConfig) {
@@ -18,6 +19,7 @@ export class PDFExport {
 
     async generatePDF(pages, cover, assets, returnBlob = false) {
         console.log("PDF: Starting generation...");
+        console.log("PDF: Template config present:", !!this.templateConfig, this.templateConfig?.id);
         if (!window.jspdf) {
             console.error('PDF: jsPDF global not found!');
             alert('PDF Library Missing. Please refresh.');
@@ -29,33 +31,59 @@ export class PDFExport {
         this.hebrewFontLoaded = false;
 
         try {
-            // Use 'pt' units to better align with the hardcoded "pixel-like" values 
-            // in the SVG generators (e.g., stoke-width=4, inset=20).
-            // 200mm matches roughly 567pt.
+            // --- DYNAMIC DIMENSION LOGIC ---
+            // Editor defaults: 800x600 (4:3)
+            let width = 800;
+            let height = 600;
+
+            if (this.templateConfig && this.templateConfig.designSystem && this.templateConfig.designSystem.canvas) {
+                width = this.templateConfig.designSystem.canvas.width || width;
+                height = this.templateConfig.designSystem.canvas.height || height;
+            } else if (cover && cover.layout === 'full-bleed') {
+                // Infer from cover preference if possible?
+            }
+
+            // Convert pixels to points (1px = 0.75pt approx)
+            // Actually, if we use 'px' unit in jsPDF it works 1:1?
+            // jsPDF support 'px' since recent versions. Let's try 'px' to match editor exactly.
+            // If 'px' fails, we fallback to 'pt' * 0.75.
+            // Let's stick to 'pt' for vector consistency, calculating ratio.
+            const ptWidth = width * 0.75;
+            const ptHeight = height * 0.75;
+
+            console.log(`PDF: Using format [${ptWidth}, ${ptHeight}] (from ${width}x${height}px)`);
+
             this.doc = new jsPDF({
-                orientation: 'landscape',
+                orientation: width > height ? 'landscape' : 'portrait',
                 unit: 'pt',
-                format: [567, 567]
+                format: [ptWidth, ptHeight]
             });
-            console.log("PDF: Doc created (pt units).");
+
+            // Set context flag for helpers
+            this.pageWidth = ptWidth;
+            this.pageHeight = ptHeight;
+
+            console.log("PDF: Doc created.");
 
             // 1. Load Hebrew Font
             await this.loadHebrewFont();
 
             // 2. Render Cover
-            console.log("PDF: Rendering Cover...");
-            await this.renderCoverToPDF(cover, assets);
+            if (cover) {
+                console.log("PDF: Rendering Cover...");
+                await this.renderCoverToPDF(cover, assets);
+            }
 
-            // 2. Render Pages
+            // 3. Render Pages
             console.log(`PDF: Rendering ${pages.length} pages...`);
             for (let i = 0; i < pages.length; i++) {
-                this.doc.addPage();
+                this.doc.addPage([ptWidth, ptHeight]); // Explicitly set format for new pages
                 console.log(`PDF: Rendering Page ${i + 1}`);
                 await this.renderPageToPDF(pages[i], assets);
             }
 
             console.log("PDF: Rendering complete. Saving...");
-            // 3. Save or Return
+            // 4. Save or Return
             if (returnBlob) {
                 return this.doc.output('blob');
             }
@@ -273,6 +301,7 @@ export class PDFExport {
                 this.doc.setFontSize(fontSizePt);
 
                 const fontName = this.mapFont(text.fontFamily, text.styleId, text.content);
+                console.log(`PDF: Text "${text.content?.substring(0, 20)}..." -> fontFamily key: "${text.fontFamily}" -> mapped to: "${fontName}"`);
                 this.doc.setFont(fontName, "normal");
 
                 const rawColor = text.color || (text.style && text.style.color) || '#000000';
@@ -313,8 +342,9 @@ export class PDFExport {
         if (!decorations) return;
 
         decorations.forEach(dec => {
-            const x = (parseFloat(dec.position.x) / 100) * pageWidth;
-            const y = (parseFloat(dec.position.y) / 100) * pageHeight;
+            const pos = dec.position || { x: 0, y: 0 };
+            const x = (parseFloat(pos.x) / 100) * pageWidth;
+            const y = (parseFloat(pos.y) / 100) * pageHeight;
             const w = (dec.size && dec.size.width) ? (parseFloat(dec.size.width) / 100) * pageWidth : 0;
             const h = (dec.size && dec.size.height) ? (parseFloat(dec.size.height) / 100) * pageHeight : 0;
 
@@ -581,25 +611,115 @@ export class PDFExport {
         });
     }
 
-    async drawImage(photoId, x, y, w, h, assets) {
+    async drawImage(photoId, x, y, w, h, assets, slot = null) {
         // Find URL from provided assets or fallback to window.app
         const photo = (assets && assets.photos ? assets.photos.find(p => p.id === photoId) : null) ||
             (window.app && window.app.state ? window.app.state.assets.photos.find(p => p.id === photoId) : null);
 
         if (photo) {
+            console.log(`[PDF] Drawing image ${photoId} at ${x.toFixed(1)},${y.toFixed(1)} (${w.toFixed(1)}x${h.toFixed(1)})`);
             try {
-                if (photo.url.startsWith('data:')) {
-                    this.doc.addImage(photo.url, 'JPEG', x, y, w, h, undefined, 'FAST');
-                    return;
+                let success = false;
+
+                // Strategy 1: High Res Proxy (Google Photos)
+                // We want high res for PDF, so we try the backend proxy first which bypasses CORS
+                // and authenticates with Google.
+                const isGoogle = photo.source === 'google-photos' || (photo.url && photo.url.includes('googleusercontent.com'));
+
+                if (isGoogle) {
+                    try {
+                        console.log(`[PDF] Attempting High Res Proxy for ${photoId} (isGoogle=true)...`);
+                        const targetUrl = photo.url || photo.rawBaseUrl;
+                        console.log(`[PDF] Proxy Target URL: ${targetUrl ? targetUrl.substring(0, 50) + '...' : 'null'}`);
+
+                        const base64HighRes = await this.fetchHighResViaProxy(targetUrl);
+                        if (base64HighRes) {
+                            console.log(`[PDF] High Res Proxy SUCCESS for ${photoId}. Length: ${base64HighRes.length}`);
+                            this.doc.addImage(base64HighRes, 'JPEG', x, y, w, h, undefined, 'FAST');
+                            success = true;
+                        } else {
+                            console.warn(`[PDF] High Res Proxy returned empty/null for ${photoId}`);
+                        }
+                    } catch (proxyErr) {
+                        console.warn(`[PDF] High Res Proxy FAILED for ${photoId}:`, proxyErr);
+                        // Fallthrough to thumbnail
+                    }
+                } else {
+                    console.log(`[PDF] Image is NOT identified as Google Photo. Source: ${photo.source}, URL: ${photo.url ? photo.url.substring(0, 30) : 'null'}`);
                 }
-                const base64 = await this.loadImage(photo.url);
-                this.doc.addImage(base64, 'JPEG', x, y, w, h, undefined, 'FAST');
+
+                // Strategy 2: Pre-fetched Thumbnail (Base64) or Standard Loader
+                if (!success) {
+                    console.log(`[PDF] Method 2: Standard Load for ${photoId}`);
+
+                    // FIXED: Prioritize High Res!
+                    // Old: let src = photo.thumbnailUrl || photo.url || photo.baseUrl;
+                    let src = photo.highResUrl || photo.rawBaseUrl || photo.url || photo.thumbnailUrl;
+
+                    if (typeof photo === 'string') src = photo;
+
+                    // Upgrade Quality Params
+                    if (src && src.includes('unsplash.com') && src.includes('&w=')) {
+                        src = src.replace(/&w=\d+/, '&w=2048');
+                    }
+                    // Google Photos params (if rawBaseUrl used)
+                    if (src && photo.source === 'google-photos' && !src.includes('=w')) {
+                        src = `${src}=w2048-h2048`;
+                    }
+
+                    if (src && src.startsWith('data:')) {
+                        console.log(`[PDF] Using Data URI for ${photoId}`);
+                        this.doc.addImage(src, 'JPEG', x, y, w, h, undefined, 'FAST');
+                        success = true;
+                    } else if (src) {
+                        // Valid URL but not data URI (e.g. local asset or non-CORS external)
+                        console.log(`[PDF] Loading Image from URL: ${src.substring(0, 50)}...`);
+                        const base64 = await this.loadImage(src);
+                        this.doc.addImage(base64, 'JPEG', x, y, w, h, undefined, 'FAST');
+                        success = true;
+                    }
+                }
+
+                if (!success) {
+                    console.error(`[PDF] CRITICAL: All image loading strategies failed for ${photoId}`);
+                    throw new Error("All image loading strategies failed");
+                }
+
             } catch (e) {
                 console.warn('Failed to load image for PDF:', photoId, e);
+                // Draw placeholder
                 this.doc.setDrawColor(200, 200, 200);
                 this.doc.setFillColor(240, 240, 240);
                 this.doc.rect(x, y, w, h, 'FD');
+
+                // Optional: X mark
+                this.doc.line(x, y, x + w, y + h);
+                this.doc.line(x + w, y, x, y + h);
             }
+        } else {
+            console.warn(`[PDF] Photo with ID ${photoId} NOT FOUND in assets.`);
+        }
+    }
+
+    async fetchHighResViaProxy(url) {
+        try {
+            const functions = authService.getFunctions();
+            // Ensure we catch early if functions not ready
+            if (!functions) throw new Error("Firebase Functions not initialized");
+
+            const fetchHighRes = functions.httpsCallable('fetchHighResImage');
+            const result = await fetchHighRes({ url: url });
+
+            if (result.data && result.data.success && result.data.dataUri) {
+                return result.data.dataUri;
+            }
+            if (result.data && result.data.error) {
+                throw new Error(`Proxy Error: ${result.data.error}`);
+            }
+            throw new Error("Invalid proxy response structure");
+        } catch (e) {
+            console.warn("High Res Proxy Call Error:", e.message, e.details || '');
+            throw e;
         }
     }
 
@@ -631,7 +751,28 @@ export class PDFExport {
     resolveColorSafe(color) {
         if (!color) return '#000000';
 
-        // Handle Bar Mitzvah Template abstract names
+        // First, try to resolve from template config design system
+        if (this.templateConfig && this.templateConfig.designSystem && this.templateConfig.designSystem.colors) {
+            const colors = this.templateConfig.designSystem.colors;
+
+            // Check text colors
+            if (colors.text) {
+                if (color === 'primary' && colors.text.primary) {
+                    color = colors.text.primary;
+                } else if (color === 'secondary' && colors.text.secondary) {
+                    color = colors.text.secondary;
+                }
+            }
+
+            // Check direct color references
+            if (color === 'accent' && colors.accent) color = colors.accent;
+            if (color === 'background' && colors.background) color = colors.background;
+
+            // Check palette colors (for decorations)
+            if (colors.palette && colors.palette[color]) color = colors.palette[color];
+        }
+
+        // Fallback: Handle Bar Mitzvah Template abstract names (legacy)
         const PALETTE = {
             'primary': '#1B365D',
             'secondary': '#4A5568',
@@ -641,7 +782,16 @@ export class PDFExport {
             'white': '#FFFFFF'
         };
 
-        if (PALETTE[color]) return PALETTE[color];
+        if (PALETTE[color]) color = PALETTE[color];
+
+        // Convert rgba to rgb (jsPDF doesn't support alpha)
+        if (typeof color === 'string' && color.startsWith('rgba')) {
+            const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+            if (match) {
+                const [_, r, g, b] = match;
+                return `rgb(${r},${g},${b})`;
+            }
+        }
 
         // If it's a valid hex/rgb string, return it
         if (typeof color === 'string') {
@@ -740,16 +890,54 @@ export class PDFExport {
                 return 'helvetica';
             }
         }
+
+        // 1. Try to resolve from template config design system
+        if (this.templateConfig && this.templateConfig.designSystem && this.templateConfig.designSystem.typography) {
+            const typography = this.templateConfig.designSystem.typography;
+            console.log(`PDF mapFont: Checking "${fontFamily}" in typography:`, Object.keys(typography));
+
+            // fontFamily might be a key like 'body', 'heading', 'accent', 'sans', 'script'
+            if (fontFamily && typography[fontFamily]) {
+                const fontConfig = typography[fontFamily];
+                console.log(`PDF mapFont: Found config for "${fontFamily}":`, fontConfig.family);
+
+                if (fontConfig.family) {
+                    // Map the actual font family to PDF standard fonts
+                    const actualFamily = fontConfig.family.toLowerCase();
+
+                    if (actualFamily.includes('serif') || actualFamily.includes('playfair') || actualFamily.includes('merriweather') || actualFamily.includes('cormorant') || actualFamily.includes('garamond')) {
+                        console.log(`PDF mapFont: "${fontConfig.family}" -> times (serif)`);
+                        return 'times';
+                    }
+                    if (actualFamily.includes('mono') || actualFamily.includes('courier')) {
+                        console.log(`PDF mapFont: "${fontConfig.family}" -> courier (mono)`);
+                        return 'courier';
+                    }
+                    if (actualFamily.includes('script') || actualFamily.includes('cursive') || actualFamily.includes('pinyon') || actualFamily.includes('allura')) {
+                        console.log(`PDF mapFont: "${fontConfig.family}" -> times-italic (script fallback)`);
+                        // Use times-italic for script fonts as a visual approximation
+                        return 'times';
+                    }
+                    console.log(`PDF mapFont: "${fontConfig.family}" -> helvetica (sans default)`);
+                    return 'helvetica'; // Default sans
+                }
+            } else {
+                console.warn(`PDF mapFont: No typography config found for "${fontFamily}"`);
+            }
+        } else {
+            console.warn('PDF mapFont: No template config available');
+        }
+
         // Basic mapping to Standard PDF Fonts
         // Standard: times, helvetica, courier
 
-        // 1. Map from Style ID if present
+        // 2. Map from Style ID if present
         if (textStyleId) {
             if (textStyleId.includes('serif')) return 'times';
             if (textStyleId.includes('typewriter')) return 'courier';
         }
 
-        // 2. Map from family string
+        // 3. Map from family string
         const lower = (fontFamily || '').toLowerCase();
         if (lower.includes('serif') || lower.includes('playfair') || lower.includes('merriweather') || lower.includes('dm serif')) {
             return 'times';

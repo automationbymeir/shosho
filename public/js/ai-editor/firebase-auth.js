@@ -20,6 +20,16 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
+const functions = firebase.functions(); // Initialize Cloud Functions
+
+// Connect to Emulators if running locally
+if (window.location.hostname === "localhost") {
+    console.log("Using Firebase Emulators");
+    auth.useEmulator("http://localhost:9099");
+    db.useEmulator("localhost", 8085);
+    // storage.useEmulator("localhost", 9199); // Uncomment if using storage emulator
+    functions.useEmulator("localhost", 5001);
+}
 
 export const authService = {
     // Sign in with Google
@@ -61,5 +71,10 @@ export const authService = {
     // Get Storage Instance
     getStorage() {
         return storage;
+    },
+
+    // Get Functions Instance (New)
+    getFunctions() {
+        return functions;
     }
 };

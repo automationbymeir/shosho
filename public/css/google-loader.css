@@ -1,0 +1,170 @@
+/* Google Photos Progress Loader */
+/* Animation Concept: Photos flying from Google Icon to Book Icon */
+
+#google-photos-loader {
+    display: none;
+    /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 10, 15, 0.95);
+    z-index: 10000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Montserrat', sans-serif;
+    color: white;
+}
+
+#google-photos-loader.active {
+    display: flex;
+}
+
+.loader-animation-container {
+    position: relative;
+    width: 400px;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 40px;
+}
+
+/* Icons */
+.loader-icon {
+    font-size: 64px;
+    z-index: 2;
+    background: #1e1e2f;
+    padding: 20px;
+    border-radius: 50%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    border: 2px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 100px;
+}
+
+.icon-google {
+    color: #4285F4;
+    border-color: #4285F4;
+}
+
+.icon-book {
+    color: #fff;
+    border-color: #fff;
+}
+
+/* Flying Photos */
+.flying-photo {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    left: 80px;
+    /* Start near Google */
+    top: 50%;
+    transform: translateY(-50%);
+    animation: flyToBook 1.5s infinite ease-in-out;
+}
+
+.flying-photo:nth-child(1) {
+    background: #EA4335;
+    animation-delay: 0s;
+}
+
+.flying-photo:nth-child(2) {
+    background: #FBBC05;
+    animation-delay: 0.3s;
+}
+
+.flying-photo:nth-child(3) {
+    background: #34A853;
+    animation-delay: 0.6s;
+}
+
+.flying-photo:nth-child(4) {
+    background: #4285F4;
+    animation-delay: 0.9s;
+}
+
+.flying-photo:nth-child(5) {
+    background: #f06292;
+    animation-delay: 1.2s;
+}
+
+@keyframes flyToBook {
+    0% {
+        left: 80px;
+        opacity: 0;
+        transform: translateY(-50%) scale(0.5) rotate(0deg);
+    }
+
+    15% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1) rotate(10deg);
+    }
+
+    85% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1) rotate(-10deg);
+    }
+
+    100% {
+        left: 320px;
+        /* End near Book */
+        opacity: 0;
+        transform: translateY(-50%) scale(0.5) rotate(0deg);
+    }
+}
+
+/* Progress Text */
+.loader-text {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.loader-subtext {
+    font-size: 16px;
+    color: #888;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+/* Progress Bar */
+.loader-progress-track {
+    width: 400px;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loader-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4285F4, #34A853, #FBBC05, #EA4335);
+    border-radius: 3px;
+    transition: width 0.3s ease-out;
+    animation: gradientShift 2s linear infinite;
+    background-size: 200% 100%;
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 100% 0;
+    }
+
+    100% {
+        background-position: -100% 0;
+    }
+}

@@ -118,6 +118,9 @@
                 <div class="toolbar-group">
                     <button class="btn-tool" id="btn-undo"><i class="fa-solid fa-rotate-left"></i></button>
                     <button class="btn-tool" id="btn-redo"><i class="fa-solid fa-rotate-right"></i></button>
+                    <button class="btn-tool" id="btn-new-project" title="Start New Project" style="margin-left: 10px;">
+                        <i class="fa-solid fa-file-circle-plus"></i> New
+                    </button>
                 </div>
 
                 <div class="toolbar-group center">
@@ -186,6 +189,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
 
     <!-- Google Identity Services & Picker API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -260,6 +264,35 @@
         href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
         rel="stylesheet">
 
+    <!-- Google Loader CSS -->
+    <link rel="stylesheet" href="css/google-loader.css">
+
+    <!-- Google Photos Progress Loader -->
+    <div id="google-photos-loader">
+        <div class="loader-animation-container">
+            <div class="loader-icon icon-google">
+                <i class="fa-brands fa-google"></i>
+            </div>
+
+            <!-- Flying Photos Animation Elements -->
+            <div class="flying-photo"></div>
+            <div class="flying-photo"></div>
+            <div class="flying-photo"></div>
+            <div class="flying-photo"></div>
+            <div class="flying-photo"></div>
+
+            <div class="loader-icon icon-book">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+        </div>
+
+        <div class="loader-text">Extracting Photos from Google...</div>
+        <div class="loader-subtext">Optimizing high-resolution memories for your book</div>
+
+        <div class="loader-progress-track">
+            <div class="loader-progress-fill"></div>
+        </div>
+    </div>
 </body>
 
 </html>

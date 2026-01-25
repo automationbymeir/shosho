@@ -15,7 +15,7 @@ export class RomanticJourneyRenderer {
      * @param {Object} textContent - User-provided or AI-generated text
      * @returns {HTMLElement} - Rendered page element
      */
-    renderPage(pageLayout, photos, textContent = {}, textPositions = {}) {
+    renderPage(pageLayout, photos, textContent = {}) {
         if (!pageLayout) {
             console.error("RomanticJourneyRenderer: No page layout provided");
             return document.createElement('div');
@@ -51,8 +51,7 @@ export class RomanticJourneyRenderer {
                     this.renderComplexTextElement(page, textEl, textContent);
                 } else {
                     const content = textContent[textEl.elementId] || textEl.placeholder;
-                    const customPos = textPositions[textEl.elementId];
-                    this.renderTextElement(page, textEl, content, customPos);
+                    this.renderTextElement(page, textEl, content);
                 }
             });
         }
@@ -84,10 +83,7 @@ export class RomanticJourneyRenderer {
 
         const img = document.createElement('img');
         // Handle both direct URL strings and object structures (from Google Photos or local)
-        // Priority: thumbnailUrl (Base64) to avoid 403, then url/baseUrl
-        // Check if photo is string (data URI) or object
-        const isString = typeof photo === 'string';
-        img.src = isString ? photo : (photo.thumbnailUrl || photo.baseUrl || photo.url || photo.src || '');
+        img.src = photo.baseUrl || photo.url || photo.src || (photo.indexOf && photo.indexOf('data:') === 0 ? photo : '');
 
         img.style.cssText = `
       width: 100%;
@@ -97,12 +93,7 @@ export class RomanticJourneyRenderer {
 
         // Error handling for broken images
         img.onerror = () => {
-            // Try fallback if thumbnail fails
-            if (!isString && photo.url && img.src !== photo.url) {
-                img.src = photo.url;
-            } else {
-                img.src = 'assets/placeholder-image.png';
-            }
+            img.src = 'assets/placeholder-image.png'; // Todo: Ensure this asset exists or use a data URI
         };
 
         container.appendChild(img);
@@ -158,7 +149,7 @@ export class RomanticJourneyRenderer {
         return css;
     }
 
-    renderTextElement(container, textEl, content, customPos = null) {
+    renderTextElement(container, textEl, content) {
         const element = document.createElement('div');
         element.className = `text-element text-${textEl.type}`;
         element.dataset.id = textEl.elementId; // For potential editing interactions
@@ -171,8 +162,8 @@ export class RomanticJourneyRenderer {
 
         element.style.cssText = `
       position: absolute;
-      left: ${customPos && customPos.x !== undefined ? customPos.x : textEl.position.x};
-      top: ${customPos && customPos.y !== undefined ? customPos.y : textEl.position.y};
+      left: ${textEl.position.x};
+      top: ${textEl.position.y};
       ${textEl.size ? `width: ${textEl.size.width};` : ''}
       font-family: ${fontFamily};
       font-size: ${textEl.style.size};

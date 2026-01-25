@@ -68,14 +68,21 @@ export class TemplateSidebar {
             // Show loading indicator?
             await this.manager.loadTemplate(templateId);
 
-            // 3. Generate Album (includes cover as first page)
-            const allPages = this.manager.generateAlbumWithCover(photos);
+            // 3. Generate Cover and Content Pages separately
+            const coverPhotos = {
+                front: photos[0],
+                back: photos[1] || photos[0]
+            };
+            const cover = this.manager.generateCover(coverPhotos);
+
+            // Use remaining photos for content pages
+            const contentPhotos = photos.slice(1);
+            const pages = this.manager.generateAlbum(contentPhotos);
 
             // 4. Render to Canvas
-            // Pass pages without separate cover since cover is now the first page
-            this.app.renderAlbumPages({ pages: allPages, cover: null });
+            this.app.renderAlbumPages({ pages, cover });
 
-            console.log(`[TemplateSidebar] Applied template ${templateId} with ${allPages.length} pages`);
+            console.log(`[TemplateSidebar] Applied template ${templateId} with cover and ${pages.length} content pages`);
         } catch (e) {
             console.error("Failed to apply template", e);
             alert("Error loading template: " + e.message);

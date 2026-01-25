@@ -1,8 +1,19 @@
-const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
 // Initialize Firebase Admin
-admin.initializeApp();
+// FORCE Firestore Emulator Port to 8085 (matching firebase.json)
+// The default is often 8080, which causes a split-brain where Functions write to 8080 
+// but Frontend (and firebase.json) expects 8085.
+if (process.env.FUNCTIONS_EMULATOR === 'true' || process.env.FUNCTIONS_EMULATOR === true) {
+  console.log("[System] Forcing FIRESTORE_EMULATOR_HOST to localhost:8085");
+  process.env.FIRESTORE_EMULATOR_HOST = "localhost:8085";
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
+}
+
+admin.initializeApp({
+  projectId: "shoso-photobook"
+});
 
 // Import modules
 let auth;
@@ -40,10 +51,12 @@ exports.getAuthUrl = onCall(async (request) => {
   return auth.getAuthorizationUrl(request.auth?.uid);
 });
 
-exports.oauthCallback = onRequest({cors: true}, async (req, res) => {
+exports.oauthCallback = onRequest({ cors: true }, async (req, res) => {
   try {
     // Relaxation of COOP to allow window.opener access if possible
+    // Note: 'unsafe-none' is the default but explicit setting helps in some emulator contexts.
     res.set("Cross-Origin-Opener-Policy", "unsafe-none");
+    res.set("Cross-Origin-Embedder-Policy", "unsafe-none");
 
     const result = await auth.handleCallback(req.query);
     res.send(`
@@ -55,6 +68,7 @@ exports.oauthCallback = onRequest({cors: true}, async (req, res) => {
     <script>
       // Notify the main window
       if (window.opener) {
+        console.log("Posting Success Message to Opener...");
         window.opener.postMessage({ 
           type: 'GOOGLE_PHOTOS_AUTH_SUCCESS', 
           success: ${result.success},
@@ -62,10 +76,10 @@ exports.oauthCallback = onRequest({cors: true}, async (req, res) => {
         }, '*');
       }
       
-      // Attempt to close
+      // Attempt to close with a slight delay to ensure message processing and Firestore consistency
       setTimeout(() => {
         window.close();
-      }, 1500);
+      }, 3000);
     </script>
     <button onclick="window.close()" style="padding:10px 20px; font-size:16px; margin-top:20px;">Close Window</button>
   </body>
@@ -93,7 +107,7 @@ exports.checkPickerSession = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
 
-  const {sessionId} = request.data;
+  const { sessionId } = request.data;
   if (!sessionId) {
     throw new HttpsError("invalid-argument", "sessionId is required");
   }
@@ -106,7 +120,7 @@ exports.fetchThumbnailBatch = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
 
-  const {baseUrls} = request.data;
+  const { baseUrls } = request.data;
   if (!baseUrls || !Array.isArray(baseUrls)) {
     throw new HttpsError("invalid-argument", "baseUrls array is required");
   }
@@ -118,7 +132,7 @@ exports.fetchHighResImage = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {url} = request.data;
+  const { url } = request.data;
   if (!url) throw new HttpsError("invalid-argument", "url required");
   return photos.fetchHighResImage(request.auth.uid, url);
 });
@@ -127,7 +141,7 @@ exports.refreshMediaItemUrls = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {mediaItemIds} = request.data;
+  const { mediaItemIds } = request.data;
   if (!mediaItemIds || !Array.isArray(mediaItemIds)) {
     throw new HttpsError("invalid-argument", "mediaItemIds array required");
   }
@@ -156,7 +170,7 @@ exports.createPhotoBook = onRequest({
     // Manual authentication check
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401).json({error: "Unauthorized - No token provided"});
+      res.status(401).json({ error: "Unauthorized - No token provided" });
       return;
     }
 
@@ -166,13 +180,13 @@ exports.createPhotoBook = onRequest({
       decodedToken = await admin.auth().verifyIdToken(idToken);
     } catch (error) {
       console.error("Token verification failed:", error);
-      res.status(401).json({error: "Unauthorized - Invalid token"});
+      res.status(401).json({ error: "Unauthorized - Invalid token" });
       return;
     }
 
-    const {bookData} = req.body;
+    const { bookData } = req.body;
     if (!bookData) {
-      res.status(400).json({error: "bookData is required"});
+      res.status(400).json({ error: "bookData is required" });
       return;
     }
 
@@ -180,7 +194,7 @@ exports.createPhotoBook = onRequest({
     res.json(result);
   } catch (error) {
     console.error("createPhotoBook error:", error);
-    res.status(500).json({error: error.message || "Internal server error"});
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -189,7 +203,7 @@ exports.exportAsPdf = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
 
-  const {presentationId} = request.data;
+  const { presentationId } = request.data;
   if (!presentationId) {
     throw new HttpsError("invalid-argument", "presentationId is required");
   }
@@ -207,7 +221,7 @@ exports.saveProject = onCall(async (request) => {
       throw new HttpsError("unauthenticated", "User must be authenticated");
     }
 
-    const {projectData} = request.data;
+    const { projectData } = request.data;
     if (!projectData) {
       throw new HttpsError("invalid-argument", "projectData is required");
     }
@@ -230,7 +244,7 @@ exports.loadProject = onCall(async (request) => {
       throw new HttpsError("unauthenticated", "User must be authenticated");
     }
 
-    const {projectId} = request.data;
+    const { projectId } = request.data;
     if (!projectId) {
       throw new HttpsError("invalid-argument", "projectId is required");
     }
@@ -272,7 +286,7 @@ exports.deleteProject = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
 
-  const {projectId} = request.data;
+  const { projectId } = request.data;
   if (!projectId) {
     throw new HttpsError("invalid-argument", "projectId is required");
   }
@@ -295,7 +309,7 @@ exports.updatePersonalDetails = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {personalDetails} = request.data || {};
+  const { personalDetails } = request.data || {};
   return payments.updatePersonalDetails(request.auth.uid, personalDetails);
 });
 
@@ -303,7 +317,7 @@ exports.listPurchases = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {limit} = request.data || {};
+  const { limit } = request.data || {};
   return payments.listPurchases(request.auth.uid, limit || 20);
 });
 
@@ -311,7 +325,7 @@ exports.createPurchaseDraft = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {draft} = request.data || {};
+  const { draft } = request.data || {};
   return payments.createPurchaseDraft(request.auth.uid, draft || {});
 });
 
@@ -319,50 +333,50 @@ exports.createPurchaseDraft = onCall(async (request) => {
 // BOOKPOD (PRINTING API) - PREP INFRASTRUCTURE
 // ============================================
 
-exports.bookpodGenerateUploadUrls = onCall({secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"]}, async (request) => {
+exports.bookpodGenerateUploadUrls = onCall({ secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {contentFileName, coverFileName, title, versionMajor, versionMinor} =
+  const { contentFileName, coverFileName, title, versionMajor, versionMinor } =
     request.data || {};
 
-  const names = (contentFileName && coverFileName) ? {contentFileName, coverFileName} :
-    bookpod.buildDefaultFilenames({title, versionMajor, versionMinor});
+  const names = (contentFileName && coverFileName) ? { contentFileName, coverFileName } :
+    bookpod.buildDefaultFilenames({ title, versionMajor, versionMinor });
 
   return await bookpod.generateUploadUrls(names);
 });
 
-exports.bookpodUploadPdfFromUrl = onCall({secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"]}, async (request) => {
+exports.bookpodUploadPdfFromUrl = onCall({ secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {uploadUrl, sourceUrl} = request.data || {};
-  return await bookpod.uploadPdfFromUrl({uploadUrl, sourceUrl});
+  const { uploadUrl, sourceUrl } = request.data || {};
+  return await bookpod.uploadPdfFromUrl({ uploadUrl, sourceUrl });
 });
 
-exports.bookpodCreateBook = onCall({secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"]}, async (request) => {
+exports.bookpodCreateBook = onCall({ secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {book} = request.data || {};
+  const { book } = request.data || {};
   return await bookpod.createBook(book || {});
 });
 
 exports.bookpodCreateBookFromPdfUrls = onCall(
-    {secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"]},
-    async (request) => {
-      if (!request.auth) {
-        throw new HttpsError("unauthenticated", "User must be authenticated");
-      }
-      return await bookpod.createBookFromPdfUrls(request.data || {});
-    },
+  { secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be authenticated");
+    }
+    return await bookpod.createBookFromPdfUrls(request.data || {});
+  },
 );
 
-exports.bookpodCreateOrder = onCall({secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"]}, async (request) => {
+exports.bookpodCreateOrder = onCall({ secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {order} = request.data || {};
+  const { order } = request.data || {};
   return await bookpod.createOrder(order || {});
 });
 
@@ -389,7 +403,7 @@ exports.bookpodSubmitPrintJob = onCall({
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
 
-  const {bookData, pdfDownloadUrl, orderDraft} = request.data || {};
+  const { bookData, pdfDownloadUrl, orderDraft } = request.data || {};
   if (!bookData || typeof bookData !== "object") {
     throw new HttpsError("invalid-argument", "bookData is required");
   }
@@ -443,7 +457,7 @@ exports.bookpodSubmitPrintJob = onCall({
       pdfDownloadUrl;
 
     const shippingDetails = (orderDraft.shippingDetails && typeof orderDraft.shippingDetails === "object") ?
-      {...orderDraft.shippingDetails} :
+      { ...orderDraft.shippingDetails } :
       {};
     shippingDetails.shippingCompanyId = 6;
     shippingDetails.shippingMethod = Number(orderDraft.shippingMethod || shippingDetails.shippingMethod || 2);
@@ -456,7 +470,7 @@ exports.bookpodSubmitPrintJob = onCall({
 
     order = await bookpod.createOrder({
       shippingDetails,
-      items: [{bookid, quantity: qty}],
+      items: [{ bookid, quantity: qty }],
       totalprice,
       invoice,
     });
@@ -479,7 +493,7 @@ exports.searchDesignInspiration = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
 
-  const {query, count} = request.data;
+  const { query, count } = request.data;
   if (!query || typeof query !== "string") {
     throw new HttpsError("invalid-argument", "query is required and must be a string");
   }
@@ -507,7 +521,7 @@ exports.generatePhotoDesign = onCall({
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }
-  const {imageUrl, prompt} = request.data;
+  const { imageUrl, prompt } = request.data;
   if (!imageUrl) {
     throw new HttpsError("invalid-argument", "imageUrl is required");
   }
@@ -532,7 +546,7 @@ exports.detectStory = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
 
-  const {photos} = request.data || {};
+  const { photos } = request.data || {};
   if (!photos || !Array.isArray(photos)) {
     throw new HttpsError("invalid-argument", "Photos array required");
   }
@@ -553,7 +567,7 @@ exports.generateCaptions = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
 
-  const {photos} = request.data || {};
+  const { photos } = request.data || {};
   if (!photos || !Array.isArray(photos)) {
     throw new HttpsError("invalid-argument", "Photos array required");
   }
@@ -577,7 +591,7 @@ exports.generateAutoDesign = onCall({
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
 
-  const {photos, lang, seed} = request.data || {};
+  const { photos, lang, seed } = request.data || {};
   if (!photos || !Array.isArray(photos)) {
     throw new HttpsError("invalid-argument", "Photos array required");
   }
@@ -586,7 +600,7 @@ exports.generateAutoDesign = onCall({
     if (!aiAutoDesign || typeof aiAutoDesign.generateAutoDesignPlan !== "function") {
       throw new Error("aiAutoDesign module not available");
     }
-    return await aiAutoDesign.generateAutoDesignPlan(photos, {lang, seed});
+    return await aiAutoDesign.generateAutoDesignPlan(photos, { lang, seed });
   } catch (error) {
     console.error("generateAutoDesign error:", error);
     throw new HttpsError("internal", error.message || "Auto design failed");
@@ -606,7 +620,7 @@ exports.generateMemoryDirectorPdf = onCall({
       throw new HttpsError("unauthenticated", "User must be authenticated");
     }
 
-    const {bookData} = request.data || {};
+    const { bookData } = request.data || {};
     if (!bookData) {
       throw new HttpsError("invalid-argument", "Missing bookData");
     }
@@ -696,7 +710,7 @@ function setCors(res) {
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Support-Webhook-Token");
 }
 
-exports.supportChat = onRequest({cors: true}, async (req, res) => {
+exports.supportChat = onRequest({ cors: true }, async (req, res) => {
   try {
     setCors(res);
     if (req.method === "OPTIONS") {
@@ -704,29 +718,29 @@ exports.supportChat = onRequest({cors: true}, async (req, res) => {
       return;
     }
     if (req.method !== "POST") {
-      res.status(405).json({error: "Method not allowed"});
+      res.status(405).json({ error: "Method not allowed" });
       return;
     }
 
-    const {sessionId, message, pageUrl} = req.body || {};
+    const { sessionId, message, pageUrl } = req.body || {};
     if (!supportBot) {
       console.warn("supportBot module not loaded");
-      res.status(503).json({error: "Support service unavailable"});
+      res.status(503).json({ error: "Support service unavailable" });
       return;
     }
-    const result = await supportBot.chat({sessionId, message, pageUrl});
+    const result = await supportBot.chat({ sessionId, message, pageUrl });
     if (!result?.success) {
-      res.status(400).json({error: result?.error || "Failed"});
+      res.status(400).json({ error: result?.error || "Failed" });
       return;
     }
     res.json(result);
   } catch (error) {
     console.error("supportChat error:", error);
-    res.status(500).json({error: error.message || "Internal server error"});
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
-exports.supportRequestAgent = onRequest({cors: true}, async (req, res) => {
+exports.supportRequestAgent = onRequest({ cors: true }, async (req, res) => {
   try {
     setCors(res);
     if (req.method === "OPTIONS") {
@@ -734,35 +748,35 @@ exports.supportRequestAgent = onRequest({cors: true}, async (req, res) => {
       return;
     }
     if (req.method !== "POST") {
-      res.status(405).json({error: "Method not allowed"});
+      res.status(405).json({ error: "Method not allowed" });
       return;
     }
 
-    const {sessionId, userEmail, summary} = req.body || {};
+    const { sessionId, userEmail, summary } = req.body || {};
     if (!supportBot) {
       console.warn("supportBot module not loaded");
-      res.status(503).json({error: "Support service unavailable"});
+      res.status(503).json({ error: "Support service unavailable" });
       return;
     }
-    const result = await supportBot.requestAgent({sessionId, userEmail, summary});
+    const result = await supportBot.requestAgent({ sessionId, userEmail, summary });
     if (!result?.success) {
-      res.status(400).json({error: result?.error || "Failed"});
+      res.status(400).json({ error: result?.error || "Failed" });
       return;
     }
     res.json(result);
   } catch (error) {
     console.error("supportRequestAgent error:", error);
-    res.status(500).json({error: error.message || "Internal server error"});
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
 
-exports.supportGetMessages = onRequest({cors: true}, async (req, res) => {
+exports.supportGetMessages = onRequest({ cors: true }, async (req, res) => {
   // [DEBUG] Stub implementation to stop crashes and spam
-  res.json({success: true, messages: []});
+  res.json({ success: true, messages: [] });
 });
 
-exports.supportInboundEmail = onRequest({cors: true}, async (req, res) => {
+exports.supportInboundEmail = onRequest({ cors: true }, async (req, res) => {
   try {
     setCors(res);
     if (req.method === "OPTIONS") {
@@ -770,31 +784,31 @@ exports.supportInboundEmail = onRequest({cors: true}, async (req, res) => {
       return;
     }
     if (req.method !== "POST") {
-      res.status(405).json({error: "Method not allowed"});
+      res.status(405).json({ error: "Method not allowed" });
       return;
     }
 
     const expected = process.env.SUPPORT_WEBHOOK_TOKEN;
     const provided = req.get("X-Support-Webhook-Token");
     if (expected && (!provided || provided !== expected)) {
-      res.status(401).json({error: "Unauthorized"});
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
-    const {ticketId, from, text} = req.body || {};
+    const { ticketId, from, text } = req.body || {};
     if (!supportBot) {
       console.warn("supportBot module not loaded");
-      res.status(503).json({error: "Support service unavailable"});
+      res.status(503).json({ error: "Support service unavailable" });
       return;
     }
-    const result = await supportBot.inboundEmail({ticketId, from, text});
+    const result = await supportBot.inboundEmail({ ticketId, from, text });
     if (!result?.success) {
-      res.status(400).json({error: result?.error || "Failed"});
+      res.status(400).json({ error: result?.error || "Failed" });
       return;
     }
     res.json(result);
   } catch (error) {
     console.error("supportInboundEmail error:", error);
-    res.status(500).json({error: error.message || "Internal server error"});
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
