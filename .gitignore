@@ -38,3 +38,6 @@ build/
 # Temporary files
 *.tmp
 .temp/
+
+# Local Config
+public/js/config.js

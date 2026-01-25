@@ -5,7 +5,7 @@ import { store } from './state.js';
 import { layoutEngine } from './layout-engine.js';
 import { RenderEngine } from './render-engine.js';
 import { pdfExport } from './pdf-export.js';
-import { googlePhotosService } from './google-photos-service.js';
+import { googlePhotosService } from './google-photos-service.js?v=forceNew6';
 import { geminiService } from './gemini-banana-service.js';
 import { aiDirector } from './ai-director.js';
 import { orderFlow } from './order-flow.js';
@@ -27,9 +27,37 @@ class App {
     constructor() {
         this.init();
 
-        // Auto-Init Gemini with provided Key
-        // key: AIzaSyCw0jvaapxUWW7zMWSTIzY2cNQf-0GkfPk
-        geminiService.init("AIzaSyCw0jvaapxUWW7zMWSTIzY2cNQf-0GkfPk");
+        // Initialize Config & Services
+        this.initConfig().then(() => {
+            // Continue setup if needed
+        });
+    }
+
+    async initConfig() {
+        // 1. Try Local Config (Ignored file)
+        try {
+            // Timestamp to bust cache if needed, though module cache usually persists
+            const module = await import('./config.js');
+            if (module.CONFIG && module.CONFIG.GEMINI_API_KEY) {
+                console.log("[App] Initializing Gemini with Key from config.js");
+                geminiService.init(module.CONFIG.GEMINI_API_KEY);
+                return;
+            }
+        } catch (e) {
+            // config.js not found - expected in production or fresh clone
+            // console.log("[App] No local config.js found.");
+        }
+
+        // 2. Try LocalStorage
+        const storedKey = localStorage.getItem('gemini_api_key');
+        if (storedKey) {
+            console.log("[App] Initializing Gemini with Key from LocalStorage");
+            geminiService.init(storedKey);
+            return;
+        }
+
+        console.warn("[App] Gemini API Key missing. Magic features will run in Mock Mode.");
+
     }
 
     init() {
@@ -53,11 +81,59 @@ class App {
             if (user) {
                 console.log("User Logged In:", user.email);
                 // Load saved project if exists
-                const savedData = await persistenceService.loadProject(user.uid);
+                let savedData = await persistenceService.loadProject(user.uid);
+
                 if (savedData) {
                     console.log("Loading saved project...");
+
+                    // --- 1. LEGACY TEMPLATE CLEANUP ---
+                    // Detect if this is the unwanted "Smith Family" default template
+                    const hasLegacyDefault = (savedData.pages && savedData.pages.some(p => p.templateId === 'family-roots-v1')) ||
+                        (savedData.cover && (savedData.cover.title === 'The Smith Family' || savedData.cover.subtitle === 'Roots & Memories'));
+
+                    if (hasLegacyDefault) {
+                        console.log("[App] Detected legacy default 'Smith Family' template in save. DISCARDING for clean slate.");
+                        // We basically ignore the saved pages/cover but might keep assets if they aren't the stock ones?
+                        // Actually, the stock assets are likely part of the problem.
+                        // Let's reset purely.
+                        savedData = null; // Treat as no save
+                    }
+                }
+
+                if (savedData) {
+                    // --- 2. REFRESH GOOGLE PHOTOS URLs ---
+                    // Fix 403 Errors on Reload
+                    if (savedData.assets && savedData.assets.photos && savedData.assets.photos.length > 0) {
+                        const googlePhotoIds = savedData.assets.photos
+                            .filter(p => p.source === 'google-photos' && p.id)
+                            .map(p => p.id);
+
+                        if (googlePhotoIds.length > 0) {
+                            console.log(`[App] Refreshing ${googlePhotoIds.length} Google Photo URLs...`);
+                            try {
+                                const refreshResult = await googlePhotosService.refreshMediaItemUrls(user.uid, googlePhotoIds);
+                                if (refreshResult.success && refreshResult.urls) {
+                                    savedData.assets.photos = savedData.assets.photos.map(p => {
+                                        if (p.source === 'google-photos' && refreshResult.urls[p.id]) {
+                                            // Update Base URL
+                                            const newBase = refreshResult.urls[p.id];
+                                            return {
+                                                ...p,
+                                                rawBaseUrl: newBase,
+                                                url: newBase.includes('=w') ? newBase : `${newBase}=w2048-h2048`
+                                            };
+                                        }
+                                        return p;
+                                    });
+                                    console.log("[App] URLs Refreshed successfully.");
+                                }
+                            } catch (e) {
+                                console.warn("[App] Failed to refresh URLs:", e);
+                            }
+                        }
+                    }
+
                     // Restore key state properties
-                    // Note: We need to be careful not to overwrite 'user' which we just set
                     Object.assign(store.state, {
                         ...savedData,
                         user: user, // Ensure user stays
@@ -67,23 +143,26 @@ class App {
                     // Force refresh
                     store.notify('pages', store.state.pages);
                     store.notify('cover', store.state.cover);
-                    this.renderer.renderAssetSidebar(); // Refresh assets
+                    store.notify('assets', store.state.assets); // Update sidebar with new URLs
+                    store.notify('assets', store.state.assets); // Update sidebar with new URLs
 
-                    // Initialize Template Sidebar (New)
+                    // Renderer doesn't manage sidebar anymore, App or specialized component does.
+                    // If method exists on App, call it.
+                    if (this.renderAssetSidebar) this.renderAssetSidebar();
+                    // this.renderer.renderAssetSidebar(); // REMOVED: Method does not exist on RenderEngine
+
+                    // Initialize Template Sidebar
                     this.templateSidebar = new TemplateSidebar('template-library', this);
                     this.templateSidebar.init();
 
-                    // PDF Export Hydration: Restore Template Config
-                    // We must correctly load the template config so the exporter knows how to render pages
+                    // PDF Export Hydration
                     const activeTemplateId = (store.state.pages && store.state.pages[0] ? store.state.pages[0].templateId : null) ||
                         (store.state.cover ? store.state.cover.templateId : null);
 
                     if (activeTemplateId && this.templateSidebar.manager) {
-                        console.log("[App] Restoring template config for:", activeTemplateId);
                         try {
                             await this.templateSidebar.manager.loadTemplate(activeTemplateId);
                             pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
-                            console.log("[App] PDF Template Config restored.");
                         } catch (e) {
                             console.error("Failed to restore template config:", e);
                         }
@@ -96,7 +175,13 @@ class App {
                         this.renderActivePage();
                     }
 
-                    alert(`Welcome back, ${user.displayName}! Your project has been restored.`);
+                    // Only welcome if it wasn't the legacy nuke
+                    console.log(`[App] Project restored for ${user.displayName}`);
+                } else {
+                    // Start Fresh if no save or we nuked it
+                    this.templateSidebar = new TemplateSidebar('template-library', this);
+                    this.templateSidebar.init();
+                    // Default is already set by loadAssets / constructor
                 }
             }
         });
@@ -140,7 +225,7 @@ class App {
                 if (renderer && p.rawLayoutId) {
                     const layout = manager.config.pageLayouts.find(l => l.layoutId === p.rawLayoutId);
                     if (layout) {
-                        const el = renderer.renderPage(layout, p.photos || [], p.textContent || {});
+                        const el = renderer.renderPage(layout, p.photos || [], p.textContent || {}, p.textPositions || {});
                         const container = document.getElementById('canvas-container');
                         container.innerHTML = '';
                         container.appendChild(el);
@@ -158,11 +243,11 @@ class App {
         // Load mock photos for MVP
         // In real implementation, this would fetch from Google Photos API
         const mockPhotos = [
-            { id: 'p1', url: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800&q=80', ratio: 1.5 }, // Mountians
-            { id: 'p2', url: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=800&q=80', ratio: 1.5 }, // Nature
-            { id: 'p3', url: 'https://images.unsplash.com/photo-1510784722466-f2aa9c52fff6?auto=format&fit=crop&w=800&q=80', ratio: 0.67 }, // Sunset
-            { id: 'p4', url: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=800&q=80', ratio: 1.5 }, // River
-            { id: 'p5', url: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=800&q=80', ratio: 1.5 }  // Forest
+            { id: 'p1', url: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=2048&q=80', ratio: 1.5 }, // Mountians
+            { id: 'p2', url: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=2048&q=80', ratio: 1.5 }, // Nature
+            { id: 'p3', url: 'https://images.unsplash.com/photo-1510784722466-f2aa9c52fff6?auto=format&fit=crop&w=2048&q=80', ratio: 0.67 }, // Sunset
+            { id: 'p4', url: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=2048&q=80', ratio: 1.5 }, // River
+            { id: 'p5', url: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=2048&q=80', ratio: 1.5 }  // Forest
         ];
 
         store.state.assets.photos = mockPhotos;
@@ -174,6 +259,52 @@ class App {
         // Initialize Template Sidebar (New) - ensures it loads even without auth restore
         this.templateSidebar = new TemplateSidebar('template-library', this);
         this.templateSidebar.init();
+    }
+
+    renderAssetSidebar() {
+        const list = document.getElementById('photo-list');
+        if (!list) return; // Guard
+        list.innerHTML = '';
+
+        console.log(`[App] Rendering ${store.state.assets.photos.length} photos.`);
+
+        store.state.assets.photos.forEach(photo => {
+            const item = document.createElement('div');
+            item.className = 'photo-item';
+
+            // Drag Support
+            item.draggable = true;
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('application/json', JSON.stringify({
+                    type: 'photo',
+                    id: photo.id,
+                    url: photo.url,
+                    ratio: photo.ratio
+                }));
+                // Visual feedback
+                item.style.opacity = '0.5';
+            });
+            item.addEventListener('dragend', () => {
+                item.style.opacity = '1';
+            });
+
+            const img = document.createElement('img');
+            img.src = photo.thumbnailUrl || photo.url;
+            img.loading = 'lazy';
+
+            // Debug or fallback
+            img.onerror = () => { img.src = 'assets/placeholder-image.png'; };
+
+            // Hover tooltip logic could go here
+
+            item.appendChild(img);
+            list.appendChild(item);
+        });
+
+        // Add Empty State or "+ Add" button if needed at bottom
+        if (store.state.assets.photos.length === 0) {
+            list.innerHTML = '<div class="empty-state">No photos yet. Click + to add.</div>';
+        }
     }
 
     /**
@@ -262,6 +393,7 @@ class App {
 
         canvas.addEventListener('dragover', (e) => {
             e.preventDefault();
+            // console.log('[App] Dragover:', e.target);
             e.dataTransfer.dropEffect = 'copy';
             canvas.classList.add('drop-target-active');
 
@@ -288,6 +420,7 @@ class App {
 
         canvas.addEventListener('drop', (e) => {
             e.preventDefault();
+            console.log('[App] Drop event detected on canvas:', e.target);
             canvas.classList.remove('drop-target-active');
             document.querySelectorAll('.drag-over-slot').forEach(el => el.classList.remove('drag-over-slot'));
 
@@ -310,10 +443,17 @@ class App {
             // Handle New Photo Drop
             if (item.type === 'photo') {
                 if (targetSlotEl) {
-                    // Replace photo in specific slot
-                    const targetPhotoId = targetSlotEl.dataset.selectableId;
-                    store.pushState('Replace Photo');
-                    this.replacePhotoInSlot(targetPhotoId, item.id);
+                    // Check if this is an empty slot
+                    if (targetSlotEl.classList.contains('empty-slot')) {
+                        const slotIndex = parseInt(targetSlotEl.dataset.slotIndex);
+                        store.pushState('Add Photo to Slot');
+                        this.addPhotoToSlot(item.id, slotIndex);
+                    } else {
+                        // Replace photo in specific slot
+                        const targetPhotoId = targetSlotEl.dataset.selectableId;
+                        store.pushState('Replace Photo');
+                        this.replacePhotoInSlot(targetPhotoId, item.id);
+                    }
                 } else {
                     // Add new photo (Cover or Page)
                     const rect = canvas.getBoundingClientRect();
@@ -537,14 +677,26 @@ class App {
 
                     // Update State
                     const page = store.state.pages.find(p => p.id === store.state.activePageId);
-                    if (page && page.elements) {
-                        const el = page.elements.find(el => el.id === dragTargetId);
-                        if (el) {
-                            // store.pushState('Move Text'); // Too noisy for every drag? Maybe debounce pushState or classify as minor?
-                            // For now, simple update
-                            el.x = relativeX;
-                            el.y = relativeY;
+                    if (page) {
+                        // Check if this is a template-based page
+                        if (page.templateId && page.textContent) {
+                            // Template page: store custom positions separately
+                            if (!page.textPositions) {
+                                page.textPositions = {};
+                            }
+                            page.textPositions[dragTargetId] = {
+                                x: relativeX + '%',
+                                y: relativeY + '%'
+                            };
                             store.notify('pages', store.state.pages);
+                        } else if (page.elements) {
+                            // Default page system
+                            const el = page.elements.find(el => el.id === dragTargetId);
+                            if (el) {
+                                el.x = relativeX;
+                                el.y = relativeY;
+                                store.notify('pages', store.state.pages);
+                            }
                         }
                     }
                 }
@@ -573,6 +725,11 @@ class App {
                     manager: !!(this.templateSidebar && this.templateSidebar.manager),
                     config: !!(this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config)
                 });
+            }
+
+            // Set template config before generating PDF
+            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
+                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
             }
 
             pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
@@ -866,18 +1023,11 @@ class App {
         if (btnGoogle) {
             btnGoogle.addEventListener('click', async () => {
                 try {
-                    // 1. Connect (Auth)
-                    if (!googlePhotosService.accessToken) {
-                        try {
-                            await googlePhotosService.connect();
-                        } catch (err) {
-                            console.error(err);
-                            alert("Google Auth Failed: " + err);
-                            return;
-                        }
-                    }
+                    // New Backend Session Flow:
+                    // Authenticated user check happens inside openPicker or via auth token passing?
+                    // google-photos-service.js checks currentUser. 
+                    // No need for explicit connect() call anymore.
 
-                    // 2. Open Picker
                     const photos = await googlePhotosService.openPicker();
 
                     if (photos && photos.length > 0) {
@@ -887,20 +1037,22 @@ class App {
                         this.renderAssetSidebar();
                         uploadModal.style.display = 'none';
                         console.log("Imported Google Photos:", photos.length);
-                        store.notify('assets', store.state.assets); // Ensure assets update triggers
+                        store.notify('assets', store.state.assets);
                     }
 
                 } catch (e) {
                     console.error("Google Photos Error:", e);
-                    if (e.toString().includes('Picker API')) {
-                        alert("Google Picker API not fully loaded. Please check API Key configuration.");
-                    } else if (e !== 'Picker canceled') {
-                        alert("Error: " + e);
+                    const msg = e.message || e.toString();
+                    if (msg.includes('User not logged in')) {
+                        alert("Please Log In first (Top Right Button) to use Google Photos.");
+                    } else {
+                        alert("Error: " + msg);
                     }
                 }
             });
         }
     }
+
 
     addPhotoToPage(photoId, relativeX = 0.5) {
         const state = store.state;
@@ -1029,23 +1181,42 @@ class App {
         if (pageIndex === -1) return;
         const page = { ...state.pages[pageIndex] };
 
-        // Find slots
-        const slot1 = page.layout.slots.find(s => s.photoId === id1);
-        const slot2 = page.layout.slots.find(s => s.photoId === id2);
+        // Check if this is a template-based page
+        if (page.templateId && page.photos && Array.isArray(page.photos)) {
+            // Template-based page: photos are in page.photos[] array
+            const photo1Index = page.photos.findIndex(p => p.id === id1);
+            const photo2Index = page.photos.findIndex(p => p.id === id2);
 
-        if (slot1 && slot2) {
-            // Swap IDs
-            const temp = slot1.photoId;
-            slot1.photoId = slot2.photoId;
-            slot2.photoId = temp;
+            if (photo1Index !== -1 && photo2Index !== -1) {
+                // Swap photos in the array
+                const temp = page.photos[photo1Index];
+                page.photos[photo1Index] = page.photos[photo2Index];
+                page.photos[photo2Index] = temp;
 
-            // Note: We don't swap 'photos' array order, just the visual layout assignment.
-            // This preserves the "content" list but changes presentation.
+                const newPages = [...state.pages];
+                newPages[pageIndex] = page;
+                store.state.pages = newPages;
+                console.log('[App] Swapped template photos', id1, id2);
+            }
+        } else {
+            // Default page system: slots are in page.layout.slots
+            const slot1 = page.layout.slots.find(s => s.photoId === id1);
+            const slot2 = page.layout.slots.find(s => s.photoId === id2);
 
-            const newPages = [...state.pages];
-            newPages[pageIndex] = page;
-            store.state.pages = newPages;
-            console.log('[App] Swapped photos', id1, id2);
+            if (slot1 && slot2) {
+                // Swap IDs
+                const temp = slot1.photoId;
+                slot1.photoId = slot2.photoId;
+                slot2.photoId = temp;
+
+                // Note: We don't swap 'photos' array order, just the visual layout assignment.
+                // This preserves the "content" list but changes presentation.
+
+                const newPages = [...state.pages];
+                newPages[pageIndex] = page;
+                store.state.pages = newPages;
+                console.log('[App] Swapped photos', id1, id2);
+            }
         }
     }
 
@@ -1071,35 +1242,129 @@ class App {
         if (pageIndex === -1) return;
         const page = { ...state.pages[pageIndex] };
 
-        // 1. Check if new photo already on page
-        if (page.photos.find(p => p.id === newPhotoId)) {
-            // If already there, maybe swap? Or just ignore? 
-            // For now ignore to prevent duplicates if dragging existing photo
-            return;
-        }
+        // Check if this is a template-based page
+        if (page.templateId && page.photos && Array.isArray(page.photos)) {
+            // Template-based page
+            // 1. Check if new photo already on page
+            if (page.photos.find(p => p.id === newPhotoId)) {
+                return; // Prevent duplicates
+            }
 
-        // 2. Find target slot
-        const slot = page.layout.slots.find(s => s.photoId === targetId);
-        if (slot) {
-            // Update photo list: Remove old, Add new
-            // Actually, we must replace the object in the array to keep count same
+            // 2. Find and replace the photo in the array
             const oldPhotoIdx = page.photos.findIndex(p => p.id === targetId);
             const newPhotoAsset = state.assets.photos.find(p => p.id === newPhotoId);
 
-            if (oldPhotoIdx > -1 && newPhotoAsset) {
+            if (oldPhotoIdx !== -1 && newPhotoAsset) {
                 page.photos[oldPhotoIdx] = newPhotoAsset;
-                slot.photoId = newPhotoId; // Update slot directly
-
-                // We might want to re-generate layout if aspect ratios differ significantly?
-                // For "Replace", we usually want to KEEP layout.
-                // But if new photo is portrait and old was landscape, it might crop badly.
-                // Let's keep layout for stability as per "Replace", user can "Magic Remix" if they want.
 
                 const newPages = [...state.pages];
                 newPages[pageIndex] = page;
                 store.state.pages = newPages;
+                console.log('[App] Replaced template photo', targetId, 'with', newPhotoId);
+            }
+        } else {
+            // Default page system
+            // 1. Check if new photo already on page
+            if (page.photos.find(p => p.id === newPhotoId)) {
+                // If already there, maybe swap? Or just ignore?
+                // For now ignore to prevent duplicates if dragging existing photo
+                return;
+            }
+
+            // 2. Find target slot
+            const slot = page.layout.slots.find(s => s.photoId === targetId);
+            if (slot) {
+                // Update photo list: Remove old, Add new
+                // Actually, we must replace the object in the array to keep count same
+                const oldPhotoIdx = page.photos.findIndex(p => p.id === targetId);
+                const newPhotoAsset = state.assets.photos.find(p => p.id === newPhotoId);
+
+                if (oldPhotoIdx > -1 && newPhotoAsset) {
+                    page.photos[oldPhotoIdx] = newPhotoAsset;
+                    slot.photoId = newPhotoId; // Update slot directly
+
+                    // We might want to re-generate layout if aspect ratios differ significantly?
+                    // For "Replace", we usually want to KEEP layout.
+                    // But if new photo is portrait and old was landscape, it might crop badly.
+                    // Let's keep layout for stability as per "Replace", user can "Magic Remix" if they want.
+
+                    const newPages = [...state.pages];
+                    newPages[pageIndex] = page;
+                    store.state.pages = newPages;
+                    console.log('[App] Replaced photo in slot', targetId, 'with', newPhotoId);
+                }
             }
         }
+    }
+
+    addPhotoToSlot(newPhotoId, slotIndex) {
+        const state = store.state;
+        const pageIndex = state.pages.findIndex(p => p.id === state.activePageId);
+        if (pageIndex === -1) return;
+        const page = { ...state.pages[pageIndex] };
+
+        // Get the photo asset
+        const newPhotoAsset = state.assets.photos.find(p => p.id === newPhotoId);
+        if (!newPhotoAsset) return;
+
+        // For template pages, add photo at the specific index
+        if (page.templateId && page.photos && Array.isArray(page.photos)) {
+            page.photos[slotIndex] = newPhotoAsset;
+
+            const newPages = [...state.pages];
+            newPages[pageIndex] = page;
+            store.state.pages = newPages;
+            console.log('[App] Added photo to slot', slotIndex);
+        }
+    }
+
+    /**
+     * Resets the project to a clean state.
+     * @param {boolean} confirm - Whether to ask for confirmation
+     */
+    startNewProject(confirm = true) {
+        if (confirm && !window.confirm("Are you sure you want to start a new project? This will clear your current album.")) {
+            return;
+        }
+
+        console.log("[App] Starting new project (Clean Slate)...");
+
+        // Reset State
+        store.state.pages = [];
+        store.state.cover = {
+            title: 'My Photo Book',
+            subtitle: 'A collection of memories',
+            layout: 'standard',
+            color: '#ffffff',
+            theme: 'classic',
+            spineText: 'My Photo Book'
+        };
+        store.state.activePageId = null;
+        store.state.theme = 'classic';
+
+        // Keep assets or clear them? User said "clean album... loading photos".
+        // Usually "New Project" implies keeping the *app* open but clearing the *work*.
+        // We'll keep the assets in the sidebar (photos) so they don't have to re-import, 
+        // but clear the pages.
+        // If they want to clear photos too, they can delete them.
+
+        // Add one empty page
+        store.addPage();
+
+        // Notify
+        store.notify('pages', store.state.pages);
+        store.notify('cover', store.state.cover);
+
+        // Force Persistence Clear/Update
+        if (store.state.user) {
+            persistenceService.saveProject(store.state.user.uid, store.state);
+        }
+
+        // Render
+        this.renderActivePage();
+        this.updateTimeline(store.state.pages, store.state.activePageId);
+
+        console.log("[App] Project reset complete.");
     }
 
     updatePropertiesPanel(state) {
@@ -1123,7 +1388,23 @@ class App {
 
 
         // Find element (text) or Slot (photo)
-        const textElement = page.elements && page.elements.find(e => e.id === selectionId);
+        let textElement = page.elements && page.elements.find(e => e.id === selectionId);
+
+        // Check if this is a template page with textContent
+        let isTemplateText = false;
+        if (!textElement && page.templateId && page.textContent && selectionId) {
+            // This is a template text element
+            if (page.textContent[selectionId] !== undefined) {
+                isTemplateText = true;
+                // Create a virtual text element for the properties panel
+                textElement = {
+                    id: selectionId,
+                    content: page.textContent[selectionId],
+                    isTemplate: true
+                };
+            }
+        }
+
         const photoSlot = page.layout && page.layout.slots ? page.layout.slots.find(s => s.photoId === selectionId) : null;
 
         if (photoSlot) {
@@ -1165,82 +1446,110 @@ class App {
         }
 
         if (textElement) {
-            panel.innerHTML = `
-                <div class="panel-header">
-                    <h3>Text Properties</h3>
-                </div>
-                <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
-                    <div>
-                        <label>Content</label>
-                        <textarea id="prop-text-content" rows="3" style="width:100%; border-radius:4px; padding:5px;">${textElement.content}</textarea>
-                    </div>
+            // For template text, only show content editing (styling is from template)
+            const isTemplate = textElement.isTemplate === true;
 
-                    <div>
-                        <label>Font Size</label>
-                        <input type="range" id="prop-text-size" min="10" max="100" value="${textElement.fontSize || 24}">
-                        <span id="prop-text-size-val">${textElement.fontSize || 24}px</span>
+            if (isTemplate) {
+                panel.innerHTML = `
+                    <div class="panel-header">
+                        <h3>Text Properties</h3>
                     </div>
-
-                    <div>
-                        <label>Color</label>
-                        <div style="display:flex; align-items:center;">
-                            <input type="color" id="prop-text-color" value="${textElement.color || '#000000'}">
+                    <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
+                        <div>
+                            <label>Content</label>
+                            <textarea id="prop-text-content" rows="5" style="width:100%; border-radius:4px; padding:5px; font-family: inherit;">${textElement.content || ''}</textarea>
+                        </div>
+                        <div style="color: #888; font-size: 12px;">
+                            <i class="fa-solid fa-info-circle"></i> Font styling is controlled by the template design
                         </div>
                     </div>
-                     <div>
-                        <label>Font Family</label>
-                        <select id="prop-text-font" style="width:100%; padding:5px;">
-                            <option value="sans-serif">Sans Serif</option>
-                            <option value="serif">Serif</option>
-                            <option value="monospace">Monospace</option>
-                            <option value="'Playfair Display', serif">Playfair Display</option>
-                            <option value="'Montserrat', sans-serif">Montserrat</option>
-                        </select>
+                `;
+
+                // Bind Events for template text
+                const txtContent = document.getElementById('prop-text-content');
+                txtContent.addEventListener('input', (e) => {
+                    page.textContent[selectionId] = e.target.value;
+                    store.notify('pages', store.state.pages); // Live preview
+                });
+            } else {
+                // Default page system - full controls
+                panel.innerHTML = `
+                    <div class="panel-header">
+                        <h3>Text Properties</h3>
                     </div>
+                    <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
+                        <div>
+                            <label>Content</label>
+                            <textarea id="prop-text-content" rows="3" style="width:100%; border-radius:4px; padding:5px;">${textElement.content}</textarea>
+                        </div>
 
-                   <button class="btn-secondary btn-sm" id="btn-delete-text" style="color:red; border-color:red; margin-top:10px;">
-                        <i class="fa-solid fa-trash"></i> Delete Text
-                   </button>
-                </div>
-            `;
+                        <div>
+                            <label>Font Size</label>
+                            <input type="range" id="prop-text-size" min="10" max="100" value="${textElement.fontSize || 24}">
+                            <span id="prop-text-size-val">${textElement.fontSize || 24}px</span>
+                        </div>
 
-            // Bind Events
-            const txtContent = document.getElementById('prop-text-content');
-            txtContent.addEventListener('input', (e) => {
-                textElement.content = e.target.value;
-                store.notify('pages', store.state.pages); // Live preview
-            });
+                        <div>
+                            <label>Color</label>
+                            <div style="display:flex; align-items:center;">
+                                <input type="color" id="prop-text-color" value="${textElement.color || '#000000'}">
+                            </div>
+                        </div>
+                         <div>
+                            <label>Font Family</label>
+                            <select id="prop-text-font" style="width:100%; padding:5px;">
+                                <option value="sans-serif">Sans Serif</option>
+                                <option value="serif">Serif</option>
+                                <option value="monospace">Monospace</option>
+                                <option value="'Playfair Display', serif">Playfair Display</option>
+                                <option value="'Montserrat', sans-serif">Montserrat</option>
+                            </select>
+                        </div>
 
-            const txtSize = document.getElementById('prop-text-size');
-            const txtSizeVal = document.getElementById('prop-text-size-val');
-            txtSize.addEventListener('input', (e) => {
-                textElement.fontSize = parseInt(e.target.value);
-                txtSizeVal.textContent = e.target.value + 'px';
-                store.notify('pages', store.state.pages);
-            });
+                       <button class="btn-secondary btn-sm" id="btn-delete-text" style="color:red; border-color:red; margin-top:10px;">
+                            <i class="fa-solid fa-trash"></i> Delete Text
+                       </button>
+                    </div>
+                `;
 
-            const txtColor = document.getElementById('prop-text-color');
-            txtColor.addEventListener('input', (e) => {
-                textElement.color = e.target.value;
-                store.notify('pages', store.state.pages);
-            });
+                // Bind Events for default page system
+                const txtContent = document.getElementById('prop-text-content');
+                txtContent.addEventListener('input', (e) => {
+                    textElement.content = e.target.value;
+                    store.notify('pages', store.state.pages); // Live preview
+                });
 
-            const txtFont = document.getElementById('prop-text-font');
-            if (textElement.fontFamily) txtFont.value = textElement.fontFamily;
-            txtFont.addEventListener('change', (e) => {
-                textElement.fontFamily = e.target.value;
-                store.notify('pages', store.state.pages);
-            });
-
-            document.getElementById('btn-delete-text').addEventListener('click', () => {
-                if (confirm("Delete this text?")) {
-                    store.pushState('Delete Text');
-                    page.elements = page.elements.filter(el => el.id !== selectionId);
-                    store.state.selection = null;
+                const txtSize = document.getElementById('prop-text-size');
+                const txtSizeVal = document.getElementById('prop-text-size-val');
+                txtSize.addEventListener('input', (e) => {
+                    textElement.fontSize = parseInt(e.target.value);
+                    txtSizeVal.textContent = e.target.value + 'px';
                     store.notify('pages', store.state.pages);
-                    store.notify('selection', null);
-                }
-            });
+                });
+
+                const txtColor = document.getElementById('prop-text-color');
+                txtColor.addEventListener('input', (e) => {
+                    textElement.color = e.target.value;
+                    store.notify('pages', store.state.pages);
+                });
+
+                const txtFont = document.getElementById('prop-text-font');
+                if (textElement.fontFamily) txtFont.value = textElement.fontFamily;
+                txtFont.addEventListener('change', (e) => {
+                    textElement.fontFamily = e.target.value;
+                    store.notify('pages', store.state.pages);
+                });
+
+                document.getElementById('btn-delete-text').addEventListener('click', () => {
+                    if (confirm("Delete this text?")) {
+                        store.pushState('Delete Text');
+                        page.elements = page.elements.filter(el => el.id !== selectionId);
+                        store.state.selection = null;
+                        store.notify('pages', store.state.pages);
+                        store.notify('selection', null);
+                    }
+                });
+            }
 
             return;
         }
@@ -1675,23 +1984,52 @@ class App {
 
         btnGoogle.addEventListener('click', async () => {
             try {
-                if (!googlePhotosService.accessToken) {
-                    await googlePhotosService.init();
-                    await googlePhotosService.connect();
+                // Ensure user is logged in (handling Emulator/Prod switch invalidating session)
+                let user = authService.getCurrentUser();
+                if (!user) {
+                    console.log("[App] User not logged in. Prompting sign-in...");
+                    try {
+                        user = await authService.signInWithGoogle();
+                        console.log("[App] Sign-in successful:", user.uid);
+                    } catch (loginErr) {
+                        console.error("[App] Login failed:", loginErr);
+                        alert("Please sign in to access Google Photos.");
+                        return;
+                    }
                 }
+
+                // New Backend Session Flow
                 const photos = await googlePhotosService.openPicker();
+
+                // --- CLEAN ALBUM LOGIC ---
+                // If the current project contains the "Family Roots" default template (which the user dislikes as default), 
+                // and we are just importing photos, likely we want to start fresh.
+                // We'll detect if the pages are using this template ID.
+                const hasLegacyDefault = store.state.pages.some(p => p.templateId === 'family-roots-v1');
+                if (hasLegacyDefault) {
+                    console.log("[App] Detected legacy default template. Clearing for fresh start as requested.");
+                    this.startNewProject(false); // false = no confirmation needed (auto-clean)
+                }
+
                 store.state.assets.photos = [...store.state.assets.photos, ...photos];
-                // 4. Update UI
-                // Use window.app to ensure we target the correct instance and avoid 'this' context issues
+
                 if (window.app) {
                     window.app.renderAssetSidebar();
+                    store.notify('assets', store.state.assets);
+                    // Force refresh active page in case we just cleared it
+                    if (hasLegacyDefault || store.state.pages.length === 0) {
+                        if (store.state.pages.length === 0) store.addPage();
+                        window.app.renderActivePage();
+                        window.app.updateTimeline(store.state.pages, store.state.activePageId);
+                    }
                 } else {
                     console.error("Window.app not found for re-render");
                 }
 
                 // Show completion
-                console.log("Magic Create Complete!");
-                alert("Magic Album Created! Check the new page.");
+                console.log("Photos successfully imported.");
+                // Use a toast or non-blocking notification if possible, otherwise simple alert
+                alert(`Successfully imported ${photos.length} photos. Drag them onto your pages to begin.`);
 
             } catch (err) {
                 console.error(err);
@@ -1700,14 +2038,26 @@ class App {
         });
         photoGrid.appendChild(btnGoogle);
 
+        // --- NEW PROJECT BUTTON HANDLER ---
+        const btnNew = document.getElementById('btn-new-project');
+        if (btnNew) {
+            btnNew.addEventListener('click', () => this.startNewProject(true));
+        }
+
         console.log(`[App] Rendering ${store.state.assets.photos.length} photos.`);
+        if (store.state.assets.photos.length > 0) {
+            console.log("First Photo Debug:", JSON.stringify(store.state.assets.photos[0], null, 2));
+        }
+        if (store.state.assets.photos.length > 0) {
+            console.log("SAMPLE PHOTO:", store.state.assets.photos[0]);
+        }
         store.state.assets.photos.forEach(photo => {
             const el = document.createElement('div');
             el.className = 'asset-item';
             el.draggable = true;
             el.style.position = 'relative';
             el.innerHTML = `
-                <img src="${photo.url}" draggable="false" style="width:100%; height:100%; object-fit:cover;">
+                <img src="${photo.thumbnailUrl || photo.url}" draggable="false" style="width:100%; height:100%; object-fit:cover;">
                 <button class="btn-delete-asset" title="Remove Photo" style="position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,0.6); color:white; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; line-height:1;">×</button>
             `;
 
@@ -1721,19 +2071,23 @@ class App {
                     if (idx > -1) {
                         store.state.assets.photos.splice(idx, 1);
                         this.renderAssetSidebar();
+                        store.notify('assets', store.state.assets); // Update persistence
                     }
                 }
             });
 
             el.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('application/json', JSON.stringify({ type: 'photo', id: photo.id }));
+                e.dataTransfer.effectAllowed = 'copy';
             });
 
             // Hover Preview
             el.addEventListener('mouseenter', (e) => {
                 const tooltip = document.getElementById('photo-preview-tooltip');
                 if (tooltip) {
-                    tooltip.innerHTML = `<img src="${photo.url}" style="max-width:400px; max-height:400px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); display:block; background:#fff;">`;
+                    // Use thumbnail to avoid 403
+                    const src = photo.thumbnailUrl || photo.url;
+                    tooltip.innerHTML = `<img src="${src}" style="max-width:400px; max-height:400px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); display:block; background:#fff;">`;
                     tooltip.style.display = 'block';
                     tooltip.style.top = (e.clientY + 10) + 'px';
                     tooltip.style.left = (e.clientX + 20) + 'px';
@@ -1887,186 +2241,149 @@ class App {
         if (!tl) return;
         tl.innerHTML = '';
 
-        // Template Dimension Logic - Single Source of Truth
+        // Determine Base Dimensions
         const manager = this.templateSidebar?.manager;
-        const DESIGN_DEFAULTS = { width: 800, height: 600 };
-        let rw = DESIGN_DEFAULTS.width;
-        let rh = DESIGN_DEFAULTS.height;
+        // Default design system dimensions
+        let rw = 800;
+        let rh = 600;
 
-        // Try to get active layout dimensions
+        // Try to get active layout dimensions from template config
         if (manager && manager.config && manager.config.designSystem && manager.config.designSystem.canvas) {
             rw = manager.config.designSystem.canvas.scaledWidth || manager.config.designSystem.canvas.width || rw;
             rh = manager.config.designSystem.canvas.scaledHeight || manager.config.designSystem.canvas.height || rh;
         }
 
-        // Calculate Scale to fit Timeline Height (approx 100px)
+        // Scale Calculation (Target height ~100px)
         const TARGET_HEIGHT = 100;
         const scale = TARGET_HEIGHT / rh;
 
-        // ===========================================
-        // 1. Render Cover Preview
-        // ===========================================
-        if (store.state.cover) {
+        // Cover Handling
+        if (store.state.viewMode === 'cover' || store.state.cover) {
+            // Only show standalone cover item if we aren't using a "page 1 is cover" strategy.
+            // Current model: separate cover object.
             const coverEl = document.createElement('div');
             coverEl.className = `timeline-page cover ${store.state.viewMode === 'cover' ? 'active' : ''}`;
-
-            // Container Styling to match scaled aspect ratio
             coverEl.style.width = `${rw * scale}px`;
             coverEl.style.height = `${rh * scale}px`;
-            coverEl.style.flexShrink = '0';
-            coverEl.style.position = 'relative';
-            coverEl.style.overflow = 'hidden';
-            coverEl.style.border = '1px solid #ccc';
-            coverEl.style.marginRight = '8px'; // Spacing
 
+            const preview = document.createElement('div');
+            preview.style.width = `${rw}px`;
+            preview.style.height = `${rh}px`;
+            preview.style.transform = `scale(${scale})`;
+            preview.style.transformOrigin = 'top left';
+            preview.style.pointerEvents = 'none';
+            preview.style.background = '#fff';
+
+            // Render Cover Preview Logic
+            // We need a way to render cover TO A CONTAINER. 
+            // Existing `renderCover` renders to this.renderer.container.
+            // We should refactor renderCover too, but for now we can rely on specialized or hack it.
+            // Let's stick to the request: "from scratch" using unified logic.
+            // I'll make a temp method or assumes RenderEngine handles it.
+            // Let's instantiate a renderer if template, else default.
+
+            if (manager && manager.config && manager.config.templateId) {
+                // Template Cover
+                let renderer = this.getSpecializedRenderer(manager.config.templateId, manager.config);
+                if (renderer && renderer.renderCover) {
+                    // Most template renderers return a DOM element.
+                    const coverDom = renderer.renderCover(store.state.cover, store.state.assets);
+                    if (coverDom instanceof HTMLElement) {
+                        preview.innerHTML = '';
+                        preview.appendChild(coverDom);
+                    }
+                }
+            } else {
+                // Default Render Engine Cover -> it doesn't have renderCoverToContainer yet. 
+                // We'll trust the default cover rendering logic is simple enough or add a helper.
+                // For now, let's use a simplified preview for default covers to avoid main container hijacking.
+                preview.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;background:${store.state.cover.color || '#333'};color:white;text-align:center;">
+                    <div>${store.state.cover.title || 'Cover'}</div>
+                </div>`;
+            }
+
+            coverEl.appendChild(preview);
             coverEl.onclick = () => {
                 store.state.viewMode = 'cover';
                 store.state.activePageId = null;
                 store.notify('viewMode', 'cover');
-                this.renderCover(store.state.cover, store.state.assets);
-                this.updateTimeline(store.state.pages, null);
+                // Force update UI
+                this.updatePropertiesPanel(store.state);
             };
-
-            const preview = document.createElement('div');
-            preview.style.cssText = `
-                width: ${rw}px; 
-                height: ${rh}px; 
-                position: absolute; 
-                top: 0; 
-                left: 0; 
-                transform: scale(${scale}); 
-                transform-origin: top left; 
-                pointer-events: none; 
-                background: white;
-            `;
-
-            let renderedCover = null;
-            // Specialized Rendering
-            if (manager && manager.config && manager.config.templateId) {
-                let renderer = null;
-                const activeTemplateId = manager.config.templateId;
-
-                // Keep the instantiation logic simple for now
-                // In a real generic system, manager would provide the renderer instance directly
-                if (window.TravelJourneyRenderer && activeTemplateId === 'travel-journey-v1') renderer = new TravelJourneyRenderer(manager.config);
-                else if (window.PhotographyPortfolioRenderer && activeTemplateId === 'photography-portfolio-v1') renderer = new PhotographyPortfolioRenderer(manager.config);
-                else if (window.RomanticJourneyRenderer && activeTemplateId === 'romantic-journey-v1') renderer = new RomanticJourneyRenderer(manager.config);
-
-                if (renderer && renderer.renderCover) {
-                    renderedCover = renderer.renderCover(store.state.cover, store.state.assets);
-                }
-            }
-
-            if (renderedCover) {
-                preview.appendChild(renderedCover);
-            } else {
-                // Fallback Legacy Cover
-                preview.innerHTML = `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:${store.state.cover.color || '#fff'}; color:#000; font-size:40px;">${store.state.cover.title || 'Cover'}</div>`;
-            }
-
-            coverEl.appendChild(preview);
-
-            // "C" Label
-            const label = document.createElement('div');
-            label.textContent = "Cover";
-            label.style.cssText = "position:absolute; bottom:2px; left:2px; background:rgba(0,0,0,0.5); color:white; font-size:10px; padding:2px 4px; border-radius:2px;";
-            coverEl.appendChild(label);
-
             tl.appendChild(coverEl);
         }
 
-        // ===========================================
-        // 2. Render Pages
-        // ===========================================
+        // Pages Handling
         pages.forEach((page, idx) => {
             const el = document.createElement('div');
             el.className = `timeline-page ${page.id === activeId && store.state.viewMode !== 'cover' ? 'active' : ''}`;
             el.style.width = `${rw * scale}px`;
             el.style.height = `${rh * scale}px`;
-            el.style.flexShrink = '0';
-            el.style.position = 'relative';
-            el.style.overflow = 'hidden';
-            el.style.backgroundColor = '#fff';
-            el.style.marginRight = '8px';
 
-            const previewContainer = document.createElement('div');
-            previewContainer.style.cssText = `
-                width: ${rw}px; 
-                height: ${rh}px; 
-                position: absolute; 
-                top: 0; 
-                left: 0; 
-                transform: scale(${scale});  
-                transform-origin: 0 0;
-                pointer-events: none;
-                background-color: ${page.background || '#fff'};
-            `;
+            const previewWrapper = document.createElement('div');
+            previewWrapper.style.width = `${rw}px`;
+            previewWrapper.style.height = `${rh}px`;
+            previewWrapper.style.transform = `scale(${scale})`;
+            previewWrapper.style.transformOrigin = 'top left';
+            previewWrapper.style.pointerEvents = 'none';
+            previewWrapper.style.backgroundColor = '#fff';
+            previewWrapper.style.position = 'absolute';
+            previewWrapper.style.inset = '0';
 
-            let renderedContent = null;
-            if (manager && manager.config && manager.config.templateId === page.templateId) {
-                let renderer = null;
-                // Same renderer logic
-                if (window.TravelJourneyRenderer && page.templateId === 'travel-journey-v1') renderer = new TravelJourneyRenderer(manager.config);
-                else if (window.PhotographyPortfolioRenderer && page.templateId === 'photography-portfolio-v1') renderer = new PhotographyPortfolioRenderer(manager.config);
-                else if (window.RomanticJourneyRenderer && page.templateId === 'romantic-journey-v1') renderer = new RomanticJourneyRenderer(manager.config);
+            // Unified Render Logic
+            let rendered = false;
 
-                if (renderer && page.rawLayoutId) {
-                    const layoutDef = manager.config.pageLayouts.find(l => l.layoutId === page.rawLayoutId);
-                    if (layoutDef) {
-                        renderedContent = renderer.renderPage(layoutDef, page.photos, page.textContent);
+            // 1. Try Specialized Renderer (Template)
+            if (page.templateId) {
+                const manager = this.templateSidebar?.manager; // Use central manager
+                if (manager && manager.config && manager.config.templateId === page.templateId) {
+                    const renderer = this.getSpecializedRenderer(page.templateId, manager.config);
+
+                    if (renderer && page.rawLayoutId) {
+                        const layout = manager.config.pageLayouts.find(l => l.layoutId === page.rawLayoutId);
+                        if (layout) {
+                            const dom = renderer.renderPage(layout, page.photos || [], page.textContent || {}, page.textPositions || {});
+                            if (dom) {
+                                previewWrapper.appendChild(dom);
+                                rendered = true;
+                            }
+                        }
                     }
                 }
             }
 
-            // Fallback to generic RenderEngine helper if available
-            if (!renderedContent && this.renderer && this.renderer.renderPageElement) {
-                renderedContent = this.renderer.renderPageElement(page);
+            // 2. Fallback to Default RenderEngine (Generic) if not rendered
+            if (!rendered) {
+                // Use the new Unified Method
+                this.renderer.renderPageToContainer(page, store.state.assets, previewWrapper);
             }
 
-            // Ultimate Fallback: Simple Boxes
-            if (!renderedContent) {
-                renderedContent = document.createElement('div');
-                renderedContent.style.width = '100%';
-                renderedContent.style.height = '100%';
-                renderedContent.style.backgroundColor = page.background || '#fff';
-                if (page.layout && page.layout.slots) {
-                    page.layout.slots.forEach((slot, i) => {
-                        const box = document.createElement('div');
-                        box.style.position = 'absolute';
-                        box.style.left = slot.x + '%';
-                        box.style.top = slot.y + '%';
-                        box.style.width = slot.w + '%';
-                        box.style.height = slot.h + '%';
-                        box.style.backgroundColor = '#ccc';
-                        if (page.photos[i]) {
-                            const img = document.createElement('img');
-                            img.src = page.photos[i].url;
-                            img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'cover';
-                            box.appendChild(img);
-                        }
-                        renderedContent.appendChild(box);
-                    });
-                }
-            }
+            el.appendChild(previewWrapper);
 
-            if (renderedContent) {
-                previewContainer.appendChild(renderedContent);
-            }
+            // Number Label
+            const label = document.createElement('div');
+            label.className = 'page-num';
+            label.textContent = idx + 1;
+            el.appendChild(label);
 
-            el.appendChild(previewContainer);
-
-            const numLabel = document.createElement('span');
-            numLabel.textContent = idx + 1;
-            numLabel.style.cssText = 'position:absolute; bottom:2px; right:2px; color:#000; font-size:10px; font-weight:bold; background:rgba(255,255,255,0.7); padding:1px 3px; border-radius:3px; z-index:10;';
-            el.appendChild(numLabel);
-
-            el.addEventListener('click', () => {
-                store.state.viewMode = 'pages';
+            el.onclick = () => {
                 store.state.activePageId = page.id;
-                this.updateTimeline(pages, page.id); // Re-render to update active state
-            });
+                store.state.viewMode = 'pages';
+                store.notify('activePageId', page.id);
+            };
+
             tl.appendChild(el);
         });
+    }
+
+    // Helper to get renderer instance
+    getSpecializedRenderer(templateId, config) {
+        if (templateId === 'photography-portfolio-v1') return new PhotographyPortfolioRenderer(config);
+        if (templateId === 'romantic-journey-v1') return new RomanticJourneyRenderer(config);
+        if (templateId === 'travel-journey-v1') return new TravelJourneyRenderer(config);
+        if (templateId === 'family-roots-v1') return new FamilyRootsRenderer(config);
+        if (templateId === 'bar-mitzvah-v1') return new BarMitzvahRenderer(config);
+        return null;
     }
 
     updateActivePagePreview() {
@@ -2210,6 +2527,12 @@ window.downloadPdfOnly = async () => {
     console.log("Preview PDF Clicked");
     // Use current store state
     const { pages, cover, assets } = store.state;
+
+    // Set template config before generating PDF
+    if (window.app && window.app.templateSidebar && window.app.templateSidebar.manager && window.app.templateSidebar.manager.config) {
+        pdfExport.setTemplateConfig(window.app.templateSidebar.manager.config);
+    }
+
     await pdfExport.generatePDF(pages, cover, assets);
 };
 

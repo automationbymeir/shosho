@@ -74,7 +74,15 @@ class MagicCreateV2 {
 
         // TODO: Parallelize this respecting rate limits?
         // simple sequential for now to avoid hitting limits immediately or parallel blocks of 3
+        let consecutiveErrors = 0;
+        const MAX_ERRORS = 3;
+
         for (let i = 0; i < photos.length; i++) {
+            if (consecutiveErrors >= MAX_ERRORS) {
+                console.error(`[MagicCreateV2] Aborting analysis after ${MAX_ERRORS} consecutive errors. Possible API quota or key issue.`);
+                break; // Stop loop, return what we have so far
+            }
+
             const b64 = imageBase64s[i];
             if (!b64) continue;
 
@@ -87,9 +95,10 @@ class MagicCreateV2 {
                     imageBase64: b64, // Keep for generation context if needed? Or drop to save memory?
                     analysis: analysis
                 });
+                consecutiveErrors = 0; // Reset on success
             } catch (e) {
                 console.error(`Failed to analyze photo ${i}:`, e);
-                // Fallback? or Skip?
+                consecutiveErrors++;
             }
         }
 
@@ -145,6 +154,7 @@ class MagicCreateV2 {
         const pages = [];
         const totalPages = albumPlan.meta.totalPages;
         let previousPageSummary = null;
+        this.usedPhotoIds = new Set(); // Reset usage tracker
 
         // Use planned assignments if available, otherwise generate sequential stubs
         const assignments = albumPlan.pageAssignments || [];
@@ -161,14 +171,34 @@ class MagicCreateV2 {
 
             // 2. Resolve Photos for this page
             let pagePhotos = [];
+
+            // --- FIXED: Prevent Duplicates & Ensure Coverage ---
+            // We maintain a Set of globally used photo IDs to prevent reuse if the AI messes up
+            if (!this.usedPhotoIds) this.usedPhotoIds = new Set();
+
             if (assignment && assignment.assignedPhotoIndices) {
                 // Map indices from plan back to analysis objects
-                pagePhotos = assignment.assignedPhotoIndices.map(idx => analyses[idx]).filter(Boolean);
-            } else {
-                // Fallback: Slice if no explicit plan (legacy safety)
-                const photosPerPage = Math.ceil(analyses.length / totalPages);
-                const startIdx = i * photosPerPage;
-                pagePhotos = analyses.slice(startIdx, startIdx + photosPerPage);
+                const candidates = assignment.assignedPhotoIndices.map(idx => analyses[idx]).filter(Boolean);
+
+                // Filter out duplicates
+                pagePhotos = candidates.filter(p => {
+                    if (this.usedPhotoIds.has(p.originalPhoto.id)) return false;
+                    this.usedPhotoIds.add(p.originalPhoto.id);
+                    return true;
+                });
+            }
+
+            // If plan failed or gave empty/duplicates, use Fallback strictly from unused
+            if (pagePhotos.length === 0) {
+                // Find unused photos
+                const unused = analyses.filter(a => !this.usedPhotoIds.has(a.originalPhoto.id));
+                // Take a chunk for this page
+                // Estimate remaining pages
+                const remainingPages = totalPages - i;
+                const takeCount = Math.max(1, Math.ceil(unused.length / remainingPages));
+
+                pagePhotos = unused.slice(0, takeCount);
+                pagePhotos.forEach(p => this.usedPhotoIds.add(p.originalPhoto.id));
             }
 
             const photoDescriptions = pagePhotos.map(p => p.analysis.description);
@@ -195,7 +225,8 @@ class MagicCreateV2 {
                     // slot.photoIndex refers to the index in *this page's* photo list
                     const localIndex = slot.photoIndex;
                     if (pagePhotos[localIndex]) {
-                        slot.originalPhotoId = pagePhotos[localIndex].originalPhoto.id;
+                        // CRITICAL FIX: RenderEngine expects 'photoId', not 'originalPhotoId'
+                        slot.photoId = pagePhotos[localIndex].originalPhoto.id;
                         // Find global index for reference
                         slot.globalIndex = analyses.indexOf(pagePhotos[localIndex]);
                     }
