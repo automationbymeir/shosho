@@ -23,9 +23,45 @@ export const persistenceService = {
             return newObj;
         };
 
-        // Sanitize: Remove user object and selection
+        // Helper to recursively strip heavy data (base64 images)
+        const sanitizeForFirestore = (obj) => {
+            if (obj === null || typeof obj !== 'object') {
+                return obj;
+            }
+
+            if (Array.isArray(obj)) {
+                return obj.map(v => sanitizeForFirestore(v));
+            }
+
+            const newObj = {};
+            Object.keys(obj).forEach(key => {
+                const val = obj[key];
+
+                // Specific Logic: Strip base64 images to prevent 413 Errors
+                if (typeof val === 'string' && val.startsWith('data:image/') && val.length > 1000) {
+                    // We strip it. In a real app, you'd upload to Storage and save URL.
+                    // For now, we save a marker so we know it was stripped.
+                    newObj[key] = null; // or "STRIPPED_BASE64"
+                }
+                // Specific Logic: Legacy stripping of thumbnailUrl
+                else if (key === 'thumbnailUrl') {
+                    // Skip
+                }
+                else {
+                    newObj[key] = sanitizeForFirestore(val);
+                }
+            });
+            return newObj;
+        };
+
+        // Sanitize: Remove user object and selection, and strip heavy data
         const { user, selection, ...cleanData } = projectData;
-        const safeData = removeUndefined(cleanData);
+
+        // 1. Strip Heavy Data (Base64 imagery)
+        const lightweightData = sanitizeForFirestore(cleanData);
+
+        // 2. Remove Undefined (Essential for Firestore compliance)
+        const safeData = removeUndefined(lightweightData);
 
         try {
             // Using a single 'draft' project for now per user

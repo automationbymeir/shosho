@@ -1,0 +1,23 @@
+{
+  "name": "album-designer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@google/genai": "^1.38.0",
+    "dotenv": "^17.2.3",
+    "exifreader": "^4.36.0",
+    "sharp": "^0.34.5",
+    "uuid": "^13.0.0"
+  }
+}

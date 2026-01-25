@@ -100,50 +100,56 @@ export class RenderEngine {
                     // Priority: 1. highResUrl (explicit), 2. rawBaseUrl (google), 3. url (standard), 4. thumbnail
                     let src = photo.highResUrl || photo.rawBaseUrl || photo.url || photo.thumbnailUrl;
 
-                    // Google Photos Optimization
-                    if (photo.source === 'google-photos' && src && !src.includes('=w')) {
-                        src = `${src}=w2048-h2048`;
-                    } else if (src && src.includes('unsplash.com') && src.includes('&w=') && !src.includes('&w=2048')) {
-                        // Upgrade unsplash quality if possible
-                        src = src.replace(/&w=\d+/, '&w=2048');
-                    }
-
-                    img.src = src;
                     img.style.width = '100%';
                     img.style.height = '100%';
                     img.style.objectFit = 'cover';
 
-                    // Fallback logic for broken/expired Google Photos URLs
-                    img.onerror = () => {
-                        // console.warn("Image load failed, attempting recovery...", photo.id);
-                        if (photo.source === 'google-photos' || (photo.url && photo.url.includes('googleusercontent.com'))) {
-                            // Dynamic Proxy Import
-                            import('./google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
-                                const targetUrl = photo.rawBaseUrl || photo.url;
-                                googlePhotosService.fetchHighResImage(targetUrl)
-                                    .then(dataUri => {
-                                        console.log(`[RenderEngine] Proxy fetch success! Data URI Length: ${dataUri.length}`);
-                                        img.src = dataUri;
-                                        // Clear onerror to prevent loop
-                                        img.onerror = null;
-                                    })
-                                    .catch(err => {
-                                        // Final fallback to thumbnail
-                                        if (photo.thumbnailUrl && img.src !== photo.thumbnailUrl) {
-                                            img.src = photo.thumbnailUrl;
-                                        } else {
-                                            img.src = 'assets/placeholder-image.png';
-                                        }
-                                    });
-                            });
-                        } else {
+                    // Google Photos - Use backend proxy to avoid 403 errors
+                    if (photo.source === 'google-photos' || (src && src.includes('googleusercontent.com'))) {
+                        // Show thumbnail immediately while loading high-res via proxy
+                        if (photo.thumbnailUrl) {
+                            img.src = photo.thumbnailUrl;
+                        }
+
+                        // Fetch high-res via backend proxy
+                        import('./google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
+                            // Prepare high-res URL
+                            let targetUrl = photo.rawBaseUrl || photo.url;
+                            if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
+                                targetUrl = targetUrl.split('=')[0] + '=d';
+                            } else if (!targetUrl.includes('=d')) {
+                                targetUrl = `${targetUrl}=d`;
+                            }
+
+                            googlePhotosService.fetchHighResImage(targetUrl)
+                                .then(dataUri => {
+                                    img.src = dataUri;
+                                })
+                                .catch(err => {
+                                    console.warn('[RenderEngine] Proxy fetch failed:', err);
+                                    // Keep thumbnail if proxy fails
+                                    if (!photo.thumbnailUrl) {
+                                        img.src = 'assets/placeholder-image.png';
+                                    }
+                                });
+                        });
+                    } else {
+                        // Non-Google Photos - load directly
+                        if (src && src.includes('unsplash.com') && src.includes('&w=') && !src.includes('&w=2048')) {
+                            // Upgrade unsplash quality if possible
+                            src = src.replace(/&w=\d+/, '&w=2048');
+                        }
+                        img.src = src;
+
+                        // Fallback for other sources
+                        img.onerror = () => {
                             if (photo.thumbnailUrl && img.src !== photo.thumbnailUrl) {
                                 img.src = photo.thumbnailUrl;
                             } else {
                                 img.src = 'assets/placeholder-image.png';
                             }
-                        }
-                    };
+                        };
+                    }
 
                     // Apply Filters
                     const filterStyle = slot.computedFilter || slot.filter;
@@ -325,10 +331,30 @@ export class RenderEngine {
             const photo = assets.photos.find(p => p.id === cover.backPhotoId);
             if (photo) {
                 const img = document.createElement('img');
-                img.src = photo.url;
                 img.style.width = '100%';
                 img.style.height = '100%';
                 img.style.objectFit = 'cover';
+
+                // Use proxy for Google Photos
+                if (photo.source === 'google-photos' || (photo.url && photo.url.includes('googleusercontent.com'))) {
+                    if (photo.thumbnailUrl) {
+                        img.src = photo.thumbnailUrl;
+                    }
+                    import('./google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
+                        let targetUrl = photo.rawBaseUrl || photo.url;
+                        if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
+                            targetUrl = targetUrl.split('=')[0] + '=d';
+                        } else if (!targetUrl.includes('=d')) {
+                            targetUrl = `${targetUrl}=d`;
+                        }
+                        googlePhotosService.fetchHighResImage(targetUrl)
+                            .then(dataUri => { img.src = dataUri; })
+                            .catch(err => console.warn('[RenderEngine] Cover back photo proxy failed:', err));
+                    });
+                } else {
+                    img.src = photo.url;
+                }
+
                 backEl.appendChild(img);
             }
         }
@@ -414,11 +440,30 @@ export class RenderEngine {
             if (photo) {
                 photoEl = document.createElement('div');
                 photoEl.style.position = 'absolute';
-                photoEl.style.backgroundImage = `url(${photo.url})`;
                 photoEl.style.backgroundSize = 'cover';
                 photoEl.style.backgroundPosition = 'center';
                 photoEl.dataset.selectableId = 'cover-photo';
                 photoEl.dataset.selectableType = 'cover-photo';
+
+                // Use proxy for Google Photos
+                if (photo.source === 'google-photos' || (photo.url && photo.url.includes('googleusercontent.com'))) {
+                    if (photo.thumbnailUrl) {
+                        photoEl.style.backgroundImage = `url(${photo.thumbnailUrl})`;
+                    }
+                    import('./google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
+                        let targetUrl = photo.rawBaseUrl || photo.url;
+                        if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
+                            targetUrl = targetUrl.split('=')[0] + '=d';
+                        } else if (!targetUrl.includes('=d')) {
+                            targetUrl = `${targetUrl}=d`;
+                        }
+                        googlePhotosService.fetchHighResImage(targetUrl)
+                            .then(dataUri => { photoEl.style.backgroundImage = `url(${dataUri})`; })
+                            .catch(err => console.warn('[RenderEngine] Cover front photo proxy failed:', err));
+                    });
+                } else {
+                    photoEl.style.backgroundImage = `url(${photo.url})`;
+                }
                 // Removed local drop listeners to allow bubbling to app.js
                 // photoEl.addEventListener('dragover', (e) => e.preventDefault());
                 // photoEl.addEventListener('drop', (e) => { ... });

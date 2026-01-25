@@ -662,9 +662,13 @@ export class PDFExport {
                     if (src && src.includes('unsplash.com') && src.includes('&w=')) {
                         src = src.replace(/&w=\d+/, '&w=2048');
                     }
-                    // Google Photos params (if rawBaseUrl used)
-                    if (src && photo.source === 'google-photos' && !src.includes('=w')) {
-                        src = `${src}=w2048-h2048`;
+                    // Google Photos params - Use original full resolution for PDF export
+                    if (src && photo.source === 'google-photos') {
+                        if (src.includes('=w') || src.includes('=h') || src.includes('=s')) {
+                            src = src.split('=')[0] + '=d';
+                        } else {
+                            src = `${src}=d`;
+                        }
                     }
 
                     if (src && src.startsWith('data:')) {

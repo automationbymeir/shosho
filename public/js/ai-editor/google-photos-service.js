@@ -217,22 +217,23 @@ class GooglePhotosService {
                     let photos = (sessionData.photos || []).map(p => {
                         // Ensure baseUrl is clean
                         const baseUrl = p.baseUrl;
-                        // Robustly append sizing. 
-                        // If url already has params (rare for baseUrl but possible), use & or ?. 
-                        // Actually Google Photos BaseURL works best with direct append.
-                        // Check if it creates a double ==
+
+                        // Use =d parameter to get original full resolution image
+                        // This preserves the original quality without any downscaling
                         let highResUrl = baseUrl;
-                        if (baseUrl.includes('=w')) {
-                            // Already has sizing? Replace it or leave it?
-                            // Best to strip existing params and re-append to be safe?
-                            // Simpler: Just append if not present.
+
+                        // Strip any existing sizing parameters and add =d for original resolution
+                        if (baseUrl.includes('=w') || baseUrl.includes('=h') || baseUrl.includes('=s')) {
+                            // Remove existing sizing parameters
+                            highResUrl = baseUrl.split('=')[0] + '=d';
                         } else {
-                            highResUrl = baseUrl + '=w2048-h2048';
+                            // Add =d parameter for original resolution
+                            highResUrl = baseUrl + '=d';
                         }
 
                         return {
                             id: p.id,
-                            url: highResUrl, // High Res Preferred
+                            url: highResUrl, // Original Full Resolution
                             thumbnailUrl: null,
                             rawBaseUrl: p.baseUrl,
                             name: p.filename || 'Google Photo',

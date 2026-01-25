@@ -35,17 +35,11 @@ class App {
 
     async initConfig() {
         // 1. Try Local Config (Ignored file)
-        try {
-            // Timestamp to bust cache if needed, though module cache usually persists
-            const module = await import('./config.js');
-            if (module.CONFIG && module.CONFIG.GEMINI_API_KEY) {
-                console.log("[App] Initializing Gemini with Key from config.js");
-                geminiService.init(module.CONFIG.GEMINI_API_KEY);
-                return;
-            }
-        } catch (e) {
-            // config.js not found - expected in production or fresh clone
-            // console.log("[App] No local config.js found.");
+        // 1. Try Local Global Config (loaded via script tag)
+        if (window.CONFIG && window.CONFIG.GEMINI_API_KEY) {
+            console.log("[App] Initializing Gemini with Key from window.CONFIG");
+            geminiService.init(window.CONFIG.GEMINI_API_KEY);
+            return;
         }
 
         // 2. Try LocalStorage
@@ -101,39 +95,15 @@ class App {
                 }
 
                 if (savedData) {
-                    // --- 2. REFRESH GOOGLE PHOTOS URLs ---
-                    // Fix 403 Errors on Reload
-                    if (savedData.assets && savedData.assets.photos && savedData.assets.photos.length > 0) {
-                        const googlePhotoIds = savedData.assets.photos
-                            .filter(p => p.source === 'google-photos' && p.id)
-                            .map(p => p.id);
-
-                        if (googlePhotoIds.length > 0) {
-                            console.log(`[App] Refreshing ${googlePhotoIds.length} Google Photo URLs...`);
-                            try {
-                                const refreshResult = await googlePhotosService.refreshMediaItemUrls(user.uid, googlePhotoIds);
-                                if (refreshResult.success && refreshResult.urls) {
-                                    savedData.assets.photos = savedData.assets.photos.map(p => {
-                                        if (p.source === 'google-photos' && refreshResult.urls[p.id]) {
-                                            // Update Base URL
-                                            const newBase = refreshResult.urls[p.id];
-                                            return {
-                                                ...p,
-                                                rawBaseUrl: newBase,
-                                                url: newBase.includes('=w') ? newBase : `${newBase}=w2048-h2048`
-                                            };
-                                        }
-                                        return p;
-                                    });
-                                    console.log("[App] URLs Refreshed successfully.");
-                                }
-                            } catch (e) {
-                                console.warn("[App] Failed to refresh URLs:", e);
-                            }
-                        }
+                    // --- 2. CLEAR PHOTOS FROM PREVIOUS SESSION ---
+                    // Only load photos from current session, not previous sessions
+                    // User can add photos using the "Add Photos" button
+                    if (savedData.assets) {
+                        console.log(`[App] Clearing ${savedData.assets.photos?.length || 0} photos from previous session.`);
+                        savedData.assets.photos = []; // Clear photos from previous session
                     }
 
-                    // Restore key state properties
+                    // Restore key state properties (without photos from previous session)
                     Object.assign(store.state, {
                         ...savedData,
                         user: user, // Ensure user stays
@@ -240,17 +210,10 @@ class App {
     }
 
     async loadAssets() {
-        // Load mock photos for MVP
-        // In real implementation, this would fetch from Google Photos API
-        const mockPhotos = [
-            { id: 'p1', url: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=2048&q=80', ratio: 1.5 }, // Mountians
-            { id: 'p2', url: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=2048&q=80', ratio: 1.5 }, // Nature
-            { id: 'p3', url: 'https://images.unsplash.com/photo-1510784722466-f2aa9c52fff6?auto=format&fit=crop&w=2048&q=80', ratio: 0.67 }, // Sunset
-            { id: 'p4', url: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=2048&q=80', ratio: 1.5 }, // River
-            { id: 'p5', url: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=2048&q=80', ratio: 1.5 }  // Forest
-        ];
+        // Mock photos removed for Clean Slate feature.
+        // User must upload photos or they will be loaded from persistence.
 
-        store.state.assets.photos = mockPhotos;
+        // store.state.assets.photos = mockPhotos; -- Removed
         this.renderAssetSidebar();
 
         // Initialize with one page
@@ -1032,8 +995,24 @@ class App {
 
                     if (photos && photos.length > 0) {
                         store.pushState('Upload Google Photos');
-                        // Add to assets
-                        store.state.assets.photos = [...store.state.assets.photos, ...photos];
+
+                        // --- ASK REPLACE VS APPEND ---
+                        // If there are existing photos, ask user if they want to Replace or Append
+                        if (store.state.assets.photos.length > 0) {
+                            if (window.confirm("You already have photos in your library.\n\nClick OK to ADD these photos to your existing ones.\nClick Cancel to REPLACE all photos with the new selection.")) {
+                                // Append
+                                store.state.assets.photos = [...store.state.assets.photos, ...photos];
+                                console.log("[App] User chose to APPEND to library.");
+                            } else {
+                                // Replace
+                                store.state.assets.photos = photos;
+                                console.log("[App] User chose to REPLACE library.");
+                            }
+                        } else {
+                            // No existing photos, just add them
+                            store.state.assets.photos = photos;
+                        }
+
                         this.renderAssetSidebar();
                         uploadModal.style.display = 'none';
                         console.log("Imported Google Photos:", photos.length);
@@ -1323,49 +1302,37 @@ class App {
      * @param {boolean} confirm - Whether to ask for confirmation
      */
     startNewProject(confirm = true) {
-        if (confirm && !window.confirm("Are you sure you want to start a new project? This will clear your current album.")) {
+        if (confirm && !window.confirm("Are you sure you want to start a new project? This will clear your current album AND remove all imported photos.")) {
             return;
         }
 
-        console.log("[App] Starting new project (Clean Slate)...");
+        console.log("[App] Starting new project (Full Reset)...");
 
-        // Reset State
-        store.state.pages = [];
-        store.state.cover = {
-            title: 'My Photo Book',
-            subtitle: 'A collection of memories',
-            layout: 'standard',
-            color: '#ffffff',
-            theme: 'classic',
-            spineText: 'My Photo Book'
-        };
-        store.state.activePageId = null;
-        store.state.theme = 'classic';
+        // UI Feedback
+        const btn = document.getElementById('btn-new-project');
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Resetting...';
 
-        // Keep assets or clear them? User said "clean album... loading photos".
-        // Usually "New Project" implies keeping the *app* open but clearing the *work*.
-        // We'll keep the assets in the sidebar (photos) so they don't have to re-import, 
-        // but clear the pages.
-        // If they want to clear photos too, they can delete them.
+        // Full State Reset (includes clearing assets)
+        store.reset();
 
-        // Add one empty page
+        // Add one empty page to start
         store.addPage();
+        store.state.viewMode = 'pages';
 
-        // Notify
-        store.notify('pages', store.state.pages);
-        store.notify('cover', store.state.cover);
-
-        // Force Persistence Clear/Update
+        // Clear Persistence immediatley to prevent reload of old data
         if (store.state.user) {
             persistenceService.saveProject(store.state.user.uid, store.state);
         }
 
-        // Render
-        this.renderActivePage();
-        this.updateTimeline(store.state.pages, store.state.activePageId);
-
-        console.log("[App] Project reset complete.");
+        // Restore UI
+        setTimeout(() => {
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-file-circle-plus"></i> New';
+            // Force sidebar refresh specifically for photos
+            this.renderAssetSidebar();
+        }, 500);
     }
+
+
 
     updatePropertiesPanel(state) {
         const panel = document.getElementById('properties-panel');
@@ -2002,6 +1969,16 @@ class App {
                 const photos = await googlePhotosService.openPicker();
 
                 // --- CLEAN ALBUM LOGIC ---
+                // If there are existing photos, ask user if they want to Replace or Append
+                if (store.state.assets.photos.length > 0 && photos.length > 0) {
+                    if (window.confirm("You already have photos in your library.\n\nClick OK to REPLACE them with the new selection.\nClick Cancel to APPEND (keep existing).")) {
+                        store.state.assets.photos = []; // clear first
+                        console.log("[App] User chose to REPLACE library.");
+                    } else {
+                        console.log("[App] User chose to APPEND to library.");
+                    }
+                }
+
                 // If the current project contains the "Family Roots" default template (which the user dislikes as default), 
                 // and we are just importing photos, likely we want to start fresh.
                 // We'll detect if the pages are using this template ID.

@@ -6,8 +6,23 @@
 class EditorStore {
     constructor() {
         this.listeners = new Set();
+        this.history = [];
+        this.historyIndex = -1;
+        this.maxHistory = 50;
 
-        const initialState = {
+        const initialState = this.getInitialState();
+
+        this.state = new Proxy(initialState, {
+            set: (target, property, value) => {
+                target[property] = value;
+                this.notify(property, value);
+                return true;
+            }
+        });
+    }
+
+    getInitialState() {
+        return {
             activePageId: null,
             pages: [],         // Array of Page objects
             assets: {
@@ -31,18 +46,32 @@ class EditorStore {
             },
             viewMode: 'pages' // 'pages' | 'cover'
         };
+    }
 
-        this.history = [];
-        this.historyIndex = -1;
-        this.maxHistory = 50;
+    reset() {
+        const freshState = this.getInitialState();
+        // Reset properties one by one to trigger Proxy traps if needed, 
+        // OR just overwrite the keys of current state object if it is the target.
+        // Since we wrapped 'initialState' object in Proxy, we can mutate it.
 
-        this.state = new Proxy(initialState, {
-            set: (target, property, value) => {
-                target[property] = value;
-                this.notify(property, value);
-                return true;
+        Object.keys(this.state).forEach(key => {
+            // Check if key exists in freshState (to avoid keeping stale keys)
+            // But we also need to clear keys that are NOT in freshState if any were added.
+            // Simplified: Copy fresh keys over.
+            if (key !== 'user') { // Preserve user session if it's in state (it is stored in app.js usually but sometimes synced)
+                // Actually app.js:72 says store.state.user = user. We should KEEP user.
+                delete this.state[key];
             }
         });
+
+        Object.assign(this.state, freshState);
+
+        // Clear History
+        this.history = [];
+        this.historyIndex = -1;
+
+        console.log('[Store] State reset to initial.');
+        this.notify('reset', null);
     }
 
     // History Management

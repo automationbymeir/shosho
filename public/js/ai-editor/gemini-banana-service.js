@@ -26,19 +26,22 @@ class GeminiBananaService {
         this.apiKey = apiKey;
         this.genAI = new GoogleGenerativeAI(this.apiKey);
 
-        // "Nano Banana Pro" (Gemini 3 Pro Image Preview) -> High Quality Image Gen/Edit/Thinking
+        // "Nano Banana Pro" -> Gemini 3 Pro Image Preview
+        // Designed for professional asset production, advanced reasoning, 4K, thinking.
         this.modelPro = this.genAI.getGenerativeModel({
             model: "gemini-3-pro-image-preview",
             generationConfig: {
-                // responseModalities: ["TEXT", "IMAGE"] // Default
+                responseModalities: ["TEXT", "IMAGE"]
             }
         });
 
-        // "Nano Banana" (Gemini 2.5 Flash Image) -> Speed/Efficiency
+        // "Nano Banana" -> Gemini 2.5 Flash Image
+        // Designed for speed, efficiency, high-volume.
         this.modelFlash = this.genAI.getGenerativeModel({
             model: "gemini-2.5-flash-image",
             generationConfig: {
-                // responseMimeType: "application/json" // Note: valid for text outputs
+                // responseMimeType: "application/json" -- DISABLED: Causes 400 on gemini-2.5-flash-image
+                // We will parse the JSON string manually from the text response.
             }
         });
     }
@@ -74,7 +77,8 @@ class GeminiBananaService {
                 const result = await this.modelFlash.generateContent(parts);
                 const text = result.response.text();
                 console.log('[GeminiBanana] Analysis Result:', text);
-                return JSON.parse(text);
+                const jsonStr = text.replace(/```json\n?|```/g, '').trim();
+                return JSON.parse(jsonStr);
             } catch (e) {
                 console.warn('[GeminiBanana] Analysis failed, using mock data:', e);
             }
@@ -107,7 +111,8 @@ class GeminiBananaService {
         if (this.genAI) {
             console.log('[GeminiBanana] Generating image for:', prompt);
             try {
-                // High Resolution Config (2K) as per "Nano Banana" docs
+                // Gemini 3 Pro (Nano Banana Pro) Config
+                // Docs: aspect_ratio="4:3", resolution="2K" (uppercase K)
                 const generationConfig = {
                     responseModalities: ["IMAGE"],
                     imageConfig: {
@@ -117,8 +122,8 @@ class GeminiBananaService {
                 };
 
                 const result = await this.modelPro.generateContent({
-                    contents: [{ text: prompt }],
-                    generationConfig: generationConfig
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: generationConfig // overrides constructor config
                 });
 
                 const response = await result.response;
@@ -128,7 +133,11 @@ class GeminiBananaService {
                     throw new Error("Invalid response structure");
                 }
 
+                // Parse parts - Docs say check for text vs inline_data
                 const parts = response.candidates[0].content.parts;
+
+                // Find image part
+                // The SDK maps snake_case JSON to camelCase properties usually, but let's be robust
                 const imagePart = parts.find(p => p.inlineData);
 
                 if (imagePart && imagePart.inlineData) {
@@ -176,7 +185,7 @@ class GeminiBananaService {
                 ];
 
                 const result = await this.modelPro.generateContent({
-                    contents: parts,
+                    contents: [{ role: 'user', parts: parts }],
                     generationConfig: {
                         responseModalities: ["IMAGE"],
                         imageConfig: {
@@ -298,7 +307,7 @@ class GeminiBananaService {
                 const text = result.response.text();
                 console.log('[GeminiBanana] Album Plan:', text);
                 // Ensure we parse potentially markdown-wrapped JSON
-                const jsonStr = text.replace(/```json\n?|\n?```/g, '');
+                const jsonStr = text.replace(/```json\n?|```/g, '').trim();
                 return JSON.parse(jsonStr);
             } catch (e) {
                 console.warn('[GeminiBanana] Planning failed, using mock data:', e);
@@ -349,7 +358,10 @@ class GeminiBananaService {
                 - Design system: ${JSON.stringify(pageContext.designSystem)}
                 - Album mood: ${pageContext.mood}
                 
-                Create a unique layout. CRITICAL: Use strictly the provided photo indices (0 to ${pageContext.photoDescriptions.length - 1}). Do not hallucinate more photos.
+                Create a unique layout. CRITICAL: 
+                1. Use strictly the provided photo indices (0 to ${pageContext.photoDescriptions.length - 1}). Do not hallucinate more photos.
+                2. IMPORTANT: Ensure text elements DO NOT overlap with any photo slots. Place text in clear space, or with significant padding from photos.
+                
                 Return JSON match:
                 {
                   "pageId": "${pageContext.pageId}",
@@ -391,7 +403,7 @@ class GeminiBananaService {
                 const result = await this.modelFlash.generateContent([{ text: prompt }]);
                 const text = result.response.text();
                 console.log('[GeminiBanana] Page Design:', text);
-                const jsonStr = text.replace(/```json\n ?|\n ? ```/g, '');
+                const jsonStr = text.replace(/```json\n?|```/g, '').trim();
                 return JSON.parse(jsonStr);
             } catch (e) {
                 console.warn('[GeminiBanana] Page design failed, using mock:', e);

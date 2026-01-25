@@ -128,7 +128,7 @@ exports.fetchThumbnailBatch = onCall(async (request) => {
   return photos.fetchThumbnailBatch(request.auth.uid, baseUrls);
 });
 
-exports.fetchHighResImage = onCall(async (request) => {
+exports.fetchHighResImage = onCall({ timeoutSeconds: 300, memory: "1GiB" }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }

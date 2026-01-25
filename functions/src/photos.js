@@ -17,7 +17,7 @@ function normalizeGooglePhotoBaseUrl(u) {
   const idx = u.lastIndexOf("=");
   if (idx < 0) return u;
   const suffix = u.slice(idx + 1);
-  if (/^(w|h|s)\d/i.test(suffix)) return u.slice(0, idx);
+  if (/^((w|h|s)\d+|d)$/i.test(suffix)) return u.slice(0, idx);
   return u;
 }
 
