@@ -3,8 +3,20 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
     <title>Shoso AI Editor</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="/favicon.svg">
+
+    <!-- Capacitor for Native App (auto-injected in mobile apps, not needed for web) -->
+    <!-- <script src="capacitor.js"></script> -->
 
     <!-- Fonts -->
     <script type="importmap">
@@ -19,6 +31,9 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,300;0,400;0,700;1,400&family=Allura&family=Cinzel:wght@400;600&family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Montserrat:ital,wght@0,300;0,400;0,600;1,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Rubik:wght@300;400;500;700&display=swap"
         rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Frank+Ruhl+Libre:wght@300;400;500;700&family=Heebo:wght@200;300;400&display=swap"
+        rel="stylesheet">
 
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -28,6 +43,9 @@
     <link rel="stylesheet" href="css/photography-portfolio.css">
     <link rel="stylesheet" href="css/travel-journey.css">
     <link rel="stylesheet" href="css/bar-mitzvah.css">
+    <link rel="stylesheet" href="css/wedding-prestige.css">
+    <!-- Mobile Responsive Styles -->
+    <link rel="stylesheet" href="css/ai-editor-mobile.css">
     <!-- Travel Journey Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
@@ -183,6 +201,8 @@
 
     <!-- PDF Lib -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- html2canvas for Canvas-based PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- Firebase SDKs (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -247,13 +267,13 @@
 
     <!-- Editor Modules -->
     <script src="js/config.js"></script>
-    <script type="module" src="js/ai-editor/state.js"></script>
-    <script type="module" src="js/ai-editor/layout-engine.js"></script>
-    <script type="module" src="js/ai-editor/render-engine.js"></script>
-    <script type="module" src="js/ai-editor/pdf-export.js"></script>
-    <script type="module" src="js/ai-editor/magic-create-v2.js"></script>
+    <script type="module" src="js/ai-editor/core/state.js"></script>
+    <script type="module" src="js/ai-editor/engines/layout-engine.js"></script>
+    <script type="module" src="js/ai-editor/engines/render-engine.js"></script>
+    <script type="module" src="js/ai-editor/engines/pdf-export.js"></script>
+    <script type="module" src="js/ai-editor/engines/magic-create-v2.js"></script>
     <script type="module" src="js/ai-editor/ui-components/magic-launcher.js"></script>
-    <script type="module" src="js/ai-editor/app.js?v=debug2"></script>
+    <script type="module" src="js/ai-editor/core/app.js?v=debug2"></script>
 
     <!-- New Template System -->
     <!-- Moved to data section -->
@@ -293,6 +313,9 @@
             <div class="loader-progress-fill"></div>
         </div>
     </div>
+
+    <!-- Mobile Handler -->
+    <script src="js/ai-editor-mobile.js"></script>
 </body>
 
 </html>
