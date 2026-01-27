@@ -1,4 +1,4 @@
-import { authService } from './firebase-auth.js';
+import { authService } from './firebase-auth-service.js';
 
 export const persistenceService = {
     async saveProject(userId, projectData) {

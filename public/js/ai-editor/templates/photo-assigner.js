@@ -10,47 +10,28 @@ export class PhotoAssigner {
 
     /**
      * Auto-assign photos to create album pages
+     * NOTE: This method DOES NOT include cover pages - cover is handled separately by generateCover()
      * @returns {Array} Array of { layout, photos, textContent }
      */
     assignPhotos() {
         const strategy = this.config.photoAssignmentRules?.groupingStrategy || 'sequential';
 
         if (strategy === 'by_category_similarity') {
-            return this.assignPhotosByCategory();
+            return this.assignPhotosByCategoryNoCover();
         } else if (strategy === 'chronological_by_location') {
-            return this.assignPhotosByLocation();
+            return this.assignPhotosByLocationNoCover();
         }
 
-        // Default Sequential Logic
+        // Default Sequential Logic (WITHOUT COVER - cover handled separately)
         const pages = [];
         let remainingPhotos = [...this.photos];
-        const sequence = this.config.defaultPageSequence;
+        const sequence = this.config.defaultPageSequence ||
+            this.config.pageLayouts.map(l => ({ layoutId: l.layoutId })); // Fallback if no sequence defined
 
-        // ... existing sequential logic ...
-        // (Since I'm replacing the whole method block, I need to keep the sequential part or move it to a helper)
-
-        // Re-implementing sequential logic here for clarity as fallback
-        const heroIndex = this.findBestHeroIndex(remainingPhotos);
-        let heroPhoto = null;
-        if (heroIndex !== -1) {
-            heroPhoto = remainingPhotos[heroIndex];
-            remainingPhotos.splice(heroIndex, 1);
-        } else if (remainingPhotos.length > 0) {
-            heroPhoto = remainingPhotos.shift();
-        }
-
-        const coverLayout = this.getLayout('cover') || this.getLayout('cover-hero'); // Fallback for new template
-        if (coverLayout) {
-            pages.push({
-                layout: coverLayout,
-                photos: [heroPhoto].filter(Boolean),
-                textContent: this.config.autoGenerateText?.defaultTitles?.cover
-                    ? { title: this.config.autoGenerateText.defaultTitles.cover[0] }
-                    : { title: 'Our Love Story' }
-            });
-        }
-
-        const bodySequence = sequence.filter(s => s.layoutId !== 'cover' && s.layoutId !== 'cover-hero' && s.layoutId !== 'thank-you' && s.layoutId !== 'single-hero-centered');
+        // Filter out cover layouts from the sequence
+        const bodySequence = sequence.filter(s =>
+            !s.layoutId.toLowerCase().includes('cover')
+        );
 
         for (const seqItem of bodySequence) {
             if (remainingPhotos.length === 0) break;
@@ -58,7 +39,7 @@ export class PhotoAssigner {
             if (!layout) continue;
 
             const slotsCount = layout.photoSlots ? layout.photoSlots.length : 0;
-            if (remainingPhotos.length >= slotsCount) {
+            if (slotsCount === 0 || remainingPhotos.length >= slotsCount) {
                 const pagePhotos = remainingPhotos.splice(0, slotsCount);
                 pages.push({
                     layout: layout,
@@ -68,28 +49,154 @@ export class PhotoAssigner {
             }
         }
 
+        // Handle remaining photos with overflow layouts
         while (remainingPhotos.length > 0) {
-            // Overflow logic
-            // Try to use gallery layouts if available
             if (remainingPhotos.length >= 2) {
                 const layout = this.getLayout('two-photos-vertical') || this.getLayout('duo-horizontal');
                 const pagePhotos = remainingPhotos.splice(0, 2);
                 if (layout) pages.push({ layout, photos: pagePhotos, textContent: this.generateDefaultText(layout) });
             } else {
-                const layout = this.getLayout('story-right-photo') || this.getLayout('about-studio'); // safe fallback
+                const layout = this.getLayout('story-right-photo') || this.getLayout('about-studio');
                 const pagePhotos = remainingPhotos.splice(0, 1);
                 if (layout) pages.push({ layout, photos: pagePhotos, textContent: this.generateDefaultText(layout) });
                 else remainingPhotos = []; // prevent infinite loop if no fallback
             }
         }
 
-        // Closing Page
+        // Closing Page (thank-you page, not cover)
         const closingLayout = this.getLayout('thank-you') || this.getLayout('single-hero-centered');
-        if (closingLayout) {
+        if (closingLayout && !closingLayout.layoutId.toLowerCase().includes('cover')) {
             pages.push({
                 layout: closingLayout,
                 photos: [],
                 textContent: this.generateDefaultText(closingLayout)
+            });
+        }
+
+        return pages;
+    }
+
+    /**
+     * Category-based assignment WITHOUT cover (cover handled separately)
+     */
+    assignPhotosByCategoryNoCover() {
+        const pages = [];
+        const categorized = this.categorizePhotos();
+
+        // 2. About (NO COVER - cover handled separately)
+        const aboutLayout = this.getLayout('about-studio');
+        if (aboutLayout) {
+            pages.push({
+                layout: aboutLayout,
+                photos: [this.photos[0]],
+                textContent: this.generateDefaultText(aboutLayout)
+            });
+        }
+
+        // 3. ToC
+        if (Object.keys(categorized).length >= 3) {
+            const tocLayout = this.getLayout('table-of-contents');
+            if (tocLayout) {
+                const tocPhotos = Object.values(categorized).map(list => list[0]).slice(0, 6);
+                pages.push({
+                    layout: tocLayout,
+                    photos: tocPhotos,
+                    textContent: this.generateTocLabels(categorized)
+                });
+            }
+        }
+
+        // 4. Categories
+        Object.entries(categorized).forEach(([category, photos]) => {
+            if (photos.length > 0) {
+                let layoutId = 'category-hero-left';
+                if (photos.length >= 5) layoutId = 'category-hero-grid';
+                else if (photos.length === 4) layoutId = 'category-collage';
+
+                const layout = this.getLayout(layoutId);
+                if (layout) {
+                    const slots = layout.photoSlots.length;
+                    const pagePhotos = photos.slice(0, slots);
+                    pages.push({
+                        layout: layout,
+                        photos: pagePhotos,
+                        textContent: { categoryTitle: category, categorySubtitle: 'Collection' }
+                    });
+
+                    let remaining = photos.slice(slots);
+                    this.addGalleryPages(pages, remaining);
+                }
+            }
+        });
+
+        // 5. Closing
+        const closingLayout = this.getLayout('thank-you');
+        if (closingLayout) {
+            pages.push({ layout: closingLayout, photos: [], textContent: this.generateDefaultText(closingLayout) });
+        }
+
+        return pages;
+    }
+
+    /**
+     * Location-based assignment WITHOUT cover (cover handled separately)
+     */
+    assignPhotosByLocationNoCover() {
+        const pages = [];
+        let photoIndex = 0;
+
+        // Group photos by location/date
+        const locationGroups = this.groupPhotosByLocation();
+
+        // NO COVER - cover handled separately
+
+        // 1. Title/intro page
+        const titleLayout = this.getLayout('title-hero');
+        if (titleLayout) {
+            pages.push({
+                layout: titleLayout,
+                photos: [this.findBestHeroPhoto(this.photos)] || [this.photos[0]],
+                textContent: {
+                    destination: this.detectDestination() || 'Adventure Awaits'
+                }
+            });
+            photoIndex += 1;
+        }
+
+        // 2. Process each location group
+        let locationNumber = 1;
+        locationGroups.forEach((groupPhotos, location) => {
+            if (groupPhotos.length >= 2) {
+                const locationLayout = this.getLayout('location-page');
+                if (locationLayout) {
+                    pages.push({
+                        layout: locationLayout,
+                        photos: [this.findBestHeroFromGroup(groupPhotos)],
+                        textContent: {
+                            locationTitle: location || `Place ${this.numberToWord(locationNumber)}`,
+                            description: ''
+                        }
+                    });
+                }
+
+                const remainingPhotos = groupPhotos.slice(1);
+                this.addTravelGalleryPages(pages, remainingPhotos);
+                locationNumber++;
+            } else if (groupPhotos.length === 1) {
+                this.addTravelGalleryPages(pages, groupPhotos);
+            }
+        });
+
+        // 3. Closing page
+        const closingLayout = this.getLayout('closing-grid');
+        if (closingLayout) {
+            const closingPhotos = this.selectFinalPhotos(4);
+            pages.push({
+                layout: closingLayout,
+                photos: closingPhotos,
+                textContent: {
+                    thanks: 'The End'
+                }
             });
         }
 

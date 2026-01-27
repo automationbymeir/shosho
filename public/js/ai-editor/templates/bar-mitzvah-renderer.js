@@ -420,6 +420,144 @@ class BarMitzvahRenderer {
 
         return key;
     }
+
+    /**
+     * Render cover page using template styling
+     * @param {Object} coverState - Cover state object with title, subtitle, frontPhotoId, etc.
+     * @param {Object} assets - Assets with photos array
+     * @returns {HTMLElement} - Cover DOM element
+     */
+    renderCover(coverState, assets) {
+        // Find cover layout from config
+        const coverLayout = this.config.pageLayouts?.find(
+            l => l.pageType === 'cover' || l.layoutId === 'cover-elegant' || l.layoutId?.includes('cover')
+        );
+
+        if (!coverLayout) {
+            // Fallback: Create a styled cover without layout
+            return this.createFallbackCover(coverState, assets);
+        }
+
+        // Prepare photos for cover
+        const coverPhotos = [];
+        if (coverState.frontPhotoId && assets?.photos) {
+            const photo = assets.photos.find(p => p.id === coverState.frontPhotoId);
+            if (photo) coverPhotos.push(photo);
+        }
+
+        // Prepare text content for cover
+        const textContent = {
+            childName: coverState.title || 'דניאל כהן',
+            hebrewDate: coverState.subtitle || 'י״ג באדר תשפ״ה',
+            barMitzvahLabel: 'בר מצווה',
+            gregorianDate: '',
+            title: coverState.title || ''
+        };
+
+        // Use renderPage with cover layout
+        return this.renderPage(coverLayout, coverPhotos, textContent, {});
+    }
+
+    /**
+     * Create a fallback cover with template styling when no layout is available
+     */
+    createFallbackCover(coverState, assets) {
+        const cover = document.createElement('div');
+        cover.className = 'album-cover bar-mitzvah-cover';
+
+        const width = this.ds.canvas?.width || 800;
+        const height = this.ds.canvas?.height || 600;
+
+        cover.style.cssText = `
+            width: ${width}px;
+            height: ${height}px;
+            background-color: ${this.ds.colors.background || '#FAFAFA'};
+            position: relative;
+            overflow: hidden;
+            direction: rtl;
+            font-family: ${this.ds.fonts?.heading || "'Playfair Display', serif"};
+        `;
+
+        // Add decorative border
+        const border = document.createElement('div');
+        border.style.cssText = `
+            position: absolute;
+            inset: 20px;
+            border: 2px solid ${this.ds.colors.decorative?.gold || '#C9A227'};
+            pointer-events: none;
+        `;
+        cover.appendChild(border);
+
+        // Add cover photo if available
+        if (coverState.frontPhotoId && assets?.photos) {
+            const photo = assets.photos.find(p => p.id === coverState.frontPhotoId);
+            if (photo) {
+                const photoContainer = document.createElement('div');
+                photoContainer.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -60%);
+                    width: 50%;
+                    height: 50%;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                `;
+
+                const img = document.createElement('img');
+                img.src = photo.thumbnailUrl || photo.url;
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                photoContainer.appendChild(img);
+                cover.appendChild(photoContainer);
+            }
+        }
+
+        // Add title text
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = `
+            position: absolute;
+            bottom: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            color: ${this.ds.colors.text?.primary || '#1B365D'};
+        `;
+        titleEl.innerHTML = `
+            <div style="font-size: 14px; color: ${this.ds.colors.decorative?.gold || '#C9A227'}; margin-bottom: 8px;">בר מצווה</div>
+            <div style="font-size: 36px; font-weight: 600; margin-bottom: 8px;">${coverState.title || 'דניאל כהן'}</div>
+            <div style="font-size: 16px; opacity: 0.7;">${coverState.subtitle || 'י״ג באדר תשפ״ה'}</div>
+        `;
+        cover.appendChild(titleEl);
+
+        // Add corner decorations
+        this.addCornerDecorations(cover);
+
+        return cover;
+    }
+
+    /**
+     * Add corner decorations to an element
+     */
+    addCornerDecorations(element) {
+        const goldColor = this.ds.colors.decorative?.gold || '#C9A227';
+        const corners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+        corners.forEach(corner => {
+            const deco = document.createElement('div');
+            const [vertical, horizontal] = corner.split('-');
+            deco.style.cssText = `
+                position: absolute;
+                ${vertical}: 30px;
+                ${horizontal}: 30px;
+                width: 40px;
+                height: 40px;
+                border-${vertical}: 2px solid ${goldColor};
+                border-${horizontal}: 2px solid ${goldColor};
+            `;
+            element.appendChild(deco);
+        });
+    }
 }
 
 if (typeof window !== 'undefined') {

@@ -1,0 +1,556 @@
+/* Baby's First Year Template CSS */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #E8B4B8 0%, #A8D4D8 100%);
+    padding: 40px;
+    font-family: 'Heebo', sans-serif;
+    direction: rtl;
+    min-height: 100vh;
+}
+
+h1 {
+    color: #5D5A56;
+    text-align: center;
+    margin-bottom: 8px;
+    font-family: 'Rubik', sans-serif;
+    font-weight: 700;
+    font-size: 42px;
+}
+
+.subtitle {
+    color: #5D5A56;
+    text-align: center;
+    margin-bottom: 50px;
+    font-size: 16px;
+    font-weight: 300;
+    opacity: 0.8;
+}
+
+.pages-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 50px;
+}
+
+.page-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.page-label {
+    color: #5D5A56;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+    font-weight: 500;
+}
+
+.album-page {
+    width: 800px;
+    height: 600px;
+    background: #FDFBF9;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    direction: rtl;
+}
+
+.photo {
+    position: absolute;
+    background: linear-gradient(135deg, #F5E6C8 0%, #E8DDD4 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo.soft {
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(93, 90, 86, 0.08);
+}
+
+.photo.default {
+    border-radius: 12px;
+    box-shadow: 0 6px 25px rgba(93, 90, 86, 0.1);
+}
+
+.photo.circle {
+    border-radius: 50%;
+    border: 5px solid #FFFFFF;
+    box-shadow: 0 6px 25px rgba(93, 90, 86, 0.12);
+}
+
+.text-display {
+    font-family: 'Rubik', sans-serif;
+    color: #5D5A56;
+}
+
+.text-heading {
+    font-family: 'Heebo', sans-serif;
+    color: #5D5A56;
+}
+
+.text-body {
+    font-family: 'Heebo', sans-serif;
+    color: #7A7672;
+}
+
+.text-playful {
+    font-family: 'Varela Round', sans-serif;
+    color: #E8B4B8;
+}
+
+.text-accent {
+    color: #E8B4B8;
+}
+
+.text-light {
+    color: #A09B95;
+}
+
+.centered {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.star {
+    position: absolute;
+    color: #F5E6C8;
+    font-size: 20px;
+}
+
+.heart {
+    position: absolute;
+    color: #E8B4B8;
+    font-size: 16px;
+}
+
+.cloud {
+    position: absolute;
+    color: #A8D4D8;
+    font-size: 30px;
+    opacity: 0.3;
+}
+
+.dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #E8B4B8;
+    opacity: 0.4;
+}
+
+/* Cover */
+.cover .welcome {
+    top: 4%;
+    font-size: 18px;
+    font-weight: 300;
+}
+
+.cover .photo-main {
+    left: 22%;
+    top: 12%;
+    width: 56%;
+    height: 52%;
+}
+
+.cover .name {
+    top: 70%;
+    font-size: 52px;
+    font-weight: 700;
+}
+
+.cover .birth-date {
+    top: 82%;
+    font-size: 16px;
+    font-weight: 400;
+}
+
+.cover .weight {
+    top: 89%;
+    font-size: 14px;
+    font-weight: 300;
+}
+
+.cover .star-1 {
+    left: 15%;
+    top: 20%;
+}
+
+.cover .star-2 {
+    left: 82%;
+    top: 35%;
+    font-size: 16px;
+}
+
+.cover .heart-1 {
+    left: 88%;
+    top: 75%;
+}
+
+/* Birth story */
+.birth-story .photo-main {
+    left: 44%;
+    top: 10%;
+    width: 50%;
+    height: 80%;
+}
+
+.birth-story .title {
+    position: absolute;
+    left: 6%;
+    top: 16%;
+    width: 34%;
+    font-size: 26px;
+    font-weight: 500;
+    text-align: right;
+}
+
+.birth-story .story {
+    position: absolute;
+    left: 6%;
+    top: 30%;
+    width: 34%;
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.9;
+    text-align: right;
+}
+
+/* Month milestone */
+.month .number {
+    top: 4%;
+    font-size: 60px;
+}
+
+.month .label {
+    top: 14%;
+    font-size: 18px;
+    font-weight: 400;
+}
+
+.month .photo-main {
+    left: 20%;
+    top: 18%;
+    width: 60%;
+    height: 52%;
+}
+
+.month .milestones {
+    top: 76%;
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.8;
+    width: 80%;
+}
+
+.month .dot-1 {
+    left: 12%;
+    top: 8%;
+}
+
+.month .dot-2 {
+    left: 88%;
+    top: 12%;
+    width: 8px;
+    height: 8px;
+}
+
+/* Firsts grid */
+.firsts .title {
+    top: 5%;
+    font-size: 28px;
+    font-weight: 500;
+}
+
+.firsts .photo {
+    width: 120px;
+    height: 150px;
+    top: 18%;
+}
+
+.firsts .photo-1 {
+    left: 10%;
+}
+
+.firsts .photo-2 {
+    left: 40%;
+}
+
+.firsts .photo-3 {
+    left: 70%;
+}
+
+.firsts .caption {
+    position: absolute;
+    top: 48%;
+    font-size: 13px;
+    font-weight: 400;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.firsts .caption-1 {
+    left: 18.5%;
+}
+
+.firsts .caption-2 {
+    left: 50%;
+}
+
+.firsts .caption-3 {
+    left: 80%;
+}
+
+.firsts .dates {
+    top: 58%;
+    font-size: 12px;
+    font-weight: 300;
+    width: 90%;
+}
+
+.firsts .star-1 {
+    left: 10%;
+    top: 72%;
+    font-size: 15px;
+}
+
+.firsts .heart-1 {
+    left: 90%;
+    top: 70%;
+    font-size: 14px;
+}
+
+/* Family */
+.family .title {
+    top: 5%;
+    font-size: 28px;
+    font-weight: 500;
+}
+
+.family .photo-main {
+    left: 8%;
+    top: 16%;
+    width: 84%;
+    height: 60%;
+}
+
+.family .caption {
+    top: 82%;
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.7;
+    width: 80%;
+}
+
+/* Grandparents */
+.grandparents .title {
+    top: 5%;
+    font-size: 26px;
+    font-weight: 500;
+}
+
+.grandparents .photo {
+    width: 42%;
+    height: 50%;
+    top: 18%;
+}
+
+.grandparents .photo-1 {
+    left: 6%;
+}
+
+.grandparents .photo-2 {
+    left: 52%;
+}
+
+.grandparents .caption {
+    position: absolute;
+    top: 72%;
+    font-size: 13px;
+    font-weight: 400;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.grandparents .caption-1 {
+    left: 27%;
+}
+
+.grandparents .caption-2 {
+    left: 73%;
+}
+
+.grandparents .quote {
+    top: 84%;
+    font-size: 14px;
+    font-weight: 300;
+    font-style: italic;
+    width: 80%;
+}
+
+/* Quote */
+.quote-page .cloud-1 {
+    left: 20%;
+    top: 22%;
+}
+
+.quote-page .cloud-2 {
+    left: 80%;
+    top: 25%;
+    font-size: 24px;
+}
+
+.quote-page .quote {
+    top: 40%;
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1.7;
+    width: 75%;
+}
+
+.quote-page .author {
+    top: 62%;
+    font-size: 14px;
+}
+
+.quote-page .star-1 {
+    left: 50%;
+    top: 75%;
+    transform: translateX(-50%);
+}
+
+/* Birthday */
+.birthday .title {
+    top: 6%;
+    font-size: 36px;
+    font-weight: 700;
+}
+
+.birthday .photo-main {
+    left: 15%;
+    top: 22%;
+    width: 70%;
+    height: 52%;
+}
+
+.birthday .text {
+    top: 80%;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.7;
+    width: 80%;
+}
+
+.birthday .star-1 {
+    left: 10%;
+    top: 10%;
+    font-size: 20px;
+}
+
+.birthday .star-2 {
+    left: 90%;
+    top: 15%;
+    font-size: 18px;
+}
+
+.birthday .heart-1 {
+    left: 85%;
+    top: 85%;
+    font-size: 15px;
+}
+
+/* Closing */
+.closing .photo-main {
+    left: 25%;
+    top: 8%;
+    width: 50%;
+    height: 45%;
+}
+
+.closing .message {
+    top: 60%;
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1.6;
+    width: 80%;
+}
+
+.closing .signature {
+    top: 78%;
+    font-size: 16px;
+    font-weight: 400;
+}
+
+.closing .heart {
+    top: 86%;
+    font-size: 24px;
+}
+
+.closing .star-1 {
+    left: 15%;
+    top: 70%;
+    font-size: 12px;
+}
+
+.closing .star-2 {
+    left: 85%;
+    top: 65%;
+    font-size: 10px;
+}
+
+.themes {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 50px;
+    flex-wrap: wrap;
+}
+
+.theme-swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.theme-colors {
+    display: flex;
+    gap: 6px;
+}
+
+.color-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.theme-name {
+    color: #5D5A56;
+    font-size: 12px;
+}
+
+.theme-name-en {
+    color: #5D5A56;
+    font-size: 10px;
+    margin-top: -6px;
+    opacity: 0.7;
+}

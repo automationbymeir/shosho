@@ -19,6 +19,7 @@ export class TemplateManager {
         else if (templateId === 'travel-journey-v1') path = 'templates/travel-journey-template.json';
         else if (templateId === 'family-roots-v1') path = 'templates/family-roots-template.json';
         else if (templateId === 'bar-mitzvah-v1') path = 'templates/bar-mitzvah-template.json';
+        else if (templateId === 'wedding-prestige-hebrew-v1') path = 'templates/wedding-prestige-template.json';
 
         if (path) {
             console.log("Loading template path:", path);
@@ -132,11 +133,15 @@ export class TemplateManager {
         const coverLayout = this.config.pageLayouts.find(l => l.layoutId === 'cover' || l.pageType === 'cover');
         if (!coverLayout) return null;
 
+        // Extract default cover title from template
+        const defaultTitle = this.getDefaultCoverTitle();
+        const defaultSubtitle = this.getDefaultCoverSubtitle();
+
         return {
             layout: 'custom', // Use renderer's custom logic
-            title: this.config.autoGenerateText?.title || 'Our Love Story',
-            subtitle: this.config.autoGenerateText?.subtitle || '2025',
-            spineText: this.config.autoGenerateText?.title || 'Our Love Story',
+            title: defaultTitle,
+            subtitle: defaultSubtitle,
+            spineText: defaultTitle,
             frontPhotoId: coverPhotos.front?.id || null,
             backPhotoId: coverPhotos.back?.id || null,
             theme: this.config.designSystem.colors.background, // store background color here
@@ -145,6 +150,72 @@ export class TemplateManager {
             templateId: this.currentTemplateId,
             customLayout: coverLayout // Pass full layout spec for the renderer
         };
+    }
+
+    /**
+     * Get the default cover title from the template configuration
+     * @returns {String} Default title for the cover
+     */
+    getDefaultCoverTitle() {
+        if (!this.config) return 'My Photo Book';
+
+        // Check for explicit title field first
+        if (this.config.autoGenerateText?.title) {
+            return this.config.autoGenerateText.title;
+        }
+
+        // Check for defaultTitles.cover
+        const coverTitle = this.config.autoGenerateText?.defaultTitles?.cover;
+        if (coverTitle) {
+            // Could be a string or an array
+            return Array.isArray(coverTitle) ? coverTitle[0] : coverTitle;
+        }
+
+        // Template-specific fallbacks
+        switch (this.currentTemplateId) {
+            case 'romantic-journey-v1':
+                return 'Our Love Story';
+            case 'photography-portfolio-v1':
+                return 'Photography Portfolio';
+            case 'travel-journey-v1':
+                return 'Travel Journey';
+            case 'family-roots-v1':
+                return 'Family Roots';
+            case 'bar-mitzvah-v1':
+                return 'בר מצווה';
+            default:
+                return 'My Photo Book';
+        }
+    }
+
+    /**
+     * Get the default cover subtitle from the template configuration
+     * @returns {String} Default subtitle for the cover
+     */
+    getDefaultCoverSubtitle() {
+        if (!this.config) return new Date().getFullYear().toString();
+
+        // Check for explicit subtitle field first
+        if (this.config.autoGenerateText?.subtitle) {
+            return this.config.autoGenerateText.subtitle;
+        }
+
+        // Template-specific fallbacks
+        const currentYear = new Date().getFullYear().toString();
+        switch (this.currentTemplateId) {
+            case 'romantic-journey-v1':
+                return currentYear;
+            case 'photography-portfolio-v1':
+                return '';
+            case 'travel-journey-v1':
+                return currentYear;
+            case 'family-roots-v1':
+                return currentYear;
+            case 'bar-mitzvah-v1':
+                return currentYear; // Could be Hebrew date in future
+            default:
+                return currentYear;
+        }
     }
 
     /**

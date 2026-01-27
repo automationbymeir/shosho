@@ -3,7 +3,7 @@
  * Handles the user interface for start the AI album generation.
  */
 
-import { store } from '../state.js';
+import { store } from '../core/state.js';
 
 class MagicLauncher {
     constructor() {

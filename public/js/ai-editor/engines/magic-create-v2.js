@@ -3,10 +3,10 @@
  * Fully AI-Generated Album Designer Orchestrator
  */
 
-import { geminiService } from './gemini-banana-service.js';
-import { validatePhotoAnalysis } from './schemas/photo-analysis-schema.js';
-import { validateAlbum } from './schemas/album-schema.js';
-import { validatePage } from './schemas/page-schema.js';
+import { geminiService } from '../services/ai-service.js';
+import { validatePhotoAnalysis } from '../schemas/photo-analysis-schema.js';
+import { validateAlbum } from '../schemas/album-schema.js';
+import { validatePage } from '../schemas/page-schema.js';
 
 class MagicCreateV2 {
     constructor() {

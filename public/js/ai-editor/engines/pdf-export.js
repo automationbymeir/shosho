@@ -4,7 +4,7 @@
  */
 
 import { layoutEngine } from './layout-engine.js';
-import { authService } from './firebase-auth.js';
+import { authService } from '../services/firebase-auth-service.js';
 
 export class PDFExport {
     constructor(templateConfig) {
@@ -68,71 +68,254 @@ export class PDFExport {
             // 1. Load Hebrew Font
             await this.loadHebrewFont();
 
-            // 2. Render Cover
-            if (cover) {
-                console.log("PDF: Rendering Cover...");
-                await this.renderCoverToPDF(cover, assets);
+            // 2. Render Front Cover (Page 1)
+            if (cover && (cover.frontPhotoId || cover.title)) {
+                console.log("PDF: Rendering Front Cover...");
+                await this.renderFrontCover(cover, assets);
             }
 
-            // 3. Render Pages
-            console.log(`PDF: Rendering ${pages.length} pages...`);
+            // 3. Render Content Pages
+            console.log(`PDF: Rendering ${pages.length} content pages...`);
             for (let i = 0; i < pages.length; i++) {
                 this.doc.addPage([ptWidth, ptHeight]); // Explicitly set format for new pages
                 console.log(`PDF: Rendering Page ${i + 1}`);
                 await this.renderPageToPDF(pages[i], assets);
             }
 
+            // 4. Render Spine Page (if title exists)
+            if (cover && (cover.title || cover.subtitle)) {
+                this.doc.addPage([ptWidth, ptHeight]);
+                console.log("PDF: Rendering Spine...");
+                await this.renderSpine(cover, assets);
+            }
+
+            // 5. Render Back Cover (Last Page)
+            if (cover && cover.backPhotoId) {
+                this.doc.addPage([ptWidth, ptHeight]);
+                console.log("PDF: Rendering Back Cover...");
+                await this.renderBackCover(cover, assets);
+            }
+
             console.log("PDF: Rendering complete. Saving...");
+
+            // Generate filename with .pdf extension
+            const filename = `photo-book-${new Date().toISOString().slice(0, 10)}.pdf`;
+
             // 4. Save or Return
             if (returnBlob) {
-                return this.doc.output('blob');
+                // For blob return, use arraybuffer method with explicit MIME type
+                const pdfData = this.doc.output('arraybuffer');
+                const blob = new Blob([pdfData], { type: 'application/pdf' });
+                console.log(`[PDF] Blob created for return. Size: ${blob.size} bytes, Type: ${blob.type}`);
+                return blob;
             }
-            // Robust download via Modal to avoid Async Blocking
-            const blob = this.doc.output('blob');
-            const url = URL.createObjectURL(blob);
 
-            // Show Modal
-            this.showDownloadModal(url);
+            // For download, use jsPDF's built-in save method which handles everything properly
+            console.log(`[PDF] Triggering direct download: ${filename}`);
+            this.doc.save(filename);
 
-            console.log("PDF: Download modal triggered.");
+            console.log("PDF: Download triggered successfully.");
+
+            // Show success modal
+            this.showSuccessModal(filename);
         } catch (err) {
             console.error("PDF Export Error:", err);
             alert("Export Failed: " + err.message);
         }
     }
 
-    async renderCoverToPDF(cover, assets) {
+    async renderFrontCover(cover, assets) {
         const width = this.doc.internal.pageSize.getWidth();
         const height = this.doc.internal.pageSize.getHeight();
+
+        console.log(`[PDF] Rendering Front Cover - frontPhotoId: ${cover.frontPhotoId}`);
 
         // 1. Background (Texture or Color)
         await this.drawBackground(cover.color, cover.theme, width, height);
 
-        // 2. Font & Text Color
-        this.doc.setTextColor(cover.textColor || "#000000");
-        const fontName = this.mapFont(cover.theme);
-        this.doc.setFont(fontName, "bold");
+        // 2. Render front photo in FULL BLEED (entire page)
+        if (cover.frontPhotoId) {
+            console.log(`[PDF] Drawing front cover photo (full page): ${cover.frontPhotoId}`);
+            // Use full page dimensions for cover photo
+            await this.drawImage(cover.frontPhotoId, 0, 0, width, height, assets, { photoStyle: 'default' });
+        }
 
-        // 3. Layout Logic
-        if (cover.layout === 'full-bleed') {
-            if (cover.frontPhotoId) {
-                await this.drawImage(cover.frontPhotoId, 0, 0, width, height, assets);
+        // 3. Check for template-defined cover layout for TEXT ONLY
+        const coverLayout = cover.customLayout ||
+            (this.templateConfig?.pageLayouts?.find(l => l.pageType === 'cover' || l.layoutId === 'cover-elegant'));
+
+        if (coverLayout) {
+
+            // Render cover text elements from template
+            if (coverLayout.textElements) {
+                for (const textEl of coverLayout.textElements) {
+                    // Determine content - use cover object or placeholder
+                    let content = textEl.content || textEl.placeholder;
+                    if (textEl.elementId === 'childName' && cover.title) content = cover.title;
+                    else if (textEl.elementId === 'hebrewDate' && cover.subtitle) content = cover.subtitle;
+                    else if (textEl.elementId === 'barMitzvahLabel' && textEl.content) content = textEl.content;
+
+                    if (!content) continue;
+
+                    // Calculate position
+                    const tX = (textEl.position && textEl.position.x !== undefined) ? textEl.position.x : textEl.x;
+                    const tY = (textEl.position && textEl.position.y !== undefined) ? textEl.position.y : textEl.y;
+
+                    // Calculate proper alignment based on template definition
+                    let x = 0;
+                    let align = 'left';
+                    const alignMethod = (textEl.alignment && textEl.alignment.method) || '';
+                    const hAlign = (textEl.alignment && textEl.alignment.horizontal) || (textEl.style && textEl.style.align) || 'left';
+
+                    // Parse position values
+                    const posX = parseFloat(tX) || 50;
+                    const posY = parseFloat(tY) || 50;
+
+                    if (alignMethod.includes('transform: translateX(-50%)') || hAlign === 'center') {
+                        // Center alignment: position is the center point
+                        x = (posX / 100) * width;
+                        align = 'center';
+                    } else if (alignMethod.includes('right:') || hAlign === 'right') {
+                        // Right alignment: position is from right edge
+                        x = width - ((posX / 100) * width);
+                        align = 'right';
+                    } else {
+                        // Left alignment: position is from left edge
+                        x = (posX / 100) * width;
+                        align = 'left';
+                    }
+
+                    const y = (posY / 100) * height;
+                    const fontSizePt = textEl.style ? (parseInt(textEl.style.size) * 0.75) : 12;
+
+                    this.doc.setFontSize(fontSizePt);
+                    const fontName = this.mapFont(textEl.style?.font, null, content);
+                    this.doc.setFont(fontName, "normal");
+
+                    const rawColor = textEl.style?.color || cover.textColor || '#000000';
+                    const safeColor = this.resolveColorSafe(rawColor);
+                    this.doc.setTextColor(safeColor);
+
+                    const processedContent = this.processText(content);
+                    if (!processedContent) continue;
+
+                    try {
+                        this.doc.text(String(processedContent), x, y + (fontSizePt / 2), { align: align });
+                    } catch (e) {
+                        console.error("PDF: Failed to render cover text:", e);
+                    }
+                }
             }
-            // Text Overlay
-            this.doc.setFontSize(24);
-            this.doc.text(this.processText(cover.title), width / 2, height - 30, { align: 'center' });
-            this.doc.setFontSize(14);
-            this.doc.text(this.processText(cover.subtitle), width / 2, height - 20, { align: 'center' });
+
+            // Render cover decorations
+            if (coverLayout.decorations) {
+                this.renderDecorations(coverLayout.decorations, width, height);
+            }
+
         } else {
-            // Standard
-            if (cover.frontPhotoId) {
-                // Photo inset based on layout
-                await this.drawImage(cover.frontPhotoId, width * 0.1, height * 0.1, width * 0.8, height * 0.6, assets);
+            // === FALLBACK: LEGACY COVER LAYOUT ===
+            console.log('PDF: Using fallback cover layout');
+
+            // 2. Font & Text Color
+            this.doc.setTextColor(cover.textColor || "#000000");
+            const fontName = this.mapFont(cover.theme);
+            this.doc.setFont(fontName, "bold");
+
+            // 3. Layout Logic
+            if (cover.layout === 'full-bleed') {
+                if (cover.frontPhotoId) {
+                    await this.drawImage(cover.frontPhotoId, 0, 0, width, height, assets);
+                }
+                // Text Overlay
+                this.doc.setFontSize(24);
+                this.doc.text(this.processText(cover.title), width / 2, height - 30, { align: 'center' });
+                this.doc.setFontSize(14);
+                this.doc.text(this.processText(cover.subtitle), width / 2, height - 20, { align: 'center' });
+            } else {
+                // Standard
+                if (cover.frontPhotoId) {
+                    // Photo inset based on layout
+                    await this.drawImage(cover.frontPhotoId, width * 0.1, height * 0.1, width * 0.8, height * 0.6, assets);
+                }
+                this.doc.setFontSize(24);
+                this.doc.text(this.processText(cover.title), width / 2, height - 80, { align: 'center' });
+                this.doc.setFontSize(14);
+                this.doc.text(this.processText(cover.subtitle), width / 2, height - 60, { align: 'center' });
             }
-            this.doc.setFontSize(24);
-            this.doc.text(this.processText(cover.title), width / 2, height - 80, { align: 'center' });
-            this.doc.setFontSize(14);
-            this.doc.text(this.processText(cover.subtitle), width / 2, height - 60, { align: 'center' });
+        }
+    }
+
+    async renderSpine(cover, assets) {
+        const width = this.doc.internal.pageSize.getWidth();
+        const height = this.doc.internal.pageSize.getHeight();
+
+        console.log(`[PDF] Rendering Spine Page`);
+
+        // 1. Background - Use same as cover
+        await this.drawBackground(cover.color, cover.theme, width, height);
+
+        // 2. Render spine text vertically centered
+        if (cover.title || cover.subtitle) {
+            // Set font and color
+            this.doc.setTextColor(cover.textColor || "#FFFFFF");
+            const fontName = this.mapFont(cover.theme);
+            this.doc.setFont(fontName, "bold");
+
+            // Calculate center of page
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Save graphics state
+            this.doc.saveGraphicsState();
+
+            // Rotate text 90 degrees for spine
+            // Move to center, rotate, then draw text
+            const angle = 90;
+            this.doc.setFontSize(18);
+
+            // For spine text, we rotate and position vertically
+            // Title
+            if (cover.title) {
+                const processedTitle = this.processText(cover.title);
+                // Position for vertical spine text
+                this.doc.text(processedTitle, centerX, centerY - 20, {
+                    align: 'center',
+                    angle: 90
+                });
+            }
+
+            // Subtitle (if exists)
+            if (cover.subtitle) {
+                this.doc.setFontSize(12);
+                const processedSubtitle = this.processText(cover.subtitle);
+                this.doc.text(processedSubtitle, centerX, centerY + 40, {
+                    align: 'center',
+                    angle: 90
+                });
+            }
+
+            // Restore graphics state
+            this.doc.restoreGraphicsState();
+        }
+    }
+
+    async renderBackCover(cover, assets) {
+        const width = this.doc.internal.pageSize.getWidth();
+        const height = this.doc.internal.pageSize.getHeight();
+
+        console.log(`[PDF] Rendering Back Cover - backPhotoId: ${cover.backPhotoId}`);
+
+        // 1. Background (Texture or Color)
+        await this.drawBackground(cover.color, cover.theme, width, height);
+
+        // 2. Render back photo in FULL BLEED (entire page)
+        if (cover.backPhotoId) {
+            console.log(`[PDF] Drawing back cover photo (full page): ${cover.backPhotoId}`);
+            // Use full page dimensions - no slots, no template layouts
+            // Just the back photo covering the entire page
+            await this.drawImage(cover.backPhotoId, 0, 0, width, height, assets, { photoStyle: 'default' });
+        } else {
+            console.warn('[PDF] No backPhotoId provided for back cover');
         }
     }
 
@@ -212,10 +395,25 @@ export class PDFExport {
                     const w = (parseFloat(sW) / 100) * width;
                     const h = (parseFloat(sH) / 100) * height;
 
-                    // Slot specific styling (border radius / frame)
-                    // If template has photoStyles, use them
-                    // ... (Simplifying for now, standard drawImage)
+                    // Draw the photo with template styling
                     await this.drawImage(photo.assetId || photo.id || photo, x, y, w, h, assets, slot);
+
+                    // Draw image frame overlay if specified
+                    const frameId = slot.frameId || page.imageFrameId;
+                    if (frameId && window.IMAGE_FRAMES) {
+                        const frameDef = window.IMAGE_FRAMES.find(f => f.id === frameId);
+                        if (frameDef) {
+                            const shape = slot.shape || page.imageShape || 'rect';
+                            const color = slot.frameColor || page.imageFrameColor || frameDef.color;
+                            try {
+                                const svgContent = frameDef.svgGen(w, h, color, shape);
+                                await this.drawSvg(svgContent, x, y, w, h);
+                                console.log(`PDF: Drew image frame ${frameId} at slot ${i}`);
+                            } catch (e) {
+                                console.warn(`PDF: Failed to draw image frame ${frameId}`, e);
+                            }
+                        }
+                    }
                 } else {
                     console.log(`PDF: No photo for slot ${i}`);
                 }
@@ -419,8 +617,8 @@ export class PDFExport {
     async drawTexture(textureDef, w, h) {
         if (textureDef && textureDef.url) {
             try {
-                const base64 = await this.loadImage(textureDef.url);
-                this.doc.addImage(base64, 'JPEG', 0, 0, w, h);
+                const result = await this.loadImage(textureDef.url);
+                this.doc.addImage(result.data, 'JPEG', 0, 0, w, h);
                 return true;
             } catch (e) {
                 console.warn("PDF: Failed to load texture", textureDef.id, e);
@@ -620,6 +818,15 @@ export class PDFExport {
             console.log(`[PDF] Drawing image ${photoId} at ${x.toFixed(1)},${y.toFixed(1)} (${w.toFixed(1)}x${h.toFixed(1)})`);
             try {
                 let success = false;
+                let imageData = null;
+                let imgWidth = 0;
+                let imgHeight = 0;
+
+                // === RESOLVE PHOTO STYLE FROM TEMPLATE ===
+                const photoStyleName = slot?.photoStyle || 'default';
+                const photoStyles = this.templateConfig?.designSystem?.photoStyles || {};
+                const styleConfig = photoStyles[photoStyleName] || {};
+                console.log(`[PDF] Photo style: ${photoStyleName}`, styleConfig);
 
                 // Strategy 1: High Res Proxy (Google Photos)
                 // We want high res for PDF, so we try the backend proxy first which bypasses CORS
@@ -635,7 +842,11 @@ export class PDFExport {
                         const base64HighRes = await this.fetchHighResViaProxy(targetUrl);
                         if (base64HighRes) {
                             console.log(`[PDF] High Res Proxy SUCCESS for ${photoId}. Length: ${base64HighRes.length}`);
-                            this.doc.addImage(base64HighRes, 'JPEG', x, y, w, h, undefined, 'FAST');
+                            imageData = base64HighRes;
+                            // Get dimensions from the base64 image
+                            const dims = await this.getBase64Dimensions(base64HighRes);
+                            imgWidth = dims.width;
+                            imgHeight = dims.height;
                             success = true;
                         } else {
                             console.warn(`[PDF] High Res Proxy returned empty/null for ${photoId}`);
@@ -673,20 +884,70 @@ export class PDFExport {
 
                     if (src && src.startsWith('data:')) {
                         console.log(`[PDF] Using Data URI for ${photoId}`);
-                        this.doc.addImage(src, 'JPEG', x, y, w, h, undefined, 'FAST');
+                        imageData = src;
+                        // Get dimensions from the data URI
+                        const dims = await this.getBase64Dimensions(src);
+                        imgWidth = dims.width;
+                        imgHeight = dims.height;
                         success = true;
                     } else if (src) {
                         // Valid URL but not data URI (e.g. local asset or non-CORS external)
                         console.log(`[PDF] Loading Image from URL: ${src.substring(0, 50)}...`);
-                        const base64 = await this.loadImage(src);
-                        this.doc.addImage(base64, 'JPEG', x, y, w, h, undefined, 'FAST');
+                        const result = await this.loadImage(src);
+                        imageData = result.data;
+                        imgWidth = result.width;
+                        imgHeight = result.height;
                         success = true;
                     }
                 }
 
-                if (!success) {
+                if (!success || !imageData) {
                     console.error(`[PDF] CRITICAL: All image loading strategies failed for ${photoId}`);
                     throw new Error("All image loading strategies failed");
+                }
+
+                // === ASPECT RATIO PRESERVING RENDERING ===
+                // Use "cover" mode: scale to fill slot while maintaining aspect ratio, clip overflow
+                console.log(`[PDF] Image natural size: ${imgWidth}x${imgHeight}, slot: ${w.toFixed(1)}x${h.toFixed(1)}`);
+
+                const coverDims = this.calculateCoverDimensions(x, y, w, h, imgWidth, imgHeight);
+                console.log(`[PDF] Cover dimensions: x=${coverDims.x.toFixed(1)}, y=${coverDims.y.toFixed(1)}, w=${coverDims.width.toFixed(1)}, h=${coverDims.height.toFixed(1)}`);
+
+                // === SHAPE-AWARE CLIPPING ===
+                // Parse border radius to determine shape
+                const borderRadiusStr = styleConfig.borderRadius || '0px';
+                const borderRadius = parseFloat(borderRadiusStr) * 0.75; // px to pt
+                const isCircle = borderRadiusStr === '50%';
+
+                // Save graphics state, apply clipping, draw image, restore state
+                this.doc.saveGraphicsState();
+
+                // Create clipping path based on shape
+                if (isCircle) {
+                    // Circle clipping: use the smaller dimension as diameter
+                    const diameter = Math.min(w, h);
+                    const cx = x + w / 2;
+                    const cy = y + h / 2;
+                    const radius = diameter / 2;
+                    this.drawCircleClipPath(cx, cy, radius);
+                } else if (borderRadius > 0) {
+                    // Rounded rectangle clipping
+                    this.drawRoundedRectClipPath(x, y, w, h, borderRadius);
+                } else {
+                    // Standard rectangle clipping
+                    this.doc.rect(x, y, w, h);
+                }
+                this.doc.clip();
+
+                // Draw image with cover dimensions (may extend beyond slot, but will be clipped)
+                this.doc.addImage(imageData, 'JPEG', coverDims.x, coverDims.y, coverDims.width, coverDims.height, undefined, 'FAST');
+
+                // Restore graphics state (removes clipping)
+                this.doc.restoreGraphicsState();
+
+                // === DRAW BORDER/FRAME ===
+                if (styleConfig.border && styleConfig.border !== 'none') {
+                    this.drawPhotoFrame(x, y, w, h, styleConfig, isCircle, borderRadius);
                 }
 
             } catch (e) {
@@ -702,6 +963,145 @@ export class PDFExport {
             }
         } else {
             console.warn(`[PDF] Photo with ID ${photoId} NOT FOUND in assets.`);
+        }
+    }
+
+    /**
+     * Draw a circular clipping path
+     */
+    drawCircleClipPath(cx, cy, radius) {
+        // Use bezier curves to approximate a circle
+        const kappa = 0.5522848; // Approximation constant for circle with bezier
+        const ox = radius * kappa;
+        const oy = radius * kappa;
+
+        // Move to the rightmost point
+        // jsPDF doesn't have native circle clipping, so we draw a path
+        // Using the internal path API
+        const doc = this.doc;
+
+        // Start path - move to right of circle
+        doc.moveTo(cx + radius, cy);
+
+        // Draw 4 bezier curves for the circle
+        doc.curveTo(cx + radius, cy + oy, cx + ox, cy + radius, cx, cy + radius);
+        doc.curveTo(cx - ox, cy + radius, cx - radius, cy + oy, cx - radius, cy);
+        doc.curveTo(cx - radius, cy - oy, cx - ox, cy - radius, cx, cy - radius);
+        doc.curveTo(cx + ox, cy - radius, cx + radius, cy - oy, cx + radius, cy);
+    }
+
+    /**
+     * Draw a rounded rectangle clipping path
+     */
+    drawRoundedRectClipPath(x, y, w, h, radius) {
+        const doc = this.doc;
+        const r = Math.min(radius, w / 2, h / 2); // Ensure radius doesn't exceed half dimensions
+
+        // Start at top-left corner after the arc
+        doc.moveTo(x + r, y);
+
+        // Top edge and top-right corner
+        doc.lineTo(x + w - r, y);
+        doc.curveTo(x + w, y, x + w, y + r, x + w, y + r);
+
+        // Right edge and bottom-right corner
+        doc.lineTo(x + w, y + h - r);
+        doc.curveTo(x + w, y + h, x + w - r, y + h, x + w - r, y + h);
+
+        // Bottom edge and bottom-left corner
+        doc.lineTo(x + r, y + h);
+        doc.curveTo(x, y + h, x, y + h - r, x, y + h - r);
+
+        // Left edge and top-left corner
+        doc.lineTo(x, y + r);
+        doc.curveTo(x, y, x + r, y, x + r, y);
+    }
+
+    /**
+     * Draw photo frame/border based on style config
+     */
+    drawPhotoFrame(x, y, w, h, styleConfig, isCircle, borderRadius) {
+        // Parse border style: e.g. "4px solid #C9A227"
+        const borderStr = styleConfig.border || '';
+        const borderMatch = borderStr.match(/(\d+)px\s+(\w+)\s+(#[A-Fa-f0-9]+|rgba?\([^)]+\)|\w+)/);
+
+        if (!borderMatch) return;
+
+        const borderWidth = parseFloat(borderMatch[1]) * 0.75; // px to pt
+        const borderStyle = borderMatch[2]; // 'solid', 'dashed', etc.
+        const borderColor = this.resolveColorSafe(borderMatch[3]);
+
+        console.log(`[PDF] Drawing frame: ${borderWidth}pt ${borderStyle} ${borderColor}`);
+
+        this.doc.setDrawColor(borderColor);
+        this.doc.setLineWidth(borderWidth);
+
+        if (borderStyle === 'dashed') {
+            this.doc.setLineDashPattern([4, 4], 0);
+        } else {
+            this.doc.setLineDashPattern([], 0);
+        }
+
+        if (isCircle) {
+            // Draw circle border
+            const diameter = Math.min(w, h);
+            const cx = x + w / 2;
+            const cy = y + h / 2;
+            const radius = diameter / 2;
+            this.doc.circle(cx, cy, radius, 'S');
+        } else if (borderRadius > 0) {
+            // Draw rounded rectangle border
+            this.drawRoundedRect(x, y, w, h, borderRadius, 'S');
+        } else {
+            // Draw standard rectangle border
+            this.doc.rect(x, y, w, h, 'S');
+        }
+
+        // Reset dash pattern
+        this.doc.setLineDashPattern([], 0);
+    }
+
+    /**
+     * Draw a rounded rectangle (stroke or fill)
+     */
+    drawRoundedRect(x, y, w, h, radius, style = 'S') {
+        const doc = this.doc;
+        const r = Math.min(radius, w / 2, h / 2);
+
+        // Start path
+        doc.moveTo(x + r, y);
+
+        // Top edge
+        doc.lineTo(x + w - r, y);
+
+        // Top-right corner (quadratic bezier approximation for quarter circle)
+        doc.curveTo(x + w, y, x + w, y + r, x + w, y + r);
+
+        // Right edge
+        doc.lineTo(x + w, y + h - r);
+
+        // Bottom-right corner
+        doc.curveTo(x + w, y + h, x + w - r, y + h, x + w - r, y + h);
+
+        // Bottom edge
+        doc.lineTo(x + r, y + h);
+
+        // Bottom-left corner
+        doc.curveTo(x, y + h, x, y + h - r, x, y + h - r);
+
+        // Left edge
+        doc.lineTo(x, y + r);
+
+        // Top-left corner
+        doc.curveTo(x, y, x + r, y, x + r, y);
+
+        // Close and apply style
+        if (style === 'F') {
+            doc.fill();
+        } else if (style === 'FD' || style === 'DF') {
+            doc.fillStroke();
+        } else {
+            doc.stroke();
         }
     }
 
@@ -729,6 +1129,7 @@ export class PDFExport {
 
     async loadImage(url) {
         // Check cache if implemented, or just load
+        // Returns object with base64 data and original dimensions
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = 'Anonymous';
@@ -739,14 +1140,61 @@ export class PDFExport {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
                 try {
-                    const data = canvas.toDataURL('image/jpeg', 0.8);
-                    resolve(data);
+                    // Use 95% quality for print-ready PDFs
+                    // This prevents visible compression artifacts in printed books
+                    const data = canvas.toDataURL('image/jpeg', 0.95);
+                    resolve({
+                        data: data,
+                        width: img.width,
+                        height: img.height
+                    });
                 } catch (e) {
                     reject(e);
                 }
             };
             img.onerror = () => reject(new Error('Image load failed'));
             img.src = url;
+        });
+    }
+
+    /**
+     * Calculate dimensions for "cover" mode - fill the slot while maintaining aspect ratio
+     * Image is scaled to cover the entire slot area, then centered (with cropping at edges)
+     * @returns {Object} { x, y, width, height } - position and size for the image
+     */
+    calculateCoverDimensions(slotX, slotY, slotW, slotH, imgW, imgH) {
+        const slotRatio = slotW / slotH;
+        const imgRatio = imgW / imgH;
+
+        let drawW, drawH, drawX, drawY;
+
+        if (imgRatio > slotRatio) {
+            // Image is wider than slot - match height, crop sides
+            drawH = slotH;
+            drawW = slotH * imgRatio;
+            drawX = slotX - (drawW - slotW) / 2;
+            drawY = slotY;
+        } else {
+            // Image is taller than slot - match width, crop top/bottom
+            drawW = slotW;
+            drawH = slotW / imgRatio;
+            drawX = slotX;
+            drawY = slotY - (drawH - slotH) / 2;
+        }
+
+        return { x: drawX, y: drawY, width: drawW, height: drawH };
+    }
+
+    /**
+     * Get dimensions from a base64 data URI
+     * @returns {Promise<{width: number, height: number}>}
+     */
+    async getBase64Dimensions(base64) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve({ width: img.width, height: img.height });
+            img.onerror = reject;
+            img.src = base64;
         });
     }
 
@@ -953,17 +1401,97 @@ export class PDFExport {
         return 'helvetica';
     }
 
-    showDownloadModal(url) {
+    showSuccessModal(filename) {
         const modal = document.getElementById('pdfDownloadModal');
         const btn = document.getElementById('btn-download-trigger');
 
         if (modal && btn) {
-            btn.href = url;
-            btn.download = `photo-book-${new Date().toISOString().slice(0, 10)}.pdf`;
+            // Clone button to clear previous event listeners
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+
+            // Change button text to indicate download has started
+            newBtn.innerHTML = '<i class="fa-solid fa-check"></i> Download Started';
+
+            // Button just closes the modal
+            newBtn.onclick = (e) => {
+                e.preventDefault();
+                modal.classList.remove('active');
+            };
+
+            // Show modal
+            modal.classList.add('active');
+
+            // Auto-close after 3 seconds
+            setTimeout(() => {
+                modal.classList.remove('active');
+            }, 3000);
+        }
+    }
+
+    showDownloadModal(url, filenameProvided) {
+        const modal = document.getElementById('pdfDownloadModal');
+        const btn = document.getElementById('btn-download-trigger');
+        const filename = filenameProvided || `photo-book-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        if (modal && btn) {
+            // Clone button to clear previous event listeners
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+
+            // Add robust download handler
+            newBtn.onclick = (e) => {
+                e.preventDefault();
+                console.log(`[PDF] Button Clicked. Filename: ${filename}`);
+                console.log(`[PDF] URL MIME type check - URL: ${url.substring(0, 50)}...`);
+
+                // Visual feedback
+                newBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading...';
+
+                // FORCE MANUAL DOWNLOAD - Multiple attempts for browser compatibility
+                try {
+                    // Create anchor element for download
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    a.type = 'application/pdf'; // Explicitly set type attribute
+
+                    // Append to body and trigger click
+                    document.body.appendChild(a);
+
+                    // Trigger download
+                    a.click();
+
+                    console.log(`[PDF] Download triggered for ${filename} (Type: application/pdf)`);
+
+                    // Cleanup after delay
+                    setTimeout(() => {
+                        newBtn.innerHTML = 'Download PDF';
+                        if (document.body.contains(a)) {
+                            document.body.removeChild(a);
+                        }
+                        // Revoke object URL after download completes
+                        URL.revokeObjectURL(url);
+                    }, 3000);
+
+                } catch (err) {
+                    console.error("[PDF] Download error:", err);
+                    alert("Download Error: " + err.message);
+                    newBtn.innerHTML = 'Download PDF';
+                }
+            };
+
             modal.classList.add('active');
         } else {
-            // Fallback if modal missing
-            window.open(url, '_blank');
+            // Fallback: Direct save
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
         }
     }
 }

@@ -2,10 +2,10 @@
  * AI Director
  * Orchestrates the automated book creation process using Gemini Agents.
  */
-import { store } from './state.js';
-import { geminiService } from './gemini-banana-service.js';
+import { store } from '../core/state.js';
+import { geminiService } from '../services/ai-service.js';
 import { layoutEngine } from './layout-engine.js';
-import { googlePhotosService } from './google-photos-service.js'; // to fetch content if needed
+import { googlePhotosService } from '../services/google-photos-service.js'; // to fetch content if needed
 
 class AIDirector {
     constructor() {

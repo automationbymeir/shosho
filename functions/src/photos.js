@@ -124,7 +124,7 @@ async function checkPickerSession(userId, sessionId) {
   const oauth2Client = await auth.getOAuth2Client(userId);
 
   if (!oauth2Client) {
-    return { error: "Not authorized" };
+    return {error: "Not authorized"};
   }
 
   const accessToken = oauth2Client.credentials.access_token;
@@ -140,7 +140,7 @@ async function checkPickerSession(userId, sessionId) {
     const code = response.status;
     if (code !== 200) {
       console.log("Poll failed:", code);
-      return { error: `Failed to poll session: ${code}` };
+      return {error: `Failed to poll session: ${code}`};
     }
 
     const session = await response.json();
@@ -160,10 +160,10 @@ async function checkPickerSession(userId, sessionId) {
     }
 
     // Still waiting for user
-    return { complete: false };
+    return {complete: false};
   } catch (e) {
     console.log("checkPickerSession error:", e.toString());
-    return { error: e.toString() };
+    return {error: e.toString()};
   }
 }
 
@@ -227,19 +227,22 @@ async function fetchThumbnailBatch(userId, baseUrls) {
 
   if (!oauth2Client) {
     console.log("fetchThumbnailBatch: No OAuth access");
-    return { success: false, error: "No auth", thumbnails: [] };
+    return {success: false, error: "No auth", thumbnails: []};
   }
 
   const accessToken = oauth2Client.credentials.access_token;
   const thumbnails = [];
 
+  // eslint-disable-next-line max-len
+  const ERROR_PLACEHOLDER = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNjY2MiLz48dGV4dCB4PSI1MCIlIiB5PSI1MCUiIGR5PSIuM2VtIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzU1NSI+RXJyb3I8L3RleHQ+PC9zdmc+";
 
   for (let i = 0; i < baseUrls.length; i++) {
     const baseUrl = baseUrls[i];
     try {
-      // Use smaller thumbnails for better performance and smaller payload
+      // Use 400x400 thumbnails for sharper sidebar display
+      // Balance between quality and payload size
       const normalizedBaseUrl = normalizeGooglePhotoBaseUrl(baseUrl);
-      const url = `${normalizedBaseUrl}=w200-h200`;
+      const url = `${normalizedBaseUrl}=w400-h400`;
 
       console.log(`[Thumbnail] Fetching: ${url}`);
 
@@ -248,15 +251,15 @@ async function fetchThumbnailBatch(userId, baseUrls) {
       // then retry with Bearer token on common auth failures.
       let response;
       try {
-        response = await fetch(url, { method: "GET" });
+        response = await fetch(url, {method: "GET"});
       } catch (networkErr) {
         console.error(`[Thumbnail] Network failed for ${url}:`, networkErr);
         // Fallback to error placeholder immediately if network fails (e.g. DNS)
         thumbnails.push({
           baseUrl: baseUrl,
-          thumbnailUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNjY2MiLz48dGV4dCB4PSI1MCIlIiB5PSI1MCUiIGR5PSIuM2VtIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzU1NSI+RXJyb3I8L3RleHQ+PC9zdmc+',
+          thumbnailUrl: ERROR_PLACEHOLDER,
           success: false,
-          error: networkErr.toString()
+          error: networkErr.toString(),
         });
         continue;
       }
@@ -284,18 +287,19 @@ async function fetchThumbnailBatch(userId, baseUrls) {
         console.log("Thumbnail fetched successfully for index", i);
       } else {
         const errText = await response.text();
-        console.error(`[Thumbnail] Fetch failed: ${response.status} - ${errText.substring(0, 100)} for URL: ${url}`);
+        const errMsg = errText.substring(0, 100);
+        console.error(`[Thumbnail] Fetch failed: ${response.status} - ${errMsg} for URL: ${url}`);
         // Fallback to placeholder on HTTP error
         thumbnails.push({
           baseUrl: baseUrl,
-          thumbnailUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNjY2MiLz48dGV4dCB4PSI1MCIlIiB5PSI1MCUiIGR5PSIuM2VtIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzU1NSI+NDAzPC90ZXh0Pjwvc3ZnPg==',
+          thumbnailUrl: ERROR_PLACEHOLDER,
           success: false,
-          error: response.status
+          error: response.status,
         });
       }
     } catch (e) {
       console.error("[Thumbnail] Exception:", e.toString());
-      thumbnails.push({ baseUrl: baseUrl, thumbnailUrl: null, success: false, error: e.toString() });
+      thumbnails.push({baseUrl: baseUrl, thumbnailUrl: null, success: false, error: e.toString()});
     }
   }
 
@@ -315,16 +319,18 @@ async function fetchHighResImage(userId, url) {
   const oauth2Client = await auth.getOAuth2Client(userId);
 
   if (!oauth2Client) {
-    return { success: false, error: "No auth" };
+    return {success: false, error: "No auth"};
   }
 
   const accessToken = oauth2Client.credentials.access_token;
 
   try {
-    // Normalize and add 'd' (download/original) or large dimensions
-    // =d typically downloads original. =w2048-h2048 is safe high res.
+    // Normalize and fetch original resolution for print quality
+    // =d downloads original uncompressed image, essential for print PDFs
+    // For photo books printed at 200mm @ 300 DPI, we need ~2362px minimum
+    // Using =d ensures we get the original quality without Google's compression
     const normalized = normalizeGooglePhotoBaseUrl(url);
-    const fetchUrl = `${normalized}=w2048-h2048`;
+    const fetchUrl = `${normalized}=d`;
 
     const response = await fetch(fetchUrl, {
       method: "GET",
@@ -342,10 +348,10 @@ async function fetchHighResImage(userId, url) {
         dataUri: `data:${mimeType};base64,${b64}`,
       };
     } else {
-      return { success: false, error: `Upstream ${response.status}` };
+      return {success: false, error: `Upstream ${response.status}`};
     }
   } catch (e) {
-    return { success: false, error: e.toString() };
+    return {success: false, error: e.toString()};
   }
 }
 
@@ -360,7 +366,7 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
   const oauth2Client = await auth.getOAuth2Client(userId);
 
   if (!oauth2Client) {
-    return { success: false, error: "No auth" };
+    return {success: false, error: "No auth"};
   }
 
   const accessToken = oauth2Client.credentials.access_token;
@@ -369,7 +375,7 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
     return {
       success: true,
       urls: {},
-      inputDebug: { receivedCount: 0, receivedType: typeof mediaItemIds },
+      inputDebug: {receivedCount: 0, receivedType: typeof mediaItemIds},
     };
   }
 
@@ -406,7 +412,7 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
         console.log("[DEBUG_SCOPES] Token Scopes:", tokenInfo.scope);
         if (tokenInfo.scope && !tokenInfo.scope.includes("photoslibrary.readonly")) {
           console.error("[DEBUG_SCOPES] CRITICAL: Missing photoslibrary.readonly scope!");
-          errors.push({ error: "MISSING_SCOPE", details: tokenInfo.scope });
+          errors.push({error: "MISSING_SCOPE", details: tokenInfo.scope});
         }
       } catch (e) {
         console.error("[DEBUG_SCOPES] Failed to inspect token:", e);
@@ -422,8 +428,8 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
       if (response.status !== 200) {
         const text = await response.text();
         console.error("refreshMediaItemUrls batchGet failed:", response.status, text);
-        errors.push({ chunkIds: chunk, status: response.status, text: text });
-        debugData.responses.push({ status: response.status, text: text });
+        errors.push({chunkIds: chunk, status: response.status, text: text});
+        debugData.responses.push({status: response.status, text: text});
         continue;
       }
 
@@ -455,7 +461,7 @@ async function refreshMediaItemUrls(userId, mediaItemIds) {
     } catch (e) {
       console.error("refreshMediaItemUrls chunk error:", e);
       if (!errors) errors = [];
-      errors.push({ error: e.toString() });
+      errors.push({error: e.toString()});
     }
   }
 

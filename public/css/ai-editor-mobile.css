@@ -1,0 +1,831 @@
+/* ============================================
+   AI Editor Mobile & Tablet Responsive Styles
+   Comprehensive Mobile App Experience
+   ============================================ */
+
+/* ============================================
+   MOBILE-SPECIFIC VARIABLES
+   ============================================ */
+:root {
+    /* Mobile touch-friendly sizes */
+    --mobile-touch-target: 48px;
+    --mobile-toolbar-height: 56px;
+    --mobile-nav-height: 64px;
+    --mobile-panel-height: 45vh;
+    --mobile-panel-collapsed: 80px;
+    --mobile-timeline-height: 100px;
+    --mobile-gap: 12px;
+    --mobile-padding: 16px;
+
+    /* Safe areas for notched devices */
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* ============================================
+   BASE MOBILE STYLES (< 768px)
+   Phone Portrait & Landscape
+   ============================================ */
+@media screen and (max-width: 767px) {
+
+    /* Global Touch Optimization */
+    * {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+    }
+
+    html,
+    body {
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+        touch-action: manipulation;
+    }
+
+    body {
+        padding-top: var(--safe-area-top);
+        padding-bottom: var(--safe-area-bottom);
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    /* ============================================
+       MAIN LAYOUT RESTRUCTURE
+       Desktop: 3-column grid
+       Mobile: Stacked full-width with overlays
+       ============================================ */
+    #app-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        /* Dynamic viewport height for mobile browsers */
+        grid-template-columns: unset;
+        grid-template-rows: unset;
+        overflow: hidden;
+    }
+
+    /* ============================================
+       LEFT SIDEBAR → BOTTOM SHEET
+       ============================================ */
+    #sidebar-left {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: var(--mobile-panel-collapsed);
+        max-height: 70vh;
+        flex-direction: column;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        border-radius: 20px 20px 0 0;
+        z-index: 100;
+        transform: translateY(0);
+        transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        padding-bottom: var(--safe-area-bottom);
+        box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    #sidebar-left.expanded {
+        height: var(--mobile-panel-height);
+    }
+
+    #sidebar-left.hidden {
+        transform: translateY(100%);
+    }
+
+    /* Sidebar Nav → Horizontal Tab Bar */
+    .sidebar-nav {
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        padding: 8px 16px;
+        gap: 8px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        justify-content: space-around;
+        background: var(--bg-panel);
+        order: 1;
+    }
+
+    .nav-item {
+        width: var(--mobile-touch-target);
+        height: var(--mobile-touch-target);
+        border-radius: 12px;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    /* Sidebar Content */
+    .sidebar-content {
+        width: 100%;
+        height: calc(100% - 70px);
+        order: 2;
+        overflow: hidden;
+    }
+
+    /* Tab panes - ensure proper display switching */
+    .tab-pane {
+        height: 100%;
+        display: none;
+        flex-direction: column;
+    }
+
+    .tab-pane.active {
+        display: flex !important;
+    }
+
+    /* Panel Headers */
+    .panel-header {
+        height: 50px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .panel-header h3 {
+        font-size: 1rem;
+    }
+
+    /* Drag Handle for Bottom Sheet */
+    #sidebar-left::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+        z-index: 101;
+    }
+
+    /* Asset Grid - Larger Touch Targets */
+    .asset-grid,
+    .asset-list {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .asset-item {
+        min-width: 70px;
+        min-height: 70px;
+        border-radius: 10px;
+    }
+
+    /* ============================================
+       RIGHT SIDEBAR → COMPLETELY HIDDEN BY DEFAULT
+       ============================================ */
+    #sidebar-right {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        bottom: 0;
+        width: 85vw;
+        max-width: 320px;
+        transform: translateX(0);
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 200;
+        box-shadow: -4px 0 30px rgba(0, 0, 0, 0.5);
+        padding-top: var(--safe-area-top);
+        visibility: hidden;
+    }
+
+    #sidebar-right.open {
+        right: 0;
+        visibility: visible;
+    }
+
+    /* Properties Panel Close Button */
+    #sidebar-right::before {
+        content: '×';
+        position: absolute;
+        top: calc(10px + var(--safe-area-top));
+        right: 16px;
+        font-size: 28px;
+        color: var(--text-muted);
+        cursor: pointer;
+        z-index: 201;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #properties-panel {
+        padding: 60px 16px 20px;
+        height: 100%;
+        overflow-y: auto;
+    }
+
+    /* ============================================
+       MAIN WORKSPACE
+       ============================================ */
+    #workspace {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: var(--mobile-panel-collapsed);
+        grid-column: unset;
+        grid-row: unset;
+        padding-top: var(--safe-area-top);
+        z-index: 1;
+    }
+
+    /* Top Toolbar - Mobile Optimized */
+    .toolbar-top {
+        height: auto;
+        min-height: var(--mobile-toolbar-height);
+        padding: 8px 8px;
+        flex-wrap: nowrap;
+        gap: 4px;
+        background: linear-gradient(to bottom, var(--bg-dark) 70%, transparent);
+        position: relative;
+        z-index: 50;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    /* Remove absolute positioning on mobile - causes overlap */
+    .toolbar-group.center {
+        position: relative;
+        left: auto;
+        transform: none;
+        flex: 1;
+        justify-content: center;
+    }
+
+    /* Touch-Friendly Toolbar Buttons */
+    .btn-tool {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        margin-right: 0;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        padding: 0;
+    }
+
+    .btn-pill {
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        border-radius: 20px;
+        min-width: 40px;
+        min-height: 40px;
+        white-space: nowrap;
+    }
+
+    /* Hide text on pill buttons, show icon only */
+    #btn-remix-layout,
+    #btn-magic-create {
+        padding: 10px;
+        font-size: 0;
+    }
+
+    #btn-remix-layout i,
+    #btn-magic-create i {
+        font-size: 1rem;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 8px 10px;
+        font-size: 0.75rem;
+        min-height: 40px;
+        white-space: nowrap;
+    }
+
+    /* Hide buttons not critical on mobile */
+    #btn-new-project,
+    #btn-redo,
+    #btn-remix-layout,
+    #btn-review {
+        display: none !important;
+    }
+
+    #btn-undo {
+        display: none !important;
+    }
+
+    /* Hide top toolbar magic button on mobile - use bottom nav AI tab instead */
+    #btn-magic-create {
+        display: none !important;
+    }
+
+    /* Canvas Viewport */
+    #canvas-viewport {
+        flex: 1;
+        padding: 10px;
+        touch-action: pinch-zoom pan-x pan-y;
+    }
+
+    #canvas-container {
+        width: 100%;
+        height: 100%;
+        touch-action: manipulation;
+    }
+
+    /* Page Rendering - Scale to Fit */
+    .shoso-page,
+    .album-page {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 4/3;
+        max-width: calc(100vw - 20px);
+        transform: none !important;
+        touch-action: manipulation;
+    }
+
+    /* ============================================
+       TIMELINE BAR → HORIZONTAL SCROLL
+       ============================================ */
+    #timeline-bar {
+        display: none;
+        /* Hidden by default, integrated into bottom panel */
+    }
+
+    /* Timeline in bottom panel */
+    #page-timeline {
+        display: flex;
+        gap: 8px;
+        padding: 8px 12px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .timeline-page {
+        width: 80px;
+        min-width: 80px;
+        aspect-ratio: 4/3;
+        scroll-snap-align: start;
+        border-radius: 8px;
+    }
+
+    .btn-add-page {
+        min-width: 80px;
+        height: 60px;
+        padding: 0 12px;
+        font-size: 0.75rem;
+    }
+
+    .timeline-controls {
+        display: none;
+        /* Use swipe instead of arrows */
+    }
+
+    /* ============================================
+       MODALS - MOBILE FULL SCREEN
+       ============================================ */
+    .modal-overlay,
+    .modal {
+        z-index: 10000;
+    }
+
+    .modal-content {
+        width: 95vw;
+        max-width: 95vw;
+        max-height: 90vh;
+        margin: auto;
+        border-radius: 20px;
+        overflow-y: auto;
+    }
+
+    #upload-options-modal .modal-content {
+        max-width: 340px;
+    }
+
+    #upload-options-modal .modal-body {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #upload-options-modal .modal-body button {
+        width: 100%;
+        height: 56px;
+    }
+
+    /* Magic Create Modal */
+    #magic-create-modal .modal-content {
+        width: 95vw;
+        max-width: 95vw;
+    }
+
+    #magic-create-modal textarea {
+        min-height: 100px;
+    }
+
+    /* ============================================
+       FLOATING ACTION BUTTONS
+       ============================================ */
+    .mobile-fab {
+        position: fixed;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        z-index: 90;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        color: white;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .mobile-fab:active {
+        transform: scale(0.95);
+    }
+
+    /* Hide Magic FAB on mobile - use bottom nav AI tab instead */
+    .mobile-fab-magic {
+        display: none !important;
+    }
+
+    .mobile-fab-properties {
+        right: 20px;
+        bottom: calc(var(--mobile-panel-collapsed) + 20px);
+        background: var(--bg-hover);
+    }
+
+    /* ============================================
+       PROPERTY INPUTS - MOBILE TOUCH
+       ============================================ */
+    .prop-group input[type="text"],
+    .prop-group textarea,
+    .prop-group select {
+        min-height: var(--mobile-touch-target);
+        font-size: 16px;
+        /* Prevent iOS zoom */
+        padding: 12px;
+    }
+
+    .prop-group input[type="range"] {
+        height: 40px;
+        padding: 10px 0;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+        margin-top: -10px;
+    }
+
+    .layout-selector {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .layout-btn {
+        min-height: 60px;
+    }
+
+    /* ============================================
+       UTILITIES
+       ============================================ */
+    .hide-mobile {
+        display: none !important;
+    }
+
+    .show-mobile {
+        display: block !important;
+    }
+
+    /* Backdrop for slide-out panels */
+    .mobile-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 199;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    .mobile-backdrop.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Empty States */
+    .empty-state {
+        padding: 40px 20px;
+        font-size: 0.9rem;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+    }
+
+    /* AI Tab mobile adjustments */
+    #tab-ai textarea {
+        min-height: 80px;
+        font-size: 16px;
+    }
+
+    #tab-ai button {
+        min-height: 48px;
+    }
+}
+
+/* ============================================
+   TABLET STYLES (768px - 1024px)
+   Better use of wider screens
+   ============================================ */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+    :root {
+        --sidebar-width: 260px;
+        --properties-width: 240px;
+        --timeline-height: 120px;
+    }
+
+    body {
+        padding-top: var(--safe-area-top);
+    }
+
+    #app-container {
+        grid-template-columns: var(--sidebar-width) 1fr var(--properties-width);
+    }
+
+    /* Sidebars visible but narrower */
+    #sidebar-left {
+        position: relative;
+        height: auto;
+        max-height: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .sidebar-nav {
+        width: 56px;
+        flex-direction: column;
+        border-right: 1px solid var(--border);
+        border-bottom: none;
+        padding-top: 16px;
+    }
+
+    .nav-item {
+        width: 44px;
+        height: 44px;
+    }
+
+    .sidebar-content {
+        width: calc(var(--sidebar-width) - 56px);
+    }
+
+    #sidebar-right {
+        position: relative;
+        width: var(--properties-width);
+        transform: none;
+        box-shadow: none;
+    }
+
+    #sidebar-right::before {
+        display: none;
+    }
+
+    .toolbar-group.center {
+        position: relative;
+        left: auto;
+        transform: none;
+    }
+
+    #canvas-container {
+        width: 90%;
+        height: 85%;
+    }
+
+    .shoso-page,
+    .album-page {
+        width: auto !important;
+        height: auto !important;
+        max-width: 100%;
+        max-height: 100%;
+        aspect-ratio: 4/3;
+    }
+
+    #page-timeline {
+        gap: 10px;
+    }
+
+    .timeline-page {
+        width: 100px;
+    }
+
+    /* Modals */
+    .modal-content {
+        max-width: 500px;
+    }
+
+    .prop-group input[type="text"],
+    .prop-group textarea,
+    .prop-group select {
+        font-size: 16px;
+    }
+}
+
+/* ============================================
+   LANDSCAPE PHONE SPECIFIC
+   ============================================ */
+@media screen and (max-width: 896px) and (orientation: landscape) {
+    #workspace {
+        bottom: 0;
+    }
+
+    #sidebar-left {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        right: auto;
+        width: 280px;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        border-top: none;
+        border-right: 1px solid var(--border);
+        transform: translateX(-100%);
+        flex-direction: row;
+    }
+
+    #sidebar-left::before {
+        display: none;
+    }
+
+    #sidebar-left.expanded {
+        height: 100vh;
+        transform: translateX(0);
+    }
+
+    .sidebar-nav {
+        width: 56px;
+        flex-direction: column;
+        border-bottom: none;
+        border-right: 1px solid var(--border);
+        padding-top: 16px;
+        justify-content: flex-start;
+    }
+
+    .sidebar-content {
+        width: calc(280px - 56px);
+        height: 100%;
+    }
+
+    #canvas-viewport {
+        padding: 8px;
+    }
+
+    .shoso-page,
+    .album-page {
+        max-height: calc(100vh - 80px);
+    }
+
+    /* Bottom navigation for landscape */
+    .mobile-bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 100;
+        padding-bottom: var(--safe-area-bottom);
+    }
+}
+
+/* ============================================
+   TOUCH INTERACTION ENHANCEMENTS
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+
+    /* Increase touch targets for all interactive elements */
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    .nav-item,
+    .asset-item,
+    .timeline-page,
+    .layout-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Remove hover effects that don't work on touch */
+    .btn-tool:hover,
+    .btn-pill:hover,
+    .nav-item:hover,
+    .asset-item:hover,
+    .timeline-page:hover {
+        transform: none;
+        background-color: inherit;
+    }
+
+    /* Add active states instead */
+    .btn-tool:active,
+    .btn-pill:active,
+    .nav-item:active {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+
+    .asset-item:active,
+    .timeline-page:active {
+        transform: scale(0.97);
+        opacity: 0.9;
+    }
+
+    /* Prevent text selection during drag */
+    .asset-item,
+    .shoso-page,
+    .album-page {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+}
+
+/* ============================================
+   DARK MODE MOBILE ENHANCEMENTS
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+    .mobile-fab {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+}
+
+/* ============================================
+   REDUCED MOTION SUPPORT
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+
+    #sidebar-left,
+    #sidebar-right,
+    .mobile-backdrop,
+    .modal-content,
+    .btn-tool,
+    .btn-pill,
+    .asset-item {
+        transition: none !important;
+    }
+}
+
+/* ============================================
+   HIGH CONTRAST MODE
+   ============================================ */
+@media (prefers-contrast: high) {
+    .nav-item.active {
+        outline: 2px solid white;
+        outline-offset: 2px;
+    }
+
+    .btn-primary,
+    .btn-pill {
+        border: 2px solid white;
+    }
+
+    .mobile-fab {
+        border: 2px solid white;
+    }
+}
+
+/* ============================================
+   PRINT PREVENTION (Mobile)
+   ============================================ */
+@media print {
+    body {
+        display: none !important;
+    }
+}

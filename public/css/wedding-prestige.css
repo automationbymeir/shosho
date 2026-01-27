@@ -1,0 +1,384 @@
+/* Wedding Prestige Template CSS */
+/* Scoped to .album-page.wedding-prestige */
+
+.album-page.wedding-prestige {
+    background: #0D0D0D;
+    font-family: 'Heebo', sans-serif;
+    direction: rtl;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.8);
+}
+
+.album-page.wedding-prestige * {
+    box-sizing: border-box;
+}
+
+.album-page.wedding-prestige h1 {
+    color: #C9A962;
+    text-align: center;
+    margin-bottom: 8px;
+    font-family: 'Frank Ruhl Libre', serif;
+    font-weight: 300;
+    font-size: 56px;
+    letter-spacing: 12px;
+}
+
+.album-page.wedding-prestige .subtitle {
+    color: #B8B0A0;
+    text-align: center;
+    margin-bottom: 60px;
+    font-size: 14px;
+    font-weight: 200;
+    letter-spacing: 4px;
+}
+
+.album-page.wedding-prestige.dark {
+    background: #0D0D0D;
+}
+
+.album-page.wedding-prestige.light {
+    background: #FDFCFA;
+}
+
+/* Photos */
+.album-page.wedding-prestige .photo {
+    position: absolute;
+    background: #2C2C2C;
+    overflow: hidden;
+}
+
+.album-page.wedding-prestige .photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.album-page.wedding-prestige .photo.editorial {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.album-page.wedding-prestige .photo.framed {
+    border: 2px solid #C9A962;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+}
+
+.album-page.wedding-prestige .photo.arch {
+    border-radius: 300px 300px 0 0;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.album-page.wedding-prestige .photo.circle {
+    border-radius: 50%;
+    border: 3px solid #C9A962;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+}
+
+.album-page.wedding-prestige .photo.hexagon {
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+/* Overlays & Decor */
+.album-page.wedding-prestige .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.album-page.wedding-prestige .gold-line {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #C9A962, transparent);
+    z-index: 5;
+}
+
+.album-page.wedding-prestige .vertical-line {
+    position: absolute;
+    width: 1px;
+    background: #C9A962;
+    z-index: 5;
+}
+
+.album-page.wedding-prestige .film-strip {
+    position: absolute;
+    height: 18px;
+    background: repeating-linear-gradient(90deg, #1A1A1A, #1A1A1A 20px, #0D0D0D 20px, #0D0D0D 24px);
+    z-index: 6;
+}
+
+/* Typography Classes */
+.album-page.wedding-prestige .text-hebrew {
+    font-family: 'Frank Ruhl Libre', serif;
+}
+
+.album-page.wedding-prestige .text-display {
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.album-page.wedding-prestige .text-accent {
+    font-family: 'Cinzel', serif;
+}
+
+.album-page.wedding-prestige .text-body {
+    font-family: 'Heebo', sans-serif;
+}
+
+.album-page.wedding-prestige .gold {
+    color: #C9A962;
+}
+
+.album-page.wedding-prestige .light {
+    color: #FDFCFA;
+}
+
+.album-page.wedding-prestige .secondary {
+    color: #B8B0A0;
+}
+
+.album-page.wedding-prestige .dark {
+    color: #0D0D0D;
+}
+
+.album-page.wedding-prestige .dark-secondary {
+    color: #4A4540;
+}
+
+.album-page.wedding-prestige .centered {
+    /* Absolute centering handled by renderer or specific layouts */
+    text-align: center;
+}
+
+.album-page.wedding-prestige .text-element {
+    z-index: 20;
+}
+
+/* Layout Specific Overrides */
+
+/* COVER */
+.album-page.wedding-prestige.cover .overlay {
+    background: linear-gradient(to bottom, rgba(13, 13, 13, 0.3) 0%, rgba(13, 13, 13, 0.1) 40%, rgba(13, 13, 13, 0.8) 100%);
+}
+
+.album-page.wedding-prestige.cover .top-label {
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 6px;
+}
+
+.album-page.wedding-prestige.cover .groom-name {
+    font-size: 56px;
+    font-weight: 300;
+    letter-spacing: 8px;
+}
+
+.album-page.wedding-prestige.cover .ampersand {
+    font-size: 28px;
+    font-weight: 300;
+}
+
+.album-page.wedding-prestige.cover .bride-name {
+    font-size: 56px;
+    font-weight: 300;
+    letter-spacing: 8px;
+}
+
+.album-page.wedding-prestige.cover .date {
+    font-size: 13px;
+    font-weight: 200;
+    letter-spacing: 4px;
+}
+
+/* INTRO */
+.album-page.wedding-prestige.intro .chapter-num {
+    font-size: 100px;
+    font-weight: 400;
+    opacity: 0.2;
+}
+
+.album-page.wedding-prestige.intro .chapter-title {
+    font-size: 48px;
+    font-weight: 500;
+}
+
+.album-page.wedding-prestige.intro .subtitle-text {
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 1.8;
+}
+
+/* SPLIT */
+.album-page.wedding-prestige.split .center-text {
+    font-size: 36px;
+    font-weight: 700;
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
+}
+
+/* FILMSTRIP */
+.album-page.wedding-prestige.filmstrip .title {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: 12px;
+}
+
+.album-page.wedding-prestige.filmstrip .subtitle-text {
+    font-size: 12px;
+    font-weight: 200;
+    letter-spacing: 3px;
+}
+
+/* HEXAGON */
+.album-page.wedding-prestige.hexagon-page .title {
+    font-size: 24px;
+    font-weight: 400;
+}
+
+/* ASYMMETRIC */
+.album-page.wedding-prestige.asymmetric .quote {
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1.7;
+    text-align: right;
+}
+
+.album-page.wedding-prestige.asymmetric .attribution {
+    font-size: 11px;
+    font-weight: 200;
+    letter-spacing: 2px;
+    text-align: right;
+}
+
+/* CHUPPAH */
+.album-page.wedding-prestige.chuppah .overlay {
+    background: linear-gradient(to top, rgba(13, 13, 13, 0.9) 0%, rgba(13, 13, 13, 0.2) 30%, transparent 60%);
+}
+
+.album-page.wedding-prestige.chuppah .title {
+    font-size: 44px;
+    font-weight: 500;
+    letter-spacing: 6px;
+}
+
+.album-page.wedding-prestige.chuppah .blessing {
+    font-size: 14px;
+    font-weight: 200;
+    line-height: 1.6;
+}
+
+/* RINGS */
+.album-page.wedding-prestige.rings .title {
+    font-size: 28px;
+    font-weight: 500;
+}
+
+.album-page.wedding-prestige.rings .subtitle-text {
+    font-size: 14px;
+    font-weight: 300;
+}
+
+/* TIMELINE */
+.album-page.wedding-prestige.timeline .time {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    text-align: center;
+}
+
+.album-page.wedding-prestige.timeline .label {
+    font-size: 12px;
+    font-weight: 300;
+    text-align: center;
+}
+
+.album-page.wedding-prestige.timeline .title {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 6px;
+}
+
+/* DANCE */
+.album-page.wedding-prestige.dance .overlay {
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(13, 13, 13, 0.7) 100%);
+}
+
+.album-page.wedding-prestige.dance .side-text {
+    font-size: 42px;
+    font-weight: 300;
+    line-height: 1.3;
+    letter-spacing: 4px;
+    text-align: right;
+}
+
+/* ARCH DRAMATIC */
+.album-page.wedding-prestige.arch-dramatic .left-text {
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    line-height: 1.8;
+    text-align: center;
+}
+
+.album-page.wedding-prestige.arch-dramatic .right-text {
+    font-size: 24px;
+    font-weight: 300;
+    line-height: 1.8;
+    text-align: center;
+}
+
+/* QUOTE OVERLAY */
+.album-page.wedding-prestige.quote-overlay .overlay {
+    background: rgba(13, 13, 13, 0.6);
+}
+
+.album-page.wedding-prestige.quote-overlay .quote {
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.7;
+}
+
+.album-page.wedding-prestige.quote-overlay .source {
+    font-size: 13px;
+    font-weight: 200;
+    letter-spacing: 3px;
+}
+
+/* PARENTS */
+.album-page.wedding-prestige.parents .title {
+    font-size: 28px;
+    font-weight: 400;
+}
+
+.album-page.wedding-prestige.parents .caption {
+    font-size: 13px;
+    font-weight: 400;
+    text-align: center;
+}
+
+.album-page.wedding-prestige.parents .dedication {
+    font-size: 14px;
+    font-weight: 300;
+    font-style: italic;
+}
+
+/* CLOSING */
+.album-page.wedding-prestige.closing .thanks {
+    font-size: 42px;
+    font-weight: 300;
+    letter-spacing: 8px;
+}
+
+.album-page.wedding-prestige.closing .message {
+    font-size: 14px;
+    font-weight: 200;
+    line-height: 1.8;
+}
+
+.album-page.wedding-prestige.closing .signature {
+    font-size: 20px;
+    font-weight: 500;
+}

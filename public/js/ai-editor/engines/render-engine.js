@@ -278,8 +278,28 @@ export class RenderEngine {
         return div.firstElementChild;
     }
 
-    renderCover(cover, assets) {
+    /**
+     * Render cover page with template-aware styling
+     * @param {Object} cover - Cover state from store
+     * @param {Object} assets - Assets including photos
+     * @param {Object} templateConfig - Optional template configuration for styling
+     */
+    renderCover(cover, assets, templateConfig = null) {
         this.container.innerHTML = '';
+
+        // Extract design system from template if available
+        const ds = templateConfig?.designSystem || {};
+        const colors = ds.colors || {};
+        const typography = ds.typography || {};
+        const decorativeColors = colors.decorative || {};
+
+        // Determine colors based on template or cover state
+        const bgColor = cover.color || colors.background || cover.theme || '#fff';
+        const textColor = cover.textColor || colors.text?.primary || '#000';
+        const accentColor = decorativeColors.gold || colors.accent || '#C9A227';
+        const titleFont = typography.title?.family || typography.heading?.family || 'Playfair Display, serif';
+        const bodyFont = typography.body?.family || 'Montserrat, sans-serif';
+
         const wrapper = document.createElement('div');
         wrapper.className = 'cover-wrapper';
         wrapper.style.display = 'flex';
@@ -319,6 +339,11 @@ export class RenderEngine {
                     }
                     return;
                 }
+            }
+            // Use template background color if available
+            if (colors.background) {
+                el.style.backgroundColor = colors.background;
+                return;
             }
             // Fallback
             el.style.backgroundColor = cover.color || cover.theme || '#fff';
@@ -373,7 +398,7 @@ export class RenderEngine {
         spineEl.className = 'cover-spine';
         spineEl.style.width = '40px';
         spineEl.style.height = '100%';
-        spineEl.style.backgroundColor = cover.color || '#ddd';
+        spineEl.style.backgroundColor = bgColor;
         spineEl.style.display = 'flex';
         spineEl.style.alignItems = 'center';
         spineEl.style.justifyContent = 'center';
@@ -383,8 +408,9 @@ export class RenderEngine {
         spineText.textContent = cover.spineText || cover.title;
         spineText.style.writingMode = 'vertical-rl';
         spineText.style.transform = 'rotate(180deg)';
-        spineText.style.fontFamily = 'var(--font-serif)';
+        spineText.style.fontFamily = titleFont;
         spineText.style.fontSize = '14px';
+        spineText.style.color = textColor;
         spineEl.appendChild(spineText);
         wrapper.appendChild(spineEl);
 
@@ -417,16 +443,18 @@ export class RenderEngine {
         const titleEl = document.createElement('h1');
         titleEl.textContent = cover.title;
         titleEl.style.margin = '0';
-        titleEl.style.fontFamily = 'Playfair Display, serif'; // Hardcoded for now, should come from theme
-        titleEl.style.color = cover.textColor || '#000';
+        titleEl.style.fontFamily = titleFont;
+        titleEl.style.color = textColor;
+        titleEl.style.fontSize = '2.5rem';
         titleEl.dataset.selectableId = 'cover-title';
         titleEl.dataset.selectableType = 'cover-text';
 
         const subEl = document.createElement('h3');
         subEl.textContent = cover.subtitle;
         subEl.style.margin = '10px 0 0 0';
-        subEl.style.fontFamily = 'Montserrat, sans-serif';
-        subEl.style.color = cover.textColor || '#000';
+        subEl.style.fontFamily = bodyFont;
+        subEl.style.color = textColor;
+        subEl.style.opacity = '0.85';
         subEl.dataset.selectableId = 'cover-subtitle';
         subEl.dataset.selectableType = 'cover-text';
 

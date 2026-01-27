@@ -2,26 +2,30 @@
  * Main Application Logic for AI Editor
  */
 import { store } from './state.js';
-import { layoutEngine } from './layout-engine.js';
-import { RenderEngine } from './render-engine.js';
-import { pdfExport } from './pdf-export.js';
-import { googlePhotosService } from './google-photos-service.js?v=forceNew6';
-import { geminiService } from './gemini-banana-service.js';
-import { aiDirector } from './ai-director.js';
-import { orderFlow } from './order-flow.js';
-import { authService } from './firebase-auth.js';
-import { persistenceService } from './persistence-service.js';
-import { TemplateSidebar } from './ui-components/template-sidebar.js';
-import { PhotographyPortfolioRenderer } from './templates/photography-portfolio-renderer.js';
-import { RomanticJourneyRenderer } from './templates/romantic-journey-renderer.js';
-import { TravelJourneyRenderer } from './templates/travel-journey-renderer.js';
-import { FamilyRootsRenderer } from './templates/family-roots-renderer.js';
-import { BarMitzvahRenderer } from './templates/bar-mitzvah-renderer.js';
+import { layoutEngine } from '../engines/layout-engine.js';
+import { RenderEngine } from '../engines/render-engine.js';
+import { pdfExport } from '../engines/pdf-export.js';
+import { pdfCanvasExport } from '../engines/pdf-canvas-export.js';
+import { googlePhotosService } from '../services/google-photos-service.js?v=forceNew6';
+import { geminiService } from '../services/ai-service.js';
+import { aiDirector } from '../engines/ai-director.js';
+import { orderFlow } from '../services/order-flow.js';
+import { authService } from '../services/firebase-auth-service.js';
+import { persistenceService } from '../services/persistence-service.js';
+import { TemplateSidebar } from '../ui-components/template-sidebar.js';
+import { PhotographyPortfolioRenderer } from '../templates/photography-portfolio-renderer.js';
+import { RomanticJourneyRenderer } from '../templates/romantic-journey-renderer.js';
+import { TravelJourneyRenderer } from '../templates/travel-journey-renderer.js';
+import { FamilyRootsRenderer } from '../templates/family-roots-renderer.js';
+import { BarMitzvahRenderer } from '../templates/bar-mitzvah-renderer.js';
+import { UnifiedCoverRenderer } from '../engines/unified-cover-renderer.js';
+import { WeddingPrestigeRenderer } from '../templates/wedding-prestige-renderer.js';
 
 
 
 // Expose for debugging
 window.pdfExport = pdfExport;
+window.pdfCanvasExport = pdfCanvasExport;
 
 class App {
     constructor() {
@@ -140,7 +144,7 @@ class App {
 
                     // Refresh current view
                     if (store.state.viewMode === 'cover') {
-                        this.renderer.renderCover(store.state.cover, store.state.assets);
+                        this.renderCoverWithTemplate();
                     } else {
                         this.renderActivePage();
                     }
@@ -175,7 +179,7 @@ class App {
         // Check for Specialized Renderer
         // We need access to the Template Config for the renderer. 
         // We assume TemplateSidebar has the manager with the config loaded.
-        if (p.templateId === 'photography-portfolio-v1' || p.templateId === 'romantic-journey-v1' || p.templateId === 'travel-journey-v1' || p.templateId === 'family-roots-v1' || p.templateId === 'bar-mitzvah-v1') {
+        if (p.templateId === 'photography-portfolio-v1' || p.templateId === 'romantic-journey-v1' || p.templateId === 'travel-journey-v1' || p.templateId === 'family-roots-v1' || p.templateId === 'bar-mitzvah-v1' || p.templateId === 'wedding-prestige-hebrew-v1') {
             const manager = this.templateSidebar?.manager;
             if (manager && manager.config && manager.config.templateId === p.templateId) {
 
@@ -190,6 +194,8 @@ class App {
                     renderer = new FamilyRootsRenderer(manager.config);
                 } else if (p.templateId === 'bar-mitzvah-v1') {
                     renderer = new BarMitzvahRenderer(manager.config);
+                } else if (p.templateId === 'wedding-prestige-hebrew-v1') {
+                    renderer = new WeddingPrestigeRenderer(manager.config);
                 }
 
                 if (renderer && p.rawLayoutId) {
@@ -317,6 +323,41 @@ class App {
         }
     }
 
+    /**
+     * Render cover using the UNIFIED cover renderer
+     * This ensures consistent cover rendering across editor, preview, and PDF export.
+     */
+    renderCoverWithTemplate() {
+        const cover = store.state.cover;
+        const assets = store.state.assets;
+        const container = this.renderer.container;
+
+        // Get template config if available
+        const templateId = cover?.templateId ||
+            (store.state.pages && store.state.pages[0] && store.state.pages[0].templateId);
+
+        const manager = this.templateSidebar?.manager;
+        let templateConfig = null;
+
+        if (templateId && manager && manager.config) {
+            templateConfig = manager.config;
+
+            // Sync template ID to cover for consistency
+            if (cover && !cover.templateId) {
+                cover.templateId = templateId;
+            }
+        }
+
+        // Use the UNIFIED cover renderer
+        UnifiedCoverRenderer.render({
+            cover,
+            assets,
+            templateConfig,
+            container,
+            interactive: true,  // Enable drag/drop and selection
+            thumbnail: false
+        });
+    }
 
     createHoverTooltip() {
         if (document.getElementById('photo-preview-tooltip')) return;
@@ -334,7 +375,7 @@ class App {
         store.subscribe((state, prop, value) => {
             if (prop === 'activePageId' || prop === 'pages' || prop === 'selection' || prop === 'theme' || prop === 'viewMode' || prop === 'cover') {
                 if (state.viewMode === 'cover') {
-                    this.renderer.renderCover(state.cover, state.assets);
+                    this.renderCoverWithTemplate();
                 } else {
                     // IMPORTANT: Use renderActivePage() instead of renderer.renderPage()
                     // This ensures template-specific renderers are used consistently
@@ -612,11 +653,13 @@ class App {
             const targetEl = document.querySelector(`[data-selectable-id="${dragTargetId}"]`);
             if (!targetEl) return;
 
-            const canvasRect = canvas.getBoundingClientRect();
+            // Get the album page element (parent container for text elements)
+            const albumPage = targetEl.closest('.album-page') || targetEl.closest('.shoso-page') || canvas.querySelector('.album-page');
+            const containerRect = albumPage ? albumPage.getBoundingClientRect() : canvas.getBoundingClientRect();
 
-            // Calculate new X, Y relative to canvas
-            let newX = e.clientX - canvasRect.left - dragOffsetX;
-            let newY = e.clientY - canvasRect.top - dragOffsetY;
+            // Calculate new X, Y relative to the album page (not canvas)
+            let newX = e.clientX - containerRect.left - dragOffsetX;
+            let newY = e.clientY - containerRect.top - dragOffsetY;
 
             // Visual Update (Direct DOM for Performance)
             targetEl.style.left = `${newX}px`; // Temporary px value overriding %
@@ -629,14 +672,15 @@ class App {
             if (isDraggingText && dragTargetId) {
                 const targetEl = document.querySelector(`[data-selectable-id="${dragTargetId}"]`);
                 if (targetEl) {
-                    const canvasRect = canvas.getBoundingClientRect();
-                    // Final calculation based on current mouse or element Pos?
-                    // Let's use the element's current visual position (which was updated in mousemove)
-                    // But 'style.left' might be in px now.
+                    // Get the album page element (parent container for text elements)
+                    // Text is positioned relative to .album-page, not #canvas-container
+                    const albumPage = targetEl.closest('.album-page') || targetEl.closest('.shoso-page') || canvas.querySelector('.album-page');
+                    const containerRect = albumPage ? albumPage.getBoundingClientRect() : canvas.getBoundingClientRect();
 
+                    // Calculate position relative to the album page, not canvas container
                     const rect = targetEl.getBoundingClientRect();
-                    const relativeX = (rect.left - canvasRect.left) / canvasRect.width * 100;
-                    const relativeY = (rect.top - canvasRect.top) / canvasRect.height * 100;
+                    const relativeX = (rect.left - containerRect.left) / containerRect.width * 100;
+                    const relativeY = (rect.top - containerRect.top) / containerRect.height * 100;
 
                     // Update State
                     const page = store.state.pages.find(p => p.id === store.state.activePageId);
@@ -672,40 +716,25 @@ class App {
         // Toolbar Actions
         // ----------------------------------------------------
         document.getElementById('btn-preview').addEventListener('click', () => {
-            // User Request: "when i click on preview it will created and download a pdf file"
-            // Toggling preview mode is still useful for quick check, but let's prioritize the download as requested.
+            // Open preview mode with page flipping and 3D view
+            // PDF is generated only when clicking "Generate PDF" button in preview
+            console.log("[App] Opening Album Preview...");
 
-            // Option A: Just download
-            console.log("[App] Preview clicked. Generating PDF...");
+            const hasTemplateConfig = this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config;
+            const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
 
-            // Ensure config is up to date
-            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
-                console.log("[App] Syncing Template Config to PDF Export manually:", this.templateSidebar.manager.config.templateId);
-                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
-            } else {
-                console.warn("[App] Template Config NOT synced (missing sidebar/manager/config)", {
-                    sidebar: !!this.templateSidebar,
-                    manager: !!(this.templateSidebar && this.templateSidebar.manager),
-                    config: !!(this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config)
-                });
-            }
-
-            // Set template config before generating PDF
-            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
-                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
-            }
-
-            pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
-
-            // Option B: Toggle mode AND download? 
-            // "not other file type" implies they want the file.
-            // We can keep the visual toggle if it helps, but let's stick to the request.
-
-            // toggle visual preview as well for feedback
-            document.body.classList.toggle('preview-mode');
-            const isPreview = document.body.classList.contains('preview-mode');
-            const btn = document.getElementById('btn-preview');
-            btn.textContent = isPreview ? 'Close Preview' : 'Preview (PDF)';
+            // Import and open the album preview
+            import('../ui-components/album-preview.js').then(({ albumPreview }) => {
+                albumPreview.open(
+                    store.state.pages,
+                    store.state.cover,
+                    store.state.assets,
+                    templateConfig
+                );
+            }).catch(err => {
+                console.error('[App] Failed to load album preview:', err);
+                alert('Failed to open preview. Please try again.');
+            });
         });
 
         document.getElementById('btn-remix-layout').addEventListener('click', () => {
@@ -716,36 +745,24 @@ class App {
             let newLayout = null;
 
             // Strategy A: Template-based Remix
-            if (page.templateId && this.templateSidebar && this.templateSidebar.templateManager) {
-                const tm = this.templateSidebar.templateManager;
-                const currentLayoutId = page.layout ? page.layout.id : null;
-                const photoCount = page.photos ? page.photos.length : (page.layout.slots ? page.layout.slots.length : 0);
+            if (page.templateId && this.templateSidebar && this.templateSidebar.manager) {
+                const tm = this.templateSidebar.manager;
 
-                // 1. Get next layout ID
-                const nextLayoutId = tm.getAlternativeLayoutId(currentLayoutId, photoCount);
+                // Ensure template config is loaded
+                if (!tm.config || tm.currentTemplateId !== page.templateId) {
+                    console.log('[App] Loading template config for remix:', page.templateId);
+                    // Load template synchronously if possible, or use async with await
+                    tm.loadTemplate(page.templateId).then(() => {
+                        this.performTemplateRemix(page, tm);
+                    }).catch(err => {
+                        console.warn('[App] Could not load template for remix, falling back:', err);
+                    });
+                    return; // Exit early, remix will happen after load
+                }
 
-                if (nextLayoutId) {
-                    // 2. Regenerate entire page state (keeping photos)
-                    const newPage = tm.regeneratePage(page, nextLayoutId);
-
-                    if (newPage) {
-                        console.log('[App] Remixed template layout to:', newPage.layout.name);
-
-                        // Replace the page in state
-                        const index = state.pages.findIndex(p => p.id === page.id);
-                        if (index !== -1) {
-                            const newPages = [...state.pages];
-                            newPages[index] = newPage;
-                            store.state.pages = newPages;
-
-                            // Ensure selection is cleared if element gone
-                            store.state.selection = null;
-
-                            // Force properties panel update
-                            this.updatePropertiesPanel(store.state);
-                        }
-                        return; // Done
-                    }
+                // Config is loaded, perform remix
+                if (this.performTemplateRemix(page, tm)) {
+                    return; // Done
                 }
             }
 
@@ -778,16 +795,27 @@ class App {
 
         // Review & Order Actions
         // 1. Review (Download PDF)
-        document.getElementById('btn-review').addEventListener('click', () => {
+        document.getElementById('btn-review').addEventListener('click', async () => {
             console.log("Generating Review PDF...");
 
             // Ensure config is up to date
-            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
-                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
+            const hasTemplateConfig = this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config;
+            const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
+
+            if (templateConfig) {
+                pdfExport.setTemplateConfig(templateConfig);
+                pdfCanvasExport.setTemplateConfig(templateConfig);
             }
 
-            // Standard export for review
-            pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
+            // Use canvas-based export for template-based pages
+            const firstPage = store.state.pages[0];
+            const isTemplateBased = firstPage && firstPage.templateId && templateConfig;
+
+            if (isTemplateBased) {
+                await pdfCanvasExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
+            } else {
+                await pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
+            }
 
             // Show Order Button
             document.getElementById('btn-order-print').style.display = 'inline-block';
@@ -798,12 +826,25 @@ class App {
             console.log("Starting Order Flow...");
 
             // Ensure config is up to date
-            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
-                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
+            const hasTemplateConfig = this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config;
+            const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
+
+            if (templateConfig) {
+                pdfExport.setTemplateConfig(templateConfig);
+                pdfCanvasExport.setTemplateConfig(templateConfig);
             }
 
-            // Generate Blob
-            const blob = await pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
+            // Generate Blob - use canvas-based export for template-based pages
+            const firstPage = store.state.pages[0];
+            const isTemplateBased = firstPage && firstPage.templateId && templateConfig;
+
+            let blob;
+            if (isTemplateBased) {
+                blob = await pdfCanvasExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
+            } else {
+                blob = await pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
+            }
+
             if (blob) {
                 orderFlow.startOrderFlow(blob);
             }
@@ -924,7 +965,7 @@ class App {
                     // Go to cover?
                     store.state.viewMode = 'cover';
                     store.notify('viewMode', 'cover');
-                    this.renderer.renderCover(state.cover, state.assets);
+                    this.renderCoverWithTemplate();
                     this.updateTimeline(state.pages, null); // Highlight cover in timeline
                 }
             });
@@ -964,7 +1005,7 @@ class App {
                 // After undo, state is restored. We need to re-render everything.
                 this.renderActivePage(); // Or detect what changed? renderActivePage is safest.
                 if (store.state.viewMode === 'cover') {
-                    this.renderer.renderCover(store.state.cover, store.state.assets);
+                    this.renderCoverWithTemplate();
                 }
                 this.updatePropertiesPanel(store.state);
             });
@@ -976,7 +1017,7 @@ class App {
                 // After redo, re-render
                 this.renderActivePage();
                 if (store.state.viewMode === 'cover') {
-                    this.renderer.renderCover(store.state.cover, store.state.assets);
+                    this.renderCoverWithTemplate();
                 }
                 this.updatePropertiesPanel(store.state);
             });
@@ -1032,6 +1073,52 @@ class App {
         }
     }
 
+    /**
+     * Perform template-based layout remix for a page
+     * @param {Object} page - The page to remix
+     * @param {Object} tm - Template manager instance
+     * @returns {boolean} True if remix was successful
+     */
+    performTemplateRemix(page, tm) {
+        const currentLayoutId = page.layout ? page.layout.id : null;
+        const photoCount = page.photos ? page.photos.length : (page.layout?.slots ? page.layout.slots.length : 0);
+
+        // 1. Get next layout ID
+        const nextLayoutId = tm.getAlternativeLayoutId(currentLayoutId, photoCount);
+        console.log('[App] Remix: current layout:', currentLayoutId, 'next layout:', nextLayoutId, 'photoCount:', photoCount);
+
+        if (nextLayoutId) {
+            // 2. Regenerate entire page state (keeping photos)
+            const newPage = tm.regeneratePage(page, nextLayoutId);
+
+            if (newPage) {
+                console.log('[App] Remixed template layout to:', newPage.layout.name);
+
+                // Replace the page in state
+                const state = store.state;
+                const index = state.pages.findIndex(p => p.id === page.id);
+                if (index !== -1) {
+                    store.pushState('Remix Layout');
+                    const newPages = [...state.pages];
+                    newPages[index] = newPage;
+                    store.state.pages = newPages;
+
+                    // Ensure selection is cleared if element gone
+                    store.state.selection = null;
+
+                    // Notify and update
+                    store.notify('pages', store.state.pages);
+
+                    // Force properties panel update
+                    this.updatePropertiesPanel(store.state);
+                }
+                return true; // Success
+            }
+        } else {
+            console.warn('[App] No alternative layout found for photoCount:', photoCount);
+        }
+        return false; // No remix performed
+    }
 
     addPhotoToPage(photoId, relativeX = 0.5) {
         const state = store.state;
@@ -1336,6 +1423,13 @@ class App {
 
     updatePropertiesPanel(state) {
         const panel = document.getElementById('properties-panel');
+
+        // Prevent re-rendering if user is actively typing in a field in this panel
+        // This stops the "focus loss" bug on every keystroke
+        if (panel && panel.contains(document.activeElement) &&
+            ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            return;
+        }
 
         if (state.viewMode === 'cover') {
             this.renderCoverProperties(panel, state.cover);
@@ -1653,6 +1747,12 @@ class App {
         const state = store.state;
         const selection = state.selection;
 
+        // Import layout and font options from UnifiedCoverRenderer
+        const layouts = UnifiedCoverRenderer.LAYOUTS;
+        const fonts = UnifiedCoverRenderer.FONTS;
+        const templateId = cover.templateId || this.templateSidebar?.manager?.config?.templateId;
+        const templateDefaults = UnifiedCoverRenderer.getTemplateDefaults(templateId);
+
         if (selection === 'cover-photo' || selection === 'cover-back-photo') {
             container.innerHTML = `
                 <div class="panel-header">
@@ -1660,11 +1760,6 @@ class App {
                     <h3>${selection === 'cover-photo' ? 'Front Photo' : 'Back Photo'}</h3>
                 </div>
              `;
-
-            // Reuse renderPhotoProperties logic? 
-            // renderPhotoProperties expects a page and photoId. 
-            // We need a bespoke one for cover or adapt it. 
-            // For now, let's just add Filters/Remove options here.
 
             const photoId = selection === 'cover-photo' ? cover.frontPhotoId : cover.backPhotoId;
 
@@ -1680,13 +1775,13 @@ class App {
                     if (selection === 'cover-photo') state.cover.frontPhotoId = null;
                     else state.cover.backPhotoId = null;
                     store.notify('cover', state.cover);
-                    store.state.selection = null; // Deselect
+                    store.state.selection = null;
                 });
             }
 
             container.querySelector('#btn-back-cover-props').addEventListener('click', () => {
                 store.state.selection = null;
-                store.notify('selection', null); // Force update to show general properties
+                store.notify('selection', null);
             });
 
             return;
@@ -1697,72 +1792,157 @@ class App {
         // Title
         const titleGroup = document.createElement('div');
         titleGroup.className = 'prop-group';
-        titleGroup.innerHTML = `<label>Title</label><input type="text" id="prop-cover-title" value="${cover.title}">`;
+        titleGroup.innerHTML = `<label>Title</label><input type="text" id="prop-cover-title" value="${cover.title || ''}" placeholder="${templateDefaults.title}">`;
         container.appendChild(titleGroup);
 
         // Subtitle
         const subGroup = document.createElement('div');
         subGroup.className = 'prop-group';
-        subGroup.innerHTML = `<label>Subtitle</label><input type="text" id="prop-cover-sub" value="${cover.subtitle}">`;
+        subGroup.innerHTML = `<label>Subtitle</label><input type="text" id="prop-cover-sub" value="${cover.subtitle || ''}" placeholder="${templateDefaults.subtitle}">`;
         container.appendChild(subGroup);
 
-        // Layout
+        // Spine Text
+        const spineGroup = document.createElement('div');
+        spineGroup.className = 'prop-group';
+        spineGroup.innerHTML = `<label>Spine Text</label><input type="text" id="prop-cover-spine" value="${cover.spineText || ''}" placeholder="${cover.title || templateDefaults.spineText}">`;
+        container.appendChild(spineGroup);
+
+        // Layout - with all 7 options
+        const currentLayout = cover.layout || templateDefaults.layout;
+        const layoutOptions = layouts.map(l =>
+            `<option value="${l.id}" ${currentLayout === l.id ? 'selected' : ''} title="${l.description}">${l.label}</option>`
+        ).join('');
+
         const layoutGroup = document.createElement('div');
         layoutGroup.className = 'prop-group';
         layoutGroup.innerHTML = `
             <label>Layout</label>
             <select id="prop-cover-layout" class="full-width">
-                <option value="standard" ${cover.layout === 'standard' ? 'selected' : ''}>Standard</option>
-                <option value="full-bleed" ${cover.layout === 'full-bleed' ? 'selected' : ''}>Full Bleed</option>
-                <option value="photo-bottom" ${cover.layout === 'photo-bottom' ? 'selected' : ''}>Photo Bottom</option>
+                ${layoutOptions}
             </select>
         `;
         container.appendChild(layoutGroup);
 
-        // Bindings
+        // Title Font
+        const currentTitleFont = cover.titleFont || templateDefaults.titleFont;
+        const titleFontOptions = fonts.map(f => {
+            const isSelected = currentTitleFont.includes(f.label.split(' ')[0]) ||
+                currentTitleFont === f.family;
+            return `<option value="${f.family}" ${isSelected ? 'selected' : ''} style="font-family:${f.family}">${f.label}</option>`;
+        }).join('');
+
+        const titleFontGroup = document.createElement('div');
+        titleFontGroup.className = 'prop-group';
+        titleFontGroup.innerHTML = `
+            <label>Title Font</label>
+            <select id="prop-cover-title-font" class="full-width">
+                ${titleFontOptions}
+            </select>
+        `;
+        container.appendChild(titleFontGroup);
+
+        // Body Font (for subtitle)
+        const currentBodyFont = cover.bodyFont || templateDefaults.bodyFont;
+        const bodyFontOptions = fonts.map(f => {
+            const isSelected = currentBodyFont.includes(f.label.split(' ')[0]) ||
+                currentBodyFont === f.family;
+            return `<option value="${f.family}" ${isSelected ? 'selected' : ''} style="font-family:${f.family}">${f.label}</option>`;
+        }).join('');
+
+        const bodyFontGroup = document.createElement('div');
+        bodyFontGroup.className = 'prop-group';
+        bodyFontGroup.innerHTML = `
+            <label>Subtitle Font</label>
+            <select id="prop-cover-body-font" class="full-width">
+                ${bodyFontOptions}
+            </select>
+        `;
+        container.appendChild(bodyFontGroup);
+
+        // Background Color
+        const colorGroup = document.createElement('div');
+        colorGroup.className = 'prop-group';
+        colorGroup.innerHTML = `
+            <label>Background Color</label>
+            <div style="display:flex; gap:10px;">
+                <input type="color" id="prop-cover-color" value="${cover.color || templateDefaults.bgColor}" class="full-width" style="height:40px;">
+                <button class="btn-secondary" id="btn-reset-theme" title="Reset to Template Defaults"><i class="fa-solid fa-rotate-left"></i></button>
+            </div>
+        `;
+        container.appendChild(colorGroup);
+
+        // Text Color
+        const textColorGroup = document.createElement('div');
+        textColorGroup.className = 'prop-group';
+        textColorGroup.innerHTML = `
+            <label>Text Color</label>
+            <input type="color" id="prop-cover-text-color" value="${cover.textColor || templateDefaults.textColor}" class="full-width" style="height:40px;">
+        `;
+        container.appendChild(textColorGroup);
+
+        // Event Bindings
         container.querySelector('#prop-cover-title').addEventListener('input', (e) => {
             store.state.cover = { ...store.state.cover, title: e.target.value };
         });
         container.querySelector('#prop-cover-sub').addEventListener('input', (e) => {
             store.state.cover = { ...store.state.cover, subtitle: e.target.value };
         });
-        container.querySelector('#prop-cover-layout').addEventListener('change', (e) => {
-            store.state.cover = { ...store.state.cover, layout: e.target.value };
-        });
-
-        // Spine Text
-        const spineGroup = document.createElement('div');
-        spineGroup.className = 'prop-group';
-        spineGroup.innerHTML = `<label>Spine Text</label><input type="text" id="prop-cover-spine" value="${cover.spineText || ''}" placeholder="${cover.title}">`;
-        container.appendChild(spineGroup);
-
         container.querySelector('#prop-cover-spine').addEventListener('input', (e) => {
             store.state.cover = { ...store.state.cover, spineText: e.target.value };
         });
-
-        // Background Color/Theme
-        const colorGroup = document.createElement('div');
-        colorGroup.className = 'prop-group';
-        colorGroup.innerHTML = `
-            <label>Background Color</label>
-            <div style="display:flex; gap:10px;">
-                <input type="color" id="prop-cover-color" value="${cover.color || '#ffffff'}" class="full-width" style="height:40px;">
-                <button class="btn-secondary" id="btn-reset-theme" title="Reset to Theme"><i class="fa-solid fa-rotate-left"></i></button>
-            </div>
-        `;
-        container.appendChild(colorGroup);
-
+        container.querySelector('#prop-cover-layout').addEventListener('change', (e) => {
+            store.state.cover = { ...store.state.cover, layout: e.target.value };
+            store.notify('cover', store.state.cover);
+        });
+        container.querySelector('#prop-cover-title-font').addEventListener('change', (e) => {
+            store.state.cover = {
+                ...store.state.cover,
+                titleFont: e.target.value,
+                _userCustomTitleFont: true
+            };
+            store.notify('cover', store.state.cover);
+        });
+        container.querySelector('#prop-cover-body-font').addEventListener('change', (e) => {
+            store.state.cover = {
+                ...store.state.cover,
+                bodyFont: e.target.value,
+                _userCustomBodyFont: true
+            };
+            store.notify('cover', store.state.cover);
+        });
         container.querySelector('#prop-cover-color').addEventListener('input', (e) => {
-            // Unset theme effectively to use color
-            // Or just update color. RenderEngine prioritizes theme if set?
-            // "applyCoverBg" prioritizes theme. So we need to unset theme or update it.
-            // Let's assume user wants to override theme.
-            store.state.cover = { ...store.state.cover, color: e.target.value, theme: null };
+            store.state.cover = {
+                ...store.state.cover,
+                color: e.target.value,
+                theme: null,
+                _userCustomColor: true
+            };
+        });
+        container.querySelector('#prop-cover-text-color').addEventListener('input', (e) => {
+            store.state.cover = {
+                ...store.state.cover,
+                textColor: e.target.value,
+                _userCustomTextColor: true
+            };
         });
 
+        // Reset to Template Defaults
         container.querySelector('#btn-reset-theme').addEventListener('click', () => {
-            // Reset to global theme
-            store.state.cover = { ...store.state.cover, theme: store.state.theme };
+            const defaults = UnifiedCoverRenderer.getTemplateDefaults(templateId);
+            store.state.cover = {
+                ...store.state.cover,
+                color: defaults.bgColor,
+                textColor: defaults.textColor,
+                titleFont: defaults.titleFont,
+                bodyFont: defaults.bodyFont,
+                layout: defaults.layout,
+                theme: defaults.bgColor,
+                _userCustomColor: false,
+                _userCustomTextColor: false,
+                _userCustomTitleFont: false,
+                _userCustomBodyFont: false
+            };
+            store.notify('cover', store.state.cover);
         });
     }
 
@@ -2234,10 +2414,8 @@ class App {
         const TARGET_HEIGHT = 100;
         const scale = TARGET_HEIGHT / rh;
 
-        // Cover Handling
+        // Cover Handling - Use UNIFIED cover renderer for thumbnail
         if (store.state.viewMode === 'cover' || store.state.cover) {
-            // Only show standalone cover item if we aren't using a "page 1 is cover" strategy.
-            // Current model: separate cover object.
             const coverEl = document.createElement('div');
             coverEl.className = `timeline-page cover ${store.state.viewMode === 'cover' ? 'active' : ''}`;
             coverEl.style.width = `${rw * scale}px`;
@@ -2250,34 +2428,18 @@ class App {
             preview.style.transformOrigin = 'top left';
             preview.style.pointerEvents = 'none';
             preview.style.background = '#fff';
+            preview.style.overflow = 'hidden';
 
-            // Render Cover Preview Logic
-            // We need a way to render cover TO A CONTAINER. 
-            // Existing `renderCover` renders to this.renderer.container.
-            // We should refactor renderCover too, but for now we can rely on specialized or hack it.
-            // Let's stick to the request: "from scratch" using unified logic.
-            // I'll make a temp method or assumes RenderEngine handles it.
-            // Let's instantiate a renderer if template, else default.
-
-            if (manager && manager.config && manager.config.templateId) {
-                // Template Cover
-                let renderer = this.getSpecializedRenderer(manager.config.templateId, manager.config);
-                if (renderer && renderer.renderCover) {
-                    // Most template renderers return a DOM element.
-                    const coverDom = renderer.renderCover(store.state.cover, store.state.assets);
-                    if (coverDom instanceof HTMLElement) {
-                        preview.innerHTML = '';
-                        preview.appendChild(coverDom);
-                    }
-                }
-            } else {
-                // Default Render Engine Cover -> it doesn't have renderCoverToContainer yet. 
-                // We'll trust the default cover rendering logic is simple enough or add a helper.
-                // For now, let's use a simplified preview for default covers to avoid main container hijacking.
-                preview.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;background:${store.state.cover.color || '#333'};color:white;text-align:center;">
-                    <div>${store.state.cover.title || 'Cover'}</div>
-                </div>`;
-            }
+            // Use UNIFIED cover renderer for timeline thumbnail
+            const templateConfig = manager?.config || null;
+            UnifiedCoverRenderer.render({
+                cover: store.state.cover,
+                assets: store.state.assets,
+                templateConfig,
+                container: preview,
+                interactive: false,
+                thumbnail: false  // Full cover, but scaled via CSS
+            });
 
             coverEl.appendChild(preview);
             coverEl.onclick = () => {
@@ -2290,8 +2452,13 @@ class App {
             tl.appendChild(coverEl);
         }
 
-        // Pages Handling
-        pages.forEach((page, idx) => {
+        // Pages Handling - Filter out cover pages (cover is handled above separately)
+        const contentPages = pages.filter(page => {
+            const layoutId = (page.rawLayoutId || page.layout?.id || page.layout?.layoutId || '').toLowerCase();
+            return !layoutId.includes('cover');
+        });
+
+        contentPages.forEach((page, idx) => {
             const el = document.createElement('div');
             el.className = `timeline-page ${page.id === activeId && store.state.viewMode !== 'cover' ? 'active' : ''}`;
             el.style.width = `${rw * scale}px`;
@@ -2360,6 +2527,7 @@ class App {
         if (templateId === 'travel-journey-v1') return new TravelJourneyRenderer(config);
         if (templateId === 'family-roots-v1') return new FamilyRootsRenderer(config);
         if (templateId === 'bar-mitzvah-v1') return new BarMitzvahRenderer(config);
+        if (templateId === 'wedding-prestige-hebrew-v1') return new WeddingPrestigeRenderer(config);
         return null;
     }
 

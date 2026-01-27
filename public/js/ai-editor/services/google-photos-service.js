@@ -2,7 +2,7 @@
  * Google Photos Service (Backend Sessions Version)
  * Replaces legacy google.picker with Backend Sessions API.
  */
-import { authService } from './firebase-auth.js';
+import { authService } from './firebase-auth-service.js';
 
 class GooglePhotosService {
     constructor() {

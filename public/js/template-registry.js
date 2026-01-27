@@ -45,6 +45,15 @@ const ALBUM_TEMPLATES = {
         category: 'celebration',
         minPhotos: 20,
         configPath: '/templates/bar-mitzvah-template.json'
+    },
+    'wedding-prestige-hebrew-v1': {
+        id: 'wedding-prestige-hebrew-v1',
+        name: 'Nitzach - Eternity (Wedding)',
+        description: 'Prestige editorial wedding album in Hebrew',
+        thumbnail: 'assets/templates/wedding-prestige-preview.png',
+        category: 'wedding',
+        minPhotos: 50,
+        configPath: '/templates/wedding-prestige-template.json'
     }
 };
 

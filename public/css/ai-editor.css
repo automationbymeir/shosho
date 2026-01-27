@@ -162,6 +162,9 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    min-width: 0;
 }
 
 .toolbar-top {
@@ -290,6 +293,8 @@ body {
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 
 #properties-panel {
