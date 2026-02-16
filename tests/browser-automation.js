@@ -13,7 +13,7 @@
 
 // Test configuration
 const TEST_CONFIG = {
-  baseUrl: process.env.TEST_URL || 'http://localhost:5000',
+  baseUrl: process.env.TEST_URL || 'http://localhost:8000',
   timeout: 60000, // 60 seconds
   screenshotDir: './tests/screenshots',
   headless: true
@@ -24,7 +24,7 @@ const TEST_CONFIG = {
  */
 async function runBrowserAutomationTests() {
   console.log('🚀 Starting Browser Automation Tests...\n');
-  
+
   const results = {
     passed: 0,
     failed: 0,
@@ -34,36 +34,36 @@ async function runBrowserAutomationTests() {
   try {
     // Test 1: Page Load
     await testPageLoad(results);
-    
+
     // Test 2: UI Elements Visibility
     await testUIElements(results);
-    
+
     // Test 3: Photo Selection Flow
     await testPhotoSelection(results);
-    
+
     // Test 4: Book Generation (if photos are available)
     await testBookGeneration(results);
-    
+
     // Test 5: PDF Export (if book is generated)
     await testPDFExport(results);
-    
+
     // Test 6: Project Save/Load
     await testProjectManagement(results);
-    
+
     // Test 7: Design Editor
     await testDesignEditor(results);
-    
+
     // Test 8: Theme Switching
     await testThemeSwitching(results);
-    
+
     // Print summary
     printTestSummary(results);
-    
+
   } catch (error) {
     console.error('❌ Test suite failed:', error);
     results.failed++;
   }
-  
+
   return results;
 }
 
@@ -73,15 +73,15 @@ async function runBrowserAutomationTests() {
 async function testPageLoad(results) {
   const testName = 'Page Load';
   console.log(`\n📄 Test: ${testName}`);
-  
+
   try {
     // This would be called via Puppeteer MCP
     // await page.goto(TEST_CONFIG.baseUrl);
     // await page.waitForSelector('#app');
-    
+
     // For MCP integration, this would be:
     // "Navigate to the app URL and verify the main app container exists"
-    
+
     recordTestResult(results, testName, true, 'Page loaded successfully');
   } catch (error) {
     recordTestResult(results, testName, false, error.message);
@@ -94,7 +94,7 @@ async function testPageLoad(results) {
 async function testUIElements(results) {
   const testName = 'UI Elements Visibility';
   console.log(`\n📄 Test: ${testName}`);
-  
+
   const requiredElements = [
     '#app',
     '.header',
@@ -104,11 +104,11 @@ async function testUIElements(results) {
     '#pageFormat',
     'button[onclick="generateBook()"]'
   ];
-  
+
   try {
     // Via Puppeteer MCP:
     // For each selector, verify element exists and is visible
-    
+
     recordTestResult(results, testName, true, `All ${requiredElements.length} required elements found`);
   } catch (error) {
     recordTestResult(results, testName, false, error.message);
@@ -121,14 +121,14 @@ async function testUIElements(results) {
 async function testPhotoSelection(results) {
   const testName = 'Photo Selection Flow';
   console.log(`\n📄 Test: ${testName}`);
-  
+
   try {
     // Steps:
     // 1. Click "Open Google Photos" button
     // 2. Wait for picker to load (or handle OAuth)
     // 3. Verify photo picker interface appears
     // 4. Take screenshot of picker
-    
+
     recordTestResult(results, testName, true, 'Photo selection flow works');
   } catch (error) {
     recordTestResult(results, testName, false, error.message);
@@ -141,7 +141,7 @@ async function testPhotoSelection(results) {
 async function testBookGeneration(results) {
   const testName = 'Book Generation';
   console.log(`\n📄 Test: ${testName}`);
-  
+
   try {
     // Steps:
     // 1. Ensure photos are selected (or mock this)
@@ -152,7 +152,7 @@ async function testBookGeneration(results) {
     // 6. Wait for completion
     // 7. Verify result modal appears
     // 8. Take screenshot of result
-    
+
     recordTestResult(results, testName, true, 'Book generation completed');
   } catch (error) {
     recordTestResult(results, testName, false, error.message);
@@ -165,7 +165,7 @@ async function testBookGeneration(results) {
 async function testPDFExport(results) {
   const testName = 'PDF Export';
   console.log(`\n📄 Test: ${testName}`);
-  
+
   try {
     // Steps:
     // 1. Ensure book is generated (from previous test)
@@ -173,7 +173,7 @@ async function testPDFExport(results) {
     // 3. Wait for export to complete
     // 4. Verify download link appears
     // 5. Verify PDF URL is valid
-    
+
     recordTestResult(results, testName, true, 'PDF export works');
   } catch (error) {
     recordTestResult(results, testName, false, error.message);
@@ -186,7 +186,7 @@ async function testPDFExport(results) {
 async function testProjectManagement(results) {
   const testName = 'Project Management';
   console.log(`\n📄 Test: ${testName}`);
-  
+
   try {
     // Steps:
     // 1. Set up a test project (title, photos, pages)
@@ -196,7 +196,7 @@ async function testProjectManagement(results) {
     // 5. Click "Load" button
     // 6. Select the saved project
     // 7. Verify project loads correctly
-    
+
     recordTestResult(results, testName, true, 'Project save/load works');
   } catch (error) {
     recordTestResult(results, testName, false, error.message);
@@ -209,7 +209,7 @@ async function testProjectManagement(results) {
 async function testDesignEditor(results) {
   const testName = 'Design Editor';
   console.log(`\n📄 Test: ${testName}`);
-  
+
   try {
     // Steps:
     // 1. Select a photo on a page
@@ -219,7 +219,7 @@ async function testDesignEditor(results) {
     // 5. Test filters
     // 6. Save edited photo
     // 7. Verify photo is updated
-    
+
     recordTestResult(results, testName, true, 'Design editor works');
   } catch (error) {
     recordTestResult(results, testName, false, error.message);
@@ -232,7 +232,7 @@ async function testDesignEditor(results) {
 async function testThemeSwitching(results) {
   const testName = 'Theme Switching';
   console.log(`\n📄 Test: ${testName}`);
-  
+
   try {
     // Steps:
     // 1. Switch to Themes tab
@@ -240,7 +240,7 @@ async function testThemeSwitching(results) {
     // 3. Verify theme applies
     // 4. Take screenshots of each theme
     // 5. Verify CSS variables update
-    
+
     recordTestResult(results, testName, true, 'Theme switching works');
   } catch (error) {
     recordTestResult(results, testName, false, error.message);
@@ -257,7 +257,7 @@ function recordTestResult(results, testName, passed, message) {
     message,
     timestamp: new Date().toISOString()
   });
-  
+
   if (passed) {
     results.passed++;
     console.log(`  ✅ ${testName}: ${message}`);
@@ -278,7 +278,7 @@ function printTestSummary(results) {
   console.log(`❌ Failed: ${results.failed}`);
   console.log(`📝 Total:  ${results.tests.length}`);
   console.log('='.repeat(50));
-  
+
   if (results.failed > 0) {
     console.log('\n❌ Failed Tests:');
     results.tests

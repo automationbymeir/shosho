@@ -305,10 +305,14 @@ class FamilyRootsRenderer {
             container.addEventListener('mouseleave', () => removeBtn.style.opacity = '0');
             container.appendChild(removeBtn);
         } else {
-            // Placeholder text or icon could go here
+            // Placeholder text or icon
+            container.classList.add('empty-slot');
+            container.dataset.selectableType = 'empty-slot';
+            container.dataset.slotIndex = index;
+
             const help = document.createElement('div');
             help.innerText = "+";
-            help.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color: #CCC; font-size: 24px pointer-events: none;";
+            help.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color: #CCC; font-size: 24px; pointer-events: none;";
             container.appendChild(help);
         }
 

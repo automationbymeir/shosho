@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+
+<html class="dark" dir="rtl" lang="he">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <!-- Favicon -->
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Heebo:wght@300;400;500;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Added Serif Font for Book Styling -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&display=swap"
+        rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#6366f1",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0f172a",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "Heebo", "sans-serif"],
+                        "serif": ["Playfair Display", "serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Heebo', 'Space Grotesk', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-nav {
+            background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=2000&q=80');
+            background-size: cover;
+            background-position: center;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hero-gradient {
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 1) 100%);
+        }
+
+        /* Book Showcase Styling */
+        .book-showcase-container {
+            perspective: 1200px;
+        }
+
+        .book-wrap {
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateY(-15deg) rotateX(5deg);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s ease;
+            cursor: pointer;
+            box-shadow:
+                15px 15px 30px rgba(0, 0, 0, 0.3),
+                /* Deep shadow */
+                5px 5px 10px rgba(0, 0, 0, 0.2);
+            border-radius: 4px 8px 8px 4px;
+            /* Slight round on opening side */
+        }
+
+        .book-wrap:hover {
+            transform: rotateY(0deg) rotateX(0deg) scale(1.05) translateZ(20px);
+            box-shadow:
+                25px 25px 50px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            /* Highlight border */
+            z-index: 10;
+        }
+
+        /* Spine (Right for RTL) */
+        .book-spine {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 14px;
+            /* Thickness */
+            background: linear-gradient(to left, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.2));
+            transform-origin: right;
+            transform: rotateY(-90deg);
+            border-radius: 2px 0 0 2px;
+        }
+
+        /* Pages (Left side thickness) */
+        .book-pages {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 1px;
+            width: 12px;
+            background: #fff;
+            background: repeating-linear-gradient(to right,
+                    #f1f5f9,
+                    #f1f5f9 1px,
+                    #e2e8f0 1px,
+                    #e2e8f0 2px);
+            transform-origin: left;
+            transform: rotateY(90deg);
+            z-index: -1;
+            box-shadow: inset 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Cover Image Styling */
+        .book-cover {
+            position: absolute;
+            inset: 0;
+            border-radius: 0 4px 4px 0;
+            /* Smooth bound edge on right, sharp on left */
+            overflow: hidden;
+            background-color: #1e293b;
+        }
+
+        .book-sheen {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 40%, rgba(0, 0, 0, 0.1) 100%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .book-texture {
+            /* Simulate canvas/paper texture */
+            filter: contrast(1.1) brightness(0.95);
+        }
+    </style>
+    <style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased">
+    <!-- Sticky Header -->
+    <nav class="fixed top-0 w-full z-50 glass-nav">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4 select-none">
+                <img src="logo-nobg.svg" alt="" class="w-14 h-14 drop-shadow-md">
+                <span class="text-4xl font-black tracking-widest text-white">SHOSHO</span>
+            </div>
+            <a href="ai-editor.html"
+                class="bg-primary hover:bg-primary/90 text-white px-5 py-2 rounded-full text-sm font-bold transition-all active:scale-95 shadow-lg shadow-primary/20 no-underline inline-block">
+                מתחילים
+            </a>
+        </div>
+    </nav>
+    <!-- Hero Section -->
+    <section class="relative pt-24 pb-12 overflow-hidden min-h-screen flex flex-col justify-end md:justify-center">
+        <div class="absolute inset-0 z-0 bg-background-dark">
+            <!-- 3D Book Canvas Container -->
+            <div id="hero-canvas-container" class="absolute inset-0 w-full h-full"></div>
+            <!-- Gradient Overlay for Text Readability -->
+            <div class="absolute inset-0 hero-gradient pointer-events-none"></div>
+        </div>
+        <div
+            class="relative z-10 px-6 space-y-6 mb-12 max-w-7xl mx-auto w-full md:grid md:grid-cols-2 md:items-center md:gap-12 md:space-y-0">
+            <div class="md:order-1">
+                <div
+                    class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-1.5 rounded-full mb-6">
+                    <span class="flex h-2 w-2 rounded-full bg-primary"></span>
+                    <span class="text-xs font-medium uppercase tracking-wider text-indigo-200">טכנולוגיית AI
+                        מתקדמת</span>
+                </div>
+                <h1 class="text-5xl md:text-7xl font-black leading-tight text-white mb-6">
+                    הופכים רגעים <br class="hidden md:block" />
+                    <span class="text-primary">לספרים</span>
+                </h1>
+                <p class="text-lg md:text-xl text-slate-300 max-w-lg mb-8">
+                    האלבום המושלם בעיצוב AI חכם. אנחנו נבחר את התמונות הטובות ביותר, אתם רק תבחרו את הכריכה.
+                </p>
+                <div class="flex flex-col md:flex-row gap-4 max-w-md">
+                    <a href="ai-editor.html"
+                        class="w-full md:w-auto px-8 bg-primary text-white py-5 rounded-xl text-xl font-bold shadow-2xl shadow-primary/40 flex items-center justify-center gap-2 no-underline hover:bg-primary/90 transition-colors">
+                        מתחילים לעצב
+                        <span class="material-icons-round">arrow_back</span>
+                    </a>
+                </div>
+                <div class="flex items-center justify-start gap-6 text-sm text-slate-400 mt-6 md:mt-8">
+                    <span class="flex items-center gap-1"><span
+                            class="material-icons-round text-primary text-sm">verified</span> איכות פרימיום</span>
+                    <span class="flex items-center gap-1"><span
+                            class="material-icons-round text-primary text-sm">speed</span> עיצוב ב-60 שניות</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- How it Works -->
+    <section class="px-6 py-20 bg-background-dark">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold mb-4">איך זה עובד?</h2>
+                <div class="w-12 h-1 bg-primary mx-auto rounded-full"></div>
+            </div>
+            <div class="space-y-12 md:space-y-0 md:grid md:grid-cols-3 md:gap-12">
+                <div class="flex flex-col items-center text-center group">
+                    <div
+                        class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <span class="material-icons-round text-primary text-4xl">cloud_upload</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">מעלים תמונות</h3>
+                    <p class="text-slate-400">פשוט בחרו את התמונות מהטלפון. המערכת שלנו תמיין ותסנן כפילויות באופן
+                        אוטומטי.
+                    </p>
+                </div>
+                <div class="flex flex-col items-center text-center group">
+                    <div
+                        class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <span class="material-icons-round text-primary text-4xl">auto_awesome</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">עיצוב AI אוטומטי</h3>
+                    <p class="text-slate-400">ה-AI שלנו מסדר את התמונות בפריסה מושלמת, מתאים צבעים ובונה סיפור ויזואלי
+                        מרגש.
+                    </p>
+                </div>
+                <div class="flex flex-col items-center text-center group">
+                    <div
+                        class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <span class="material-icons-round text-primary text-4xl">local_shipping</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">הדפסה ומשלוח</h3>
+                    <p class="text-slate-400">האלבום מודפס באיכות הגבוהה ביותר ונשלח אליכם הביתה באריזת מתנה מהודרת.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Templates Section - Book Style Redesign -->
+    <section class="px-6 py-24 bg-[#0B1120] border-t border-white/5 relative">
+        <!-- Background Elements -->
+        <div
+            class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-wood.png')] opacity-20 pointer-events-none">
+        </div>
+        <div class="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent">
+        </div>
+
+        <div class="max-w-7xl mx-auto relative z-10">
+            <div class="text-center mb-20">
+                <span class="text-indigo-400 font-serif italic text-lg mb-2 block">הקולקציה החדשה</span>
+                <h2 class="text-4xl md:text-5xl font-serif font-bold text-white mb-6">ספרייה של זכרונות</h2>
+                <p class="text-slate-400 max-w-xl mx-auto font-light">כל ספר הוא יצירת אמנות. בחרו את הכריכה שתעטוף את
+                    הסיפור שלכם.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 px-4">
+
+                <!-- Template Item 1 -->
+                <div class="group book-showcase-container flex flex-col items-center">
+                    <a href="ai-editor.html?templateId=wedding-prestige-hebrew-v1&autoStart=true"
+                        class="block w-full max-w-[260px] aspect-[1/1.4] mb-8 relative no-underline">
+                        <!-- Book Visual -->
+                        <div class="book-wrap w-full h-full bg-slate-800">
+                            <div class="book-spine"></div>
+                            <div class="book-pages"></div>
+                            <div class="book-cover">
+                                <div class="book-sheen"></div>
+                                <img src="assets/templates/wedding-prestige-3d.png"
+                                    class="book-texture w-full h-full object-cover" alt="Wedding">
+                            </div>
+                        </div>
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-2xl font-serif text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                            Wedding Prestige</h3>
+                        <p class="text-slate-500 text-sm mb-4 font-serif italic">אלבום חתונה יוקרתי</p>
+                        <a href="ai-editor.html?templateId=wedding-prestige-hebrew-v1&autoStart=true"
+                            class="text-xs uppercase tracking-widest text-white/60 hover:text-white border-b border-white/20 hover:border-white pb-1 transition-all">
+                            התחל לעצב
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Template Item 2 -->
+                <div class="group book-showcase-container flex flex-col items-center">
+                    <a href="ai-editor.html?templateId=bar-mitzvah-v1&autoStart=true"
+                        class="block w-full max-w-[260px] aspect-[1/1.4] mb-8 relative no-underline">
+                        <div class="book-wrap w-full h-full bg-slate-800">
+                            <div class="book-spine"></div>
+                            <div class="book-pages"></div>
+                            <div class="book-cover">
+                                <div class="book-sheen"></div>
+                                <img src="assets/templates/bar-mitzvah-3d.png"
+                                    class="book-texture w-full h-full object-cover" alt="Bar Mitzvah">
+                            </div>
+                        </div>
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-2xl font-serif text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                            Bar Mitzvah</h3>
+                        <p class="text-slate-500 text-sm mb-4 font-serif italic">חגיגה של פעם בחיים</p>
+                        <a href="ai-editor.html?templateId=bar-mitzvah-v1&autoStart=true"
+                            class="text-xs uppercase tracking-widest text-white/60 hover:text-white border-b border-white/20 hover:border-white pb-1 transition-all">
+                            התחל לעצב
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Template Item 3 -->
+                <div class="group book-showcase-container flex flex-col items-center">
+                    <a href="ai-editor.html?templateId=photography-portfolio-v1&autoStart=true"
+                        class="block w-full max-w-[260px] aspect-[1/1.4] mb-8 relative no-underline">
+                        <div class="book-wrap w-full h-full bg-slate-800">
+                            <div class="book-spine"></div>
+                            <div class="book-pages"></div>
+                            <div class="book-cover">
+                                <div class="book-sheen"></div>
+                                <img src="assets/templates/photography-portfolio-3d.png"
+                                    class="book-texture w-full h-full object-cover" alt="Portfolio">
+                            </div>
+                        </div>
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-2xl font-serif text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                            Portfolio</h3>
+                        <p class="text-slate-500 text-sm mb-4 font-serif italic">אוסף צילומים מקצועי</p>
+                        <a href="ai-editor.html?templateId=photography-portfolio-v1&autoStart=true"
+                            class="text-xs uppercase tracking-widest text-white/60 hover:text-white border-b border-white/20 hover:border-white pb-1 transition-all">
+                            התחל לעצב
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Template Item 4 -->
+                <div class="group book-showcase-container flex flex-col items-center">
+                    <a href="ai-editor.html?templateId=romantic-journey-v1&autoStart=true"
+                        class="block w-full max-w-[260px] aspect-[1/1.4] mb-8 relative no-underline">
+                        <div class="book-wrap w-full h-full bg-slate-800">
+                            <div class="book-spine"></div>
+                            <div class="book-pages"></div>
+                            <div class="book-cover">
+                                <div class="book-sheen"></div>
+                                <img src="assets/templates/romantic-journey-3d.png"
+                                    class="book-texture w-full h-full object-cover" alt="Romantic">
+                            </div>
+                        </div>
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-2xl font-serif text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                            Love Story</h3>
+                        <p class="text-slate-500 text-sm mb-4 font-serif italic">מסע רומנטי</p>
+                        <a href="ai-editor.html?templateId=romantic-journey-v1&autoStart=true"
+                            class="text-xs uppercase tracking-widest text-white/60 hover:text-white border-b border-white/20 hover:border-white pb-1 transition-all">
+                            התחל לעצב
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Template Item 5 -->
+                <div class="group book-showcase-container flex flex-col items-center">
+                    <a href="ai-editor.html?templateId=travel-journey-v1&autoStart=true"
+                        class="block w-full max-w-[260px] aspect-[1/1.4] mb-8 relative no-underline">
+                        <div class="book-wrap w-full h-full bg-slate-800">
+                            <div class="book-spine"></div>
+                            <div class="book-pages"></div>
+                            <div class="book-cover">
+                                <div class="book-sheen"></div>
+                                <img src="assets/templates/travel-journey-3d.png"
+                                    class="book-texture w-full h-full object-cover" alt="Travel">
+                            </div>
+                        </div>
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-2xl font-serif text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                            Wanderlust</h3>
+                        <p class="text-slate-500 text-sm mb-4 font-serif italic">יומן מסע עולמי</p>
+                        <a href="ai-editor.html?templateId=travel-journey-v1&autoStart=true"
+                            class="text-xs uppercase tracking-widest text-white/60 hover:text-white border-b border-white/20 hover:border-white pb-1 transition-all">
+                            התחל לעצב
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Template Item 6 -->
+                <div class="group book-showcase-container flex flex-col items-center">
+                    <a href="ai-editor.html?templateId=baby-first-year-hebrew-v1&autoStart=true"
+                        class="block w-full max-w-[260px] aspect-[1/1.4] mb-8 relative no-underline">
+                        <div class="book-wrap w-full h-full bg-slate-800">
+                            <div class="book-spine"></div>
+                            <div class="book-pages"></div>
+                            <div class="book-cover">
+                                <div class="book-sheen"></div>
+                                <img src="assets/templates/baby-first-year-3d.png"
+                                    class="book-texture w-full h-full object-cover" alt="Baby">
+                            </div>
+                        </div>
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-2xl font-serif text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                            First Year</h3>
+                        <p class="text-slate-500 text-sm mb-4 font-serif italic">צעדים ראשונים</p>
+                        <a href="ai-editor.html?templateId=baby-first-year-hebrew-v1&autoStart=true"
+                            class="text-xs uppercase tracking-widest text-white/60 hover:text-white border-b border-white/20 hover:border-white pb-1 transition-all">
+                            התחל לעצב
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Template Item 7 -->
+                <div class="group book-showcase-container flex flex-col items-center">
+                    <a href="ai-editor.html?templateId=family-roots-v1&autoStart=true"
+                        class="block w-full max-w-[260px] aspect-[1/1.4] mb-8 relative no-underline">
+                        <div class="book-wrap w-full h-full bg-slate-800">
+                            <div class="book-spine"></div>
+                            <div class="book-pages"></div>
+                            <div class="book-cover">
+                                <div class="book-sheen"></div>
+                                <img src="assets/templates/family-roots-3d.png"
+                                    class="book-texture w-full h-full object-cover" alt="Roots">
+                            </div>
+                        </div>
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-2xl font-serif text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                            Legacy</h3>
+                        <p class="text-slate-500 text-sm mb-4 font-serif italic">שורשים ומשפחה</p>
+                        <a href="ai-editor.html?templateId=family-roots-v1&autoStart=true"
+                            class="text-xs uppercase tracking-widest text-white/60 hover:text-white border-b border-white/20 hover:border-white pb-1 transition-all">
+                            התחל לעצב
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Template Item 8 (Custom) -->
+                <div class="group book-showcase-container flex flex-col items-center">
+                    <a href="ai-editor.html?autoStart=true"
+                        class="block w-full max-w-[260px] aspect-[1/1.4] mb-8 relative no-underline">
+                        <div
+                            class="book-wrap w-full h-full bg-slate-900 border border-white/10 flex items-center justify-center">
+                            <div class="book-spine"></div>
+                            <span
+                                class="material-icons-round text-6xl text-indigo-500/50 group-hover:text-indigo-400 transition-colors">auto_awesome</span>
+                        </div>
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-2xl font-serif text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                            Custom Design</h3>
+                        <p class="text-slate-500 text-sm mb-4 font-serif italic">העיצוב האישי שלך</p>
+                        <a href="ai-editor.html?autoStart=true"
+                            class="text-xs uppercase tracking-widest text-white/60 hover:text-white border-b border-white/20 hover:border-white pb-1 transition-all">
+                            התחל מאפס
+                        </a>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="px-6 py-20 bg-slate-900/50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold mb-4 text-white">החבילות שלנו</h2>
+                <p class="text-slate-400">בחר את הסטייל המתאים ביותר לזיכרונות שלך</p>
+            </div>
+            <div class="flex flex-col gap-6 md:grid md:grid-cols-3 md:items-start">
+                <!-- Softcover -->
+                <div class="bg-background-dark border border-white/5 p-6 rounded-lg relative overflow-hidden group">
+                    <div class="flex justify-between items-start mb-8">
+                        <div>
+                            <h4 class="text-xl font-bold text-white mb-1">Softcover</h4>
+                            <p class="text-sm text-slate-400">כריכה רכה וגמישה</p>
+                        </div>
+                        <div class="text-left">
+                            <span class="text-xs text-slate-500 block uppercase">החל מ-</span>
+                            <span class="text-2xl font-black text-primary font-display">₪99</span>
+                        </div>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-sm text-slate-300">
+                        <li class="flex items-center gap-2"><span
+                                class="material-icons-round text-primary text-xs">check_circle</span> 24-48 עמודים</li>
+                        <li class="flex items-center gap-2"><span
+                                class="material-icons-round text-primary text-xs">check_circle</span> נייר מט פרימיום
+                        </li>
+                    </ul>
+                    <a href="ai-editor.html?type=softcover"
+                        class="block w-full text-center py-3 rounded-full border border-white/10 text-white font-bold hover:bg-white/5 transition-colors no-underline">בחר
+                        כריכה רכה</a>
+                </div>
+                <!-- Hardcover (Featured) -->
+                <div
+                    class="bg-primary p-6 rounded-lg relative overflow-hidden ring-4 ring-primary/30 md:-mt-4 md:mb-4 shadow-2xl z-10">
+                    <div
+                        class="absolute top-0 left-0 bg-white text-primary text-[10px] font-black px-4 py-1 rounded-br-lg uppercase tracking-tighter">
+                        הנבחר ביותר
+                    </div>
+                    <div class="flex justify-between items-start mb-8 mt-2">
+                        <div>
+                            <h4 class="text-xl font-bold text-white mb-1">Hardcover</h4>
+                            <p class="text-sm text-blue-100/70">כריכה קשה קלאסית</p>
+                        </div>
+                        <div class="text-left">
+                            <span class="text-xs text-blue-100/60 block uppercase">החל מ-</span>
+                            <span class="text-3xl font-black text-white font-display">₪149</span>
+                        </div>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-sm text-blue-50">
+                        <li class="flex items-center gap-2"><span
+                                class="material-icons-round text-white text-xs">check_circle</span> כריכה תפורה ועמידה
+                        </li>
+                        <li class="flex items-center gap-2"><span
+                                class="material-icons-round text-white text-xs">check_circle</span> 40-100 עמודים</li>
+                        <li class="flex items-center gap-2"><span
+                                class="material-icons-round text-white text-xs">check_circle</span> הטבעת זהב אישית</li>
+                    </ul>
+                    <a href="ai-editor.html?type=hardcover"
+                        class="block w-full text-center py-4 rounded-full bg-white text-primary font-black shadow-xl no-underline">בחר
+                        כריכה קשה</a>
+                </div>
+                <!-- Layflat -->
+                <div class="bg-background-dark border border-white/5 p-6 rounded-lg">
+                    <div class="flex justify-between items-start mb-8">
+                        <div>
+                            <h4 class="text-xl font-bold text-white mb-1">Layflat</h4>
+                            <p class="text-sm text-slate-400">פתיחה שטוחה 180°</p>
+                        </div>
+                        <div class="text-left">
+                            <span class="text-xs text-slate-500 block uppercase">החל מ-</span>
+                            <span class="text-2xl font-black text-primary font-display">₪229</span>
+                        </div>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-sm text-slate-300">
+                        <li class="flex items-center gap-2"><span
+                                class="material-icons-round text-primary text-xs">check_circle</span> פנורמי ללא חיבור
+                        </li>
+                        <li class="flex items-center gap-2"><span
+                                class="material-icons-round text-primary text-xs">check_circle</span> נייר צילום ארכיוני
+                        </li>
+                    </ul>
+                    <a href="ai-editor.html?type=layflat"
+                        class="block w-full text-center py-3 rounded-full border border-white/10 text-white font-bold hover:bg-white/5 transition-colors no-underline">בחר
+                        פרימיום</a>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Quality Section -->
+    <section class="px-6 py-24 bg-white dark:bg-background-dark">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div class="rounded-xl overflow-hidden relative h-[300px] md:h-[400px]">
+                <img alt="Paper Quality" class="w-full h-full object-cover"
+                    data-alt="Macro shot of luxury paper texture and print quality"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjLXgY73kTVL-uLhYxwWLZOJ8Std5Cj-gjbd1xODZKFOEbafA7dIMhKvoAPr7vHrOfs3KMBOBdFMD2DthsjgD11mLrrnaf1peOj6Yp3n_N7Xe75XO5xppTE4bd4HkosZHeFWR2XVKfQkfDEw9kcHfh0o4MN9gdXEIfOrYFEkpFrX6iRc8KolXg0YZx-XdzYCFDUHEnoFu57g9h-RgIPou8ftALNuFx4yC-me-QNf9GlI8YVTPv5AtuukAShT2WW6BHYcvm8g5ySME" />
+                <div
+                    class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-6">
+                    <h3 class="text-2xl font-bold text-white">איכות Bookpod</h3>
+                    <p class="text-slate-200 text-sm">אנחנו משתמשים בטכנולוגיית ההדפסה המתקדמת בעולם להבטחת צבעים חיים
+                        לנצח.</p>
+                </div>
+            </div>
+            <div class="space-y-12">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span class="material-icons-round text-primary">eco</span>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-bold">חומרים אקולוגיים</h4>
+                        <p class="text-slate-400 text-sm mt-1">כל הספרים שלנו מודפסים על נייר ממקורות ברי-קיימא המאושרים
+                            על
+                            ידי FSC. אנו מקפידים על תהליכי ייצור ירוקים השומרים על הסביבה.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span class="material-icons-round text-primary">security</span>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-bold">הגנת פרטיות מלאה</h4>
+                        <p class="text-slate-400 text-sm mt-1">התמונות שלכם מאובטחות ונמחקות מהשרתים שלנו מיד לאחר
+                            ההדפסה.
+                            אנו עומדים בתקני האבטחה המחמירים ביותר.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span class="material-icons-round text-primary">local_shipping</span>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-bold">משלוח מהיר</h4>
+                        <p class="text-slate-400 text-sm mt-1">
+                            אנו מתחייבים לזמני ייצור ומשלוח מהירים, כדי שתוכלו ליהנות מהאלבום שלכם בהקדם האפשרי.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Footer -->
+    <footer class="bg-black pt-16 pb-32 md:pb-16 px-6 border-t border-white/5">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:justify-between md:items-start">
+            <div class="flex flex-col items-center md:items-start mb-12 md:mb-0 md:max-w-xs">
+                <div class="flex items-center gap-2 mb-6">
+                    <span class="text-xl font-bold tracking-wider text-white">SHOSHO</span>
+                </div>
+                <p class="text-slate-500 text-center md:text-right text-sm">
+                    הופכים את הרגעים הכי יפים שלכם למזכרת פיזית מרגשת בעזרת טכנולוגיה מתקדמת.
+                </p>
+            </div>
+            <div class="grid grid-cols-2 gap-16 mb-12 md:mb-0 text-sm">
+                <div class="space-y-4">
+                    <h5 class="font-bold text-white uppercase tracking-wider text-xs">שירות לקוחות</h5>
+                    <ul class="space-y-2 text-slate-400">
+                        <li><a href="#" class="hover:text-white transition-colors">מרכז עזרה</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">סטטוס הזמנה</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">משלוחים</a></li>
+                    </ul>
+                </div>
+                <div class="space-y-4">
+                    <h5 class="font-bold text-white uppercase tracking-wider text-xs">החברה</h5>
+                    <ul class="space-y-2 text-slate-400">
+                        <li><a href="#" class="hover:text-white transition-colors">עלינו</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">תקנון</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">פרטיות</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="flex flex-col items-center md:items-start gap-4">
+                <div class="flex justify-center gap-6">
+                    <a class="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white/10 transition-all"
+                        href="#"><span class="material-icons-round">facebook</span></a>
+                    <a class="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white/10 transition-all"
+                        href="#"><span class="material-icons-round">photo_camera</span></a>
+                    <a class="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white/10 transition-all"
+                        href="#"><span class="material-icons-round">mail</span></a>
+                </div>
+                <div class="text-center md:text-right text-[10px] text-slate-600 font-display mt-4">
+                    © 2026 SHOSHO PHOTO BOOKS. ALL RIGHTS RESERVED.
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- Bottom Floating Action -->
+    <div class="fixed bottom-8 left-0 right-0 px-6 z-40 md:hidden">
+        <a href="ai-editor.html"
+            class="w-full bg-primary text-white py-4 rounded-full text-lg font-bold shadow-2xl shadow-primary/40 flex items-center justify-center gap-2 transition-transform active:scale-95 no-underline">
+            מתחילים ליצור עכשיו
+            <span class="material-icons-round">auto_fix_high</span>
+        </a>
+    </div>
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <!-- GSAP for 3D Book Animation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <!-- 3D Book Logic -->
+    <script type="module">
+        import { initPhotosAssembling } from './js/landing-photos-assembling.js?v=1771241689';
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof initPhotosAssembling === 'function') {
+                initPhotosAssembling();
+            }
+        });
+    </script>
+</body>
+
+</html>

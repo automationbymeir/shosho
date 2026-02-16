@@ -48,7 +48,7 @@ Create beautiful photo books from your Google Photos library using Google Slides
    
    e. Add authorized redirect URIs:
       - `https://shoso-photobook.web.app/oauth/callback`
-      - `http://localhost:5000/oauth/callback` (for local testing)
+      - `http://localhost:8000/oauth/callback` (for local testing)
    
    f. Copy the Client ID and Client Secret
    
@@ -96,7 +96,7 @@ Create beautiful photo books from your Google Photos library using Google Slides
    ```
 
 2. **Access the application**:
-   - Open http://localhost:5000 in your browser
+   - Open http://localhost:8000 in your browser
    - Functions will run on http://localhost:5001
 
 ### Deployment

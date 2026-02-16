@@ -249,17 +249,32 @@ class WeddingPrestigeRenderer {
                 display: block;
             `;
             container.appendChild(img);
+            // Add drag event listeners for photo swapping
+            if (photo) {
+                container.addEventListener('dragstart', (e) => {
+                    e.stopPropagation();
+                    e.dataTransfer.setData('application/json', JSON.stringify({
+                        type: 'slot-swap',
+                        photoId: photo.id || `photo-${index}`,
+                        slotId: slot.slotId
+                    }));
+                    container.style.opacity = '0.5';
+                });
+                container.addEventListener('dragend', () => {
+                    container.style.opacity = '1';
+                });
+            }
         } else {
             // Placeholder
-            container.style.backgroundColor = '#222';
-        }
+            container.classList.add('empty-slot');
+            container.dataset.selectableType = 'empty-slot';
+            container.dataset.slotIndex = index;
 
-        // Overlay support (defined in slot)
-        if (slot.overlay) {
-            const overlay = document.createElement('div');
-            overlay.className = 'overlay';
-            overlay.style.background = slot.overlay;
-            container.appendChild(overlay);
+            container.style.backgroundColor = '#222';
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
+            container.style.justifyContent = 'center';
+            container.innerHTML = '<span style="color:#444; font-size: 24px;">+</span>';
         }
 
         page.appendChild(container);

@@ -27,9 +27,8 @@ export class TravelJourneyRenderer {
         if (pageLayout.photoSlots) {
             pageLayout.photoSlots.forEach((slot, index) => {
                 const photo = photos[index];
-                if (photo) {
-                    this.renderPhotoSlot(page, slot, photo, index);
-                }
+                // Always render slot to allow drag-and-drop
+                this.renderPhotoSlot(page, slot, photo, index);
             });
         }
 
@@ -220,8 +219,24 @@ export class TravelJourneyRenderer {
         container.addEventListener('mouseenter', () => removeBtn.style.opacity = '1');
         container.addEventListener('mouseleave', () => removeBtn.style.opacity = '0');
 
-        container.appendChild(img);
-        container.appendChild(removeBtn);
+
+        if (photo) {
+            container.appendChild(img);
+            if (removeBtn) container.appendChild(removeBtn);
+        } else {
+            container.classList.add('empty-slot');
+            container.dataset.selectableType = 'empty-slot';
+            container.dataset.slotIndex = index;
+
+            // Travel Journey Empty Slot Style
+            container.style.backgroundColor = 'rgba(0,0,0,0.05)';
+            container.style.border = '1px dashed #ccc';
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
+            container.style.justifyContent = 'center';
+            container.innerHTML = '<span style="color:#aaa; font-size: 24px;">+</span>';
+        }
+
         page.appendChild(container);
     }
 

@@ -51,7 +51,7 @@
 
 **Option 1: Quick Test**
 ```
-In Cursor, ask: "Use Puppeteer MCP to navigate to http://localhost:5000 and take a screenshot"
+In Cursor, ask: "Use Puppeteer MCP to navigate to http://localhost:8000 and take a screenshot"
 ```
 
 **Option 2: Full Test Suite**
@@ -62,7 +62,7 @@ In Cursor, ask: "Use Puppeteer MCP to navigate to http://localhost:5000 and take
 **Option 3: Specific Test**
 ```
 "Use Puppeteer to:
-1. Navigate to localhost:5000
+1. Navigate to localhost:8000
 2. Click the Generate Book button
 3. Wait for the result modal
 4. Take a screenshot"

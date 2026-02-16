@@ -54,6 +54,24 @@ const ALBUM_TEMPLATES = {
         category: 'wedding',
         minPhotos: 50,
         configPath: '/templates/wedding-prestige-template.json'
+    },
+    'baby-first-year-hebrew-v1': {
+        id: 'baby-first-year-hebrew-v1',
+        name: "השנה הראשונה - Baby's First Year",
+        description: 'Sweet and emotional template for baby\'s first year in Hebrew',
+        thumbnail: 'assets/templates/baby-first-year-preview.jpg',
+        category: 'baby',
+        minPhotos: 30,
+        configPath: '/templates/baby-first-year-template.json'
+    },
+    'adventure-journal-v1': {
+        id: 'adventure-journal-v1',
+        name: 'יומן הרפתקאות - Adventure Journal',
+        description: 'תבנית נועזת וצבעונית לטיולים ומסעות.',
+        thumbnail: 'assets/templates/adventure-journal-preview.jpg',
+        category: 'travel',
+        minPhotos: 30,
+        configPath: '/templates/adventure-journal-template.json'
     }
 };
 

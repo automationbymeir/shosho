@@ -16,6 +16,10 @@ class AIService {
         this.apiKey = key;
     }
 
+    init(key) {
+        this.setApiKey(key);
+    }
+
     async generateContent(options) {
         const { model, contents, imageConfig } = options;
 

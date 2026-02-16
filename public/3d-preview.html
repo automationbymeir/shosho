@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,19 +14,22 @@
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       font-family: system-ui, -apple-system, sans-serif;
     }
+
     .preview-section {
       background: white;
       border-radius: 12px;
       padding: 2rem;
       margin-bottom: 3rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     }
+
     .preview-section h2 {
       margin-top: 0;
       color: #2c3e50;
       border-bottom: 2px solid #e2e8f0;
       padding-bottom: 0.5rem;
     }
+
     .preview-container {
       display: flex;
       justify-content: center;
@@ -33,25 +37,29 @@
       min-height: 400px;
       padding: 2rem;
     }
+
     .template-gallery-demo {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 2rem;
       padding: 2rem;
     }
+
     .template-card-demo {
       background: white;
       border-radius: 12px;
       padding: 1.5rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       cursor: pointer;
       transition: transform 0.2s;
     }
+
     .template-card-demo:hover {
       transform: translateY(-4px);
     }
   </style>
 </head>
+
 <body>
   <h1 style="text-align: center; color: #2c3e50; margin-bottom: 3rem;">Enhanced 3D Book Visualization Preview</h1>
 
@@ -60,7 +68,8 @@
     <h2>1. Template Gallery Cards</h2>
     <div class="template-gallery-demo">
       <div class="template-card-demo">
-        <div class="template-preview" style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+        <div class="template-preview"
+          style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
           <div class="template-book-demo" style="--cover-color: #6366f1;">
             <div class="template-stage">
               <div class="template-spine"></div>
@@ -78,7 +87,8 @@
       </div>
 
       <div class="template-card-demo">
-        <div class="template-preview" style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+        <div class="template-preview"
+          style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
           <div class="template-book-demo" style="--cover-color: #10b981;">
             <div class="template-stage">
               <div class="template-spine"></div>
@@ -96,7 +106,8 @@
       </div>
 
       <div class="template-card-demo">
-        <div class="template-preview" style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+        <div class="template-preview"
+          style="background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 250px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
           <div class="template-book-demo" style="--cover-color: #f59e0b;">
             <div class="template-stage">
               <div class="template-spine"></div>
@@ -128,11 +139,13 @@
             <div class="book3d-cover-bottom"></div>
             <div class="book3d-cover-face" style="background: #1a1a2e;">
               <div class="book3d-cover-inner">
-                <div class="cover-photo-placeholder" style="width: 100%; height: 55%; margin-bottom: 1.5rem; border-radius: 6px; border: 3px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3);">
+                <div class="cover-photo-placeholder"
+                  style="width: 100%; height: 55%; margin-bottom: 1.5rem; border-radius: 6px; border: 3px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3);">
                   Photo
                 </div>
                 <div>
-                  <div class="cover-title" style="color: #ffffff; font-size: 36px; font-family: 'Playfair Display', serif;">
+                  <div class="cover-title"
+                    style="color: #ffffff; font-size: 36px; font-family: 'Playfair Display', serif;">
                     My Photo Book
                   </div>
                   <div class="cover-subtitle" style="color: rgba(255,255,255,0.8); margin-top: 0.5rem;">
@@ -145,7 +158,8 @@
         </div>
       </div>
     </div>
-    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>3D cover with spine, page edges, and realistic shadows</em></p>
+    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>3D cover with spine, page edges, and realistic
+        shadows</em></p>
   </div>
 
   <!-- Open Book Spread -->
@@ -159,11 +173,12 @@
               <div class="book3d-spine"></div>
               <div class="book3d-foreedge"></div>
               <div class="book3d-bottom"></div>
-              
+
               <div class="book3d-spread">
                 <!-- Left Page -->
                 <div class="book3d-page is-active">
-                  <div class="layout-grid layout-single" style="position: absolute; inset: 0; padding: 1.5rem; display: flex; align-items: center; justify-content: center; background: #fdfbf7;">
+                  <div class="layout-grid layout-single"
+                    style="position: absolute; inset: 0; padding: 1.5rem; display: flex; align-items: center; justify-content: center; background: #fdfbf7;">
                     <div style="text-align: center; color: #94a3b8;">
                       <div style="font-size: 3rem; margin-bottom: 1rem;">📷</div>
                       <div>Left Page Content</div>
@@ -171,13 +186,14 @@
                   </div>
                   <span class="page-number" style="left: 16px;">1</span>
                 </div>
-                
+
                 <!-- Gutter -->
                 <div class="book3d-gutter"></div>
-                
+
                 <!-- Right Page -->
                 <div class="book3d-page">
-                  <div class="layout-grid layout-single" style="position: absolute; inset: 0; padding: 1.5rem; display: flex; align-items: center; justify-content: center; background: #fdfbf7;">
+                  <div class="layout-grid layout-single"
+                    style="position: absolute; inset: 0; padding: 1.5rem; display: flex; align-items: center; justify-content: center; background: #fdfbf7;">
                     <div style="text-align: center; color: #94a3b8;">
                       <div style="font-size: 3rem; margin-bottom: 1rem;">🖼️</div>
                       <div>Right Page Content</div>
@@ -186,7 +202,7 @@
                   <span class="page-number" style="right: 16px;">2</span>
                 </div>
               </div>
-              
+
               <!-- Progress indicator -->
               <div class="book3d-progress">
                 Pages 1–2
@@ -196,7 +212,8 @@
         </div>
       </div>
     </div>
-    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>3D spread view with spine, page edges, gutter, and realistic depth</em></p>
+    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>3D spread view with spine, page edges, gutter,
+        and realistic depth</em></p>
   </div>
 
   <!-- Back Cover -->
@@ -211,7 +228,8 @@
             <div class="book3d-cover-bottom"></div>
             <div class="book3d-cover-face" style="background: #1a1a2e;">
               <div class="book3d-cover-inner" style="justify-content: center;">
-                <div class="back-cover-text" style="color: rgba(255,255,255,0.9); font-size: 1.1rem; line-height: 1.6; max-width: 80%; text-align: center;">
+                <div class="back-cover-text"
+                  style="color: rgba(255,255,255,0.9); font-size: 1.1rem; line-height: 1.6; max-width: 80%; text-align: center;">
                   Thank you for viewing this photo book
                 </div>
               </div>
@@ -220,7 +238,8 @@
         </div>
       </div>
     </div>
-    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>Back cover with flipped perspective (spine on the right)</em></p>
+    <p style="color: #64748b; text-align: center; margin-top: 1rem;"><em>Back cover with flipped perspective (spine on
+        the right)</em></p>
   </div>
 
   <!-- Page Template Picker -->
@@ -228,7 +247,8 @@
     <h2>5. Page Template Picker</h2>
     <div class="template-gallery-demo">
       <div class="template-card-demo">
-        <div class="page-template-preview" style="background: #f8fafc; min-height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+        <div class="page-template-preview"
+          style="background: #f8fafc; min-height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
           <div class="page-template-mini-book" style="border-color: #6366f1; background: #ffffff;">
             <div class="page-template-mini-spine" style="background: #6366f1;"></div>
             <div class="page-template-mini-pages" style="background: #fdfbf7;"></div>
@@ -241,7 +261,8 @@
       </div>
 
       <div class="template-card-demo">
-        <div class="page-template-preview" style="background: #f8fafc; min-height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+        <div class="page-template-preview"
+          style="background: #f8fafc; min-height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
           <div class="page-template-mini-book" style="border-color: #10b981; background: #f0fdf4;">
             <div class="page-template-mini-spine" style="background: #10b981;"></div>
             <div class="page-template-mini-pages" style="background: #fdfbf7;"></div>
@@ -270,7 +291,5 @@
   </div>
 
 </body>
+
 </html>
-
-
-

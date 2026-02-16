@@ -10,7 +10,11 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
-    "firebase": "^12.6.0"
+    "@google-cloud/vision": "^5.3.4",
+    "dotenv": "^17.2.4",
+    "firebase": "^12.6.0",
+    "node-fetch": "^3.3.2",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "firebase-tools": "^13.0.0"

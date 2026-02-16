@@ -19,12 +19,12 @@ This directory contains automated testing utilities for the Photo Book Creator a
 
 2. **In Cursor, ask the AI:**
    ```
-   "Use Puppeteer MCP to test the photo book app at http://localhost:5000"
+   "Use Puppeteer MCP to test the photo book app at http://localhost:8000"
    ```
 
 3. **Or run specific tests:**
    ```
-   "Use Puppeteer to navigate to localhost:5000, take a screenshot, and test the generate book button"
+   "Use Puppeteer to navigate to localhost:8000, take a screenshot, and test the generate book button"
    ```
 
 ## 🧪 Test Coverage
@@ -48,7 +48,7 @@ Test configuration is in `browser-automation.js`:
 
 ```javascript
 const TEST_CONFIG = {
-  baseUrl: 'http://localhost:5000',
+  baseUrl: 'http://localhost:8000',
   timeout: 60000,
   screenshotDir: './tests/screenshots',
   headless: true

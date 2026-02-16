@@ -20,6 +20,8 @@ export class TemplateManager {
         else if (templateId === 'family-roots-v1') path = 'templates/family-roots-template.json';
         else if (templateId === 'bar-mitzvah-v1') path = 'templates/bar-mitzvah-template.json';
         else if (templateId === 'wedding-prestige-hebrew-v1') path = 'templates/wedding-prestige-template.json';
+        else if (templateId === 'baby-first-year-hebrew-v1') path = 'templates/baby-first-year-template.json';
+        else if (templateId === 'adventure-journal-v1') path = 'templates/adventure-journal-template.json';
 
         if (path) {
             console.log("Loading template path:", path);
@@ -183,6 +185,10 @@ export class TemplateManager {
                 return 'Family Roots';
             case 'bar-mitzvah-v1':
                 return 'בר מצווה';
+            case 'baby-first-year-hebrew-v1':
+                return 'השנה הראשונה';
+            case 'adventure-journal-v1':
+                return 'יומן הרפתקאות';
             default:
                 return 'My Photo Book';
         }
@@ -213,6 +219,10 @@ export class TemplateManager {
                 return currentYear;
             case 'bar-mitzvah-v1':
                 return currentYear; // Could be Hebrew date in future
+            case 'baby-first-year-hebrew-v1':
+                return "Baby's First Year";
+            case 'adventure-journal-v1':
+                return 'Adventure Journal';
             default:
                 return currentYear;
         }
@@ -260,6 +270,16 @@ export class TemplateManager {
         if (candidates.length === 0) return null;
         const next = candidates[Math.floor(Math.random() * candidates.length)];
         return next.layoutId;
+    }
+
+    getLayoutIdForCount(photoCount) {
+        if (!this.config) return null;
+        // precise match
+        const exact = this.config.pageLayouts.filter(l => l.photoSlots.length === photoCount && l.pageType !== 'cover');
+        if (exact.length > 0) return exact[0].layoutId;
+
+        // fallback to nearest? or null.
+        return null;
     }
 
     // ... (helper methods)
@@ -386,7 +406,7 @@ export class TemplateManager {
                     page.elements.push({
                         id: `dec_${crypto.randomUUID()}`,
                         type: 'shape',
-                        subtype: 'rect', // simplified
+                        subtype: dec.type || 'rect',
                         x: parseFloat(dec.position.x),
                         y: parseFloat(dec.position.y),
                         width: parseFloat(w),

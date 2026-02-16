@@ -65,7 +65,7 @@ Go to [Google Cloud Console](https://console.cloud.google.com/) and verify these
 npm run serve
 ```
 
-Then open: http://localhost:5000
+Then open: http://localhost:8000
 
 ### 6. Deploy to Production
 
@@ -97,7 +97,7 @@ Your app will be live at: https://shoso-photobook.web.app
 **"Redirect URI mismatch":**
 - Make sure you added both redirect URIs in Google Cloud Console:
   - `https://shoso-photobook.web.app/oauth/callback`
-  - `http://localhost:5000/oauth/callback`
+  - `http://localhost:8000/oauth/callback`
 
 **"API not enabled":**
 - Go to Google Cloud Console → APIs & Services → Library

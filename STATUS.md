@@ -27,7 +27,7 @@
 11. `deleteProject` - Delete projects
 
 ### Local Development
-- ✅ **Emulator works perfectly**: `npm run serve` at http://localhost:5000
+- ✅ **Emulator works perfectly**: `npm run serve` at http://localhost:8000
 - ✅ All code is valid and tested
 - ✅ Linting passes
 - ✅ No syntax errors
@@ -93,7 +93,7 @@ While Cloud Build is having issues, continue development locally:
 ```bash
 npm run serve
 ```
-Access at: http://localhost:5000
+Access at: http://localhost:8000
 
 ### Option 5: Contact Firebase Support
 If the issue persists:

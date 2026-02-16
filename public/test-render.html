@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Render Engine Test</title>
+    <style>
+        #test-container {
+            width: 800px;
+            height: 600px;
+            border: 1px solid #ccc;
+            margin: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Render Engine V3 Test</h1>
+    <div id="test-container"></div>
+    <div id="status">Testing...</div>
+
+    <script type="module">
+        import { RenderEngine } from './js/ai-editor/engines/render-engine.js';
+
+        const engine = new RenderEngine('test-container');
+
+        const mockPage = {
+            id: 'p1',
+            background: {
+                type: 'gradient',
+                gradient_colors: ['#ff9a9e', '#fecfef', '#fad0c4'],
+                gradient_angle: 45
+            },
+            decorations: [
+                {
+                    type: 'flourish',
+                    position: { x: 5, y: 5, width: 20, height: 20, rotation: 0 },
+                    color: '#ffffff',
+                    opacity: 0.8
+                }
+            ],
+            layout: {
+                slots: [
+                    { photoId: 'ph1', x: 30, y: 30, width: 40, height: 40 }
+                ]
+            }
+        };
+
+        const mockAssets = {
+            photos: [
+                { id: 'ph1', url: 'https://placehold.co/400x400', thumbnailUrl: 'https://placehold.co/400x400' }
+            ]
+        };
+
+        try {
+            engine.renderPage(mockPage, mockAssets);
+            console.log('Rendering complete');
+
+            // Verification logic
+            const container = document.getElementById('test-container');
+            const pageEl = container.firstElementChild;
+            const bg = pageEl.style.background;
+            const deco = pageEl.querySelector('.page-decoration');
+
+            if (bg.includes('linear-gradient') && deco) {
+                document.getElementById('status').textContent = 'SUCCESS: Gradient and Decorations rendered.';
+                document.getElementById('status').style.color = 'green';
+            } else {
+                document.getElementById('status').textContent = 'FAILURE: Missing gradient or decorations.';
+                document.getElementById('status').style.color = 'red';
+                console.error('BG:', bg);
+                console.error('Deco:', deco);
+            }
+
+        } catch (e) {
+            document.getElementById('status').textContent = `ERROR: ${e.message}`;
+            console.error(e);
+        }
+    </script>
+</body>
+
+</html>

@@ -29,6 +29,13 @@ window.pdfCanvasExport = pdfCanvasExport;
 
 class App {
     constructor() {
+        // Manual Crop Handlers
+        this.boundHandleCropDragStart = this.handleCropDragStart.bind(this);
+        this.boundHandleCropDragMove = this.handleCropDragMove.bind(this);
+        this.boundHandleCropDragEnd = this.handleCropDragEnd.bind(this);
+        this.enterCropMode = this.enterCropMode.bind(this);
+        this.commitCropMode = this.commitCropMode.bind(this);
+
         this.init();
 
         // Initialize Config & Services
@@ -72,9 +79,29 @@ class App {
             }
         }, 3000);
 
+        // Check for Auto-Start Params immediately
+        const urlParams = new URLSearchParams(window.location.search);
+        this.isAutoStart = urlParams.get('autoStart') === 'true';
+        this.targetTemplateId = urlParams.get('templateId');
+
         authService.onAuthStateChanged(async (user) => {
             store.state.user = user;
             this.renderAuthUI();
+
+            // --- AUTO START FLOW: PRE-LOGIN ---
+            if (this.isAutoStart && !user) {
+                console.log("[App] Auto-Start: Triggering Login...");
+                try {
+                    // We attempt to sign in. The page might reload or popup might appear.
+                    // If popup, this callback will fire again with user object upon success.
+                    await authService.signInWithGoogle();
+                    return; // Wait for the callback to fire again with user
+                } catch (e) {
+                    console.error("Auto-login failed:", e);
+                    // Fallback? Maybe just show the page.
+                    alert("Please sign in to continue creating your book.");
+                }
+            }
 
             if (user) {
                 console.log("User Logged In:", user.email);
@@ -91,39 +118,40 @@ class App {
 
                     if (hasLegacyDefault) {
                         console.log("[App] Detected legacy default 'Smith Family' template in save. DISCARDING for clean slate.");
-                        // We basically ignore the saved pages/cover but might keep assets if they aren't the stock ones?
-                        // Actually, the stock assets are likely part of the problem.
-                        // Let's reset purely.
                         savedData = null; // Treat as no save
                     }
                 }
 
+                // --- 2. AUTO-START TEMPLATE OVERRIDE ---
+                // If user selected a specific template from landing page, we prioritize that over saved state
+                // UNLESS the saved state matches the target template (optimization)
+                if (this.isAutoStart && this.targetTemplateId) {
+                    console.log(`[App] Auto-Start: Overriding saved project with template '${this.targetTemplateId}'`);
+                    // We effectively start fresh but keep the user
+                    // OR we could try to migrate content? For now, fresh start is safer for "Create New" flow.
+                    savedData = null;
+                }
+
                 if (savedData) {
-                    // --- 2. CLEAR PHOTOS FROM PREVIOUS SESSION ---
-                    // Only load photos from current session, not previous sessions
-                    // User can add photos using the "Add Photos" button
+                    // --- 3. CLEAR PHOTOS FROM PREVIOUS SESSION ---
                     if (savedData.assets) {
                         console.log(`[App] Clearing ${savedData.assets.photos?.length || 0} photos from previous session.`);
-                        savedData.assets.photos = []; // Clear photos from previous session
+                        savedData.assets.photos = [];
                     }
 
-                    // Restore key state properties (without photos from previous session)
+                    // Restore key state properties
                     Object.assign(store.state, {
                         ...savedData,
-                        user: user, // Ensure user stays
-                        assets: savedData.assets || store.state.assets // Fallback
+                        user: user,
+                        assets: savedData.assets || store.state.assets
                     });
 
                     // Force refresh
                     store.notify('pages', store.state.pages);
                     store.notify('cover', store.state.cover);
-                    store.notify('assets', store.state.assets); // Update sidebar with new URLs
-                    store.notify('assets', store.state.assets); // Update sidebar with new URLs
+                    store.notify('assets', store.state.assets);
 
-                    // Renderer doesn't manage sidebar anymore, App or specialized component does.
-                    // If method exists on App, call it.
                     if (this.renderAssetSidebar) this.renderAssetSidebar();
-                    // this.renderer.renderAssetSidebar(); // REMOVED: Method does not exist on RenderEngine
 
                     // Initialize Template Sidebar
                     this.templateSidebar = new TemplateSidebar('template-library', this);
@@ -149,13 +177,66 @@ class App {
                         this.renderActivePage();
                     }
 
-                    // Only welcome if it wasn't the legacy nuke
                     console.log(`[App] Project restored for ${user.displayName}`);
                 } else {
-                    // Start Fresh if no save or we nuked it
+                    // Start Fresh (New User or Auto-Start Override)
                     this.templateSidebar = new TemplateSidebar('template-library', this);
                     this.templateSidebar.init();
-                    // Default is already set by loadAssets / constructor
+
+                    // Apply Target Template if requested
+                    if (this.targetTemplateId && this.templateSidebar.manager) {
+                        console.log(`[App] Applying target template: ${this.targetTemplateId}`);
+                        // Small delay to ensure manager is ready/registry loaded
+                        setTimeout(async () => {
+                            try {
+                                await this.templateSidebar.manager.loadTemplate(this.targetTemplateId);
+                                pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
+                                // We might need to refresh the view to apply styles to the default pages
+                                this.renderActivePage();
+                            } catch (e) {
+                                console.error("Failed to load target template:", e);
+                            }
+                        }, 500);
+                    }
+                }
+
+                // --- AUTO START FLOW: POST-LOGIN (Show Modal) ---
+                if (this.isAutoStart) {
+                    // Show Hebrew Modal
+                    const modal = document.getElementById('auto-start-upload-modal');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        // Bind events if not already done (better to do in bindEvents but lazy binding ensures elements exist)
+                        const btnLocal = document.getElementById('btn-auto-upload-local');
+                        const btnGoogle = document.getElementById('btn-auto-upload-google');
+
+                        // Clear previous listeners (handled by replace or simple on click/setup)
+                        // Ideally we bind in bindEvents, but let's ensure it here just effectively.
+                        btnLocal.onclick = () => {
+                            document.getElementById('file-upload-input').click();
+                            modal.style.display = 'none';
+                        };
+                        btnGoogle.onclick = async () => {
+                            modal.style.display = 'none';
+                            try {
+                                const photos = await googlePhotosService.openPicker();
+                                if (photos && photos.length > 0) {
+                                    // Set assets directly for fresh start
+                                    store.state.assets.photos = photos;
+                                    store.notify('assets', store.state.assets);
+                                    this.renderAssetSidebar();
+
+                                    if (this.targetTemplateId && this.templateSidebar) {
+                                        console.log("[App] Auto-Start: Generating book from Google Photos...");
+                                        await this.templateSidebar.handleTemplateSelect(this.targetTemplateId);
+                                        this.isAutoStart = false;
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("Auto-start Google Photos error:", e);
+                            }
+                        };
+                    }
                 }
             }
         });
@@ -201,7 +282,7 @@ class App {
                 if (renderer && p.rawLayoutId) {
                     const layout = manager.config.pageLayouts.find(l => l.layoutId === p.rawLayoutId);
                     if (layout) {
-                        const el = renderer.renderPage(layout, p.photos || [], p.textContent || {}, p.textPositions || {});
+                        const el = renderer.renderPage(layout, p.photos || [], p.textContent || {}, p.textPositions || {}, p);
                         const container = document.getElementById('canvas-container');
                         container.innerHTML = '';
                         container.appendChild(el);
@@ -213,6 +294,29 @@ class App {
 
         // Fallback to Default RenderEngine
         this.renderer.renderPage(p, store.state.assets, store.state.selection);
+    }
+
+    loadMockPhotos() {
+        console.log("[App] Loading Mock Photos...");
+        const mockPhotos = [
+            { id: 'mock1', url: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=600&q=80', ratio: 1.5, type: 'photo' },
+            { id: 'mock2', url: 'https://images.unsplash.com/photo-1472653431158-6364773b2710?w=600&q=80', ratio: 1.5, type: 'photo' },
+            { id: 'mock3', url: 'https://images.unsplash.com/photo-1520024146169-3240400354ae?w=600&q=80', ratio: 1.5, type: 'photo' },
+            { id: 'mock4', url: 'https://images.unsplash.com/photo-1502635385003-ee1e6a1a742d?w=600&q=80', ratio: 0.75, type: 'photo' },
+            { id: 'mock5', url: 'https://images.unsplash.com/photo-1532467411038-f943805eb329?w=600&q=80', ratio: 1, type: 'photo' },
+        ];
+        store.state.assets.photos = mockPhotos;
+        store.notify('assets', store.state.assets);
+        this.renderAssetSidebar();
+
+        // Auto-fill active page if empty
+        const activePage = store.state.pages.find(p => p.id === store.state.activePageId);
+        if (activePage && (!activePage.photos || activePage.photos.length === 0)) {
+            store.pushState('Auto-Fill Mock');
+            // Add first 2 photos to page
+            this.addPhotoToPage('mock1', 0.2);
+            setTimeout(() => this.addPhotoToPage('mock2', 0.6), 100);
+        }
     }
 
     async loadAssets() {
@@ -556,48 +660,47 @@ class App {
             }
         });
 
-        // Double Click to Edit Text
+        // Double Click Handler
         canvas.addEventListener('dblclick', (e) => {
-            const target = e.target.closest('[data-selectable-type="text"]');
-            if (target) {
+            // 1. Text Editing
+            const textTarget = e.target.closest('[data-selectable-type="text"]');
+            if (textTarget) {
                 e.stopPropagation(); // Prevent other triggers
-                target.contentEditable = 'true';
-                target.focus();
-                target.style.cursor = 'text';
-                target.style.outline = 'none'; // Browser outline might conflict with frame
-
-                // Hide frame while editing to remove clutter? Or keep it? keeping it is fine.
+                textTarget.contentEditable = 'true';
+                textTarget.focus();
+                textTarget.style.cursor = 'text';
+                textTarget.style.outline = 'none';
 
                 // Save on blur
-                const id = target.dataset.selectableId;
+                const id = textTarget.dataset.selectableId;
                 const saveHandler = () => {
-                    const newContent = target.textContent;
+                    const newContent = textTarget.textContent;
                     // Update State
                     const page = store.state.pages.find(p => p.id === store.state.activePageId);
                     if (page) {
-                        // Check elements array
-                        if (page.elements) {
-                            const el = page.elements.find(el => el.id === id); // id match elementId in renderer
-                            // Wait, logic in renderer used textEl.elementId as selectableId.
-                            // But textEl in JSON might not have unique runtime content? 
-                            // convertToState creates 'text_' unique IDs.
-                            // Photography renderer used `element.dataset.selectableId = textEl.elementId`.
-                            // If `textEl` comes from JSON layout, it's "title", "subtitle".
-                            // convertToState maps these to `textContent` object.
-                            // So we need to update `textContent[id]` in page state.
-
-                            if (!page.textContent) page.textContent = {};
-                            page.textContent[id] = newContent;
-
-                            store.notify('pages', store.state.pages);
-                        }
+                        if (!page.textContent) page.textContent = {};
+                        page.textContent[id] = newContent;
+                        store.notify('pages', store.state.pages);
                     }
-
-                    target.contentEditable = 'false';
-                    target.style.cursor = 'grab';
-                    target.removeEventListener('blur', saveHandler);
+                    textTarget.contentEditable = 'false';
+                    textTarget.style.cursor = 'grab';
+                    textTarget.removeEventListener('blur', saveHandler);
                 };
-                target.addEventListener('blur', saveHandler);
+                textTarget.addEventListener('blur', saveHandler);
+                return;
+            }
+
+            // 2. Photo Crop / Pan Mode
+            const photoSlot = e.target.closest('.photo-slot');
+            if (photoSlot) {
+                e.stopPropagation();
+
+                // Only allow if photo exists in slot
+                // We can check if img exists
+                const img = photoSlot.querySelector('img');
+                if (img && img.src && !img.src.includes('placeholder')) {
+                    this.enterCropMode(photoSlot);
+                }
             }
         });
 
@@ -686,7 +789,9 @@ class App {
                     const page = store.state.pages.find(p => p.id === store.state.activePageId);
                     if (page) {
                         // Check if this is a template-based page
-                        if (page.templateId && page.textContent) {
+                        // Fix for dragging text on templates: rely on templateId, not just textContent existence
+                        // Exclude ad-hoc layouts generated by layout engine (layout-*)
+                        if (page.templateId && !page.templateId.startsWith('layout-')) {
                             // Template page: store custom positions separately
                             if (!page.textPositions) {
                                 page.textPositions = {};
@@ -715,16 +820,32 @@ class App {
         // ----------------------------------------------------
         // Toolbar Actions
         // ----------------------------------------------------
-        document.getElementById('btn-preview').addEventListener('click', () => {
+        document.getElementById('btn-preview').addEventListener('click', async () => {
             // Open preview mode with page flipping and 3D view
             // PDF is generated only when clicking "Generate PDF" button in preview
             console.log("[App] Opening Album Preview...");
+
+            // Ensure Template Config is loaded
+            const currentTemplateId = store.state.selectedTemplate?.id ||
+                (store.state.pages[0] && store.state.pages[0].templateId) ||
+                (store.state.cover && store.state.cover.templateId);
+
+            if (currentTemplateId && this.templateSidebar && this.templateSidebar.manager) {
+                if (!this.templateSidebar.manager.config || this.templateSidebar.manager.currentTemplateId !== currentTemplateId) {
+                    console.log('[App] Loading template config for preview:', currentTemplateId);
+                    try {
+                        await this.templateSidebar.manager.loadTemplate(currentTemplateId);
+                    } catch (e) {
+                        console.warn('[App] Failed to load template config for preview:', e);
+                    }
+                }
+            }
 
             const hasTemplateConfig = this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config;
             const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
 
             // Import and open the album preview
-            import('../ui-components/album-preview.js').then(({ albumPreview }) => {
+            import(`../ui-components/album-preview.js?v=${Date.now()}`).then(({ albumPreview }) => {
                 albumPreview.open(
                     store.state.pages,
                     store.state.cover,
@@ -745,7 +866,10 @@ class App {
             let newLayout = null;
 
             // Strategy A: Template-based Remix
-            if (page.templateId && this.templateSidebar && this.templateSidebar.manager) {
+            // Skip if ad-hoc layout (Magic Create)
+            const isAdHoc = page.templateId && page.templateId.startsWith('layout-');
+
+            if (page.templateId && !isAdHoc && this.templateSidebar && this.templateSidebar.manager) {
                 const tm = this.templateSidebar.manager;
 
                 // Ensure template config is loaded
@@ -767,6 +891,15 @@ class App {
             }
 
             // Strategy B: Default Layout Engine Remix (Fallback)
+            // Ensure page.photos exists (fix for Magic Create pages)
+            if (!page.photos && page.layout && page.layout.slots) {
+                const assetPhotos = store.state.assets.photos;
+                page.photos = page.layout.slots
+                    .filter(s => s.photoId)
+                    .map(s => assetPhotos.find(p => p.id === s.photoId))
+                    .filter(p => p);
+            }
+
             if (!newLayout && page.photos && page.photos.length > 0) {
                 const currentName = page.layout ? page.layout.name : null;
                 newLayout = layoutEngine.getNextLayout(page.photos, currentName);
@@ -935,7 +1068,18 @@ class App {
                     // Add to assets
                     store.state.assets.photos = [...store.state.assets.photos, ...newPhotos];
                     this.renderAssetSidebar();
+                    this.renderAssetSidebar();
                     uploadModal.style.display = 'none';
+
+                    // --- AUTO START TRIGGER ---
+                    if (this.isAutoStart && this.targetTemplateId && this.templateSidebar) {
+                        console.log("[App] Auto-Start: Generating book from local files...");
+                        // Use a small timeout to let UI update
+                        setTimeout(async () => {
+                            await this.templateSidebar.handleTemplateSelect(this.targetTemplateId);
+                            this.isAutoStart = false;
+                        }, 100);
+                    }
                     // Reset input
                     fileInput.value = '';
                 }
@@ -1170,21 +1314,65 @@ class App {
 
         // 3. Add to Elements (Immutable update)
         // Create a new array for photos to avoid mutating state before assignment
-        page.photos = [...(page.photos || []), photo];
+        const newPhotos = [...(page.photos || []), photo];
+        page.photos = newPhotos;
 
         console.log('[App] New Photos list:', page.photos.length, page.photos);
 
-        // 4. Trigger AI Layout
-        const newLayout = layoutEngine.generateLayout(page.photos);
-        console.log('[App] Generated Layout:', newLayout);
+        // 4. Trigger Layout Update
+        let newLayout = null;
+        let newPage = null;
 
-        // 5. Update State
-        page.layout = newLayout;
+        // TEMPLATE AWARE LOGIC
+        // Exclude Magic Create "ad-hoc" layouts (starting with "layout-") from Template Manager logic
+        // because they don't have a registered external template config.
+        const isAdHocLayout = page.templateId && page.templateId.startsWith('layout-');
 
-        // Replace the page in the store array
-        const newPages = [...state.pages];
-        newPages[pageIndex] = page;
-        store.state.pages = newPages; // Triggers UI update
+        if (page.templateId && !isAdHocLayout && this.templateSidebar && this.templateSidebar.manager) {
+            const tm = this.templateSidebar.manager;
+            // Ensure config matches (it should, as we only have one active template globally usually)
+            // But if mixed, we might need to load.
+            if (tm.config && tm.currentTemplateId === page.templateId) {
+                const bestLayoutId = tm.getLayoutIdForCount(newPhotos.length);
+                if (bestLayoutId) {
+                    console.log('[App] Found template layout for count:', newPhotos.length, bestLayoutId);
+                    newPage = tm.regeneratePage(page, bestLayoutId);
+                } else {
+                    console.warn('[App] No template layout found for photo count:', newPhotos.length);
+                    // Fallback handled below or by keeping current
+                }
+            }
+        }
+
+        if (newPage) {
+            // Use the regenerated page (updating slots, decorations, etc.)
+            const newPages = [...state.pages];
+            newPages[pageIndex] = newPage;
+            store.state.pages = newPages;
+            store.notify('pages', store.state.pages);
+            return;
+        }
+
+
+        // DEFAULT LOGIC (Fallback or Non-Template)
+        if (!page.templateId) {
+            const newLayout = layoutEngine.generateLayout(page.photos);
+            console.log('[App] Generated Layout:', newLayout);
+            page.layout = newLayout;
+
+            // Replace the page in the store array
+            const newPages = [...state.pages];
+            newPages[pageIndex] = page;
+            store.state.pages = newPages; // Triggers UI update
+        } else {
+            // Template exists but no layout found.
+            // We updated page.photos, so the photo is "there" but not in a slot.
+            // The renderer will just ignore it (or show empty slots if we reduced count?).
+            // We need to trigger update.
+            const newPages = [...state.pages];
+            newPages[pageIndex] = page;
+            store.state.pages = newPages;
+        }
     }
 
     addTextToPage(styleId) {
@@ -1690,7 +1878,7 @@ class App {
                 <div class="prop-group">
                     <label>Color</label>
                     <div class="color-picker-wrapper">
-                        <input type="color" id="prop-page-color" class="color-input-hidden" value="${page.background && page.background.startsWith('#') ? page.background : '#ffffff'}">
+                        <input type="color" id="prop-page-color" class="color-input-hidden" value="${(page.background && typeof page.background === 'string' && page.background.startsWith('#')) ? page.background : (page.background && page.background.color ? page.background.color : '#ffffff')}">
                         <div class="color-icon"><i class="fa-solid fa-eye-dropper"></i></div>
                     </div>
                 </div>
@@ -1705,21 +1893,88 @@ class App {
 
         // Bindings
 
-        // 1. Layout Buttons (Simple Remix for now, matching illustration icons)
+        // 1. Layout Buttons (Template-aware Remix)
         const layouts = container.querySelectorAll('.layout-btn');
         layouts.forEach((btn, idx) => {
             btn.addEventListener('click', () => {
-                // Determine logic based on which "grid" icon was clicked
-                // For MVP, all just trigger 'Magic Remix' logic but maybe filtered?
-                // Let's just cycle layouts for now to be safe.
-                // Or: 
-                // Btn 0: 1-photo logic?
-                // Btn 1: 2-photo logic?
-                // Btn 2: Grid logic?
-                // Since we can't change photo COUNT here easily without deleting, let's just trigger Remix.
                 const state = store.state;
-                const currentName = page.layout ? page.layout.name : null;
-                const newLayout = window.app.layoutEngine.getNextLayout(page.photos, currentName);
+                let newLayout = null;
+
+                // Strategy A: Template-based Remix
+                // Skip if ad-hoc layout (Magic Create)
+                const isAdHoc = page.templateId && page.templateId.startsWith('layout-');
+
+                if (page.templateId && !isAdHoc && window.app.templateSidebar && window.app.templateSidebar.manager) {
+                    const tm = window.app.templateSidebar.manager;
+
+                    // Ensure template config is loaded
+                    if (!tm.config || tm.currentTemplateId !== page.templateId) {
+                        // Load and retry logic... (simplified here for brevity, assuming loaded or will fail gracefully)
+                        // Ideally we should await this.templateSidebar.manager.loadTemplate(page.templateId)
+                        // But for now let's reuse the async pattern from original code or just skip if not ready.
+                        // The original code had a async load block. Let's keep it robust.
+                        tm.loadTemplate(page.templateId).then(() => {
+                            // Retry logic inside
+                            const reTm = window.app.templateSidebar.manager;
+                            let layoutId = null;
+                            if (idx === 0) layoutId = reTm.getLayoutIdForCount(1);
+                            if (idx === 1) layoutId = reTm.getLayoutIdForCount(2);
+
+                            if (layoutId) {
+                                const newP = reTm.regeneratePage(page, layoutId);
+                                if (newP) {
+                                    const newPs = [...store.state.pages];
+                                    const pIdx = newPs.findIndex(p => p.id === page.id);
+                                    if (pIdx > -1) {
+                                        newPs[pIdx] = newP;
+                                        store.state.pages = newPs;
+                                        store.notify('pages', store.state.pages);
+                                    }
+                                }
+                            } else if (idx === 2) {
+                                window.app.performTemplateRemix(page, reTm);
+                            }
+                        });
+                        return;
+                    }
+
+                    // Config Loaded:
+                    let targetLayoutId = null;
+                    if (idx === 0) targetLayoutId = tm.getLayoutIdForCount(1); // Single
+                    if (idx === 1) targetLayoutId = tm.getLayoutIdForCount(2); // Two
+
+                    if (targetLayoutId) {
+                        const newPage = tm.regeneratePage(page, targetLayoutId);
+                        if (newPage) {
+                            store.pushState('Change Layout');
+                            const newPages = [...state.pages];
+                            const pIndex = newPages.findIndex(p => p.id === page.id);
+                            newPages[pIndex] = newPage;
+                            store.state.pages = newPages;
+                            store.notify('pages', store.state.pages);
+                            return;
+                        }
+                    } else if (idx === 2) {
+                        // Grid/Remix -> Alternative for CURRENT count
+                        if (window.app.performTemplateRemix(page, tm)) {
+                            return;
+                        }
+                    }
+                }
+
+                // Strategy B: Default Layout Engine Remix (Fallback)
+                if (!newLayout && page.photos && page.photos.length > 0) {
+                    const currentName = page.layout ? page.layout.name : null;
+                    // For default engine:
+                    // idx 0 -> 1 photo layout?
+                    // idx 1 -> 2 photo layout?
+                    // idx 2 -> Remix
+
+                    if (idx === 0) newLayout = layoutEngine.getNextLayout(page.photos.slice(0, 1), null);
+                    else if (idx === 1 && page.photos.length >= 2) newLayout = layoutEngine.getNextLayout(page.photos.slice(0, 2), null);
+                    else newLayout = layoutEngine.getNextLayout(page.photos, currentName);
+                }
+
                 if (newLayout) {
                     store.pushState('Change Layout');
                     page.layout = newLayout;
@@ -2115,6 +2370,8 @@ class App {
         btnGoogle.className = 'btn-google-photos';
         btnGoogle.innerHTML = '<i class="fa-brands fa-google"></i> Connect Google Photos';
         btnGoogle.style.width = '100%';
+        btnGoogle.style.height = 'auto'; // Fix: Prevent stretching
+        btnGoogle.style.alignSelf = 'start'; // Fix: Prevent grid row stretching
         btnGoogle.style.gridColumn = '1 / -1'; // Span full width
         btnGoogle.style.padding = '12px';
         btnGoogle.style.marginBottom = '10px';
@@ -2410,25 +2667,38 @@ class App {
             rh = manager.config.designSystem.canvas.scaledHeight || manager.config.designSystem.canvas.height || rh;
         }
 
-        // Scale Calculation (Target height ~100px)
-        const TARGET_HEIGHT = 100;
-        const scale = TARGET_HEIGHT / rh;
+        // Standardized Thumbnail Size (Square)
+        const THUMB_SIZE = 110; // Slightly larger square
+
+        // Scale Calculation Helper
+        const calculateScale = (contentW, contentH, targetSize) => {
+            const scaleX = targetSize / contentW;
+            const scaleY = targetSize / contentH;
+            return Math.max(scaleX, scaleY); // Cover (occupies all square)
+        };
 
         // Cover Handling - Use UNIFIED cover renderer for thumbnail
         if (store.state.viewMode === 'cover' || store.state.cover) {
             const coverEl = document.createElement('div');
             coverEl.className = `timeline-page cover ${store.state.viewMode === 'cover' ? 'active' : ''}`;
-            coverEl.style.width = `${rw * scale}px`;
-            coverEl.style.height = `${rh * scale}px`;
+            coverEl.style.width = `${THUMB_SIZE}px`;
+            coverEl.style.height = `${THUMB_SIZE}px`;
+            coverEl.style.overflow = 'hidden';
+            coverEl.style.position = 'relative';
+
+            const coverScale = calculateScale(rw, rh, THUMB_SIZE);
 
             const preview = document.createElement('div');
             preview.style.width = `${rw}px`;
             preview.style.height = `${rh}px`;
-            preview.style.transform = `scale(${scale})`;
-            preview.style.transformOrigin = 'top left';
+            preview.style.position = 'absolute';
+            preview.style.top = '50%';
+            preview.style.left = '50%';
+            preview.style.transform = `translate(-50%, -50%) scale(${coverScale})`;
+            preview.style.transformOrigin = 'center center';
             preview.style.pointerEvents = 'none';
             preview.style.background = '#fff';
-            preview.style.overflow = 'hidden';
+            // preview.style.overflow = 'hidden';
 
             // Use UNIFIED cover renderer for timeline thumbnail
             const templateConfig = manager?.config || null;
@@ -2461,18 +2731,23 @@ class App {
         contentPages.forEach((page, idx) => {
             const el = document.createElement('div');
             el.className = `timeline-page ${page.id === activeId && store.state.viewMode !== 'cover' ? 'active' : ''}`;
-            el.style.width = `${rw * scale}px`;
-            el.style.height = `${rh * scale}px`;
+            el.style.width = `${THUMB_SIZE}px`;
+            el.style.height = `${THUMB_SIZE}px`;
+            el.style.overflow = 'hidden';
+            el.style.position = 'relative';
+
+            const pageScale = calculateScale(rw, rh, THUMB_SIZE);
 
             const previewWrapper = document.createElement('div');
             previewWrapper.style.width = `${rw}px`;
             previewWrapper.style.height = `${rh}px`;
-            previewWrapper.style.transform = `scale(${scale})`;
-            previewWrapper.style.transformOrigin = 'top left';
+            previewWrapper.style.position = 'absolute';
+            previewWrapper.style.top = '50%';
+            previewWrapper.style.left = '50%';
+            previewWrapper.style.transform = `translate(-50%, -50%) scale(${pageScale})`;
+            previewWrapper.style.transformOrigin = 'center center';
             previewWrapper.style.pointerEvents = 'none';
             previewWrapper.style.backgroundColor = '#fff';
-            previewWrapper.style.position = 'absolute';
-            previewWrapper.style.inset = '0';
 
             // Unified Render Logic
             let rendered = false;
@@ -2488,6 +2763,9 @@ class App {
                         if (layout) {
                             const dom = renderer.renderPage(layout, page.photos || [], page.textContent || {}, page.textPositions || {});
                             if (dom) {
+                                // Force full size to fill the wrapper (fixes rendering for templates with 0-height default)
+                                dom.style.width = '100%';
+                                dom.style.height = '100%';
                                 previewWrapper.appendChild(dom);
                                 rendered = true;
                             }
@@ -2664,11 +2942,227 @@ class App {
             }
         }
     }
+
+    // --- Manual Crop / Pan Logic ---
+
+    enterCropMode(slotEl) {
+        if (!slotEl) return;
+        const pageId = slotEl.closest('.shoso-page').dataset.pageId;
+        const slotId = slotEl.dataset.selectableId; // photoId
+
+        // Set Manual Crop Flag to prevent smart crop overwrite
+        const page = store.state.pages.find(p => p.id === pageId);
+        if (page) {
+            const slot = page.layout.slots.find(s => s.photoId === slotId);
+            if (slot) slot.manualCrop = true;
+        }
+
+        if (this.currentCropSession) {
+            // Commit previous
+            this.commitCropMode();
+        }
+
+        console.log('[App] Entering crop mode for', slotId);
+
+        // Visual Feedback
+        // Add overlay and activate slot
+        document.querySelectorAll('.photo-slot').forEach(el => el.classList.remove('crop-active'));
+        slotEl.classList.add('crop-active');
+
+        // Initialize Session
+        this.currentCropSession = {
+            slotEl: slotEl,
+            pageId: pageId,
+            slotId: slotId,
+            initialCrop: null,
+            imgEl: slotEl.querySelector('img'),
+            scale: 1, // To be calculated
+            startX: 0,
+            startY: 0,
+            startLeftPct: 0,
+            startTopPct: 0,
+            hasModified: false
+        };
+
+        // Attach Global Click to Dismiss (if clicking outside)
+        // Delayed to avoid immediate trigger
+        setTimeout(() => {
+            const dismissHandler = (e) => {
+                if (!slotEl.contains(e.target) && this.currentCropSession) {
+                    this.commitCropMode();
+                    document.removeEventListener('click', dismissHandler);
+                }
+            };
+            this.currentCropSession.dismissHandler = dismissHandler;
+            document.addEventListener('click', dismissHandler);
+        }, 100);
+
+        // Attach Mouse Handlers for Drag
+        slotEl.addEventListener('mousedown', this.boundHandleCropDragStart);
+        slotEl.style.cursor = 'move';
+        // Disable swap drag
+        slotEl.draggable = false;
+
+        // Ensure crop is initialized
+        this.initializeCropState(pageId, slotId, slotEl);
+    }
+
+    commitCropMode() {
+        if (!this.currentCropSession) return;
+
+        const { slotEl, pageId, slotId, dismissHandler } = this.currentCropSession;
+        console.log('[App] Committing crop mode for', slotId);
+
+        // Cleanup Visuals
+        slotEl.classList.remove('crop-active');
+        slotEl.style.cursor = '';
+        slotEl.draggable = true; // Re-enable swap
+
+        // Remove Listeners
+        slotEl.removeEventListener('mousedown', this.boundHandleCropDragStart);
+        document.removeEventListener('click', dismissHandler);
+        window.removeEventListener('mousemove', this.boundHandleCropDragMove);
+        window.removeEventListener('mouseup', this.boundHandleCropDragEnd);
+
+        // State is already updated during drag via notify?
+        if (store) store.notify('pages', store.state.pages);
+
+        this.currentCropSession = null;
+    }
+
+    initializeCropState(pageId, slotId, slotEl) {
+        const page = store.state.pages.find(p => p.id === pageId);
+        if (!page) return;
+        const slot = page.layout.slots.find(s => s.photoId === slotId);
+        if (!slot) return;
+
+        const img = slotEl.querySelector('img');
+
+        // If no crop exists, create a default center crop based on CURRENT visualized ratio
+        if (!slot.crop) {
+            // We need photo dimensions.
+            const asset = store.state.assets.photos.find(p => p.id === slotId);
+            const pW = asset.width || (asset.ratio ? 1000 * asset.ratio : 1000);
+            const pH = asset.height || 1000;
+
+            // Slot aspect ratio (screen)
+            const sW = slotEl.clientWidth;
+            const sH = slotEl.clientHeight;
+            const sRatio = sW / sH;
+
+            // Calculate "Cover" rect in photo coordinates
+            // We want largest rect of sRatio fitting in pW/pH
+            let cropW, cropH;
+            const pRatio = pW / pH;
+
+            if (pRatio > sRatio) {
+                // Photo is wider than slot -> Fit Height
+                cropH = pH;
+                cropW = cropH * sRatio;
+            } else {
+                // Photo is taller -> Fit Width
+                cropW = pW;
+                cropH = cropW / sRatio;
+            }
+
+            slot.crop = {
+                x: (pW - cropW) / 2,
+                y: (pH - cropH) / 2,
+                width: cropW,
+                height: cropH
+            };
+
+            store.notify('pages', store.state.pages);
+        }
+    }
+
+    // handlers
+    handleCropDragStart(e) {
+        if (!this.currentCropSession) return;
+        e.stopPropagation();
+        e.preventDefault();
+
+        const { slotEl, slotId, pageId } = this.currentCropSession;
+
+        if (!this.currentCropSession.hasModified) {
+            store.pushState('Adjust Crop');
+            this.currentCropSession.hasModified = true;
+        }
+
+        // Retrieve current crop from STATE (it might have been initialized just now)
+        const page = store.state.pages.find(p => p.id === pageId);
+        const slot = page.layout.slots.find(s => s.photoId === slotId);
+
+        if (!slot.crop) return; // Should not happen if initialized
+
+        this.currentCropSession.initialCrop = { ...slot.crop };
+        this.currentCropSession.startX = e.clientX;
+        this.currentCropSession.startY = e.clientY;
+
+        // Calculate Scale: Image Pixels per Screen Pixel
+        this.currentCropSession.scaleX = slot.crop.width / slotEl.clientWidth;
+        this.currentCropSession.scaleY = slot.crop.height / slotEl.clientHeight;
+
+        window.addEventListener('mousemove', this.boundHandleCropDragMove);
+        window.addEventListener('mouseup', this.boundHandleCropDragEnd);
+    }
+
+    handleCropDragMove(e) {
+        if (!this.currentCropSession) return;
+        e.preventDefault();
+
+        const { startX, startY, initialCrop, scaleX, scaleY, pageId, slotId } = this.currentCropSession;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        // Calculate Delta in Image Pixels
+        // Screen Move Right (+dx) -> Camera Move Left -> Crop X decreases
+        // So we subtract dx * scale
+        const dCropX = -dx * scaleX;
+        const dCropY = -dy * scaleY;
+
+        let newX = initialCrop.x + dCropX;
+        let newY = initialCrop.y + dCropY;
+
+        // Constraints
+        const page = store.state.pages.find(p => p.id === pageId);
+        const slot = page.layout.slots.find(s => s.photoId === slotId);
+        const asset = store.state.assets.photos.find(p => p.id === slotId);
+
+        // Estimate asset size if missing
+        const pW = asset.width || (asset.ratio ? 1000 * asset.ratio : 1000);
+        const pH = asset.height || 1000;
+
+        // Clamp
+        const maxX = Math.max(0, pW - initialCrop.width);
+        const maxY = Math.max(0, pH - initialCrop.height);
+
+        newX = Math.max(0, Math.min(newX, maxX));
+        newY = Math.max(0, Math.min(newY, maxY));
+
+        // Update State Object Directly (RenderEngine reads this)
+        slot.crop.x = newX;
+        slot.crop.y = newY;
+
+        // Update DOM Directly for Performance (Mimic RenderEngine logic)
+        const img = this.currentCropSession.imgEl;
+        if (img) {
+            const offX = 100 * (newX / initialCrop.width);
+            const offY = 100 * (newY / initialCrop.height);
+            img.style.left = `-${offX}%`;
+            img.style.top = `-${offY}%`;
+        }
+    }
+
+    handleCropDragEnd(e) {
+        window.removeEventListener('mousemove', this.boundHandleCropDragMove);
+        window.removeEventListener('mouseup', this.boundHandleCropDragEnd);
+    }
 }
 
 // Start the app
 window.addEventListener('DOMContentLoaded', () => {
-    App.init();
+    window.app = new App();
 });
 
 // PDF Preview Handler
@@ -2779,3 +3273,6 @@ window.demo_createMockAlbum = () => {
     // Force update
     store.notify('pages', newPages);
 };
+
+
+

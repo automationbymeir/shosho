@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Ultimate 3D Book - Reality Engine</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #222;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Import Maps for ThreeJS -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "gsap": "https://unpkg.com/gsap@3.12.5/index.js"
+        }
+    }
+</script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import gsap from 'gsap';
+
+        // --- CONFIGURATION ---
+        const CONFIG = {
+            pageCount: 6,
+            width: 3.5,
+            height: 5.0,
+            thickness: 0.03, // Visual thickness
+            spacing: 0.031,   // Z-spacing (Stacking height)
+            curveStrength: 2.5,
+            duration: 1.2
+        };
+
+        // --- GLOBALS ---
+        let scene, camera, renderer, controls;
+        const pages = [];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let isAnimating = false;
+
+        // --- ASSETS ---
+        const texLoader = new THREE.TextureLoader();
+        // Base Materials
+        const matWhite = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+        const matEdge = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.9, map: null }); // Edges
+        // Ideally use a paper texture for roughness map
+
+        init();
+        animate();
+
+        function init() {
+            // 1. SETUP
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333);
+
+            // Camera looking down at Z-Stack
+            // Standard view: Book is flat on XY plane? No, usually XZ plane (table).
+            // Let's emulate a Table: X (Width), Z (Height/Depth), Y (Up).
+            // Wait, physically books open on a table.
+            // Spine is usually Z-Axis on table?
+            // Let's stick to the "Upright" coordinate system I devised mentally for simplicity first, then rotate the whole book container.
+            // SYSTEM:
+            // Pivot Axis: Y (Vertical Axis).
+            // Pages Flip in X-Z Plane.
+            // Page Width: X.
+            // Page Height: Y.
+            // Page Thickness: Z.
+            // This allows clear "Door" rotation logic around Y.
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, 12); // Front view
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            // 2. LIGHTS
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(5, 10, 8);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const backLight = new THREE.DirectionalLight(0xffeedd, 0.5);
+            backLight.position.set(-5, 5, -5);
+            scene.add(backLight);
+
+            // 3. BOOK BUILDER
+            buildBook();
+
+            // 4. EVENTS
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('pointerdown', onPointerDown);
+        }
+
+        function buildBook() {
+            const bookContainer = new THREE.Group();
+            // Tilt whole book to look nice on a "Table"
+            // Rotate -30 deg on X so we look down at it
+            bookContainer.rotation.x = -0.4;
+            scene.add(bookContainer);
+
+            // Geometry: Width(X), Height(Y), Thickness(Z)
+            // Segments: 60 on X (Width) for bending.
+            const geometry = new THREE.BoxGeometry(CONFIG.width, CONFIG.height, CONFIG.thickness, 60, 1, 1);
+
+            // PIVOT CORRECTION:
+            // Move geometry so X=0 is the spine edge.
+            // Default box center is (0,0,0). Width extends -W/2 to +W/2.
+            // We want 0 to +W.
+            geometry.translate(CONFIG.width / 2, 0, 0);
+
+            for (let i = 0; i < CONFIG.pageCount; i++) {
+                // --- GROUP (The Hinge) ---
+                // Pivot is strictly at (0,0,0).
+                const group = new THREE.Group();
+                group.position.set(0, 0, 0);
+
+                // --- MESH (The Paper) ---
+                // Stacking Logic (Shared Axis Physics):
+                // Right Side (Closed): Page 0 is Top. Page N is Bottom.
+                // Stack grows in Z.
+                // Let's say Z is "Up" towards camera.
+                // Page 0 (Top) -> Z = Max.
+                const zOffset = (CONFIG.pageCount - 1 - i) * CONFIG.spacing;
+
+                // Material Loading
+                // Material Loading
+                const imgId = 150 + i * 2;
+                let frontUrl = `https://picsum.photos/id/${imgId}/1024/1536`;
+                let backUrl = `https://picsum.photos/id/${imgId + 1}/1024/1536`;
+
+                // Designated Back Cover Logic
+                if (i === CONFIG.pageCount - 1) {
+                    // Use a distinct dark texture to represent the Back Cover
+                    backUrl = "https://picsum.photos/id/237/1024/1536"; // Distinct Doggo for visibility
+                    // In production, this would be: CONFIG.backCoverUrl
+                }
+
+                const matFront = createPageMaterial(frontUrl, false, i);
+                const matBack = createPageMaterial(backUrl, true, i);
+
+                // Box Face Order: +x, -x, +y, -y, +z, -z
+                // +z is Front Face. -z is Back Face.
+                const materials = [
+                    matEdge, // Right Edge
+                    matEdge, // Spine Edge
+                    matEdge, // Top Edge
+                    matEdge, // Bottom Edge
+                    matFront, // Front Face (+Z)
+                    matBack   // Back Face (-Z)
+                ];
+
+                const mesh = new THREE.Mesh(geometry, materials);
+                mesh.position.z = zOffset;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+                // Inject Shader for Bending
+                applyBendingShader(mesh);
+
+                group.add(mesh);
+                bookContainer.add(group);
+
+                pages.push({
+                    id: i,
+                    group: group,
+                    mesh: mesh,
+                    isFlipped: false,
+                    initialZ: zOffset
+                });
+            }
+
+            // Spine Cover (Visual only)
+            const spineGeo = new THREE.BoxGeometry(0.5, CONFIG.height + 0.2, CONFIG.pageCount * CONFIG.spacing + 0.2);
+            // Align?
+            // spineGeo.translate(-0.25, 0, ...);
+        }
+
+        function createPageMaterial(url, isBack, index) {
+            const tex = texLoader.load(url);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.generateMipmaps = true;
+
+            // UV Mapping Adjustment
+            // Box UVs are standard.
+            // +Z Face: (0,0) to (1,1).
+            // -Z Face: (0,0) to (1,1).
+            // If Back face needs horizontal flip (Standard mirroring), we handled it below.
+            if (isBack) {
+                tex.rotation = 0;
+                tex.center.set(0.5, 0.5);
+                tex.repeat.x = -1; // Mirror horizontally
+            }
+
+            const mat = new THREE.MeshStandardMaterial({
+                map: tex,
+                roughness: 0.3,
+                metalness: 0.1,
+                polygonOffset: true,
+                polygonOffsetFactor: -1 * index, // Prioritize Top Pages visually to prevent slight z-fighting
+                polygonOffsetUnits: 1
+            });
+            return mat;
+        }
+
+        // --- SHADER LOGIC ---
+        // We displace Vertices in Z based on X-distance from spine.
+        // Since Rotation is around Y, Z is the normal vector.
+        function applyBendingShader(mesh) {
+            mesh.userData.uniforms = {
+                uBend: { value: 0 },
+                uAngle: { value: 0 }
+            };
+
+            mesh.material.forEach(m => {
+                m.onBeforeCompile = (shader) => {
+                    shader.uniforms.uBend = mesh.userData.uniforms.uBend;
+
+                    // Inject Uniforms
+                    shader.vertexShader = shader.vertexShader.replace(
+                        '#include <common>',
+                        `#include <common>
+                 uniform float uBend;`
+                    );
+
+                    // Inject Displacement
+                    shader.vertexShader = shader.vertexShader.replace(
+                        '#include <begin_vertex>',
+                        `#include <begin_vertex>
+                 
+                 // Normalized X (0 at spine, 1 at edge)
+                 // Note: Geometry is translated 0..Width.
+                 // So position.x is 0..3.5.
+                 float xNorm = clamp(position.x / ${CONFIG.width.toFixed(2)}, 0.0, 1.0);
+                 
+                 // Parabolic Bend
+                 // sin(PI * x) -> hump? No we want simple curl.
+                 // power function curl.
+                 float curl = -1.0 * pow(xNorm, 2.0);
+                 
+                 // Apply bend strength
+                 // uBend goes 0 -> 1 -> 0
+                 // Displace Z
+                 transformed.z += curl * uBend * ${CONFIG.curveStrength.toFixed(2)};
+                 
+                 // Correct Normals (Approximation for lighting)
+                 // If we bend surface, normals shift. 
+                 // Simple hack: Rotate normal around Y slightly? 
+                 // For realistic lighting on bent surface, we need derivative.
+                 // skip precise normal fix for now, acceptable for "Dreamy" look.
+                `
+                    );
+                };
+            });
+
+            // Depth Material for Shadows
+            const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+            depth.onBeforeCompile = (shader) => {
+                shader.uniforms.uBend = mesh.userData.uniforms.uBend;
+                shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\nuniform float uBend;`);
+                shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
+                    `#include <begin_vertex>
+             float xNorm = clamp(position.x / ${CONFIG.width.toFixed(2)}, 0.0, 1.0);
+             float curl = -1.0 * pow(xNorm, 2.0);
+             transformed.z += curl * uBend * ${CONFIG.curveStrength.toFixed(2)};`
+                );
+            };
+            mesh.customDepthMaterial = depth;
+        }
+
+        // --- INTERACTION ---
+        function onPointerDown(e) {
+            if (isAnimating) return;
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(pages.map(p => p.mesh));
+
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const hitPage = pages.find(p => p.mesh === hitMesh);
+
+                if (!hitPage) return;
+
+                // FIFO LOGIC
+                // Filter stacks
+                const rightStack = pages.filter(p => !p.isFlipped).sort((a, b) => b.id - a.id); // Descending?
+                // Right Stack: 0(Top)..N(Bottom).
+                // My indices: 0 is created first (High Z). So 0 is Top.
+                // Correct order: 0, 1, 2...
+                // Sort Ascending Index = Sort Descending Z. 
+                // We want Top Z. So Index 0. 
+
+                const unflipped = pages.filter(p => !p.isFlipped).sort((a, b) => a.id - b.id);
+                const flipped = pages.filter(p => p.isFlipped).sort((a, b) => b.id - a.id); // Reverse order for Left Stack
+
+                // Click Logic
+                if (!hitPage.isFlipped) {
+                    // Clicked Right Side. MUST flip Top Page (Index 0 of unflipped).
+                    const topPage = unflipped[0];
+                    if (topPage) flipPage(topPage);
+                } else {
+                    // Clicked Left Side. MUST flip Top Page (Index 0 of flipped -> Last ID).
+                    const topPage = flipped[0];
+                    if (topPage) flipPage(topPage);
+                }
+            }
+
+        } // End onPointerDown
+
+        function flipPage(page) {
+            isAnimating = true;
+            const isClosing = page.isFlipped;
+
+            // Target Rotation:
+            // Open (-180 deg Y)
+            // Close (0 deg Y)
+            const targetAngle = isClosing ? 0 : -Math.PI;
+
+            // Z-Index Management (Render Order)
+            page.mesh.renderOrder = 1000;
+
+            // Initial State for Compensation
+            const zRadius = page.initialZ;
+
+            // Animation Object
+            const anim = { rot: page.group.rotation.y, bend: 0 };
+
+            const tl = gsap.timeline({
+                onUpdate: () => {
+                    // 1. Apply Rotation
+                    page.group.rotation.y = anim.rot;
+
+                    // 2. Apply Compensation (Pin X to 0)
+                    const currentTheta = page.group.rotation.y;
+                    const xKick = zRadius * Math.sin(currentTheta);
+                    page.group.position.x = -xKick;
+
+                    // 3. Update Uniforms
+                    if (page.mesh.userData.uniforms) {
+                        page.mesh.userData.uniforms.uBend.value = anim.bend;
+                    }
+                },
+                onComplete: () => {
+                    page.isFlipped = !page.isFlipped;
+                    isAnimating = false;
+                    page.mesh.renderOrder = 0;
+
+                    // Final Snap
+                    page.group.rotation.y = targetAngle;
+                    page.group.position.x = 0;
+                }
+            });
+
+            // Rotation
+            tl.to(anim, {
+                rot: targetAngle,
+                duration: CONFIG.duration,
+                ease: "power2.inOut"
+            }, 0);
+
+            // Bending
+            tl.to(anim, {
+                bend: 1.0,
+                duration: CONFIG.duration * 0.4,
+                ease: "sine.out"
+            }, 0);
+
+            tl.to(anim, {
+                bend: 0.0,
+                duration: CONFIG.duration * 0.6,
+                ease: "sine.in"
+            }, CONFIG.duration * 0.4);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+    </script>
+</body>
+
+</html>

@@ -23,7 +23,7 @@ const storage = firebase.storage();
 const functions = firebase.functions(); // Initialize Cloud Functions
 
 // Connect to Emulators if running locally
-if (window.location.hostname === "localhost") {
+if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
     console.log("Using Firebase Emulators");
     auth.useEmulator("http://localhost:9099");
     db.useEmulator("localhost", 8085);

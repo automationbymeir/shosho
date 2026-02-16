@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+</head>
+
+<body>
+    <h1>API Client Test</h1>
+    <div id="styles-output">Loading styles...</div>
+    <div id="create-output">Waiting for create...</div>
+
+    <script type="module">
+        import { magicCreateApi } from './js/ai-editor/services/magic-create-api.js';
+
+        async function test() {
+            // Test Styles
+            try {
+                const styles = await magicCreateApi.getStyles();
+                document.getElementById('styles-output').textContent =
+                    `Styles: ${styles.map(s => s.name).join(', ')}`;
+                console.log('Styles:', styles);
+            } catch (e) {
+                document.getElementById('styles-output').textContent = `Styles Error: ${e.message}`;
+            }
+
+            // Test Create (Mock request)
+            try {
+                const result = await magicCreateApi.create({
+                    user_id: 'test_web_user',
+                    prompt: 'Test from browser',
+                    max_pages: 5
+                });
+                document.getElementById('create-output').textContent =
+                    `Create Result: Success=${result.success}`;
+                console.log('Create Result:', result);
+            } catch (e) {
+                document.getElementById('create-output').textContent = `Create Error: ${e.message}`;
+            }
+        }
+
+        test();
+    </script>
+</body>
+
+</html>

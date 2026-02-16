@@ -9,6 +9,7 @@
 import { store } from '../core/state.js';
 import { pdfExport } from '../engines/pdf-export.js';
 import { pdfCanvasExport } from '../engines/pdf-canvas-export.js';
+import { RenderEngine } from '../engines/render-engine.js';
 
 // Template renderers for page preview
 import { PhotographyPortfolioRenderer } from '../templates/photography-portfolio-renderer.js';
@@ -18,6 +19,7 @@ import { FamilyRootsRenderer } from '../templates/family-roots-renderer.js';
 import { BarMitzvahRenderer } from '../templates/bar-mitzvah-renderer.js';
 import { UnifiedCoverRenderer } from '../engines/unified-cover-renderer.js';
 import { WeddingPrestigeRenderer } from '../templates/wedding-prestige-renderer.js';
+import { UltimateBook3D } from './ultimate-book-3d.js';
 
 export class AlbumPreview {
     constructor() {
@@ -27,7 +29,10 @@ export class AlbumPreview {
         this.assets = null;
         this.templateConfig = null;
         this.isOpen = false;
+        this.isOpen = false;
         this.renderedPages = []; // Cache for rendered page elements
+        // Initialize generic renderer for fallback
+        this.fallbackRenderer = new RenderEngine(null); // No main container needed
     }
 
     /**
@@ -38,15 +43,14 @@ export class AlbumPreview {
         this.cover = cover;
         this.assets = assets;
         this.templateConfig = templateConfig;
-        this.currentPageIndex = 0;
-        this.renderedPages = [];
-        this.isOpen = true;
 
-        // Filter out cover pages from pages array
-        this.contentPages = this.pages.filter(page => {
-            const layoutId = (page.rawLayoutId || page.layout?.id || '').toLowerCase();
-            return !layoutId.includes('cover');
-        });
+        // Separate content pages (excluding cover) if needed
+        // Assuming 'pages' contains all mix, filtering might be needed if cover is separate
+        // For now, using logic that contentPages are the spreads
+        this.contentPages = this.pages.filter(p => p.type !== 'cover');
+
+        this.currentPageIndex = -1; // Start Closed
+        this.isOpen = true;
 
         this.createModal();
         this.renderCurrentView();
@@ -57,6 +61,10 @@ export class AlbumPreview {
      * Close preview mode
      */
     close() {
+        if (this.ultimateBook) {
+            this.ultimateBook.dispose();
+            this.ultimateBook = null;
+        }
         this.isOpen = false;
         const modal = document.getElementById('album-preview-modal');
         if (modal) {
@@ -96,12 +104,13 @@ export class AlbumPreview {
             </div>
 
             <div class="preview-content">
+                <!-- Shared Navigation Controls -->
+                <button class="flip-nav flip-prev" id="flip-prev" style="z-index: 20;">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+
                 <!-- Flipbook View -->
                 <div class="preview-flipbook active" id="preview-flipbook">
-                    <button class="flip-nav flip-prev" id="flip-prev">
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    
                     <div class="flipbook-container">
                         <div class="flipbook-page" id="flipbook-page">
                             <!-- Page content rendered here -->
@@ -110,27 +119,28 @@ export class AlbumPreview {
                             Cover
                         </div>
                     </div>
-                    
-                    <button class="flip-nav flip-next" id="flip-next">
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
                 </div>
 
                 <!-- 3D View -->
                 <div class="preview-3d" id="preview-3d">
-                    <div class="book-3d-container">
-                        <div class="book-3d" id="book-3d">
+                    <div class="book-3d-container" style="display:block; width:100%; height:100%;">
+                        <div class="book-3d" id="book-3d" style="width:100%; height:100%;">
                             <!-- 3D book renders here -->
                         </div>
                     </div>
                     <div class="book-3d-controls">
-                        <label>Rotate Book (Front → Spine → Back)</label>
+                        <label>Rotate Book View</label>
                         <input type="range" id="book-rotation" min="0" max="360" value="30">
                         <div class="hint">
-                            <i class="fa-solid fa-hand-pointer"></i> Drag the book or use the slider
+                            <i class="fa-solid fa-arrows-rotate"></i> Drag or slide to see front/spine/back •
+                            <i class="fa-solid fa-hand-pointer"></i> Click arrows to flip pages
                         </div>
                     </div>
                 </div>
+
+                <button class="flip-nav flip-next" id="flip-next" style="z-index: 20;">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
             </div>
 
             <div class="preview-footer">
@@ -376,56 +386,147 @@ export class AlbumPreview {
                 cursor: grabbing;
             }
 
-            .book-3d {
-                width: 600px;
-                height: 450px;
-                position: relative;
-                transform-style: preserve-3d;
-                transition: transform 0.3s ease;
-            }
-
-            .book-3d-wrapper {
-                transform: rotateX(-15deg) rotateY(-30deg);
-                transition: transform 0.5s ease;
-            }
-
-            .book-3d-page {
-                position: absolute;
+            #book-3d {
                 width: 100%;
                 height: 100%;
-                background: white;
-                border-radius: 2px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-                backface-visibility: hidden;
+                min-width: 400px;
+                min-height: 400px;
+                position: relative;
+            }
+
+            /* ============================================
+               BOOK PREVIEW (Pure CSS 3D)
+               ============================================ */
+            .book-container {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transform-style: preserve-3d;
+                perspective: 1200px;
+                position: relative;
+            }
+
+            .book {
+                --book-width: 420px;  /* Shoso Landscape */
+                --book-height: 310px;
+                --book-depth: 50px;
+                
+                width: var(--book-width);
+                height: var(--book-height);
+                position: relative;
+                transform-style: preserve-3d;
+                
+                /* Hero angle defaults */
+                transform: rotateY(-35deg) rotateX(10deg);
+                transition: transform 0.1s ease-out;
+            }
+
+            /* ============================================
+               FRONT COVER
+               ============================================ */
+            .book > .front {
+                position: absolute;
+                width: var(--book-width);
+                height: var(--book-height);
+                /* Push forward by half depth */
+                transform: translateZ(calc(var(--book-depth) / 2));
+                
+                background: #1a1a2e; /* Fallback */
+                border-radius: 0 4px 4px 0;
+                /* Hinge crease */
+                border-left: 2px solid rgba(255,255,255,0.1);
+                
+                box-shadow: 
+                    6px 6px 20px rgba(0,0,0,0.25),
+                    inset -2px 0 5px rgba(0,0,0,0.1);
                 overflow: hidden;
             }
 
-            .book-3d-controls {
-                padding: 20px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 12px;
-                background: rgba(0, 0, 0, 0.2);
-                border-radius: 12px;
+            /* ... (Back Cover Glossy Overlay remains) ... */
+
+            /* ============================================
+               PAGES (Right Edge - ::before)
+               ============================================ */
+            .book::before {
+                content: '';
+                position: absolute;
+                height: calc(var(--book-height) - 6px);
+                width: var(--book-depth);
+                top: 3px;
+                
+                /* Paper texture (White/Cream) */
+                background: 
+                    linear-gradient(90deg, #fdfbf7 0%, #fff 50%, #fdfbf7 100%),
+                    repeating-linear-gradient(0deg,
+                        transparent 0px, transparent 2px,
+                        rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px
+                    );
+                
+                /* Position: 
+                   Move to the visual right edge (Width - Recess). 
+                   Recess: 4px from edge.  
+                   Rotate 90 to face Right. 
+                   Transform Origin is Center (25px).
+                   We want center to be at X = Width - 4px.
+                */
+                transform: 
+                    translateX(calc(var(--book-width) - 4px))
+                    rotateY(90deg);
+                
+                border-radius: 0 2px 2px 0;
             }
 
-            .book-3d-controls input[type="range"] {
-                width: 400px;
-                height: 6px;
-                accent-color: #8b5cf6;
-                cursor: pointer;
+            /* ============================================
+               TOP/BOTTOM EDGES (Paper Block)
+               ============================================ */
+            .book > .edge-top {
+                position: absolute;
+                width: calc(var(--book-width) - 4px); /* Stop at the page face */
+                height: var(--book-depth);
+                top: 0;
+                left: 0;
+                
+                /* Match Paper Texture */
+                background: 
+                    linear-gradient(90deg, #fdfbf7 0%, #fff 50%, #fdfbf7 100%),
+                    repeating-linear-gradient(90deg,
+                        transparent 0px, transparent 2px,
+                        rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px
+                    );
+                
+                /* Top Edge: rotated 90 around X. Center Y shifts to -Depth/2. */
+                transform: translateY(calc(var(--book-depth) / -2)) rotateX(90deg);
             }
 
-            .book-3d-controls label {
-                color: rgba(255, 255, 255, 0.9);
-                font-size: 0.9rem;
-                font-weight: 500;
+            .book > .edge-bottom {
+                position: absolute;
+                width: calc(var(--book-width) - 4px);
+                height: var(--book-depth);
+                bottom: 0;
+                left: 0;
+                
+                /* Match Paper Texture */
+                background: 
+                    linear-gradient(90deg, #fdfbf7 0%, #fff 50%, #fdfbf7 100%),
+                    repeating-linear-gradient(90deg,
+                        transparent 0px, transparent 2px,
+                        rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px
+                    );
+                
+                transform: translateY(calc(var(--book-depth) / 2)) rotateX(-90deg);
             }
 
-            .book-3d-controls .hint {
-                color: rgba(255, 255, 255, 0.5);
-                font-size: 0.8rem;
+            /* Shadow */
+            .book-shadow {
+                position: absolute;
+                bottom: 20px;
+                width: 300px;
+                height: 40px;
+                background: radial-gradient(ellipse, rgba(0,0,0,0.3) 0%, transparent 70%);
+                filter: blur(15px);
+                transform: rotateX(90deg) translateZ(-160px); /* Position on "floor" */
             }
 
             /* Footer */
@@ -547,7 +648,10 @@ export class AlbumPreview {
                 document.getElementById('preview-3d').classList.toggle('active', view === '3d');
 
                 if (view === '3d') {
-                    this.render3DBook();
+                    // Slight delay to ensure visibility before render
+                    setTimeout(() => {
+                        this.render3DBook();
+                    }, 50);
                 }
             });
         });
@@ -565,75 +669,78 @@ export class AlbumPreview {
         };
         document.addEventListener('keydown', this.keyHandler);
 
-        // 3D rotation slider - rotate to show all sides
+        // 3D rotation slider
         const rotationSlider = document.getElementById('book-rotation');
         rotationSlider.addEventListener('input', (e) => {
-            const bookWrapper = document.querySelector('.book-3d-wrapper');
-            if (bookWrapper) {
-                const rotation = parseInt(e.target.value);
-                // Rotate from -30 (show front) to 210 (show back)
-                const yRotation = (rotation / 360) * 240 - 30;
-                bookWrapper.style.transform = `rotateX(-15deg) rotateY(${yRotation}deg)`;
-                bookWrapper.dataset.currentRotation = yRotation;
+            const rotation = parseInt(e.target.value);
+
+            // Check active view
+            const is3D = document.getElementById('preview-3d').classList.contains('active');
+
+            if (is3D && this.ultimateBook) {
+                this.ultimateBook.setRotation(rotation);
+            } else {
+                const book = document.querySelector('.book');
+                if (book) {
+                    book.style.transform = `rotateY(${rotation}deg) rotateX(10deg)`;
+                }
             }
         });
 
         // Mouse drag rotation for 3D book
         let isDragging = false;
         let startX = 0;
-        let startRotationY = -30;
+        let startRotationY = -35;
 
         const book3DContainer = document.querySelector('.book-3d-container');
         if (book3DContainer) {
             book3DContainer.addEventListener('mousedown', (e) => {
-                const bookWrapper = document.querySelector('.book-3d-wrapper');
-                if (!bookWrapper) return;
+                const book = document.querySelector('.book');
+                if (!book) return;
 
                 isDragging = true;
                 startX = e.clientX;
-                startRotationY = parseFloat(bookWrapper.dataset.currentRotation || -30);
-                book3DContainer.style.cursor = 'grabbing';
+                // Get current rotation
+                const transform = book.style.transform;
+                const match = transform.match(/rotateY\((-?\d+)deg\)/);
+                startRotationY = match ? parseInt(match[1]) : -35;
 
-                // Disable transition during drag for smooth interaction
-                bookWrapper.style.transition = 'none';
+                book3DContainer.style.cursor = 'grabbing';
+                book.style.transition = 'none';
                 e.preventDefault();
             });
 
             document.addEventListener('mousemove', (e) => {
                 if (!isDragging) return;
 
-                const bookWrapper = document.querySelector('.book-3d-wrapper');
-                if (!bookWrapper) return;
-
                 const deltaX = e.clientX - startX;
-                const rotationChange = deltaX * 0.5; // Sensitivity
-                let newRotationY = startRotationY + rotationChange;
+                const newRotationY = startRotationY + deltaX * 0.5;
+                const normalizedRotation = (newRotationY % 360 + 360) % 360;
 
-                // Clamp rotation between -30 and 210
-                newRotationY = Math.max(-30, Math.min(210, newRotationY));
+                const is3D = document.getElementById('preview-3d').classList.contains('active');
 
-                bookWrapper.style.transform = `rotateX(-15deg) rotateY(${newRotationY}deg)`;
-                bookWrapper.dataset.currentRotation = newRotationY;
+                if (is3D && this.ultimateBook) {
+                    this.ultimateBook.setRotation(normalizedRotation);
+                } else {
+                    const book = document.querySelector('.book');
+                    if (book) {
+                        book.style.transform = `rotateY(${newRotationY}deg) rotateX(10deg)`;
+                    }
+                }
 
-                // Update slider to match
-                const sliderValue = ((newRotationY + 30) / 240) * 360;
-                rotationSlider.value = sliderValue;
+                // Sync slider
+                rotationSlider.value = normalizedRotation;
             });
 
             document.addEventListener('mouseup', () => {
                 if (isDragging) {
                     isDragging = false;
                     book3DContainer.style.cursor = 'grab';
-
-                    // Re-enable transition
-                    const bookWrapper = document.querySelector('.book-3d-wrapper');
-                    if (bookWrapper) {
-                        bookWrapper.style.transition = 'transform 0.3s ease';
-                    }
+                    const book = document.querySelector('.book');
+                    if (book && !this.ultimateBook) book.style.transition = 'transform 0.1s ease-out';
                 }
             });
 
-            // Set initial cursor
             book3DContainer.style.cursor = 'grab';
         }
 
@@ -645,15 +752,22 @@ export class AlbumPreview {
      * Navigate to previous page
      */
     prevPage() {
-        if (this.currentPageIndex > 0) {
-            const pageEl = document.getElementById('flipbook-page');
-            pageEl.classList.add('flipping-right');
-            setTimeout(() => {
-                pageEl.classList.remove('flipping-right');
+        if (this.currentPageIndex > -1) {
+            const is3DView = document.getElementById('preview-3d')?.classList.contains('active');
+
+            if (is3DView && this.ultimateBook) {
+                this.ultimateBook.prevPage();
                 this.currentPageIndex--;
-                this.renderCurrentView();
-                this.updateThumbnailSelection();
-            }, 300);
+            } else {
+                const pageEl = document.getElementById('flipbook-page');
+                pageEl.classList.add('flipping-right');
+                setTimeout(() => {
+                    pageEl.classList.remove('flipping-right');
+                    this.currentPageIndex--;
+                    this.renderCurrentView();
+                    this.updateThumbnailSelection();
+                }, 300);
+            }
         }
     }
 
@@ -661,17 +775,25 @@ export class AlbumPreview {
      * Navigate to next page
      */
     nextPage() {
-        const hasBackCover = this.cover?.backPhotoId;
-        const totalPages = 1 + this.contentPages.length + (hasBackCover ? 1 : 0);
-        if (this.currentPageIndex < totalPages - 1) {
-            const pageEl = document.getElementById('flipbook-page');
-            pageEl.classList.add('flipping-left');
-            setTimeout(() => {
-                pageEl.classList.remove('flipping-left');
+        const spreadCount = Math.ceil(this.contentPages.length / 2);
+        const maxIndex = spreadCount;
+
+        if (this.currentPageIndex < maxIndex) {
+            const is3DView = document.getElementById('preview-3d')?.classList.contains('active');
+
+            if (is3DView && this.ultimateBook) {
+                this.ultimateBook.nextPage();
                 this.currentPageIndex++;
-                this.renderCurrentView();
-                this.updateThumbnailSelection();
-            }, 300);
+            } else {
+                const pageEl = document.getElementById('flipbook-page');
+                pageEl.classList.add('flipping-left');
+                setTimeout(() => {
+                    pageEl.classList.remove('flipping-left');
+                    this.currentPageIndex++;
+                    this.renderCurrentView();
+                    this.updateThumbnailSelection();
+                }, 300);
+            }
         }
     }
 
@@ -680,42 +802,237 @@ export class AlbumPreview {
      */
     goToPage(index) {
         this.currentPageIndex = index;
-        this.renderCurrentView();
+
+        const is3DView = document.getElementById('preview-3d').classList.contains('active');
+
+        if (is3DView && this.ultimateBook) {
+            this.ultimateBook.jumpToPage(this.currentPageIndex);
+            // Also need to update thumbnails for UI consistency
+            this.updateThumbnailSelection();
+        } else {
+            this.renderCurrentView();
+            // renderCurrentView calls updateThumbnailSelection internally? No, separate call usually.
+            // But let's check renderCurrentView... it updates DOM but maybe not thumbs?
+            // Existing code for goToPage click (in renderThumbnails, not shown) likely calls goToPage.
+            // So we should update thumbs here if not done.
+            // renderCurrentView updates the view.
+        }
+
         this.updateThumbnailSelection();
     }
 
     /**
-     * Render the current page view
+     * Render the current page view (Flipbook Mode)
+     * Handles Spread Rendering:
+     * - Index -1: Front Cover
+     * - Index 0: Page 1 + Page 2
+     * - Index N: Page (2N+1) + Page (2N+2)
+     * - Index Last: Back Cover
+     */
+    /**
+     * Render the current page view (Flipbook Mode)
      */
     renderCurrentView() {
+        console.log('[Preview] renderCurrentView index:', this.currentPageIndex);
         const container = document.getElementById('flipbook-page');
         const indicator = document.getElementById('page-indicator');
         const prevBtn = document.getElementById('flip-prev');
         const nextBtn = document.getElementById('flip-next');
 
+        if (!container) return;
+        container.innerHTML = '';
+        container.className = 'flipbook-page';
+
+        const spreadCount = Math.ceil(this.contentPages.length / 2);
+        const maxIndex = spreadCount;
+
+        prevBtn.disabled = this.currentPageIndex <= -1;
+        nextBtn.disabled = this.currentPageIndex >= maxIndex;
+
+        // 1. FRONT COVER 
+        if (this.currentPageIndex === -1) {
+            indicator.textContent = 'Front Cover';
+            container.classList.add('view-cover');
+            this.renderFrontCoverToContainer(container);
+            return;
+        }
+
+        // 2. BACK COVER 
+        if (this.currentPageIndex === spreadCount) {
+            indicator.textContent = 'Back Cover';
+            container.classList.add('view-cover');
+            this.renderBackCoverToContainer(container);
+            return;
+        }
+
+        // 3. SPREAD VIEW 
+        container.classList.add('view-spread');
+
+        const leftPageIndex = this.currentPageIndex * 2;
+        const rightPageIndex = (this.currentPageIndex * 2) + 1;
+
+        console.log('[Preview] Spread Indices:', leftPageIndex, rightPageIndex);
+
+        const leftPage = this.contentPages[leftPageIndex];
+        const rightPage = this.contentPages[rightPageIndex];
+
+        const p1Num = leftPageIndex + 1;
+        const p2Num = rightPageIndex + 1;
+        indicator.textContent = `Pages ${p1Num}-${Math.min(p2Num, this.contentPages.length)}`;
+
+        container.style.display = 'flex';
+        container.style.flexDirection = 'row';
+
+        // Left Slot
+        const leftSlot = document.createElement('div');
+        leftSlot.className = 'spread-slot left-page';
+        leftSlot.style.flex = '1';
+        leftSlot.style.height = '100%';
+        leftSlot.style.position = 'relative';
+        leftSlot.style.overflow = 'hidden';
+        leftSlot.style.borderRight = '1px solid rgba(0,0,0,0.1)';
+
+        if (leftPage) {
+            this.renderPageToContainer(leftPage, leftSlot);
+        } else {
+            leftSlot.style.background = '#fcfaf7';
+        }
+        container.appendChild(leftSlot);
+
+        // Right Slot
+        const rightSlot = document.createElement('div');
+        rightSlot.className = 'spread-slot right-page';
+        rightSlot.style.flex = '1';
+        rightSlot.style.height = '100%';
+        rightSlot.style.position = 'relative';
+        rightSlot.style.overflow = 'hidden';
+
+        if (rightPage) {
+            this.renderPageToContainer(rightPage, rightSlot);
+        } else {
+            rightSlot.style.background = '#fcfaf7';
+            rightSlot.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#ccc;font-style:italic;">End of Album</div>';
+        }
+        container.appendChild(rightSlot);
+
+        // --- DYNAMIC SIZING ---
+        let editorW = 1200;
+        let editorH = 1600;
+
+        if (this.templateConfig?.designSystem?.canvas) {
+            editorW = this.templateConfig.designSystem.canvas.width || 800;
+            editorH = this.templateConfig.designSystem.canvas.height || 600;
+        } else if (this.templateConfig?.pageSize) {
+            editorW = this.templateConfig.pageSize.width;
+            editorH = this.templateConfig.pageSize.height;
+        }
+
+        const MAX_H = 600;
+        const MAX_W = 1000;
+
+        const spreadW = editorW * 2;
+        const spreadH = editorH;
+
+        let targetH = MAX_H;
+        let targetW = targetH * (spreadW / spreadH);
+
+        if (targetW > MAX_W) {
+            targetW = MAX_W;
+            targetH = targetW * (spreadH / spreadW);
+        }
+
+        container.style.width = `${targetW}px`;
+        container.style.height = `${targetH}px`;
+
+        // Apply fit to Left and Right Pages
+        if (leftPage && leftSlot) {
+            this.fitContentToContainer(leftSlot, 'right'); // Align right (to spine)
+        }
+        if (rightPage && rightSlot) {
+            this.fitContentToContainer(rightSlot, 'left'); // Align left (to spine)
+        }
+    }
+
+    /**
+     * Render a standard page to a container
+     */
+    renderPageToContainer(page, container) {
+        if (!page || !container) return;
+
         container.innerHTML = '';
 
-        // Calculate total pages: front cover + content pages + back cover (if exists)
-        const hasBackCover = this.cover?.backPhotoId;
-        const totalPages = 1 + this.contentPages.length + (hasBackCover ? 1 : 0);
+        // Try to identify the correct renderer
+        // Pages usually have a templateId if they were created with one
+        // Fallback to the global template config ID, checking both 'id' and 'templateId' keys
+        const templateId = page.templateId || this.templateConfig?.templateId || this.templateConfig?.id;
+        const renderer = this.getRenderer(templateId);
 
-        // Update navigation buttons
-        prevBtn.disabled = this.currentPageIndex === 0;
-        nextBtn.disabled = this.currentPageIndex === totalPages - 1;
+        if (renderer) {
+            try {
+                // RESOLVE LAYOUT DEFINITION
+                let layoutDef = page.layout; // Default to what's on the page
 
-        if (this.currentPageIndex === 0) {
-            // Render FRONT COVER ONLY
-            indicator.textContent = 'Front Cover';
-            this.renderFrontCoverToContainer(container);
-        } else if (hasBackCover && this.currentPageIndex === totalPages - 1) {
-            // Render BACK COVER ONLY (last page)
-            indicator.textContent = 'Back Cover';
-            this.renderBackCoverToContainer(container);
+                // 1. Try to find the static layout definition in the template config
+                // Store pages typically have layout: { id: '...' } or just an ID string
+                if (this.templateConfig && this.templateConfig.pageLayouts) {
+                    const layoutId = (page.layout && page.layout.id) ? page.layout.id :
+                        (typeof page.layout === 'string' ? page.layout : page.layoutId);
+
+                    const foundLayout = this.templateConfig.pageLayouts.find(l => l.layoutId === layoutId);
+                    if (foundLayout) {
+                        layoutDef = foundLayout;
+                        console.log(`[Preview] Resolved layout '${layoutId}' from template.`);
+                    }
+                }
+
+                // 2. Compatibility Shim: If layout has 'slots' (LayoutEngine) but not 'photoSlots' (TemplateRenderer), map it.
+                if (layoutDef && layoutDef.slots && !layoutDef.photoSlots) {
+                    layoutDef = {
+                        ...layoutDef,
+                        layoutId: layoutDef.id || 'dynamic',
+                        photoSlots: layoutDef.slots.map(s => ({
+                            slotId: s.id || s.slotId,
+                            position: { x: s.x + '%', y: s.y + '%' },
+                            size: { width: s.w + '%', height: s.h + '%' },
+                            photoFit: 'cover',
+                            photoStyle: 'default'
+                        })),
+                        textElements: []
+                    };
+                    console.log('[Preview] Shimmed dynamic layout for template renderer.');
+                }
+
+                // 3. Render
+                const pageEl = renderer.renderPage(
+                    layoutDef || {},
+                    page.photos || [],
+                    page.textContent || {},
+                    page.textPositions || {}
+                );
+
+                // Ensure page element fills the container
+                if (pageEl) {
+                    pageEl.style.width = '100%';
+                    pageEl.style.height = '100%';
+                    container.appendChild(pageEl);
+                } else {
+                    console.error('[Preview] Renderer returned null for page:', page);
+                    container.innerHTML = '<div style="color:red;padding:20px;">Render Error</div>';
+                }
+            } catch (err) {
+                console.error('[Preview] Error rendering page:', err);
+                container.innerHTML = `<div style="color:red;padding:20px;">Error: ${err.message}</div>`;
+            }
         } else {
-            // Render content page
-            const pageIndex = this.currentPageIndex - 1;
-            indicator.textContent = `Page ${pageIndex + 1} of ${this.contentPages.length}`;
-            this.renderPageToContainer(this.contentPages[pageIndex], container);
+            // Fallback to Generic RenderEngine
+            // This handles Magic Create pages and standard layouts that don't need a specific class
+            // console.log(`[Preview] Using Generic RenderEngine for template: ${templateId}`);
+            try {
+                this.fallbackRenderer.renderPageToContainer(page, this.assets, container);
+            } catch (err) {
+                console.error('[Preview] Generic render error:', err);
+                container.innerHTML = `<div style="color:red;padding:20px;">Generic Render Error: ${err.message}</div>`;
+            }
         }
     }
 
@@ -723,119 +1040,207 @@ export class AlbumPreview {
      * Render FRONT cover only to a container
      */
     renderFrontCoverToContainer(container) {
-        // Create a modified cover object with only front photo
-        const frontCoverOnly = {
-            ...this.cover,
-            backPhotoId: null // Hide back photo
+        // Normalize config to ensure templateId is available
+        const config = this.templateConfig || {};
+        const fallbackId = this.cover?.templateId || (this.contentPages && this.contentPages[0] && this.contentPages[0].templateId);
+        const safeConfig = {
+            ...config,
+            templateId: config.templateId || config.id || fallbackId
         };
 
-        // Use the UNIFIED cover renderer - same as editor
-        UnifiedCoverRenderer.render({
-            cover: frontCoverOnly,
+        // Use the UNIFIED cover renderer to generate the full spread in memory
+        // We pass 'container: null' so we can manipulate the result before attaching
+        const fullSpreadWrapper = UnifiedCoverRenderer.render({
+            cover: this.cover,
             assets: this.assets,
-            templateConfig: this.templateConfig,
-            container,
-            interactive: false,  // Preview mode - no interaction needed
+            templateConfig: safeConfig,
+            container: null,
+            interactive: false,
             thumbnail: false
         });
+
+        // Extract only the FRONT COVER section
+        const frontSection = fullSpreadWrapper.querySelector('.front-cover');
+
+        container.innerHTML = '';
+
+        if (frontSection) {
+            frontSection.style.width = '100%';
+            frontSection.style.height = '100%';
+            frontSection.style.boxShadow = 'none'; // Container has shadow
+            container.appendChild(frontSection);
+        } else {
+            container.appendChild(fullSpreadWrapper);
+        }
     }
 
     /**
      * Render BACK cover only to a container
      */
     renderBackCoverToContainer(container) {
-        // Full-page back cover photo
-        const pageWidth = this.templateConfig?.designSystem?.canvas?.width || 800;
-        const pageHeight = this.templateConfig?.designSystem?.canvas?.height || 600;
+        // Normalize config to ensure templateId is available
+        const config = this.templateConfig || {};
+        const fallbackId = this.cover?.templateId || (this.contentPages && this.contentPages[0] && this.contentPages[0].templateId);
+        const safeConfig = {
+            ...config,
+            templateId: config.templateId || config.id || fallbackId
+        };
 
-        const backCoverEl = document.createElement('div');
-        backCoverEl.style.cssText = `
-            width: ${pageWidth}px;
-            height: ${pageHeight}px;
-            position: relative;
-            overflow: hidden;
-            background: ${this.cover?.color || '#1a1a2e'};
-        `;
-
-        if (this.cover?.backPhotoId && this.assets?.photos) {
-            const photo = this.assets.photos.find(p => p.id === this.cover.backPhotoId);
-            if (photo) {
-                const img = document.createElement('img');
-                img.src = photo.thumbnailUrl || photo.url;
-                img.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    object-position: center;
-                `;
-                backCoverEl.appendChild(img);
-            }
-        } else {
-            // Placeholder
-            const placeholder = document.createElement('div');
-            placeholder.style.cssText = `
-                width: 100%;
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: rgba(255,255,255,0.5);
-                font-size: 24px;
-            `;
-            placeholder.textContent = 'Back Cover';
-            backCoverEl.appendChild(placeholder);
-        }
-
-        container.appendChild(backCoverEl);
-    }
-
-    /**
-     * Render cover to a container using UNIFIED cover renderer (LEGACY - not used)
-     * This ensures the same cover is displayed in preview and editor
-     */
-    renderCoverToContainer(container) {
-        // Use the UNIFIED cover renderer - same as editor
-        UnifiedCoverRenderer.render({
+        // Use the UNIFIED cover renderer to generate the full spread in memory
+        const fullSpreadWrapper = UnifiedCoverRenderer.render({
             cover: this.cover,
             assets: this.assets,
-            templateConfig: this.templateConfig,
-            container,
-            interactive: false,  // Preview mode - no interaction needed
+            templateConfig: safeConfig,
+            container: null,
+            interactive: false,
             thumbnail: false
         });
+
+        // Extract only the BACK COVER section
+        const backSection = fullSpreadWrapper.querySelector('.back-cover');
+
+        container.innerHTML = '';
+
+        if (backSection) {
+            backSection.style.width = '100%';
+            backSection.style.height = '100%';
+            backSection.style.boxShadow = 'none';
+            container.appendChild(backSection);
+        } else {
+            // Fallback
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#f0f0f0;">Back Cover</div>';
+        }
     }
 
     /**
-     * Render a page to a container
+     * Scale content to fit container (contain)
+     * @param {HTMLElement} container 
+     * @param {string} align - 'center' | 'left' | 'right'
      */
-    renderPageToContainer(page, container) {
-        if (!page) {
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;">Empty Page</div>';
-            return;
+    fitContentToContainer(container, align = 'center') {
+        const content = container.firstElementChild;
+        if (!content) return;
+
+        let editorW = 1200;
+        let editorH = 1600;
+
+        if (this.templateConfig?.designSystem?.canvas) {
+            editorW = this.templateConfig.designSystem.canvas.width || 800;
+            editorH = this.templateConfig.designSystem.canvas.height || 600;
+        } else if (this.templateConfig?.pageSize) {
+            editorW = this.templateConfig.pageSize.width;
+            editorH = this.templateConfig.pageSize.height;
         }
 
-        const renderer = this.getRenderer(page.templateId);
+        const parentW = parseFloat(container.parentElement?.style.width) || (editorW * 2);
+        const parentH = parseFloat(container.parentElement?.style.height) || editorH;
 
-        if (renderer && page.rawLayoutId && this.templateConfig?.pageLayouts) {
-            const layout = this.templateConfig.pageLayouts.find(l => l.layoutId === page.rawLayoutId);
-            if (layout && renderer.renderPage) {
-                const pageEl = renderer.renderPage(layout, page.photos || [], page.textContent || {}, page.textPositions || {});
-                if (pageEl) {
-                    container.appendChild(pageEl);
-                    return;
-                }
-            }
+        const targetW = parentW / 2;
+        const targetH = parentH;
+
+        // Create stage
+        const stage = document.createElement('div');
+        stage.style.cssText = `
+            position: absolute;
+            width: ${editorW}px;
+            height: ${editorH}px;
+            transform-origin: top left;
+            overflow: hidden; 
+            direction: ltr;
+        `;
+        stage.appendChild(content);
+        container.appendChild(stage);
+
+        const scaleX = targetW / editorW;
+        const scaleY = targetH / editorH;
+        const scale = Math.min(scaleX, scaleY);
+
+        stage.style.transform = `scale(${scale})`;
+
+        const scaledW = editorW * scale;
+        const scaledH = editorH * scale;
+
+        let offsetX = (targetW - scaledW) / 2; // Default Center
+
+        if (align === 'left') {
+            offsetX = 0;
+        } else if (align === 'right') {
+            offsetX = targetW - scaledW;
         }
 
-        // Fallback
-        container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;">Page Content</div>`;
+        const offsetY = (targetH - scaledH) / 2;
+
+        stage.style.left = `${offsetX}px`;
+        stage.style.top = `${offsetY}px`;
+
+        if (content.style) {
+            content.style.width = '100%';
+            content.style.height = '100%';
+        }
+    }
+
+    /**
+     * Scale the preview content to fit the 3D face 1:1
+     * Uses explicit dimensions to avoid 3D transform distortion from getBoundingClientRect
+     */
+    fitPreviewToFace(faceEl, targetWidth, targetHeight) {
+        const pageEl = faceEl.firstElementChild;
+        if (!pageEl) return;
+
+        // Force the page element to fill its container (the stage)
+        pageEl.style.width = '100%';
+        pageEl.style.height = '100%';
+        pageEl.style.position = 'absolute';
+        pageEl.style.top = '0';
+        pageEl.style.left = '0';
+
+        let editorW = 1200;
+        let editorH = 1600;
+
+        if (this.templateConfig?.designSystem?.canvas) {
+            editorW = this.templateConfig.designSystem.canvas.width || 800;
+            editorH = this.templateConfig.designSystem.canvas.height || 600;
+        } else if (this.templateConfig?.pageSize) {
+            editorW = this.templateConfig.pageSize.width;
+            editorH = this.templateConfig.pageSize.height;
+        }
+
+        // Create a scaling stage
+        const stage = document.createElement('div');
+        stage.style.cssText = `
+            position: absolute;
+            width: ${editorW}px;
+            height: ${editorH}px;
+            transform-origin: top left;
+            pointer-events: none;
+            overflow: hidden; /* Ensure content doesn't bleed */
+        `;
+
+        // Wrap content
+        stage.appendChild(pageEl);
+
+        faceEl.innerHTML = '';
+        faceEl.appendChild(stage);
+
+        // Calculate Scale Factors (Stretch/Fill)
+        const w = targetWidth || 288;
+        const h = targetHeight || 384;
+
+        const scaleX = w / editorW;
+        const scaleY = h / editorH;
+
+        stage.style.transform = `scale(${scaleX}, ${scaleY})`;
+
+        // Position at origin (since we are filling exact dimensions)
+        stage.style.left = '0px';
+        stage.style.top = '0px';
     }
 
     /**
      * Get the appropriate renderer for a template
      */
     getRenderer(templateId) {
-        if (!this.templateConfig) return null;
+        // if (!this.templateConfig) return null; // Allow renderers to fallback to defaults
 
         switch (templateId) {
             case 'photography-portfolio-v1':
@@ -862,12 +1267,12 @@ export class AlbumPreview {
         const container = document.getElementById('preview-thumbnails');
         container.innerHTML = '';
 
-        // Front Cover thumbnail
+        // Front Cover thumbnail (Index -1)
         const frontCoverThumb = document.createElement('div');
         frontCoverThumb.className = 'preview-thumb active';
-        frontCoverThumb.dataset.index = '0';
+        frontCoverThumb.dataset.index = '-1';
 
-        // Try to show front cover photo as thumbnail
+        // Front Cover Photo or Placeholder
         if (this.cover?.frontPhotoId && this.assets?.photos) {
             const photo = this.assets.photos.find(p => p.id === this.cover.frontPhotoId);
             if (photo) {
@@ -878,40 +1283,43 @@ export class AlbumPreview {
         } else {
             frontCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Front</div>`;
         }
-        frontCoverThumb.addEventListener('click', () => this.goToPage(0));
+        frontCoverThumb.addEventListener('click', () => this.goToPage(-1));
         container.appendChild(frontCoverThumb);
 
-        // Page thumbnails
-        this.contentPages.forEach((page, idx) => {
+        // Page/Spread Thumbnails (Index 0..N)
+        const spreadCount = Math.ceil(this.contentPages.length / 2);
+        for (let i = 0; i < spreadCount; i++) {
             const thumb = document.createElement('div');
             thumb.className = 'preview-thumb';
-            thumb.dataset.index = idx + 1;
-            thumb.innerHTML = `<div style="background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#666;font-size:0.7rem;">Page ${idx + 1}</div>`;
-            thumb.addEventListener('click', () => this.goToPage(idx + 1));
+            thumb.dataset.index = i.toString();
+            const pageNum1 = (i * 2) + 1;
+            const pageNum2 = (i * 2) + 2;
+            let thumbText = `${pageNum1}`;
+            if (pageNum2 <= this.contentPages.length) {
+                thumbText += `-${pageNum2}`;
+            }
+            thumb.innerHTML = `<div style="background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#666;font-size:0.7rem;">${thumbText}</div>`;
+            thumb.addEventListener('click', () => this.goToPage(i));
             container.appendChild(thumb);
-        });
+        }
 
-        // Back Cover thumbnail (if exists)
-        if (this.cover?.backPhotoId) {
-            const backCoverThumb = document.createElement('div');
-            backCoverThumb.className = 'preview-thumb';
-            const backCoverIndex = this.contentPages.length + 1;
-            backCoverThumb.dataset.index = backCoverIndex.toString();
+        // Back Cover Thumbnail (Index = spreadCount)
+        const backCoverThumb = document.createElement('div');
+        backCoverThumb.className = 'preview-thumb';
+        backCoverThumb.dataset.index = spreadCount.toString();
 
-            // Try to show back cover photo as thumbnail
-            if (this.assets?.photos) {
-                const photo = this.assets.photos.find(p => p.id === this.cover.backPhotoId);
-                if (photo) {
-                    backCoverThumb.innerHTML = `<img src="${photo.thumbnailUrl || photo.url}" style="width:100%;height:100%;object-fit:cover;">`;
-                } else {
-                    backCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Back</div>`;
-                }
+        if (this.cover?.backPhotoId && this.assets?.photos) {
+            const photo = this.assets.photos.find(p => p.id === this.cover.backPhotoId);
+            if (photo) {
+                backCoverThumb.innerHTML = `<img src="${photo.thumbnailUrl || photo.url}" style="width:100%;height:100%;object-fit:cover;">`;
             } else {
                 backCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Back</div>`;
             }
-            backCoverThumb.addEventListener('click', () => this.goToPage(backCoverIndex));
-            container.appendChild(backCoverThumb);
+        } else {
+            backCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Back</div>`;
         }
+        backCoverThumb.addEventListener('click', () => this.goToPage(spreadCount));
+        container.appendChild(backCoverThumb);
     }
 
     /**
@@ -924,203 +1332,315 @@ export class AlbumPreview {
     }
 
     /**
-     * Render 3D book visualization with front cover, spine, and back cover
+     * Animate Z-Index for flipping sheet
+     */
+    /**
+     * Animate Z-Index for flipping sheet (Legacy Flipbook)
+     */
+    /**
+     * Animate Z-Index for flipping sheet (Legacy)
+     */
+    animateFlip(sheetIndex) {
+        // Not used
+    }
+
+    /**
+     * Updates the 3D transforms (Legacy)
+     */
+    update3DPageFlips(activeIndex) {
+        // Not used - handled by UltimateBook3D
+    }
+
+    /**
+     * Renders the Ultimate High-Fidelity 3D book.
      */
     render3DBook() {
         const container = document.getElementById('book-3d');
-        container.innerHTML = '';
+        if (!container) return;
 
-        // Get design system colors
-        const designSystem = this.templateConfig?.designSystem || {};
-        const colors = designSystem.colors || {};
-        const coverColor = this.cover?.color || colors.primary || colors.background || '#1a1a2e';
+        // Callback to render specific page data to a DOM container (for rasterization)
+        const renderCallback = async (sheetData, renderContainer) => {
+            // sheetData: { type, part, data, index }
 
-        // Page dimensions
-        const pageWidth = this.templateConfig?.designSystem?.canvas?.width || 800;
-        const pageHeight = this.templateConfig?.designSystem?.canvas?.height || 600;
-        const scale = 0.5; // Scale down for 3D view
-        const scaledWidth = pageWidth * scale;
-        const scaledHeight = pageHeight * scale;
-        const spineWidth = 30; // Spine thickness
+            // Clear
+            renderContainer.innerHTML = '';
 
-        // Create book wrapper
-        const book = document.createElement('div');
-        book.className = 'book-3d-wrapper';
-        book.dataset.currentRotation = '-30'; // Initial rotation
-        book.style.cssText = `
-            position: relative;
-            width: ${scaledWidth + spineWidth}px;
-            height: ${scaledHeight}px;
-            transform-style: preserve-3d;
-            transform: rotateX(-15deg) rotateY(-30deg);
-            transition: transform 0.3s ease;
-        `;
+            if (sheetData.type === 'cover') {
+                const wrapper = UnifiedCoverRenderer.render({
+                    cover: sheetData.data,
+                    assets: this.assets,
+                    templateConfig: this.templateConfig,
+                    container: null,
+                    interactive: false
+                });
 
-        // ========== FRONT COVER ==========
-        const frontCover = document.createElement('div');
-        frontCover.className = 'book-3d-front-cover';
-        frontCover.style.cssText = `
-            position: absolute;
-            width: ${scaledWidth}px;
-            height: ${scaledHeight}px;
-            transform: translateZ(${spineWidth / 2}px);
-            transform-style: preserve-3d;
-            overflow: hidden;
-            box-shadow:
-                0 10px 30px rgba(0,0,0,0.3),
-                inset 0 0 0 1px rgba(255,255,255,0.1);
-            border-radius: 2px;
-        `;
+                let partEl = null;
+                // Determine which part to show based on `part` string
+                // My UltimateBook3D uses: 'front', 'back', 'inner', 'inner-back'
 
-        // Render front cover content
-        const frontCoverContent = document.createElement('div');
-        frontCoverContent.style.cssText = `
-            width: ${pageWidth}px;
-            height: ${pageHeight}px;
-            transform: scale(${scale});
-            transform-origin: top left;
-            background: white;
-        `;
-        this.renderFrontCoverToContainer(frontCoverContent);
-        frontCover.appendChild(frontCoverContent);
-        book.appendChild(frontCover);
+                if (sheetData.part === 'front') partEl = wrapper.querySelector('.front-cover');
+                else if (sheetData.part === 'back') partEl = wrapper.querySelector('.back-cover');
+                else {
+                    // Inner covers
+                    partEl = document.createElement('div');
+                    partEl.style.width = '100%';
+                    partEl.style.height = '100%';
+                    partEl.style.background = '#fcfbf8'; // Paper white
+                }
 
-        // ========== SPINE ==========
-        const spine = document.createElement('div');
-        spine.className = 'book-3d-spine';
-        spine.style.cssText = `
-            position: absolute;
-            left: ${scaledWidth}px;
-            width: ${spineWidth}px;
-            height: ${scaledHeight}px;
-            transform-origin: left center;
-            transform: rotateY(90deg);
-            background: linear-gradient(90deg,
-                ${this.adjustBrightness(coverColor, -40)},
-                ${this.adjustBrightness(coverColor, -20)},
-                ${this.adjustBrightness(coverColor, -40)}
-            );
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow:
-                inset 2px 0 5px rgba(0,0,0,0.3),
-                inset -2px 0 5px rgba(0,0,0,0.3);
-        `;
+                if (partEl) {
+                    partEl.style.width = '100%';
+                    partEl.style.height = '100%';
+                    partEl.style.boxShadow = 'none';
+                    renderContainer.appendChild(partEl);
+                } else {
+                    renderContainer.appendChild(wrapper);
+                }
 
-        // Add spine text (rotated)
-        const spineText = document.createElement('div');
-        spineText.style.cssText = `
-            transform: rotate(-90deg);
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            white-space: nowrap;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-            font-family: ${designSystem.typography?.heading?.family || 'serif'};
-        `;
-        spineText.textContent = this.cover?.title || 'Photo Book';
-        spine.appendChild(spineText);
-        book.appendChild(spine);
+            } else if (sheetData.type === 'page') {
+                // Render Page Content
+                this.renderPageToContainer(sheetData.data, renderContainer);
 
-        // ========== BACK COVER ==========
-        const backCover = document.createElement('div');
-        backCover.className = 'book-3d-back-cover';
-        backCover.style.cssText = `
-            position: absolute;
-            width: ${scaledWidth}px;
-            height: ${scaledHeight}px;
-            left: ${scaledWidth + spineWidth}px;
-            transform: rotateY(180deg);
-            transform-origin: left center;
-            overflow: hidden;
-            box-shadow:
-                0 10px 30px rgba(0,0,0,0.3),
-                inset 0 0 0 1px rgba(255,255,255,0.1);
-            border-radius: 2px;
-        `;
-
-        // Render back cover content
-        const backCoverContent = document.createElement('div');
-        backCoverContent.style.cssText = `
-            width: ${pageWidth}px;
-            height: ${pageHeight}px;
-            transform: scale(${scale}) rotateY(180deg);
-            transform-origin: top left;
-            background: ${coverColor};
-        `;
-
-        // Render back cover photo or placeholder
-        if (this.cover?.backPhotoId && this.assets?.photos) {
-            const photo = this.assets.photos.find(p => p.id === this.cover.backPhotoId);
-            if (photo) {
-                const img = document.createElement('img');
-                img.src = photo.thumbnailUrl || photo.url;
-                img.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    object-position: center;
-                `;
-                backCoverContent.appendChild(img);
-            } else {
-                // Placeholder if photo not found
-                const placeholder = document.createElement('div');
-                placeholder.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    font-size: 18px;
-                    opacity: 0.5;
-                `;
-                placeholder.textContent = 'Back Cover';
-                backCoverContent.appendChild(placeholder);
+                // Force size to container (Scaling)
+                // Force size to container (No Scaling needed if container matches template)
+                const content = renderContainer.firstElementChild;
+                if (content && content.style) {
+                    content.style.transformOrigin = 'top left';
+                    content.style.transform = 'none';
+                    content.style.width = '100%';
+                    content.style.height = '100%';
+                }
             }
-        } else {
-            // No back photo - show placeholder
-            const placeholder = document.createElement('div');
-            placeholder.style.cssText = `
-                width: 100%;
-                height: 100%;
+        };
+
+        this.ultimateBook = new UltimateBook3D(container, renderCallback);
+
+        // Ensure container has layout before init (fix for 0x0 issue)
+        requestAnimationFrame(() => {
+            if (container.clientWidth === 0) {
+                // Force display if needed or wait
+                setTimeout(() => this.ultimateBook.init(this.contentPages, this.cover, this.templateConfig), 50);
+            } else {
+                this.ultimateBook.init(this.contentPages, this.cover, this.templateConfig);
+            }
+        });
+    }
+
+    // --- STYLING UPDATE FOR BUTTONS ---
+    injectStyles() {
+        if (document.getElementById('album-preview-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'album-preview-styles';
+        style.textContent = `
+            /* ... (Previous Styles) ... */
+             
+             /* NAV BUTTONS */
+             .flip-nav {
+                width: 60px;
+                height: 60px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 50%;
                 color: white;
-                font-size: 18px;
-                opacity: 0.5;
-            `;
-            placeholder.textContent = 'Back Cover';
-            backCoverContent.appendChild(placeholder);
-        }
+                font-size: 1.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                position: absolute; /* Changed to Absolute */
+                top: 50%;
+                transform: translateY(-50%);
+                z-index: 1000;
+            }
+            
+            #flip-prev {
+                 left: 40px;
+            }
+            
+            #flip-next {
+                 right: 40px;
+            }
 
-        backCover.appendChild(backCoverContent);
-        book.appendChild(backCover);
+            .flip-nav:hover:not(:disabled) {
+                background: rgba(255, 255, 255, 0.2);
+                transform: translateY(-50%) scale(1.1); /* Keep vertical align */
+            }
 
-        // ========== PAGES (Inside the book) ==========
-        // Render some sample pages between covers
-        const numPagesToShow = Math.min(5, this.contentPages.length);
-        for (let i = 0; i < numPagesToShow; i++) {
-            const pageOffset = 2 + (i * 0.5); // Slight offset for depth effect
-            const pageEl = document.createElement('div');
-            pageEl.className = 'book-3d-inner-page';
-            pageEl.style.cssText = `
-                position: absolute;
-                width: ${scaledWidth}px;
-                height: ${scaledHeight}px;
-                transform: translateZ(${(spineWidth / 2) - pageOffset}px);
-                background: white;
-                box-shadow: 0 0 3px rgba(0,0,0,0.2);
-                border-radius: 1px;
-            `;
-            book.appendChild(pageEl);
-        }
-
-        container.appendChild(book);
+            /* ... (Rest of Styles) ... */
+            
+            #album-preview-modal {
+                position: fixed;
+                inset: 0;
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                animation: fadeIn 0.3s ease;
+            }
+            
+            /* (Include truncated styles for completeness) */
+            .preview-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: rgba(0, 0, 0, 0.3); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+            .preview-title { display: flex; align-items: center; gap: 12px; font-size: 1.2rem; font-weight: 600; color: white; }
+            .preview-title i { color: #8b5cf6; }
+            .preview-controls { display: flex; gap: 8px; }
+            .preview-view-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+            .preview-view-btn:hover { background: rgba(255, 255, 255, 0.15); color: white; }
+            .preview-view-btn.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-color: transparent; color: white; }
+            .preview-close-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.1); border: none; border-radius: 50%; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+            .preview-close-btn:hover { background: #ef4444; color: white; }
+            .preview-content { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+            
+            /* Flipbook */
+            .preview-flipbook { display: none; width: 100%; height: 100%; align-items: center; justify-content: center; gap: 24px; }
+            .preview-flipbook.active { display: flex; }
+            .flipbook-container { position: relative; perspective: 2000px; }
+            .flipbook-page { width: 800px; height: 600px; background: white; border-radius: 4px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1); overflow: hidden; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
+            .flipbook-page.flipping-left { animation: flipLeft 0.6s ease; }
+            .flipbook-page.flipping-right { animation: flipRight 0.6s ease; }
+            @keyframes flipLeft { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(-15deg); } 100% { transform: rotateY(0deg); } }
+            @keyframes flipRight { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(15deg); } 100% { transform: rotateY(0deg); } }
+            .page-indicator { text-align: center; margin-top: 16px; color: #64748b; font-size: 0.9rem; }
+            
+            /* 3D View - Styles now loaded from css/book-3d-enhanced.css */
+            .preview-3d { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+            .preview-3d.active { display: flex; }
+            .book-3d-container { perspective: 2000px; flex: 1; display: flex; align-items: center; justify-content: center; cursor: grab; user-select: none; }
+            .book-3d-container:active { cursor: grabbing; }
+            
+            /* Responsive */
+            @media (max-width: 900px) {
+                height: var(--book-thickness);
+                top: 0;
+                bottom: auto;
+                transform: rotateX(90deg);
+                transform-origin: top;
+                background-image: repeating-linear-gradient(to bottom, #fdfbf7 0px, #fdfbf7 2px, #e2e8f0 3px);
+            }
+            .book3d-page-block-face.bottom {
+                height: var(--book-thickness);
+                bottom: 0;
+                top: auto;
+                transform: rotateX(-90deg);
+                transform-origin: bottom;
+                background-image: repeating-linear-gradient(to bottom, #fdfbf7 0px, #fdfbf7 2px, #e2e8f0 3px);
+            }
+            
+            .book-3d-controls { padding: 20px; color: white; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10; }
+            .preview-footer { padding: 16px 24px; background: rgba(0, 0, 0, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; gap: 16px; }
+            .preview-thumbnails { display: flex; gap: 12px; overflow-x: auto; padding: 8px 0; justify-content: center; }
+            .preview-thumb { width: 100px; height: 75px; background: white; border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; flex-shrink: 0; }
+            .preview-thumb:hover { transform: scale(1.05); }
+            .preview-thumb.active { border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3); }
+            .preview-thumb img, .preview-thumb > div { width: 100%; height: 100%; object-fit: cover; }
+            .preview-actions { display: flex; justify-content: center; }
+            .btn-generate-pdf { display: flex; align-items: center; gap: 12px; padding: 14px 32px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 12px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+            .btn-generate-pdf:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); }
+        `;
+        document.head.appendChild(style);
     }
 
+    /**
+     * Interaction Logic (Strict Match to Snippet)
+     */
+    initBookInteraction(root, stage) {
+        let isDragging = false;
+        let startX = 0;
+        let currentRotY = -25;
+
+        const slider = document.getElementById('book-rotation'); // Changed ID to match APP HTML
+
+        // Helper to set rotation
+        const setRot = (y) => {
+            stage.style.transform = `rotateX(10deg) rotateY(${y}deg)`;
+            // Sync slider if rotated manually
+            if (slider) slider.value = (y + 25);
+        };
+
+        // Initialize 3D Navigation Buttons explicitly
+        const prevBtn = document.getElementById('flip-prev');
+        const nextBtn = document.getElementById('flip-next');
+
+        const handleNext = (e) => {
+            e.stopPropagation();
+            if (this.book3D) this.book3D.nextPage();
+        };
+
+        const handlePrev = (e) => {
+            e.stopPropagation();
+            if (this.book3D) this.book3D.prevPage();
+        };
+
+        if (prevBtn) {
+            // Remove old listeners by cloning
+            const newPrev = prevBtn.cloneNode(true);
+            prevBtn.parentNode.replaceChild(newPrev, prevBtn);
+            newPrev.addEventListener('click', handlePrev);
+            // newPrev.addEventListener('touchend', handlePrev);
+        }
+
+        if (nextBtn) {
+            const newNext = nextBtn.cloneNode(true);
+            nextBtn.parentNode.replaceChild(newNext, nextBtn);
+            newNext.addEventListener('click', handleNext);
+            // newNext.addEventListener('touchend', handleNext);
+        }
+
+        // Slider Event
+        if (slider) {
+            slider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                // Rotate the Book Group inside UltimateBook3D, not the stage div?
+                // Actually UltimateBook3D has orbit controls, but we can override Y rotation of group?
+                // The current implementation rotates the #book-3d DIV via CSS transform3d?
+                // No, UltimateBook3D uses WebGL. CSS transforms on container won't rotate the 3D camera.
+                // We should hook this slider to orbital controls or bookGroup rotation.
+
+                if (this.book3D && this.book3D.bookGroup) {
+                    // Map 0-100 to -180 to 180?
+                    // val is rotation offset?
+                    // Let's just rotate the group
+                    const deg = (val - 50) * 3.6; // -180 to 180
+                    this.book3D.bookGroup.rotation.y = deg * (Math.PI / 180);
+                }
+            });
+        }
+
+        // Drag Events (Optional - OrbitControls handles this usually)
+        // If we want to keep CSS interactions for fallback css-book:
+        const onStart = (x) => {
+            isDragging = true;
+            startX = x;
+            if (stage) stage.style.transition = 'none';
+            if (root) root.style.cursor = 'grabbing';
+        };
+
+        const onMove = (x) => {
+            if (!isDragging) return;
+            const diff = x - startX;
+            // setRot(currentRotY + (diff * 0.5)); 
+        };
+
+        const onEnd = (x) => {
+            if (!isDragging) return;
+            isDragging = false;
+            const diff = x - startX;
+            currentRotY += (diff * 0.5);
+            stage.style.transition = 'transform 0.2s ease-out'; // 0.2s from snippet
+            root.style.cursor = 'grab';
+        };
+
+        // Mouse
+        root.onmousedown = (e) => onStart(e.clientX);
+        window.onmousemove = (e) => onMove(e.clientX);
+        window.onmouseup = (e) => onEnd(e.clientX);
+
+        // Touch (Added helper for touch support as per previous best practice, maintaining snippet logic)
+        root.ontouchstart = (e) => onStart(e.touches[0].clientX);
+        window.ontouchmove = (e) => onMove(e.touches[0].clientX);
+        window.ontouchend = (e) => onEnd(e.changedTouches[0].clientX);
+    }
 
     /**
      * Generate PDF

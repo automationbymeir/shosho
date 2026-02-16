@@ -1,13 +1,9 @@
-/**
- * Render Engine
- * Handles rendering the active page to the DOM.
- */
+import { photoPositionService } from '../services/photo-position-service.js';
 
 export class RenderEngine {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
     }
-
     /**
      * Render a page into a specific container.
      * Used by the main workspace and by the preview generator to ensure 1:1 match.
@@ -24,6 +20,9 @@ export class RenderEngine {
         // Create Page Element
         const pageEl = document.createElement('div');
         pageEl.className = 'shoso-page';
+        if (page.templateId) {
+            pageEl.classList.add(page.templateId);
+        }
         pageEl.dataset.pageId = page.id;
         pageEl.style.width = '100%';
         pageEl.style.height = '100%';
@@ -31,6 +30,7 @@ export class RenderEngine {
         pageEl.style.overflow = 'hidden';
 
         // Apply Background based on Theme
+        // Apply Background based on Theme or DesignedPage
         const theme = window.BACKGROUND_TEXTURES?.find(t => t.id === page.background);
         if (theme) {
             if (theme.url.startsWith('http') || theme.url.startsWith('assets')) {
@@ -39,17 +39,34 @@ export class RenderEngine {
             } else {
                 pageEl.style.backgroundColor = theme.url;
             }
-        } else if (typeof page.background === 'object' && page.background.imageUrl) {
-            // Magic Create V2 Generated Background Object
-            pageEl.style.backgroundImage = `url('${page.background.imageUrl}')`;
-            pageEl.style.backgroundSize = 'cover';
-        } else if (typeof page.background === 'string' && (page.background.startsWith('http') || page.background.startsWith('data:'))) {
-            // Direct URL
-            pageEl.style.backgroundImage = `url('${page.background}')`;
-            pageEl.style.backgroundSize = 'cover';
-        } else if (typeof page.background === 'string' && page.background.startsWith('#')) {
-            // Solid Color
-            pageEl.style.backgroundColor = page.background;
+        }
+        // Magic Create V2 / V3 Object Support
+        else if (typeof page.background === 'object') {
+            const bg = page.background;
+            if (bg.type === 'image' || bg.imageUrl) {
+                pageEl.style.backgroundImage = `url('${bg.imageUrl}')`;
+                pageEl.style.backgroundSize = 'cover';
+            } else if (bg.type === 'ai_generated' && bg.ai_image_url) {
+                pageEl.style.backgroundImage = `url('${bg.ai_image_url}')`;
+                pageEl.style.backgroundSize = 'cover';
+            } else if (bg.type === 'gradient' && bg.gradient_colors) {
+                const angle = bg.gradient_angle || 180;
+                pageEl.style.background = `linear-gradient(${angle}deg, ${bg.gradient_colors.join(', ')})`;
+            } else if (bg.type === 'pattern' && bg.pattern_name) {
+                // TODO: Implement pattern rendering
+                pageEl.style.backgroundColor = bg.color || '#ffffff';
+            } else if (bg.color) {
+                pageEl.style.backgroundColor = bg.color;
+            }
+        }
+        // Legacy String Support
+        else if (typeof page.background === 'string') {
+            if (page.background.startsWith('http') || page.background.startsWith('data:')) {
+                pageEl.style.backgroundImage = `url('${page.background}')`;
+                pageEl.style.backgroundSize = 'cover';
+            } else if (page.background.startsWith('#') || page.background.startsWith('rgb')) {
+                pageEl.style.backgroundColor = page.background;
+            }
         }
 
         // 2. Render Photo Slots
@@ -91,7 +108,16 @@ export class RenderEngine {
                 });
 
                 // Add Photo
-                const photo = assets.photos.find(p => p.id === slot.photoId);
+                const photo = assets.photos.find(p => p.id == slot.photoId); // Relaxed matching
+
+                // DEBUG: Trace rendering
+                if (!photo) {
+                    console.warn(`[RenderEngine] Photo NOT FOUND for slot. Slot ID: ${slot.photoId}. Available Assets: ${assets.photos.length}`);
+                    // console.log('Available IDs:', assets.photos.map(p => p.id)); // Uncomment if needed
+                } else {
+                    // console.log(`[RenderEngine] Rendering photo ${photo.id} at ${slot.x},${slot.y}`);
+                }
+
                 if (photo) {
                     const img = document.createElement('img');
 
@@ -102,7 +128,83 @@ export class RenderEngine {
 
                     img.style.width = '100%';
                     img.style.height = '100%';
-                    img.style.objectFit = 'cover';
+
+                    // --- SMART CROP LOGIC ---
+                    if (slot.crop) {
+                        // Apply calculated crop
+                        img.style.objectFit = 'none'; // scale manually
+                        img.style.position = 'absolute';
+
+                        const cw = slot.crop.width || 100;
+                        const ch = slot.crop.height || 100;
+
+                        let pw = photo.width;
+                        let ph = photo.height;
+                        if (!pw || !ph) {
+                            const ratio = photo.ratio || 1.5;
+                            ph = 1000;
+                            pw = 1000 * ratio;
+                        }
+
+                        const kW = 100 * (pw / cw);
+                        const kH = 100 * (ph / ch);
+                        const offX = 100 * (slot.crop.x / cw);
+                        const offY = 100 * (slot.crop.y / ch);
+
+                        img.style.width = `${kW}%`;
+                        img.style.height = `${kH}%`;
+                        img.style.left = `-${offX}%`;
+                        img.style.top = `-${offY}%`;
+
+                    } else {
+                        // Default: Center Cover
+                        img.style.objectFit = 'cover';
+
+                        // Trigger Async Analysis
+                        const analysisKey = `${page.id}_${slot.photoId}`;
+                        if (!window._shosoAnalysisCache) window._shosoAnalysisCache = new Set();
+
+                        if (photo.url && !window._shosoAnalysisCache.has(analysisKey) && !slot.smartCropDone) {
+                            window._shosoAnalysisCache.add(analysisKey);
+
+                            // Estimate dimensions
+                            const ratio = photo.ratio || 1.5;
+                            const estimatedW = photo.width || (1000 * ratio);
+                            const estimatedH = photo.height || 1000;
+
+                            const slotPixelW = (pageWidth * parseFloat(slot.width)) / 100;
+                            const slotPixelH = (pageHeight * parseFloat(slot.height)) / 100;
+
+                            console.log(`[RenderEngine] Requesting smart crop for ${slot.photoId}...`);
+
+                            // Show loader while analyzing
+                            const loader = document.createElement('div');
+                            loader.className = 'smart-crop-loader';
+                            slotEl.appendChild(loader);
+
+                            photoPositionService.getOptimalCrop(
+                                photo.url,
+                                estimatedW,
+                                estimatedH,
+                                { width: slotPixelW, height: slotPixelH }
+                            ).then(crop => {
+                                console.log('[RenderEngine] Smart crop applied:', crop);
+                                // respecting manual override
+                                if (!slot.manualCrop) {
+                                    slot.crop = crop;
+                                }
+                                slot.smartCropDone = true;
+                                if (window.store) {
+                                    window.store.notify('pages', window.store.state.pages);
+                                }
+                            }).catch(err => {
+                                console.warn('[RenderEngine] Smart crop error:', err);
+                                slot.smartCropDone = true;
+                                // Force re-render to remove loader even if failed
+                                if (window.store) window.store.notify('pages', window.store.state.pages);
+                            });
+                        }
+                    }
 
                     // Google Photos - Use backend proxy to avoid 403 errors
                     if (photo.source === 'google-photos' || (src && src.includes('googleusercontent.com'))) {
@@ -112,7 +214,7 @@ export class RenderEngine {
                         }
 
                         // Fetch high-res via backend proxy
-                        import('./google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
+                        import('../services/google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
                             // Prepare high-res URL
                             let targetUrl = photo.rawBaseUrl || photo.url;
                             if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
@@ -248,9 +350,10 @@ export class RenderEngine {
                 // (Shapes/Containers simplified for brevity in this view, same logic as before)
                 else if (el.type === 'shape') {
                     domEl.classList.add('shape-element');
+                    if (el.subtype) domEl.classList.add(el.subtype);
                     domEl.style.width = `${el.width}%`;
                     domEl.style.height = `${el.height}%`;
-                    domEl.style.backgroundColor = el.color;
+                    if (el.color) domEl.style.backgroundColor = el.color;
                 }
 
                 if (el.id === selectionId) {
@@ -259,6 +362,50 @@ export class RenderEngine {
                 }
 
                 pageEl.appendChild(domEl);
+            });
+        }
+
+        // 5. Render Decorations (New V3 Feature)
+        if (page.decorations && Array.isArray(page.decorations)) {
+            page.decorations.forEach((deco, index) => {
+                const decoEl = document.createElement('div');
+                decoEl.className = `page-decoration deco-${deco.type}`;
+                decoEl.style.position = 'absolute';
+
+                // Position
+                if (deco.position) {
+                    decoEl.style.left = `${deco.position.x}%`;
+                    decoEl.style.top = `${deco.position.y}%`;
+                    decoEl.style.width = `${deco.position.width}%`;
+                    decoEl.style.height = `${deco.position.height}%`;
+                    if (deco.position.rotation) {
+                        decoEl.style.transform = `rotate(${deco.position.rotation}deg)`;
+                    }
+                    decoEl.style.zIndex = deco.position.z_index || 4; // Below text (10) but above background
+                }
+
+                // Opacity & Color
+                if (deco.opacity) decoEl.style.opacity = deco.opacity;
+
+                // Content
+                if (deco.asset_url) {
+                    const img = document.createElement('img');
+                    img.src = deco.asset_url;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'contain';
+                    if (deco.color) {
+                        // Simple SVG coloring hack using filters if simple icon, 
+                        // or we assume assets are pre-colored. 
+                        // For V1 we just render the asset.
+                    }
+                    decoEl.appendChild(img);
+                } else if (deco.type === 'flourish') {
+                    // Placeholder for CSS/SVG flourish
+                    decoEl.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%;height:100%;fill:${deco.color || '#000'}"><path d="M10,50 Q25,25 50,50 T90,50" stroke="currentColor" fill="none" class="mock-flourish"/></svg>`;
+                }
+
+                pageEl.appendChild(decoEl);
             });
         }
 
@@ -365,7 +512,7 @@ export class RenderEngine {
                     if (photo.thumbnailUrl) {
                         img.src = photo.thumbnailUrl;
                     }
-                    import('./google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
+                    import('../services/google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
                         let targetUrl = photo.rawBaseUrl || photo.url;
                         if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
                             targetUrl = targetUrl.split('=')[0] + '=d';
@@ -478,7 +625,7 @@ export class RenderEngine {
                     if (photo.thumbnailUrl) {
                         photoEl.style.backgroundImage = `url(${photo.thumbnailUrl})`;
                     }
-                    import('./google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
+                    import('../services/google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
                         let targetUrl = photo.rawBaseUrl || photo.url;
                         if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
                             targetUrl = targetUrl.split('=')[0] + '=d';

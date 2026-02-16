@@ -82,12 +82,36 @@ class EditorStore {
         }
 
         // Create a deep snapshot of the current state components that need history
-        const snapshot = JSON.parse(JSON.stringify({
-            pages: this.state.pages,
-            cover: this.state.cover,
-            assets: this.state.assets, // Optional: might be too heavy? Let's keep it for now as assets like photos are critical.
-            theme: this.state.theme
-        }));
+        // Use structuredClone for deep copy to handle complex objects better than JSON methods, 
+        // though JSON is usually fine unless there are circular refs. 
+        // The error 'Invalid string length' usually suggests VERY large data (base64 images?) rather than circular refs.
+        // If assets contains base64 images, this will explode memory.
+        // We should NOT store assets in history if they are large.
+        // Assets are usually references (URLs). If 'photos' contains raw base64, that's the issue.
+        // Let's exclude assets from history for now to fix the crash, or only store refs.
+        // Assuming assets are global and don't change *that* often (or if they do, we accept no undo for asset LIBRARY changes).
+        // Undo is mostly for Page Layouts / content.
+
+        let snapshot;
+        try {
+            // Attempt to stringify the state
+            // If this fails (e.g. base64 images making it too large), we catch it.
+            const rawSnapshot = {
+                pages: this.state.pages.map(p => ({
+                    ...p,
+                    // Store strict lightweight photos (ID + Ratio only) to prevent JSON explosion if assets have base64
+                    photos: p.photos ? p.photos.map(ph => ({ id: ph.id, ratio: ph.ratio })) : []
+                })),
+                cover: this.state.cover,
+                theme: this.state.theme
+            };
+            // Test stringify here to catch the error
+            JSON.stringify(rawSnapshot);
+            snapshot = JSON.parse(JSON.stringify(rawSnapshot));
+        } catch (e) {
+            console.warn("[Store] Failed to push state to history (State too large?):", e);
+            return; // Exit gracefully instead of crashing
+        }
 
         this.history.push({
             name: actionName,
@@ -189,3 +213,4 @@ class EditorStore {
 }
 
 export const store = new EditorStore();
+window.store = store;

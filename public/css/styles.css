@@ -1145,8 +1145,8 @@ input[type="checkbox"] {
 
 /* bottom thickness hint */
 .book3d-bottom {
-  left: 18px;
-  right: 18px;
+  left: calc(var(--book-thickness) + 8px);
+  right: calc(var(--book-thickness) + 8px);
   bottom: calc(var(--book-thickness) * -0.28);
   height: var(--book-thickness);
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0.03) 40%, rgba(0, 0, 0, 0.08));
@@ -1158,8 +1158,8 @@ input[type="checkbox"] {
   position: absolute;
   top: 10px;
   bottom: 10px;
-  left: calc(var(--book-thickness) + 16px);
-  right: calc(var(--book-thickness) + 16px);
+  left: calc(var(--book-thickness) + 8px);
+  right: calc(var(--book-thickness) + 8px);
   display: flex;
   align-items: stretch;
   gap: 0;
@@ -1394,8 +1394,8 @@ input[type="checkbox"] {
   position: absolute;
   top: 10px;
   bottom: 10px;
-  left: calc(var(--book-thickness) + 16px);
-  right: calc(var(--book-thickness) + 16px);
+  left: calc(var(--book-thickness) + 8px);
+  right: calc(var(--book-thickness) + 8px);
   border-radius: 10px;
   overflow: hidden;
   background: #fff;
@@ -1460,8 +1460,8 @@ input[type="checkbox"] {
 }
 
 .book3d-cover-root.is-back .book3d-cover-face {
-  left: calc(var(--book-thickness) + 16px);
-  right: calc(var(--book-thickness) + 16px);
+  left: calc(var(--book-thickness) + 8px);
+  right: calc(var(--book-thickness) + 8px);
 }
 
 /* Book crease effect - vintage binding */

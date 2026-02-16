@@ -125,24 +125,26 @@ export class LayoutEngine {
         if (count === 0) return null;
 
         // Find all templates that match this count
-        // For 4+, we use dynamic only for now, or could define static 4s.
-        // Simple heuristic: key starts with "N-"
         const keys = Object.keys(this.layouts).filter(k => k.startsWith(`${count}-`));
 
-        if (keys.length === 0) {
-            // Fallback to dynamic loop
-            return this.generateDynamicGrid(photos);
-        }
+        // Add dynamic grid as an option
+        keys.push(`dynamic-${count}`);
 
         let nextIndex = 0;
         if (currentLayoutName) {
+            // Handle if current is "dynamic-5" etc
             const currIdx = keys.indexOf(currentLayoutName);
             if (currIdx > -1) {
                 nextIndex = (currIdx + 1) % keys.length;
             }
         }
 
-        return this.createSlotsFromGrid(keys[nextIndex], photos);
+        const nextKey = keys[nextIndex];
+        if (nextKey && nextKey.startsWith('dynamic-')) {
+            return this.generateDynamicGrid(photos);
+        }
+
+        return this.createSlotsFromGrid(nextKey, photos);
     }
 
     createSlotsFromGrid(key, photos) {

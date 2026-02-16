@@ -1,0 +1,1512 @@
+{
+    "templateId": "baby-first-year-hebrew-v1",
+    "templateName": "השנה הראשונה - Baby's First Year",
+    "templateDescription": "תבנית מתוקה ומרגשת לאלבום השנה הראשונה של התינוק. צבעים רכים ופסטליים, טיפוגרפיה עברית חמה ופריסות מותאמות לכל אבן דרך בשנה הראשונה.",
+    "version": "1.0.0",
+    "category": "baby",
+    "tags": [
+        "baby",
+        "תינוק",
+        "first-year",
+        "שנה-ראשונה",
+        "hebrew",
+        "milestones",
+        "newborn",
+        "family"
+    ],
+    "language": "he",
+    "direction": "rtl",
+    "minPhotos": 30,
+    "maxPhotos": 150,
+    "recommendedPhotos": 80,
+    "designSystem": {
+        "canvas": {
+            "width": 800,
+            "height": 600,
+            "aspectRatio": "4:3",
+            "scaledWidth": 1200,
+            "scaledHeight": 900
+        },
+        "direction": "rtl",
+        "colors": {
+            "background": "#FDFBF9",
+            "backgroundAlt": "#F7F3EF",
+            "accent": {
+                "primary": "#E8B4B8",
+                "secondary": "#A8D4D8",
+                "tertiary": "#F5E6C8"
+            },
+            "text": {
+                "primary": "#5D5A56",
+                "secondary": "#7A7672",
+                "accent": "#E8B4B8",
+                "highlight": "#D4A574",
+                "light": "#A09B95",
+                "inverse": "#FFFFFF"
+            },
+            "decorative": {
+                "pink": "#E8B4B8",
+                "blue": "#A8D4D8",
+                "yellow": "#F5E6C8",
+                "mint": "#B8D8C8",
+                "lavender": "#D4C8E8",
+                "peach": "#F5D4C8"
+            }
+        },
+        "typography": {
+            "display": {
+                "family": "Rubik",
+                "fallback": "Arial Hebrew, Arial, sans-serif",
+                "weights": [
+                    400,
+                    500,
+                    700
+                ],
+                "usage": "שם התינוק, כותרות ראשיות"
+            },
+            "heading": {
+                "family": "Heebo",
+                "fallback": "Arial Hebrew, Arial, sans-serif",
+                "weights": [
+                    300,
+                    400,
+                    500,
+                    600
+                ],
+                "usage": "אבני דרך, חודשים"
+            },
+            "body": {
+                "family": "Heebo",
+                "fallback": "Arial Hebrew, Arial, sans-serif",
+                "weights": [
+                    300,
+                    400
+                ],
+                "usage": "טקסט גוף, תיאורים"
+            },
+            "playful": {
+                "family": "Varela Round",
+                "fallback": "Arial, sans-serif",
+                "weights": [
+                    400
+                ],
+                "usage": "מספרי חודשים, אלמנטים שובבים"
+            }
+        },
+        "spacing": {
+            "pagePadding": "6%",
+            "photoGap": "3%",
+            "textMargin": "8%"
+        },
+        "photoStyles": {
+            "default": {
+                "borderRadius": "12px",
+                "shadow": "0 6px 25px rgba(93, 90, 86, 0.1)",
+                "border": "none"
+            },
+            "circle": {
+                "borderRadius": "50%",
+                "shadow": "0 6px 25px rgba(93, 90, 86, 0.12)",
+                "border": "5px solid #FFFFFF"
+            },
+            "polaroid": {
+                "borderRadius": "4px",
+                "shadow": "0 8px 30px rgba(93, 90, 86, 0.15)",
+                "border": "none",
+                "padding": "12px 12px 40px 12px",
+                "background": "#FFFFFF"
+            },
+            "soft": {
+                "borderRadius": "20px",
+                "shadow": "0 4px 20px rgba(93, 90, 86, 0.08)",
+                "border": "none"
+            },
+            "cloud": {
+                "borderRadius": "100px",
+                "shadow": "0 6px 25px rgba(93, 90, 86, 0.1)",
+                "border": "none"
+            }
+        },
+        "decorativeElements": {
+            "star": {
+                "type": "svg",
+                "color": "#F5E6C8"
+            },
+            "heart": {
+                "type": "svg",
+                "color": "#E8B4B8"
+            },
+            "cloud": {
+                "type": "svg",
+                "color": "#A8D4D8"
+            },
+            "moon": {
+                "type": "svg",
+                "color": "#F5E6C8"
+            },
+            "dot": {
+                "type": "circle",
+                "color": "#E8B4B8"
+            }
+        }
+    },
+    "textAlignmentSystem": {
+        "direction": "rtl",
+        "alignmentModes": {
+            "pageCenter": {
+                "method": "left: 50%; transform: translateX(-50%);",
+                "textAlign": "center",
+                "direction": "rtl"
+            },
+            "rightAligned": {
+                "method": "right: 6%;",
+                "textAlign": "right",
+                "direction": "rtl"
+            },
+            "photoAligned": {
+                "method": "center calculated from photo position",
+                "textAlign": "center",
+                "direction": "rtl"
+            }
+        }
+    },
+    "pageLayouts": [
+        {
+            "layoutId": "cover-welcome",
+            "layoutName": "שער - ברוך הבא",
+            "pageType": "cover",
+            "photoSlots": [
+                {
+                    "slotId": "mainPhoto",
+                    "position": {
+                        "x": "22%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "56%",
+                        "height": "52%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "soft",
+                    "photoHint": "baby_portrait"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "welcomeText",
+                    "type": "heading",
+                    "content": "השנה הראשונה של",
+                    "position": {
+                        "x": "50%",
+                        "y": "4%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "18px",
+                        "weight": 300,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "babyName",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "52px",
+                        "weight": 700,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "נועה",
+                    "editable": true
+                },
+                {
+                    "elementId": "birthDate",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "82%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "16px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "נולדה ב-15 בינואר 2025",
+                    "editable": true
+                },
+                {
+                    "elementId": "weight",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "89%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "3.2 ק״ג | 50 ס״מ",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "star",
+                    "position": {
+                        "x": "15%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "25px",
+                        "height": "25px"
+                    }
+                },
+                {
+                    "type": "star",
+                    "position": {
+                        "x": "82%",
+                        "y": "35%"
+                    },
+                    "size": {
+                        "width": "20px",
+                        "height": "20px"
+                    }
+                },
+                {
+                    "type": "heart",
+                    "position": {
+                        "x": "88%",
+                        "y": "75%"
+                    },
+                    "size": {
+                        "width": "18px",
+                        "height": "18px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "birth-story",
+            "layoutName": "סיפור הלידה",
+            "pageType": "story",
+            "photoSlots": [
+                {
+                    "slotId": "mainPhoto",
+                    "position": {
+                        "x": "44%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "80%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default",
+                    "photoHint": "newborn"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "heading",
+                    "content": "היום שבו נולדת",
+                    "position": {
+                        "x": "6%",
+                        "y": "16%"
+                    },
+                    "size": {
+                        "width": "34%"
+                    },
+                    "alignment": {
+                        "horizontal": "right",
+                        "method": "text-align: right;",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "26px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "right"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "storyText",
+                    "type": "body",
+                    "position": {
+                        "x": "6%",
+                        "y": "28%"
+                    },
+                    "size": {
+                        "width": "34%"
+                    },
+                    "alignment": {
+                        "horizontal": "right",
+                        "method": "text-align: right;",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "right",
+                        "lineHeight": "1.9"
+                    },
+                    "placeholder": "הרגע שבו ראינו אותך לראשונה, הלב שלנו התמלא באהבה אינסופית.\n\nחיכינו לך כל כך הרבה זמן, ועכשיו את סוף סוף כאן.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "month-milestone",
+            "layoutName": "אבן דרך חודשית",
+            "pageType": "milestone",
+            "photoSlots": [
+                {
+                    "slotId": "monthPhoto",
+                    "position": {
+                        "x": "20%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "60%",
+                        "height": "52%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "soft",
+                    "photoHint": "baby_monthly"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "monthNumber",
+                    "type": "playful",
+                    "position": {
+                        "x": "50%",
+                        "y": "4%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "playful",
+                        "size": "60px",
+                        "weight": 400,
+                        "color": "accent",
+                        "align": "center"
+                    },
+                    "placeholder": "1",
+                    "editable": true
+                },
+                {
+                    "elementId": "monthLabel",
+                    "type": "heading",
+                    "content": "חודש",
+                    "position": {
+                        "x": "50%",
+                        "y": "14%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "18px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "milestones",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "76%"
+                    },
+                    "size": {
+                        "width": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "center",
+                        "lineHeight": "1.8"
+                    },
+                    "placeholder": "התחלת לחייך! 😊\nגילית את הידיים שלך\nאוהבת לשמוע שירים",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "dot",
+                    "position": {
+                        "x": "12%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "12px",
+                        "height": "12px"
+                    }
+                },
+                {
+                    "type": "dot",
+                    "position": {
+                        "x": "88%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "8px",
+                        "height": "8px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "firsts-grid",
+            "layoutName": "פעמים ראשונות",
+            "pageType": "milestone",
+            "photoSlots": [
+                {
+                    "slotId": "first1",
+                    "position": {
+                        "x": "4%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "34%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "circle"
+                },
+                {
+                    "slotId": "first2",
+                    "position": {
+                        "x": "36%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "34%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "circle"
+                },
+                {
+                    "slotId": "first3",
+                    "position": {
+                        "x": "68%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "29%",
+                        "height": "34%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "circle"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "pageTitle",
+                    "type": "heading",
+                    "content": "פעמים ראשונות",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "28px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "caption1",
+                    "type": "body",
+                    "position": {
+                        "x": "18.5%",
+                        "y": "58%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 18.5%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "חיוך ראשון",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption2",
+                    "type": "body",
+                    "position": {
+                        "x": "50.5%",
+                        "y": "58%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50.5%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "זחילה ראשונה",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption3",
+                    "type": "body",
+                    "position": {
+                        "x": "82.5%",
+                        "y": "58%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 82.5%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "צעדים ראשונים",
+                    "editable": true
+                },
+                {
+                    "elementId": "dates",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "68%"
+                    },
+                    "size": {
+                        "width": "90%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "12px",
+                        "weight": 300,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "חודש 2 | חודש 6 | חודש 10",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "star",
+                    "position": {
+                        "x": "10%",
+                        "y": "80%"
+                    },
+                    "size": {
+                        "width": "15px",
+                        "height": "15px"
+                    }
+                },
+                {
+                    "type": "heart",
+                    "position": {
+                        "x": "90%",
+                        "y": "78%"
+                    },
+                    "size": {
+                        "width": "14px",
+                        "height": "14px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "family-love",
+            "layoutName": "אהבה משפחתית",
+            "pageType": "family",
+            "photoSlots": [
+                {
+                    "slotId": "familyPhoto",
+                    "position": {
+                        "x": "8%",
+                        "y": "16%"
+                    },
+                    "size": {
+                        "width": "84%",
+                        "height": "60%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "soft",
+                    "photoHint": "family_with_baby"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "heading",
+                    "content": "המשפחה שלנו",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "28px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "caption",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "82%"
+                    },
+                    "size": {
+                        "width": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "secondary",
+                        "align": "center",
+                        "lineHeight": "1.7"
+                    },
+                    "placeholder": "מאז שהגעת, הבית שלנו מלא באור ובאהבה.\nאת המתנה הכי יפה שקיבלנו.",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "with-grandparents",
+            "layoutName": "עם סבא וסבתא",
+            "pageType": "family",
+            "photoSlots": [
+                {
+                    "slotId": "photo1",
+                    "position": {
+                        "x": "6%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "50%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo2",
+                    "position": {
+                        "x": "52%",
+                        "y": "18%"
+                    },
+                    "size": {
+                        "width": "42%",
+                        "height": "50%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "heading",
+                    "content": "אהבה של סבים וסבתות",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "26px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "caption1",
+                    "type": "body",
+                    "position": {
+                        "x": "27%",
+                        "y": "72%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 27%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "סבא וסבתא מצד אמא",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption2",
+                    "type": "body",
+                    "position": {
+                        "x": "73%",
+                        "y": "72%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 73%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "13px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "סבא וסבתא מצד אבא",
+                    "editable": true
+                },
+                {
+                    "elementId": "quote",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "84%"
+                    },
+                    "size": {
+                        "width": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "light",
+                        "align": "center",
+                        "fontStyle": "italic"
+                    },
+                    "placeholder": "״נכדים הם הפרס על שהיינו הורים״",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "gallery-four",
+            "layoutName": "גלריה - ארבע תמונות",
+            "pageType": "gallery",
+            "photoSlots": [
+                {
+                    "slotId": "photo1",
+                    "position": {
+                        "x": "4%",
+                        "y": "4%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "44%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo2",
+                    "position": {
+                        "x": "52%",
+                        "y": "4%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "44%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo3",
+                    "position": {
+                        "x": "4%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "44%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo4",
+                    "position": {
+                        "x": "52%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "44%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "gallery-six",
+            "layoutName": "גלריה - שש תמונות",
+            "pageType": "gallery",
+            "photoSlots": [
+                {
+                    "slotId": "photo1",
+                    "position": {
+                        "x": "3%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo2",
+                    "position": {
+                        "x": "35%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo3",
+                    "position": {
+                        "x": "67%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo4",
+                    "position": {
+                        "x": "3%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo5",
+                    "position": {
+                        "x": "35%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "photo6",
+                    "position": {
+                        "x": "67%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "quote-page",
+            "layoutName": "ציטוט",
+            "pageType": "quote",
+            "photoSlots": [],
+            "textElements": [
+                {
+                    "elementId": "quoteText",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "40%"
+                    },
+                    "size": {
+                        "width": "75%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "28px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center",
+                        "lineHeight": "1.7"
+                    },
+                    "placeholder": "״תינוקות הם קטעים קטנים של שמיים\nשהושלכו לכדור הארץ״",
+                    "editable": true
+                },
+                {
+                    "elementId": "quoteAuthor",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "62%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "accent",
+                        "align": "center"
+                    },
+                    "placeholder": "— לא ידוע",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "cloud",
+                    "position": {
+                        "x": "20%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "50px",
+                        "height": "30px"
+                    }
+                },
+                {
+                    "type": "cloud",
+                    "position": {
+                        "x": "80%",
+                        "y": "25%"
+                    },
+                    "size": {
+                        "width": "40px",
+                        "height": "24px"
+                    }
+                },
+                {
+                    "type": "star",
+                    "position": {
+                        "x": "50%",
+                        "y": "75%"
+                    },
+                    "size": {
+                        "width": "20px",
+                        "height": "20px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "hero-full",
+            "layoutName": "תמונה מלאה",
+            "pageType": "showcase",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [],
+            "decorations": []
+        },
+        {
+            "layoutId": "hero-with-caption",
+            "layoutName": "תמונה עם כיתוב",
+            "pageType": "showcase",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "82%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "caption",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "87%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "20px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "רגע מתוק",
+                    "editable": true
+                },
+                {
+                    "elementId": "date",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "93%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "12px",
+                        "weight": 300,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "חודש 5",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "birthday-celebration",
+            "layoutName": "יום הולדת שנה!",
+            "pageType": "milestone",
+            "photoSlots": [
+                {
+                    "slotId": "birthdayPhoto",
+                    "position": {
+                        "x": "15%",
+                        "y": "22%"
+                    },
+                    "size": {
+                        "width": "70%",
+                        "height": "52%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "soft",
+                    "photoHint": "birthday"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "birthdayTitle",
+                    "type": "display",
+                    "content": "יום הולדת שנה!",
+                    "position": {
+                        "x": "50%",
+                        "y": "6%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "36px",
+                        "weight": 700,
+                        "color": "accent",
+                        "align": "center"
+                    },
+                    "editable": true
+                },
+                {
+                    "elementId": "celebrationText",
+                    "type": "body",
+                    "position": {
+                        "x": "50%",
+                        "y": "80%"
+                    },
+                    "size": {
+                        "width": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "15px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center",
+                        "lineHeight": "1.7"
+                    },
+                    "placeholder": "שנה מלאה באהבה, צחוק וגילויים.\nמחכים לעוד הרפתקאות איתך!",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "star",
+                    "position": {
+                        "x": "10%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "20px",
+                        "height": "20px"
+                    }
+                },
+                {
+                    "type": "star",
+                    "position": {
+                        "x": "90%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "18px",
+                        "height": "18px"
+                    }
+                },
+                {
+                    "type": "heart",
+                    "position": {
+                        "x": "85%",
+                        "y": "85%"
+                    },
+                    "size": {
+                        "width": "15px",
+                        "height": "15px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "closing-love",
+            "layoutName": "סיום - אהבה",
+            "pageType": "closing",
+            "photoSlots": [
+                {
+                    "slotId": "closingPhoto",
+                    "position": {
+                        "x": "25%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "soft"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "loveMessage",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "60%"
+                    },
+                    "size": {
+                        "width": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "26px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center",
+                        "lineHeight": "1.6"
+                    },
+                    "placeholder": "אוהבים אותך עד הירח וחזרה",
+                    "editable": true
+                },
+                {
+                    "elementId": "signature",
+                    "type": "heading",
+                    "position": {
+                        "x": "50%",
+                        "y": "78%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "heading",
+                        "size": "16px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center"
+                    },
+                    "placeholder": "אמא ואבא",
+                    "editable": true
+                },
+                {
+                    "elementId": "heart",
+                    "type": "body",
+                    "content": "♥",
+                    "position": {
+                        "x": "50%",
+                        "y": "86%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "body",
+                        "size": "24px",
+                        "weight": 400,
+                        "color": "accent",
+                        "align": "center"
+                    },
+                    "editable": false
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "star",
+                    "position": {
+                        "x": "15%",
+                        "y": "70%"
+                    },
+                    "size": {
+                        "width": "12px",
+                        "height": "12px"
+                    }
+                },
+                {
+                    "type": "star",
+                    "position": {
+                        "x": "85%",
+                        "y": "65%"
+                    },
+                    "size": {
+                        "width": "10px",
+                        "height": "10px"
+                    }
+                }
+            ]
+        }
+    ],
+    "themeVariants": [
+        {
+            "variantId": "pink-blue",
+            "name": "ורוד ותכלת",
+            "nameEn": "Pink & Blue",
+            "colors": {
+                "accent": {
+                    "primary": "#E8B4B8",
+                    "secondary": "#A8D4D8"
+                }
+            }
+        },
+        {
+            "variantId": "mint-peach",
+            "name": "מנטה ואפרסק",
+            "nameEn": "Mint & Peach",
+            "colors": {
+                "accent": {
+                    "primary": "#B8D8C8",
+                    "secondary": "#F5D4C8"
+                }
+            }
+        },
+        {
+            "variantId": "lavender-yellow",
+            "name": "לבנדר וצהוב",
+            "nameEn": "Lavender & Yellow",
+            "colors": {
+                "accent": {
+                    "primary": "#D4C8E8",
+                    "secondary": "#F5E6C8"
+                }
+            }
+        },
+        {
+            "variantId": "blue-neutral",
+            "name": "כחול וניטרלי",
+            "nameEn": "Blue & Neutral",
+            "colors": {
+                "accent": {
+                    "primary": "#A8C4D8",
+                    "secondary": "#E8DDD4"
+                }
+            }
+        },
+        {
+            "variantId": "warm-coral",
+            "name": "קורל חם",
+            "nameEn": "Warm Coral",
+            "colors": {
+                "accent": {
+                    "primary": "#E8A8A8",
+                    "secondary": "#F5D8C8"
+                }
+            }
+        }
+    ]
+}

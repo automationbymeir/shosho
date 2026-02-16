@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0f172a">
-    <title>Shoso AI Editor</title>
+    <title>Shosho AI Editor</title>
 
     <!-- Favicon -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -22,7 +22,10 @@
     <script type="importmap">
     {
       "imports": {
-        "@google/generative-ai": "https://esm.run/@google/generative-ai"
+        "@google/generative-ai": "https://esm.run/@google/generative-ai",
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "gsap": "https://unpkg.com/gsap@3.12.5/index.js"
       }
     }
     </script>
@@ -46,6 +49,8 @@
     <link rel="stylesheet" href="css/wedding-prestige.css">
     <link rel="stylesheet" href="css/baby-first-year.css">
     <link rel="stylesheet" href="css/adventure-journal.css">
+    <!-- Enhanced 3D Book Styles -->
+    <link rel="stylesheet" href="css/book-3d-enhanced.css">
     <!-- Mobile Responsive Styles -->
     <link rel="stylesheet" href="css/ai-editor-mobile.css">
     <!-- Travel Journey Fonts -->
@@ -221,6 +226,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
 
+
     <!-- Upload Options Modal -->
     <div id="upload-options-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content"
@@ -252,6 +258,46 @@
         </div>
     </div>
 
+    <!-- Auto-Start Hebrew Upload Modal -->
+    <div id="auto-start-upload-modal" class="modal-overlay" style="display: none; z-index: 10001;">
+        <div class="modal-content"
+            style="max-width: 500px; text-align: center; position: relative; padding: 40px 30px; border: 1px solid var(--border); direction: rtl;">
+            <!-- Close button optional for forced flow, but good to have -->
+            <button class="btn-icon" onclick="document.getElementById('auto-start-upload-modal').style.display='none'"
+                style="position: absolute; left: 15px; top: 15px; color: var(--text-muted); cursor: pointer;">
+                <i class="fa-solid fa-xmark" style="font-size: 20px;"></i>
+            </button>
+
+            <div class="modal-header"
+                style="justify-content: center; border-bottom: none; padding-bottom: 0; margin-bottom: 10px;">
+                <h3 style="font-size: 1.8rem; margin: 0; font-weight: 800;">מתחילים ליצור</h3>
+            </div>
+
+            <p style="color: #aaa; margin-bottom: 30px; font-size: 1.1rem;">בחרו מהיכן להעלות את התמונות הראשונות שלכם
+            </p>
+
+            <div class="modal-body"
+                style="display: flex; flex-direction: column; gap: 15px; padding-bottom: 20px; justify-content: center;">
+
+                <button id="btn-auto-upload-local" class="btn-secondary"
+                    style="width: 100%; display: flex; align-items: center; justify-content: center; height: 60px; gap: 12px; font-size: 1.2rem;">
+                    <i class="fa-solid fa-computer" style="font-size: 24px;"></i>
+                    מהמחשב שלי
+                </button>
+
+                <button id="btn-auto-upload-google" class="btn-primary"
+                    style="width: 100%; display: flex; align-items: center; justify-content: center; height: 60px; gap: 12px; font-size: 1.2rem; background-color: #4285F4; color: white; border: none;">
+                    <i class="fa-brands fa-google" style="font-size: 24px;"></i>
+                    Google Photos
+                </button>
+            </div>
+            <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
+                <i class="fa-solid fa-circle-info"></i> ניתן להוסיף עוד תמונות בכל שלב
+            </p>
+        </div>
+    </div>
+
+
 
 
     <!-- PDF Download Modal -->
@@ -278,8 +324,9 @@
     <script type="module" src="js/ai-editor/engines/render-engine.js"></script>
     <script type="module" src="js/ai-editor/engines/pdf-export.js"></script>
     <script type="module" src="js/ai-editor/engines/magic-create-v2.js"></script>
+    <script type="module" src="js/ai-editor/engines/magic-create-v4.js"></script>
     <script type="module" src="js/ai-editor/ui-components/magic-launcher.js"></script>
-    <script type="module" src="js/ai-editor/core/app.js?v=debug2"></script>
+    <script type="module" src="js/ai-editor/core/app.js?v=debug3"></script>
 
     <!-- New Template System -->
     <!-- Moved to data section -->

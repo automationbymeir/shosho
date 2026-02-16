@@ -32,8 +32,9 @@ export class PDFExport {
 
         try {
             // --- DYNAMIC DIMENSION LOGIC ---
-            // Editor defaults: 800x600 (4:3)
-            let width = 800;
+            // Editor defaults: 900x600 (3:2) - Matches .shoso-page CSS ratio (1.5)
+            // This fixes alignment mismatches where Preview is 3:2 but PDF was 4:3
+            let width = 900;
             let height = 600;
 
             if (this.templateConfig && this.templateConfig.designSystem && this.templateConfig.designSystem.canvas) {
@@ -69,7 +70,8 @@ export class PDFExport {
             await this.loadHebrewFont();
 
             // 2. Render Front Cover (Page 1)
-            if (cover && (cover.frontPhotoId || cover.title)) {
+            // Fix: Render cover even if title/photo missing (e.g. just background)
+            if (cover) {
                 console.log("PDF: Rendering Front Cover...");
                 await this.renderFrontCover(cover, assets);
             }
@@ -324,11 +326,18 @@ export class PDFExport {
         const height = this.doc.internal.pageSize.getHeight();
 
         // 0. Hydrate Layout Definition (if available)
+        // 0. Hydrate Layout Definition (if available)
         let layoutDef = null;
         // Fix: Check multiple properties for layout ID (rawLayoutId is used by TemplateManager)
         const targetLayoutId = page.layoutId || page.rawLayoutId || (page.layout ? page.layout.id : null);
 
-        if (this.templateConfig && this.templateConfig.pageLayouts && targetLayoutId) {
+        // PRIORITY FIX: Always prefer the specific page.layout slots if they exist.
+        // This ensures that manual position adjustments or generated layouts (Magic Create) 
+        // are respected instead of reverting to the static template definition.
+        if (page.layout && page.layout.slots && page.layout.slots.length > 0) {
+            layoutDef = page.layout;
+            console.log(`PDF: Using specific page.layout for page ${page.id} (Prioritizing over template ID)`);
+        } else if (this.templateConfig && this.templateConfig.pageLayouts && targetLayoutId) {
             layoutDef = this.templateConfig.pageLayouts.find(l => l.layoutId === targetLayoutId);
             if (layoutDef) {
                 console.log(`PDF: Hydrating page ${page.id} with layout ${targetLayoutId}`);
@@ -336,8 +345,8 @@ export class PDFExport {
             } else {
                 console.warn(`PDF: Layout ${targetLayoutId} not found in template config!`);
             }
-        } else if (page.layout && page.layout.slots) {
-            // Fallback to legacy page.layout object if fully populated (has slots)
+        } else if (page.layout) {
+            // Fallback to legacy page.layout object
             layoutDef = page.layout;
             console.log(`PDF: Using legacy page.layout for page ${page.id}`);
         } else {
@@ -376,12 +385,33 @@ export class PDFExport {
             console.log(`PDF: Processing ${photoSlots.length} photo slots...`);
             // We need to map the user's photos (array) to these slots
             // user photos are in page.photos or derived from page.slots in legacy
-            const userPhotos = page.photos || []; // Assuming array of photo objects or asset IDs
+            let userPhotos = page.photos || [];
+
+            // Legacy/MagicCreate Format Support: 
+            // If page.photos is empty, but slots define 'photoId', use the slots themselves as photo sources.
+            if (userPhotos.length === 0 && photoSlots.length > 0) {
+                // Check if slots have photoId
+                const hasEmbeddedPhotos = photoSlots.some(s => s.photoId);
+                if (hasEmbeddedPhotos) {
+                    console.log('PDF: Detected embedded photoIds in slots. Extracting...');
+                    // Map slots to a pseudo-photos array to match the loop below, 
+                    // OR just let the loop handle it if we adjust logic.
+                    // The loop expects userPhotos[i] to correspond to photoSlots[i]
+                    userPhotos = photoSlots.map(s => s.photoId ? { id: s.photoId } : null);
+                }
+            }
+
             console.log(`PDF: User photos available: ${userPhotos.length}`, userPhotos);
 
             for (let i = 0; i < photoSlots.length; i++) {
                 const slot = photoSlots[i];
-                const photo = userPhotos[i]; // Simple index matching for now
+                let photo = userPhotos[i];
+
+                // Fallback: If no photo object at this index, check the slot for embedded photoId
+                // (Common in Magic Create / Legacy structures)
+                if (!photo && (slot.photoId || slot.assetId)) {
+                    photo = { id: slot.photoId || slot.assetId };
+                }
 
                 if (photo) {
                     const sX = (slot.position && slot.position.x !== undefined) ? slot.position.x : slot.x;
@@ -602,23 +632,94 @@ export class PDFExport {
             if (theme && await this.drawTexture(theme, w, h)) return;
         }
 
-        // 2. Try specific bg ID (often same)
-        if (bgColorOrId && !bgColorOrId.startsWith('#')) {
-            const bg = window.BACKGROUND_TEXTURES?.find(t => t.id === bgColorOrId);
-            if (bg && await this.drawTexture(bg, w, h)) return;
+        // 2. Handle Object-Based Backgrounds (Magic Create V2/V3)
+        // Check strictly that it IS an object and NOT null.
+        if (bgColorOrId && typeof bgColorOrId === 'object') {
+            const bg = bgColorOrId;
+            if (bg.type === 'image' || bg.imageUrl) {
+                // Construct temp texture def
+                const tex = { url: bg.imageUrl, id: 'temp-bg-image' };
+                if (await this.drawTexture(tex, w, h)) return;
+            } else if (bg.type === 'ai_generated' && bg.ai_image_url) {
+                const tex = { url: bg.ai_image_url, id: 'temp-ai-bg' };
+                if (await this.drawTexture(tex, w, h)) return;
+            } else if (bg.color) {
+                this.doc.setFillColor(bg.color);
+                this.doc.rect(0, 0, w, h, 'F');
+                return;
+            } else if (bg.type === 'gradient' && bg.gradient_colors) {
+                // Naive fallback: use first color
+                this.doc.setFillColor(bg.gradient_colors[0]);
+                this.doc.rect(0, 0, w, h, 'F');
+                return;
+            }
+            // If object matches nothing, fall through to default.
         }
 
-        // 3. Fallback to Color
-        const color = (bgColorOrId && bgColorOrId.startsWith('#')) ? bgColorOrId : '#ffffff';
-        this.doc.setFillColor(color);
+        // 3. String Handlers
+        // STRICT CHECK: Type must be string.
+        if (typeof bgColorOrId === 'string' && bgColorOrId) {
+            // A) Texture ID (if not a hex color)
+            if (!bgColorOrId.startsWith('#') && !bgColorOrId.startsWith('rgb')) {
+                const bg = window.BACKGROUND_TEXTURES?.find(t => t.id === bgColorOrId);
+                if (bg && await this.drawTexture(bg, w, h)) return;
+            }
+
+            // B) Color String (Hex or RGB)
+            // jsPDF usually needs hex or specific color args.
+            if (bgColorOrId.startsWith('#') || bgColorOrId.startsWith('rgb')) {
+                this.doc.setFillColor(bgColorOrId);
+                this.doc.rect(0, 0, w, h, 'F');
+                return;
+            }
+
+            if (bgColorOrId === 'classic') {
+                this.doc.setFillColor('#1e293b'); // Dark Slate Blue for "Classic" (matches Editor panel)
+                this.doc.rect(0, 0, w, h, 'F');
+                return;
+            }
+
+            // Fallback for string: treat as color? Or ignored? 
+            // If it was a texture ID not found, it might be a weird color name.
+            // Let's try setting it as fill color just in case (e.g. "red", "blue")
+            try {
+                this.doc.setFillColor(bgColorOrId);
+                this.doc.rect(0, 0, w, h, 'F');
+                return;
+            } catch (e) {
+                console.warn('PDF: Invalid color string', bgColorOrId);
+            }
+        }
+
+        // 4. Default White
+        // If we got here, nothing matched.
+        this.doc.setFillColor('#ffffff');
         this.doc.rect(0, 0, w, h, 'F');
     }
 
     async drawTexture(textureDef, w, h) {
         if (textureDef && textureDef.url) {
             try {
-                const result = await this.loadImage(textureDef.url);
-                this.doc.addImage(result.data, 'JPEG', 0, 0, w, h);
+                // Fix: Upgrade texture resolution
+                let url = textureDef.url;
+                if (url.includes('unsplash.com') && url.includes('&w=')) {
+                    url = url.replace(/&w=\d+/, '&w=2048');
+                }
+                const result = await this.loadImage(url);
+
+                // Simulate background-size: cover to prevent distortion/blur
+                const dims = this.calculateCoverDimensions(0, 0, w, h, result.width, result.height);
+
+                // Clip to page bounds (in case cover extends beyond)
+                this.doc.saveGraphicsState();
+                this.doc.rect(0, 0, w, h); // Define clipping path
+                this.doc.clip();
+
+                // Draw image with calculated cover dimensions
+                // Remove 'FAST' to ensure quality
+                this.doc.addImage(result.data, 'JPEG', dims.x, dims.y, dims.width, dims.height);
+
+                this.doc.restoreGraphicsState();
                 return true;
             } catch (e) {
                 console.warn("PDF: Failed to load texture", textureDef.id, e);
@@ -940,7 +1041,8 @@ export class PDFExport {
                 this.doc.clip();
 
                 // Draw image with cover dimensions (may extend beyond slot, but will be clipped)
-                this.doc.addImage(imageData, 'JPEG', coverDims.x, coverDims.y, coverDims.width, coverDims.height, undefined, 'FAST');
+                // Remove 'FAST' to ensure high quality (using default 'NONE' or 'SLOW' equivalent)
+                this.doc.addImage(imageData, 'JPEG', coverDims.x, coverDims.y, coverDims.width, coverDims.height);
 
                 // Restore graphics state (removes clipping)
                 this.doc.restoreGraphicsState();

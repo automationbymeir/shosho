@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium 3D Book Experience</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #222;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.8);
+            font-family: 'Inter', sans-serif;
+            font-size: 1.2rem;
+            letter-spacing: 0.1em;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">ASSEMBLING BOOK...</div>
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Premium Configuration ---
+        const CONFIG = {
+            width: 15,
+            height: 22,
+            thickness: 0.04, // Quality paper thickness
+            segments: 50,    // Smooth bending
+            pageCount: 12,
+            curveStrength: 2.5
+        };
+
+        let scene, camera, renderer, controls, bookGroup;
+        const pages = [];
+        let isAnimating = false;
+
+        // Raycaster
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        init();
+        animate();
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // 1. Renderer - High Quality Settings
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit DPI for perf
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft, expensive shadows
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            container.appendChild(renderer.domElement);
+
+            // 2. Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+
+            // 3. Camera (Cinematic Angle)
+            camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 40, 35); // High angle
+            camera.lookAt(0, 0, 0);
+
+            // 4. Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 1.6; // No under-table peeking
+            controls.minDistance = 20;
+            controls.maxDistance = 80;
+
+            // 5. Lighting (Bright Studio)
+            setupLighting();
+
+            // 6. Build Book
+            createBook();
+
+            // 7. Events
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('pointerdown', onPointerDown);
+
+            // Fade out loader
+            setTimeout(() => {
+                const el = document.getElementById('loading');
+                if (el) el.style.opacity = 0;
+            }, 1000);
+        }
+
+        function setupLighting() {
+            // 1. Hemisphere (Sky/Ground) - GUARANTEED BASE VISIBILITY
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2.0);
+            hemiLight.position.set(0, 50, 0);
+            scene.add(hemiLight);
+
+            // 2. Main Directional Light (Sun)
+            const dirLight = new THREE.DirectionalLight(0xffffff, 3.0);
+            dirLight.position.set(10, 30, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.bias = -0.0001;
+            scene.add(dirLight);
+
+            // 3. Ambient (Fill)
+            const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+            scene.add(ambient);
+
+            // Table Surface (Receiver)
+            const planeGeo = new THREE.PlaneGeometry(200, 200);
+            const planeMat = new THREE.ShadowMaterial({ opacity: 0.15 });
+            const plane = new THREE.Mesh(planeGeo, planeMat);
+            plane.rotation.x = -Math.PI / 2;
+            plane.position.y = -CONFIG.height / 2;
+            plane.receiveShadow = true;
+            scene.add(plane);
+        }
+
+        function createBook() {
+            bookGroup = new THREE.Group();
+            scene.add(bookGroup);
+
+            // --- Loading Manager (Fixes Pop-in & Lag) ---
+            const manager = new THREE.LoadingManager();
+            manager.onLoad = () => {
+                // Force GPU Upload of all textures before showing book
+                console.log("Assets loaded. Pre-uploading to GPU...");
+                pages.forEach(p => {
+                    const mats = p.mesh.material;
+                    mats.forEach(m => {
+                        if (m.map) renderer.initTexture(m.map);
+                    });
+                });
+
+                // Fade out loader
+                const el = document.getElementById('loading');
+                if (el) {
+                    el.style.opacity = 0;
+                    setTimeout(() => el.remove(), 1000);
+                }
+            };
+
+            const textureLoader = new THREE.TextureLoader(manager);
+
+            // Paper Edge Material
+            const matEdge = new THREE.MeshStandardMaterial({
+                color: 0xfdfbf7,
+                roughness: 0.9,
+                side: THREE.FrontSide
+            });
+
+            // Spine Material (Dark Grey/Black)
+            const matSpine = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                roughness: 0.9
+            });
+
+            // Geometry
+            const geometry = new THREE.BoxGeometry(CONFIG.width, CONFIG.thickness, CONFIG.height, 60, 1, 1);
+            geometry.translate(CONFIG.width / 2, 0, 0);
+
+            // Tighten spacing to remove gaps (Match togglePage)
+            const spacing = CONFIG.thickness + 0.0004;
+
+            for (let i = 0; i < CONFIG.pageCount; i++) {
+                const group = new THREE.Group();
+
+                // SHARED SPINE AXIS: All groups anchored at 0,0,0.
+                group.position.set(0, 0, 0);
+
+                // Textures (High Res)
+                const imgIndex = 110 + i * 2;
+                const urlFront = `https://picsum.photos/id/${imgIndex}/1024/1536`;
+                const urlBack = `https://picsum.photos/id/${imgIndex + 1}/1024/1536`;
+
+                const loadMat = (url, isBack) => {
+                    const tex = textureLoader.load(url);
+                    tex.colorSpace = THREE.SRGBColorSpace;
+                    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                    tex.generateMipmaps = true;
+
+                    // Fix Orientation
+                    tex.center.set(0.5, 0.5);
+                    if (isBack) {
+                        tex.rotation = Math.PI;
+                        tex.repeat.x = 1;
+                        tex.repeat.y = 1;
+                    } else {
+                        tex.rotation = 0;
+                    }
+
+                    return new THREE.MeshStandardMaterial({
+                        map: tex,
+                        roughness: 0.4,
+                        metalness: 0.05,
+                        polygonOffset: true,
+                        polygonOffsetFactor: -1 * i,
+                        polygonOffsetUnits: 1
+                    });
+                };
+
+                const matFront = loadMat(urlFront, false);
+                const matBack = loadMat(urlBack, true);
+
+                const thisEdge = matEdge.clone(); thisEdge.polygonOffset = true;
+                const thisSpine = matSpine.clone(); thisSpine.polygonOffset = true;
+
+                const materials = [
+                    thisEdge, thisSpine,
+                    matFront, matBack,
+                    thisEdge, thisEdge
+                ];
+
+                const mesh = new THREE.Mesh(geometry, materials);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+                // MESH OFFSET LOGIC
+                // Page i: Offset = (N-1-i)*spacing
+                // Page 0 (Top) -> High Offset (+Y)
+                // Page N (Bottom) -> Low Offset (0)
+                const initialOffset = (CONFIG.pageCount - 1 - i) * spacing;
+                mesh.position.y = initialOffset;
+
+                enableBending(mesh);
+
+                group.add(mesh);
+                bookGroup.add(group);
+
+                pages.push({
+                    group: group,
+                    mesh: mesh,
+                    isFlipped: false,
+                    index: i
+                });
+            }
+
+            // Apply initial stacking logic
+            updateZIndices();
+
+            controls.target.set(0, 0, 0);
+            bookGroup.rotation.x = -0.3;
+        }
+
+        // --- Improved Bending Shader ---
+        function enableBending(mesh) {
+            mesh.userData.uniforms = {
+                uBend: { value: 0.0 },
+                uDir: { value: 1.0 }
+            };
+
+            const onBeforeCompile = (shader) => {
+                shader.uniforms.uBend = mesh.userData.uniforms.uBend;
+                shader.uniforms.uDir = mesh.userData.uniforms.uDir;
+
+                shader.vertexShader = shader.vertexShader.replace(
+                    '#include <common>',
+                    `
+                    #include <common>
+                    uniform float uBend;
+                    uniform float uDir;
+                    `
+                );
+
+                shader.vertexShader = shader.vertexShader.replace(
+                    '#include <begin_vertex>',
+                    `
+                    #include <begin_vertex>
+                    
+                    float xPos = position.x;
+                    float width = 3.5; 
+                    float xNorm = clamp(xPos / width, 0.0, 1.0);
+                    
+                    // Dynamic Curl
+                    float bendAmount = uBend * 1.5; 
+                    float curl = -bendAmount * pow(xNorm, 2.0) * uDir;
+                    
+                    // Static Spine Curve
+                    float spineCurl = -0.05 * pow(1.0 - xNorm, 3.0) * uDir;
+                    
+                    transformed.y += curl + spineCurl;
+                    `
+                );
+            };
+
+            mesh.material.forEach(m => {
+                m.onBeforeCompile = onBeforeCompile;
+            });
+
+            const depthMat = new THREE.MeshDepthMaterial({
+                depthPacking: THREE.RGBADepthPacking
+            });
+            depthMat.onBeforeCompile = onBeforeCompile;
+            mesh.customDepthMaterial = depthMat;
+        }
+
+        function onPointerDown(e) {
+            if (isAnimating) return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(pages.map(p => p.mesh));
+
+            if (intersects.length > 0) {
+                const rightStack = pages.filter(p => !p.isFlipped).sort((a, b) => a.index - b.index);
+                const leftStack = pages.filter(p => p.isFlipped).sort((a, b) => b.index - a.index);
+
+                const nextToFlip = rightStack[0];
+                const nextToClose = leftStack[0];
+
+                const hitMesh = intersects[0].object;
+                const hitPage = pages.find(p => p.mesh === hitMesh);
+
+                if (!hitPage) return;
+
+                if (!hitPage.isFlipped && nextToFlip) {
+                    togglePage(nextToFlip);
+                } else if (hitPage.isFlipped && nextToClose) {
+                    togglePage(nextToClose);
+                }
+            }
+        }
+
+        function togglePage(page) {
+            isAnimating = true;
+
+            page.mesh.renderOrder = 999;
+            if (page.mesh.material[0].polygonOffset) {
+                page.mesh.material.forEach(m => m.polygonOffsetFactor = -999);
+            }
+
+            const isClosing = page.isFlipped;
+            const targetRot = isClosing ? 0 : Math.PI;
+            const dur = 1.0;
+
+            // PURE ROTATION.
+            // No position animation needed.
+            // The Group is at (0,0,0). The Mesh is offset Y.
+            // Rotation moves (0, +Offset, 0) to (0, -Offset, 0) naturally.
+
+            gsap.to(page.group.rotation, {
+                z: targetRot,
+                duration: dur,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    page.isFlipped = !page.isFlipped;
+                    isAnimating = false;
+                    updateZIndices();
+                }
+            });
+
+            const bendObj = { val: 0 };
+            const tl = gsap.timeline();
+            tl.to(bendObj, {
+                val: 1.0,
+                duration: dur * 0.45,
+                ease: "sine.out",
+                onUpdate: () => setBend(page, bendObj.val)
+            })
+                .to(bendObj, {
+                    val: 0.0,
+                    duration: dur * 0.55,
+                    ease: "sine.in",
+                    onUpdate: () => setBend(page, bendObj.val)
+                });
+        }
+
+        // --- Global Stacking Enforcer ---
+        function updateZIndices() {
+            pages.forEach(p => {
+                let zIndex = 0;
+
+                if (p.isFlipped) {
+                    // Left Stack: 
+                    // Page 0 (Bottom) -> Index 0
+                    // Page 1 (Top) -> Index 1
+                    // Higher Index = Physically Higher = Must Draw LAST (Painter's Algo)
+                    // zIndex = p.index + 1;
+
+                    // Actually, ThreeJS renderOrder: Higher = Drawn Later = On Top.
+                    zIndex = p.index + 1;
+                } else {
+                    // Right Stack:
+                    // Page 0 (Top) -> Index 0
+                    // Page 1 (Bottom) -> Index 1
+                    // Lower Index = Physically Higher = Must Draw LAST
+                    zIndex = CONFIG.pageCount - p.index;
+                }
+
+                // Active animating page is handled by temp override (999), 
+                // so we only set this for resting pages.
+
+                p.mesh.renderOrder = zIndex;
+
+                // Polygon Offset: Negative factor pulls it CLOSER to camera.
+                // We want the TOPMOST page to be closest.
+                // Higher zIndex = Topmost.
+                // So factor should be -zIndex.
+                if (p.mesh.material[0].polygonOffset) {
+                    p.mesh.material.forEach(m => m.polygonOffsetFactor = -zIndex);
+                }
+            });
+        }
+
+
+
+        function setBend(page, val) {
+            if (page.mesh.userData.uniforms) {
+                // Physics Fix: Invert bend direction based on rotation.
+                // 0 deg (Right) -> cos=1  -> Bend +Y (Up)
+                // 180 deg (Left) -> cos=-1 -> Bend -Y (Down in Local) -> UP in World!
+                // This ensures the "Belly" of the page is always UP, 
+                // preventing it from clipping into the stack below.
+                const angle = page.group.rotation.z;
+                const dir = Math.cos(angle);
+                page.mesh.userData.uniforms.uBend.value = val * dir;
+
+                // Spine Orientation Correction
+                if (page.mesh.userData.uniforms.uDir) {
+                    page.mesh.userData.uniforms.uDir.value = dir;
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+
+</html>

@@ -89,15 +89,32 @@ class BarMitzvahRenderer {
         this.alignmentRenderer = new TextAlignmentRenderer(this.ds);
     }
 
-    renderPage(pageLayout, photos, textContent, textPositions = {}) {
+    renderPage(pageLayout, photos, textContent, textPositions = {}, pageState = {}) {
         const page = document.createElement('div');
         page.className = `album-page bar-mitzvah ${pageLayout.layoutId}`;
 
         const width = this.ds.canvas ? this.ds.canvas.width : 800;
         const height = this.ds.canvas ? this.ds.canvas.height : 600;
 
+        // Base styles
+        let bgStyle = `background-color: ${this.ds.colors.background};`;
+
+        // Apply Custom Background from State
+        if (pageState.background) {
+            if (typeof pageState.background === 'string') {
+                if (pageState.background.startsWith('#') || pageState.background.startsWith('rgb')) {
+                    bgStyle = `background-color: ${pageState.background};`;
+                } else if (pageState.background.startsWith('http') || pageState.background.startsWith('data:') || pageState.background.startsWith('url')) {
+                    const url = pageState.background.startsWith('url') ? pageState.background : `url('${pageState.background}')`;
+                    bgStyle = `background-image: ${url}; background-size: cover; background-position: center;`;
+                }
+            } else if (typeof pageState.background === 'object' && pageState.background.color) {
+                bgStyle = `background-color: ${pageState.background.color};`;
+            }
+        }
+
         page.style.cssText = `
-            background-color: ${this.ds.colors.background};
+            ${bgStyle}
             direction: rtl; /* Global RTL */
         `;
 
@@ -108,7 +125,7 @@ class BarMitzvahRenderer {
         if (pageLayout.photoSlots) {
             pageLayout.photoSlots.forEach((slot, index) => {
                 const photo = photos[index];
-                this.renderPhotoSlot(page, slot, photo, index);
+                this.renderPhotoSlot(page, slot, photo, index, pageState);
             });
         }
 
@@ -122,6 +139,12 @@ class BarMitzvahRenderer {
         }
 
         return page;
+    }
+
+    createSVG(content, w, h) {
+        const div = document.createElement('div');
+        div.innerHTML = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="display:block; width:100%; height:100%">${content}</svg>`;
+        return div.firstElementChild;
     }
 
     renderTextElement(page, textEl, content, customPos = null) {
@@ -216,7 +239,7 @@ class BarMitzvahRenderer {
         page.appendChild(element);
     }
 
-    renderPhotoSlot(page, slot, photo, index) {
+    renderPhotoSlot(page, slot, photo, index, pageState = {}) {
         const container = document.createElement('div');
         container.className = `photo-slot photo-${slot.photoStyle || 'default'}`;
         container.dataset.slotId = slot.slotId;
@@ -249,6 +272,53 @@ class BarMitzvahRenderer {
             direction: ltr; /* Reset direction for image container */
             cursor: pointer;
         `;
+
+        // Check for Custom Frame (New Feature)
+        let frameId = null;
+        if (pageState.layout && pageState.layout.slots) {
+            // Find corresponding slot in state
+            // Logic: usually slotId matches, or photoId if present
+            const stateSlot = pageState.layout.slots.find(s => s.slotId === slot.slotId || (photo && s.photoId === photo.id));
+            if (stateSlot && stateSlot.frameId) {
+                frameId = stateSlot.frameId;
+            }
+        }
+        // Also check page-level default
+        if (!frameId && pageState.imageFrameId) {
+            frameId = pageState.imageFrameId;
+        }
+
+        // Apply Frame if present
+        if (frameId && window.IMAGE_FRAMES) {
+            const frameDef = window.IMAGE_FRAMES.find(f => f.id === frameId);
+            if (frameDef) {
+                const pageWidth = this.ds.canvas ? this.ds.canvas.width : 800;
+                const pageHeight = this.ds.canvas ? this.ds.canvas.height : 600;
+
+                const slotW = (pageWidth * parseFloat(slot.size.width)) / 100;
+                const slotH = (pageHeight * parseFloat(slot.size.height)) / 100;
+
+                const shape = slot.shape || 'rect';
+                const color = slot.frameColor || frameDef.color;
+
+                // Ensure svgGen exists
+                if (typeof frameDef.svgGen === 'function') {
+                    const svgContent = frameDef.svgGen(slotW, slotH, color, shape);
+                    const svgEl = this.createSVG(svgContent, slotW, slotH);
+                    svgEl.style.position = 'absolute';
+                    svgEl.style.inset = '0';
+                    svgEl.style.pointerEvents = 'none';
+                    svgEl.style.zIndex = 10; // Ensure it overlays the image
+                    container.appendChild(svgEl);
+
+                    // Override container styles regarding border/shadow as frame takes over
+                    containerStyles = containerStyles.replace(/box-shadow:[^;]+;/, 'box-shadow: none;');
+                    containerStyles = containerStyles.replace(/border:[^;]+;/, 'border: none;');
+                    containerStyles = containerStyles.replace(/border-radius:[^;]+;/, 'border-radius: 0;');
+                    container.style.cssText = containerStyles;
+                }
+            }
+        }
 
         if (styleConfig.outerShadow) {
             // If outer shadow is unique, maybe use filter? sticking to box-shadow above.
@@ -323,9 +393,14 @@ class BarMitzvahRenderer {
             container.addEventListener('mouseleave', () => removeBtn.style.opacity = '0');
             container.appendChild(removeBtn);
         } else {
+
             const help = document.createElement('div');
             help.innerText = "+";
             help.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color: #CCC; font-size: 24px; pointer-events: none;";
+
+            container.classList.add('empty-slot');
+            container.dataset.selectableType = 'empty-slot';
+            container.dataset.slotIndex = index;
             container.appendChild(help);
         }
 

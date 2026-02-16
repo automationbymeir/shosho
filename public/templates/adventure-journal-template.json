@@ -1,0 +1,1694 @@
+{
+    "templateId": "adventure-journal-v1",
+    "templateName": "יומן הרפתקאות - Adventure Journal",
+    "templateDescription": "תבנית מודרנית ונועזת לאלבום טיולים בסגנון יומן הרפתקאות. צבעי אדמה עשירים, אלמנטים גרפיים של מפות וחותמות, ופריסות דינמיות שמספרות את סיפור המסע.",
+    "version": "1.0.0",
+    "category": "travel",
+    "tags": [
+        "travel",
+        "טיול",
+        "adventure",
+        "הרפתקה",
+        "journey",
+        "מסע",
+        "explore",
+        "journal",
+        "יומן"
+    ],
+    "language": "he",
+    "direction": "rtl",
+    "minPhotos": 30,
+    "maxPhotos": 200,
+    "recommendedPhotos": 80,
+    "designSystem": {
+        "canvas": {
+            "width": 800,
+            "height": 600,
+            "aspectRatio": "4:3"
+        },
+        "direction": "rtl",
+        "colors": {
+            "background": "#F5F0E8",
+            "backgroundAlt": "#E8E0D0",
+            "backgroundDark": "#2C3E2D",
+            "accent": {
+                "primary": "#C65D3B",
+                "secondary": "#3D6B59",
+                "tertiary": "#D4A03E"
+            },
+            "text": {
+                "primary": "#2C3E2D",
+                "secondary": "#5A6B5E",
+                "light": "#8A9488",
+                "inverse": "#F5F0E8",
+                "rust": "#C65D3B",
+                "gold": "#D4A03E"
+            },
+            "decorative": {
+                "rust": "#C65D3B",
+                "forest": "#3D6B59",
+                "sand": "#D4C4A8",
+                "gold": "#D4A03E",
+                "cream": "#F5F0E8"
+            }
+        },
+        "typography": {
+            "display": {
+                "family": "Bebas Neue",
+                "fallback": "Impact, Arial Black, sans-serif",
+                "weights": [
+                    400
+                ],
+                "usage": "כותרות גדולות, שמות מקומות"
+            },
+            "handwritten": {
+                "family": "Caveat",
+                "fallback": "cursive",
+                "weights": [
+                    400,
+                    500,
+                    600,
+                    700
+                ],
+                "usage": "הערות, תאריכים, אלמנטים אישיים"
+            },
+            "hebrew": {
+                "family": "Heebo",
+                "fallback": "Arial Hebrew, Arial, sans-serif",
+                "weights": [
+                    300,
+                    400,
+                    500,
+                    700
+                ],
+                "usage": "טקסט עברי"
+            },
+            "mono": {
+                "family": "Space Mono",
+                "fallback": "Courier New, monospace",
+                "weights": [
+                    400,
+                    700
+                ],
+                "usage": "קואורדינטות, נתונים"
+            }
+        },
+        "photoStyles": {
+            "default": {
+                "borderRadius": "4px",
+                "shadow": "0 8px 30px rgba(44, 62, 45, 0.15)",
+                "border": "none"
+            },
+            "polaroid": {
+                "borderRadius": "2px",
+                "shadow": "0 10px 40px rgba(44, 62, 45, 0.2)",
+                "padding": "12px 12px 50px 12px",
+                "background": "#FFFFFF"
+            },
+            "stamp": {
+                "borderRadius": "0px",
+                "border": "3px dashed #C65D3B",
+                "shadow": "none"
+            },
+            "torn": {
+                "borderRadius": "2px",
+                "shadow": "0 6px 25px rgba(44, 62, 45, 0.15)",
+                "filter": "drop-shadow(2px 2px 0 rgba(0,0,0,0.1))"
+            },
+            "tilted": {
+                "borderRadius": "2px",
+                "shadow": "0 15px 40px rgba(44, 62, 45, 0.2)",
+                "transform": "rotate(-2deg)"
+            },
+            "map": {
+                "borderRadius": "0px",
+                "border": "none",
+                "opacity": "0.15"
+            }
+        },
+        "decorativeElements": {
+            "compass": {
+                "type": "svg",
+                "color": "#C65D3B"
+            },
+            "stamp": {
+                "type": "svg",
+                "color": "#C65D3B"
+            },
+            "mapPin": {
+                "type": "svg",
+                "color": "#3D6B59"
+            },
+            "plane": {
+                "type": "svg",
+                "color": "#D4A03E"
+            },
+            "dashedLine": {
+                "type": "line",
+                "style": "dashed",
+                "color": "#C65D3B"
+            },
+            "tape": {
+                "type": "svg",
+                "color": "#D4C4A8"
+            }
+        }
+    },
+    "textAlignmentSystem": {
+        "direction": "rtl",
+        "mixedContent": "Hebrew RTL with English/coordinates LTR inline"
+    },
+    "pageLayouts": [
+        {
+            "layoutId": "cover-passport",
+            "layoutName": "שער - דרכון",
+            "pageType": "cover",
+            "backgroundType": "dark",
+            "backgroundColor": "#2C3E2D",
+            "photoSlots": [
+                {
+                    "slotId": "mainPhoto",
+                    "position": {
+                        "x": "20%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "60%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "polaroid",
+                    "rotation": "-2deg"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "passportLabel",
+                    "type": "mono",
+                    "content": "TRAVEL JOURNAL",
+                    "position": {
+                        "x": "50%",
+                        "y": "5%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "mono",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "gold",
+                        "align": "center",
+                        "letterSpacing": "4px"
+                    }
+                },
+                {
+                    "elementId": "destination",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "68%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "64px",
+                        "weight": 400,
+                        "color": "inverse",
+                        "align": "center",
+                        "letterSpacing": "6px"
+                    },
+                    "placeholder": "ICELAND",
+                    "editable": true
+                },
+                {
+                    "elementId": "hebrewName",
+                    "type": "hebrew",
+                    "position": {
+                        "x": "50%",
+                        "y": "78%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "24px",
+                        "weight": 300,
+                        "color": "inverse",
+                        "align": "center"
+                    },
+                    "placeholder": "איסלנד",
+                    "editable": true
+                },
+                {
+                    "elementId": "dates",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "50%",
+                        "y": "88%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "20px",
+                        "weight": 500,
+                        "color": "gold",
+                        "align": "center"
+                    },
+                    "placeholder": "March 2025",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "stamp",
+                    "position": {
+                        "x": "75%",
+                        "y": "20%"
+                    },
+                    "size": {
+                        "width": "80px",
+                        "height": "80px"
+                    },
+                    "rotation": "15deg"
+                },
+                {
+                    "type": "compass",
+                    "position": {
+                        "x": "10%",
+                        "y": "75%"
+                    },
+                    "size": {
+                        "width": "60px",
+                        "height": "60px"
+                    },
+                    "opacity": 0.3
+                }
+            ]
+        },
+        {
+            "layoutId": "chapter-map",
+            "layoutName": "פרק - מפה",
+            "pageType": "chapter",
+            "backgroundType": "light",
+            "photoSlots": [],
+            "textElements": [
+                {
+                    "elementId": "chapterNum",
+                    "type": "display",
+                    "content": "01",
+                    "position": {
+                        "x": "50%",
+                        "y": "25%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "120px",
+                        "weight": 400,
+                        "color": "rust",
+                        "align": "center",
+                        "opacity": "0.15"
+                    }
+                },
+                {
+                    "elementId": "location",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "42%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "52px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center",
+                        "letterSpacing": "4px"
+                    },
+                    "placeholder": "REYKJAVIK",
+                    "editable": true
+                },
+                {
+                    "elementId": "hebrewLocation",
+                    "type": "hebrew",
+                    "position": {
+                        "x": "50%",
+                        "y": "54%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "20px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "רייקיאוויק, איסלנד",
+                    "editable": true
+                },
+                {
+                    "elementId": "coordinates",
+                    "type": "mono",
+                    "position": {
+                        "x": "50%",
+                        "y": "65%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "mono",
+                        "size": "12px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center",
+                        "letterSpacing": "2px"
+                    },
+                    "placeholder": "64.1466° N, 21.9426° W",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "mapPin",
+                    "position": {
+                        "x": "50%",
+                        "y": "75%"
+                    },
+                    "size": {
+                        "width": "30px",
+                        "height": "40px"
+                    }
+                },
+                {
+                    "type": "dashedLine",
+                    "position": {
+                        "x": "20%",
+                        "y": "80%"
+                    },
+                    "size": {
+                        "width": "60%",
+                        "height": "2px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "polaroid-stack",
+            "layoutName": "ערימת פולרויד",
+            "pageType": "gallery",
+            "backgroundType": "light",
+            "photoSlots": [
+                {
+                    "slotId": "polaroid1",
+                    "position": {
+                        "x": "8%",
+                        "y": "12%"
+                    },
+                    "size": {
+                        "width": "35%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "polaroid",
+                    "rotation": "-5deg"
+                },
+                {
+                    "slotId": "polaroid2",
+                    "position": {
+                        "x": "32%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "35%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "polaroid",
+                    "rotation": "3deg"
+                },
+                {
+                    "slotId": "polaroid3",
+                    "position": {
+                        "x": "55%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "35%",
+                        "height": "45%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "polaroid",
+                    "rotation": "-2deg"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "note1",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "18%",
+                        "y": "62%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 18%; transform: translateX(-50%) rotate(-5deg);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "16px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center"
+                    },
+                    "placeholder": "Sunrise!",
+                    "editable": true
+                },
+                {
+                    "elementId": "title",
+                    "type": "hebrew",
+                    "content": "רגעים מהדרך",
+                    "position": {
+                        "x": "50%",
+                        "y": "78%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "28px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "date",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "50%",
+                        "y": "88%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "18px",
+                        "weight": 400,
+                        "color": "rust",
+                        "align": "center"
+                    },
+                    "placeholder": "Day 3",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "tape",
+                    "position": {
+                        "x": "25%",
+                        "y": "10%"
+                    },
+                    "rotation": "-10deg"
+                },
+                {
+                    "type": "tape",
+                    "position": {
+                        "x": "70%",
+                        "y": "13%"
+                    },
+                    "rotation": "5deg"
+                }
+            ]
+        },
+        {
+            "layoutId": "journey-timeline",
+            "layoutName": "ציר המסע",
+            "pageType": "story",
+            "backgroundType": "light",
+            "photoSlots": [
+                {
+                    "slotId": "stop1",
+                    "position": {
+                        "x": "5%",
+                        "y": "25%"
+                    },
+                    "size": {
+                        "width": "25%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "stop2",
+                    "position": {
+                        "x": "37.5%",
+                        "y": "25%"
+                    },
+                    "size": {
+                        "width": "25%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "stop3",
+                    "position": {
+                        "x": "70%",
+                        "y": "25%"
+                    },
+                    "size": {
+                        "width": "25%",
+                        "height": "32%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "hebrew",
+                    "content": "המסלול",
+                    "position": {
+                        "x": "50%",
+                        "y": "6%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "32px",
+                        "weight": 500,
+                        "color": "primary",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "day1",
+                    "type": "display",
+                    "content": "DAY 1",
+                    "position": {
+                        "x": "17.5%",
+                        "y": "62%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 17.5%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "18px",
+                        "weight": 400,
+                        "color": "rust",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "place1",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "17.5%",
+                        "y": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 17.5%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "16px",
+                        "weight": 500,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "Golden Circle",
+                    "editable": true
+                },
+                {
+                    "elementId": "day2",
+                    "type": "display",
+                    "content": "DAY 3",
+                    "position": {
+                        "x": "50%",
+                        "y": "62%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "18px",
+                        "weight": 400,
+                        "color": "rust",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "place2",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "50%",
+                        "y": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "16px",
+                        "weight": 500,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "Blue Lagoon",
+                    "editable": true
+                },
+                {
+                    "elementId": "day3",
+                    "type": "display",
+                    "content": "DAY 5",
+                    "position": {
+                        "x": "82.5%",
+                        "y": "62%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 82.5%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "18px",
+                        "weight": 400,
+                        "color": "rust",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "place3",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "82.5%",
+                        "y": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 82.5%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "16px",
+                        "weight": 500,
+                        "color": "secondary",
+                        "align": "center"
+                    },
+                    "placeholder": "Northern Lights",
+                    "editable": true
+                },
+                {
+                    "elementId": "distance",
+                    "type": "mono",
+                    "position": {
+                        "x": "50%",
+                        "y": "85%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "mono",
+                        "size": "11px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "center",
+                        "letterSpacing": "2px"
+                    },
+                    "placeholder": "TOTAL: 1,247 KM",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "dashedLine",
+                    "position": {
+                        "x": "17.5%",
+                        "y": "59%"
+                    },
+                    "size": {
+                        "width": "65%",
+                        "height": "2px"
+                    }
+                },
+                {
+                    "type": "mapPin",
+                    "position": {
+                        "x": "17.5%",
+                        "y": "57%"
+                    },
+                    "size": {
+                        "width": "20px",
+                        "height": "25px"
+                    }
+                },
+                {
+                    "type": "mapPin",
+                    "position": {
+                        "x": "50%",
+                        "y": "57%"
+                    },
+                    "size": {
+                        "width": "20px",
+                        "height": "25px"
+                    }
+                },
+                {
+                    "type": "mapPin",
+                    "position": {
+                        "x": "82.5%",
+                        "y": "57%"
+                    },
+                    "size": {
+                        "width": "20px",
+                        "height": "25px"
+                    }
+                }
+            ]
+        },
+        {
+            "layoutId": "postcard-grid",
+            "layoutName": "גלויות",
+            "pageType": "gallery",
+            "backgroundType": "alt",
+            "photoSlots": [
+                {
+                    "slotId": "card1",
+                    "position": {
+                        "x": "4%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "stamp"
+                },
+                {
+                    "slotId": "card2",
+                    "position": {
+                        "x": "52%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "stamp"
+                },
+                {
+                    "slotId": "card3",
+                    "position": {
+                        "x": "4%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "stamp"
+                },
+                {
+                    "slotId": "card4",
+                    "position": {
+                        "x": "52%",
+                        "y": "52%"
+                    },
+                    "size": {
+                        "width": "44%",
+                        "height": "38%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "stamp"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "caption1",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "26%",
+                        "y": "48%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 26%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "14px",
+                        "weight": 500,
+                        "color": "rust",
+                        "align": "center"
+                    },
+                    "placeholder": "Wish you were here!",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption2",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "74%",
+                        "y": "48%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 74%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "14px",
+                        "weight": 500,
+                        "color": "rust",
+                        "align": "center"
+                    },
+                    "placeholder": "Amazing view",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption3",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "26%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 26%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "14px",
+                        "weight": 500,
+                        "color": "rust",
+                        "align": "center"
+                    },
+                    "placeholder": "Local food ♥",
+                    "editable": true
+                },
+                {
+                    "elementId": "caption4",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "74%",
+                        "y": "92%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 74%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "14px",
+                        "weight": 500,
+                        "color": "rust",
+                        "align": "center"
+                    },
+                    "placeholder": "Best day ever",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "stamp",
+                    "position": {
+                        "x": "42%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "50px",
+                        "height": "50px"
+                    },
+                    "rotation": "-8deg"
+                },
+                {
+                    "type": "stamp",
+                    "position": {
+                        "x": "90%",
+                        "y": "45%"
+                    },
+                    "size": {
+                        "width": "50px",
+                        "height": "50px"
+                    },
+                    "rotation": "12deg"
+                }
+            ]
+        },
+        {
+            "layoutId": "hero-landscape",
+            "layoutName": "נוף גיבור",
+            "pageType": "showcase",
+            "backgroundType": "dark",
+            "photoSlots": [
+                {
+                    "slotId": "hero",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "fullBleed",
+                    "overlay": "linear-gradient(to bottom, transparent 50%, rgba(44, 62, 45, 0.9) 100%)"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "location",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "78%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "48px",
+                        "weight": 400,
+                        "color": "inverse",
+                        "align": "center",
+                        "letterSpacing": "4px"
+                    },
+                    "placeholder": "JÖKULSÁRLÓN",
+                    "editable": true
+                },
+                {
+                    "elementId": "description",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "50%",
+                        "y": "90%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "20px",
+                        "weight": 400,
+                        "color": "gold",
+                        "align": "center"
+                    },
+                    "placeholder": "Glacier Lagoon",
+                    "editable": true
+                }
+            ],
+            "decorations": []
+        },
+        {
+            "layoutId": "story-journal",
+            "layoutName": "דף יומן",
+            "pageType": "story",
+            "backgroundType": "light",
+            "photoSlots": [
+                {
+                    "slotId": "mainPhoto",
+                    "position": {
+                        "x": "45%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "50%",
+                        "height": "65%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "tilted"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "dayLabel",
+                    "type": "display",
+                    "content": "DAY",
+                    "position": {
+                        "x": "6%",
+                        "y": "10%"
+                    },
+                    "alignment": {
+                        "horizontal": "left",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "light",
+                        "align": "left",
+                        "letterSpacing": "3px"
+                    }
+                },
+                {
+                    "elementId": "dayNumber",
+                    "type": "display",
+                    "position": {
+                        "x": "6%",
+                        "y": "15%"
+                    },
+                    "alignment": {
+                        "horizontal": "left",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "72px",
+                        "weight": 400,
+                        "color": "rust",
+                        "align": "left"
+                    },
+                    "placeholder": "04",
+                    "editable": true
+                },
+                {
+                    "elementId": "journalText",
+                    "type": "hebrew",
+                    "position": {
+                        "x": "6%",
+                        "y": "38%"
+                    },
+                    "size": {
+                        "width": "35%"
+                    },
+                    "alignment": {
+                        "horizontal": "right",
+                        "method": "text-align: right;",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "14px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "right",
+                        "lineHeight": "2"
+                    },
+                    "placeholder": "היום גילינו את הקסם של המקום הזה. הנופים עוצרי הנשימה, האנשים החמים, והאוכל המקומי המדהים.\n\nרגעים כאלה שווים הכל.",
+                    "editable": true
+                },
+                {
+                    "elementId": "note",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "50%",
+                        "y": "80%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%) rotate(-3deg);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "18px",
+                        "weight": 600,
+                        "color": "rust",
+                        "align": "center"
+                    },
+                    "placeholder": "Never forget this view!",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "tape",
+                    "position": {
+                        "x": "70%",
+                        "y": "6%"
+                    },
+                    "rotation": "3deg"
+                }
+            ]
+        },
+        {
+            "layoutId": "collage-adventure",
+            "layoutName": "קולאז׳ הרפתקה",
+            "pageType": "gallery",
+            "backgroundType": "light",
+            "photoSlots": [
+                {
+                    "slotId": "large",
+                    "position": {
+                        "x": "3%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "55%",
+                        "height": "65%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "small1",
+                    "position": {
+                        "x": "62%",
+                        "y": "3%"
+                    },
+                    "size": {
+                        "width": "35%",
+                        "height": "31%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "polaroid",
+                    "rotation": "2deg"
+                },
+                {
+                    "slotId": "small2",
+                    "position": {
+                        "x": "62%",
+                        "y": "37%"
+                    },
+                    "size": {
+                        "width": "35%",
+                        "height": "31%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "polaroid",
+                    "rotation": "-2deg"
+                },
+                {
+                    "slotId": "bottom1",
+                    "position": {
+                        "x": "3%",
+                        "y": "71%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "26%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "bottom2",
+                    "position": {
+                        "x": "35%",
+                        "y": "71%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "26%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                },
+                {
+                    "slotId": "bottom3",
+                    "position": {
+                        "x": "67%",
+                        "y": "71%"
+                    },
+                    "size": {
+                        "width": "30%",
+                        "height": "26%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "default"
+                }
+            ],
+            "textElements": [],
+            "decorations": [
+                {
+                    "type": "compass",
+                    "position": {
+                        "x": "58%",
+                        "y": "68%"
+                    },
+                    "size": {
+                        "width": "40px",
+                        "height": "40px"
+                    },
+                    "opacity": 0.5
+                }
+            ]
+        },
+        {
+            "layoutId": "stats-page",
+            "layoutName": "סטטיסטיקות המסע",
+            "pageType": "data",
+            "backgroundType": "dark",
+            "backgroundColor": "#2C3E2D",
+            "photoSlots": [
+                {
+                    "slotId": "bgPhoto",
+                    "position": {
+                        "x": "0%",
+                        "y": "0%"
+                    },
+                    "size": {
+                        "width": "100%",
+                        "height": "100%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "map",
+                    "opacity": 0.1
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "title",
+                    "type": "display",
+                    "content": "TRIP STATS",
+                    "position": {
+                        "x": "50%",
+                        "y": "10%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "36px",
+                        "weight": 400,
+                        "color": "gold",
+                        "align": "center",
+                        "letterSpacing": "6px"
+                    }
+                },
+                {
+                    "elementId": "stat1num",
+                    "type": "display",
+                    "position": {
+                        "x": "25%",
+                        "y": "35%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 25%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "64px",
+                        "weight": 400,
+                        "color": "inverse",
+                        "align": "center"
+                    },
+                    "placeholder": "7",
+                    "editable": true
+                },
+                {
+                    "elementId": "stat1label",
+                    "type": "hebrew",
+                    "content": "ימים",
+                    "position": {
+                        "x": "25%",
+                        "y": "50%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 25%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "gold",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "stat2num",
+                    "type": "display",
+                    "position": {
+                        "x": "50%",
+                        "y": "35%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "64px",
+                        "weight": 400,
+                        "color": "inverse",
+                        "align": "center"
+                    },
+                    "placeholder": "1,247",
+                    "editable": true
+                },
+                {
+                    "elementId": "stat2label",
+                    "type": "hebrew",
+                    "content": "קילומטרים",
+                    "position": {
+                        "x": "50%",
+                        "y": "50%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "gold",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "stat3num",
+                    "type": "display",
+                    "position": {
+                        "x": "75%",
+                        "y": "35%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 75%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "64px",
+                        "weight": 400,
+                        "color": "inverse",
+                        "align": "center"
+                    },
+                    "placeholder": "12",
+                    "editable": true
+                },
+                {
+                    "elementId": "stat3label",
+                    "type": "hebrew",
+                    "content": "אתרים",
+                    "position": {
+                        "x": "75%",
+                        "y": "50%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 75%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "14px",
+                        "weight": 300,
+                        "color": "gold",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "quote",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "50%",
+                        "y": "75%"
+                    },
+                    "size": {
+                        "width": "70%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "textAlign": "center",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "24px",
+                        "weight": 500,
+                        "color": "inverse",
+                        "align": "center",
+                        "lineHeight": "1.5"
+                    },
+                    "placeholder": "\"The journey is the destination\"",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "plane",
+                    "position": {
+                        "x": "85%",
+                        "y": "8%"
+                    },
+                    "size": {
+                        "width": "40px",
+                        "height": "40px"
+                    },
+                    "rotation": "-30deg"
+                }
+            ]
+        },
+        {
+            "layoutId": "closing-memories",
+            "layoutName": "סיום - זיכרונות",
+            "pageType": "closing",
+            "backgroundType": "light",
+            "photoSlots": [
+                {
+                    "slotId": "finalPhoto",
+                    "position": {
+                        "x": "20%",
+                        "y": "10%"
+                    },
+                    "size": {
+                        "width": "60%",
+                        "height": "50%"
+                    },
+                    "photoFit": "cover",
+                    "photoStyle": "polaroid",
+                    "rotation": "-1deg"
+                }
+            ],
+            "textElements": [
+                {
+                    "elementId": "ending",
+                    "type": "display",
+                    "content": "THE END",
+                    "position": {
+                        "x": "50%",
+                        "y": "68%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "display",
+                        "size": "42px",
+                        "weight": 400,
+                        "color": "primary",
+                        "align": "center",
+                        "letterSpacing": "6px"
+                    }
+                },
+                {
+                    "elementId": "hebrewEnding",
+                    "type": "hebrew",
+                    "content": "עד להרפתקה הבאה",
+                    "position": {
+                        "x": "50%",
+                        "y": "78%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "rtl"
+                    },
+                    "style": {
+                        "font": "hebrew",
+                        "size": "18px",
+                        "weight": 400,
+                        "color": "secondary",
+                        "align": "center"
+                    }
+                },
+                {
+                    "elementId": "signature",
+                    "type": "handwritten",
+                    "position": {
+                        "x": "50%",
+                        "y": "90%"
+                    },
+                    "alignment": {
+                        "horizontal": "center",
+                        "method": "left: 50%; transform: translateX(-50%);",
+                        "direction": "ltr"
+                    },
+                    "style": {
+                        "font": "handwritten",
+                        "size": "22px",
+                        "weight": 600,
+                        "color": "rust",
+                        "align": "center"
+                    },
+                    "placeholder": "- The Cohens, March 2025",
+                    "editable": true
+                }
+            ],
+            "decorations": [
+                {
+                    "type": "stamp",
+                    "position": {
+                        "x": "75%",
+                        "y": "15%"
+                    },
+                    "size": {
+                        "width": "60px",
+                        "height": "60px"
+                    },
+                    "rotation": "10deg"
+                },
+                {
+                    "type": "compass",
+                    "position": {
+                        "x": "15%",
+                        "y": "85%"
+                    },
+                    "size": {
+                        "width": "50px",
+                        "height": "50px"
+                    },
+                    "opacity": 0.3
+                }
+            ]
+        }
+    ],
+    "themeVariants": [
+        {
+            "variantId": "earth-tones",
+            "name": "גווני אדמה",
+            "nameEn": "Earth Tones",
+            "colors": {
+                "accent": {
+                    "primary": "#C65D3B",
+                    "secondary": "#3D6B59"
+                }
+            }
+        },
+        {
+            "variantId": "ocean-breeze",
+            "name": "רוח ים",
+            "nameEn": "Ocean Breeze",
+            "colors": {
+                "backgroundDark": "#1A3A4A",
+                "accent": {
+                    "primary": "#3A8FB7",
+                    "secondary": "#2D6B5A"
+                }
+            }
+        },
+        {
+            "variantId": "desert-sand",
+            "name": "חול מדברי",
+            "nameEn": "Desert Sand",
+            "colors": {
+                "backgroundDark": "#4A3B2A",
+                "accent": {
+                    "primary": "#D4803E",
+                    "secondary": "#8B7355"
+                }
+            }
+        },
+        {
+            "variantId": "nordic-frost",
+            "name": "קרח נורדי",
+            "nameEn": "Nordic Frost",
+            "colors": {
+                "backgroundDark": "#2A3540",
+                "accent": {
+                    "primary": "#5A8FA8",
+                    "secondary": "#3D5A6B"
+                }
+            }
+        },
+        {
+            "variantId": "tropical-jungle",
+            "name": "ג׳ונגל טרופי",
+            "nameEn": "Tropical Jungle",
+            "colors": {
+                "backgroundDark": "#1A3025",
+                "accent": {
+                    "primary": "#4A9B7F",
+                    "secondary": "#D4A03E"
+                }
+            }
+        }
+    ]
+}

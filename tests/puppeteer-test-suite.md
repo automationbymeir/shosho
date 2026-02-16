@@ -27,7 +27,7 @@ Or more specifically:
 
 ```
 "Use Puppeteer MCP to:
-1. Navigate to http://localhost:5000
+1. Navigate to http://localhost:8000
 2. Take a screenshot of the main page
 3. Click the 'Generate Book' button
 4. Wait for the result modal
@@ -64,7 +64,7 @@ You can ask for specific Puppeteer operations:
 
 **MCP Command:**
 ```
-"Use Puppeteer MCP to test the complete book generation flow on http://localhost:5000"
+"Use Puppeteer MCP to test the complete book generation flow on http://localhost:8000"
 ```
 
 ### Scenario 2: PDF Export Verification
@@ -139,7 +139,7 @@ Ask the AI:
 
 ```
 "Use Puppeteer to:
-1. Navigate to http://localhost:5000
+1. Navigate to http://localhost:8000
 2. Take a screenshot named '01-initial-load.png'
 3. Click the Themes tab
 4. Take a screenshot named '02-themes-tab.png'
@@ -183,7 +183,7 @@ Screenshots will be saved automatically by Puppeteer MCP.
 # Terminal 1: Start Firebase emulators
 npm run serve
 
-# The app will be available at http://localhost:5000
+# The app will be available at http://localhost:8000
 ```
 
 ### Then Run Tests via MCP
@@ -191,7 +191,7 @@ npm run serve
 In Cursor, ask:
 
 ```
-"Use Puppeteer MCP to test the app running on http://localhost:5000"
+"Use Puppeteer MCP to test the app running on http://localhost:8000"
 ```
 
 ## 📊 Test Results
@@ -231,7 +231,7 @@ You can set up automated testing by asking:
 
 ### Quick Smoke Test
 ```
-"Use Puppeteer to do a quick smoke test: navigate to localhost:5000, verify page loads, take screenshot"
+"Use Puppeteer to do a quick smoke test: navigate to localhost:8000, verify page loads, take screenshot"
 ```
 
 ### Full Feature Test

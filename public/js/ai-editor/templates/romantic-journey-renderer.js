@@ -38,7 +38,7 @@ export class RomanticJourneyRenderer {
                     this.renderPhotoSlot(page, slot, photo);
                 } else {
                     // Optional: Render empty slot placeholder
-                    this.renderEmptySlot(page, slot);
+                    this.renderEmptySlot(page, slot, index);
                 }
             });
         }
@@ -125,9 +125,12 @@ export class RomanticJourneyRenderer {
         page.appendChild(container);
     }
 
-    renderEmptySlot(page, slot) {
+    renderEmptySlot(page, slot, index) {
         const container = document.createElement('div');
         container.className = 'photo-slot empty-slot';
+        container.dataset.selectableType = 'empty-slot';
+        container.dataset.slotIndex = index;
+
         container.style.cssText = `
       position: absolute;
       left: ${slot.position.x};

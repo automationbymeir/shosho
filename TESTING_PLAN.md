@@ -5,7 +5,7 @@ Verify and fix resolution issues and "preview pdf" issues in the Shoso AI Editor
 Ensure all flows (Edit -> Preview -> Export) function correctly with high-quality assets.
 
 ## Scope
-- **App URL**: `http://localhost:5000/ai-editor.html`
+- **App URL**: `http://localhost:8000/ai-editor.html`
 - **Key Features**: Photo Adding (Google/Local), Template Selection, Page Navigation, Editing (Move/Resize), Preview Mode, PDF Export.
 
 ## Test Cases

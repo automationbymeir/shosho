@@ -21,58 +21,153 @@ class MagicLauncher {
         if (document.getElementById(this.modalId)) return;
 
         const modalHtml = `
-        <div id="${this.modalId}" class="md-modal-overlay" style="z-index: 10001; display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center;">
-            <div class="md-modal-card" style="background: #1e1e2f; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 500px; color: white; position: relative;">
-                <!-- Launcher State -->
+        <div id="${this.modalId}" class="md-modal-overlay">
+            <div class="ml-card">
+                <!-- Decorations -->
+                <div class="ml-orb ml-orb-1"></div>
+                <div class="ml-orb ml-orb-2"></div>
+                
                 <div id="magic-launcher-start">
-                    <div class="md-modal-icon" style="background: linear-gradient(135deg, #6366f1, #a855f7);">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;color:white">
-                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                        </svg>
-                    </div>
-                    <h2>Magic Create v2</h2>
-                    <p class="md-modal-subtitle">Fully AI-Generated Album Design</p>
-                    
-                    <div style="margin: 20px 0; text-align: left;">
-                        <label style="display:block; font-size: 14px; font-weight: 500; margin-bottom: 8px;">What vibe are you looking for?</label>
-                        <textarea id="magic-prompt-input" class="edo-textarea" 
-                            placeholder="e.g. A romantic beach vacation with warm sunset colors..." 
-                            style="width: 100%; min-height: 80px;"></textarea>
+                    <div class="ml-header">
+                        <div class="ml-icon-wrapper">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <h2>Create Magic</h2>
+                        <p>Let AI weave your photos into a story.</p>
                     </div>
 
-                    <div style="background: rgba(99, 102, 241, 0.1); padding: 12px; border-radius: 8px; font-size: 13px; color: #6366f1; margin-bottom: 20px;">
-                        <strong>Nano Banana AI</strong> will analyze your photos, plan the story, design every page, and paint custom backgrounds.
+                    <div class="ml-input-group">
+                        <label>What's the vibe of this album?</label>
+                        <div class="ml-textarea-wrapper">
+                            <textarea id="magic-prompt-input" 
+                                placeholder="e.g. A whimsical forest wedding with soft green tones..."></textarea>
+                            <i class="fa-solid fa-pen-fancy ml-input-icon"></i>
+                        </div>
+                        <div class="ml-hints">
+                            <span>Examples:</span>
+                            <button onclick="document.getElementById('magic-prompt-input').value='Romantic beach sunset'">Beach</button>
+                            <button onclick="document.getElementById('magic-prompt-input').value='Modern minimalist architecture'">Modern</button>
+                            <button onclick="document.getElementById('magic-prompt-input').value='Vintage family history'">Vintage</button>
+                        </div>
                     </div>
 
-                    <div class="md-modal-actions">
-                        <button class="btn btn-secondary" onclick="magicLauncher.close()">Cancel</button>
-                        <button class="btn btn-primary" onclick="magicLauncher.start()" style="background: linear-gradient(135deg, #6366f1, #a855f7); border: none;">
-                            ✨ Magic Create
+                    <div class="ml-footer">
+                        <button class="ml-btn ml-btn-cancel" onclick="magicLauncher.close()">
+                            Cancel
+                        </button>
+                        <button class="ml-btn ml-btn-primary" onclick="magicLauncher.start()">
+                            <span class="ml-btn-content">
+                                <i class="fa-solid fa-stars"></i> Create Album
+                            </span>
+                            <div class="ml-btn-glow"></div>
                         </button>
                     </div>
                 </div>
 
-                <!-- Progress State -->
-                <div id="magic-launcher-progress" style="display: none;">
-                    <div class="md-modal-icon" style="background: #e0e7ff; color: #6366f1;">
-                        <div class="spinner" style="width: 24px; height: 24px; border: 3px solid #6366f1; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    </div>
-                    <h2 id="magic-progress-title">Analyzing Photos...</h2>
-                    
-                    <div class="progress-container" style="margin: 30px 0;">
-                        <div style="background: #f3f4f6; height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div id="magic-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #6366f1, #a855f7); transition: width 0.3s ease;"></div>
-                        </div>
-                        <div id="magic-progress-text" style="margin-top: 8px; font-size: 13px; color: #6b7280;">Initializing...</div>
-                    </div>
-
-                    <div id="magic-log" style="height: 100px; overflow-y: auto; background: #f9fafb; border: 1px solid #e5e7eb; padding: 10px; font-family: monospace; font-size: 11px; text-align: left; border-radius: 4px; color: #4b5563;">
-                    </div>
+                <!-- Progress State (Legacy - kept for fallback but usually hidden) -->
+                <div id="magic-launcher-progress" style="display: none; text-align: center; color: white;">
+                    <div class="spinner"></div>
+                    <p>Initializing...</p>
+                    <div id="magic-log" style="display:none"></div>
                 </div>
             </div>
             
             <style>
-            @keyframes spin { to { transform: rotate(360deg); } }
+                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
+
+                .md-modal-overlay {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background-color: rgba(5, 5, 10, 0.85);
+                    backdrop-filter: blur(12px);
+                    display: none; align-items: center; justify-content: center;
+                    z-index: 10001;
+                    opacity: 0; transition: opacity 0.3s ease;
+                }
+                .md-modal-overlay.active { opacity: 1; }
+
+                .ml-card {
+                    position: relative;
+                    width: 90%; max-width: 550px;
+                    background: rgba(20, 20, 30, 0.6);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 24px;
+                    padding: 40px;
+                    overflow: hidden;
+                    box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+                    color: white;
+                    font-family: 'Outfit', sans-serif;
+                    transform: translateY(20px); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                }
+                .md-modal-overlay.active .ml-card { transform: translateY(0); }
+
+                /* Orbs */
+                .ml-orb {
+                    position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.4; z-index: -1;
+                }
+                .ml-orb-1 { width: 300px; height: 300px; background: #6366f1; top: -100px; left: -100px; animation: floatOrb 10s infinite ease-in-out; }
+                .ml-orb-2 { width: 250px; height: 250px; background: #a855f7; bottom: -50px; right: -50px; animation: floatOrb 12s infinite ease-in-out reverse; }
+                @keyframes floatOrb { 0% { transform: translate(0,0); } 50% { transform: translate(20px, 30px); } 100% { transform: translate(0,0); } }
+
+                .ml-header { text-align: center; margin-bottom: 30px; }
+                .ml-icon-wrapper {
+                    width: 60px; height: 60px; margin: 0 auto 16px;
+                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                    font-size: 24px; color: #a855f7;
+                    box-shadow: 0 0 30px rgba(168, 85, 247, 0.3);
+                }
+                .ml-header h2 { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.5px; }
+                .ml-header p { color: #9ca3af; font-size: 16px; margin: 0; font-weight: 300; }
+
+                .ml-input-group label { display: block; font-size: 14px; font-weight: 600; color: #e5e7eb; margin-bottom: 12px; letter-spacing: 0.5px; text-transform: uppercase; }
+                
+                .ml-textarea-wrapper { position: relative; }
+                .ml-textarea-wrapper textarea {
+                    width: 100%; min-height: 100px;
+                    background: rgba(0,0,0,0.3);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 16px;
+                    padding: 16px 16px 16px 44px;
+                    color: white; font-family: 'Outfit', sans-serif; font-size: 16px;
+                    resize: none; outline: none; transition: all 0.3s;
+                }
+                .ml-textarea-wrapper textarea:focus {
+                    background: rgba(0,0,0,0.5); border-color: #8b5cf6;
+                    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+                }
+                .ml-input-icon {
+                    position: absolute; top: 20px; left: 16px; color: #6b7280; pointer-events: none;
+                }
+                .ml-textarea-wrapper textarea:focus + .ml-input-icon { color: #8b5cf6; }
+
+                .ml-hints { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+                .ml-hints span { font-size: 12px; color: #6b7280; }
+                .ml-hints button {
+                    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05);
+                    border-radius: 20px; padding: 4px 12px; color: #9ca3af; font-size: 12px; cursor: pointer; transition: all 0.2s;
+                }
+                .ml-hints button:hover { background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2); }
+
+                .ml-footer { display: flex; gap: 16px; margin-top: 40px; }
+                .ml-btn { flex: 1; padding: 14px; border-radius: 14px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden; }
+                .ml-btn-cancel { background: transparent; color: #9ca3af; border: 1px solid rgba(255,255,255,0.1); }
+                .ml-btn-cancel:hover { background: rgba(255,255,255,0.05); color: white; }
+                
+                .ml-btn-primary {
+                    background: linear-gradient(135deg, #6366f1, #a855f7); color: white;
+                    box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+                }
+                .ml-btn-primary:hover {
+                    transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.5);
+                }
+                .ml-btn-glow {
+                    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+                    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 60%);
+                    opacity: 0; transform: scale(0.5); transition: opacity 0.5s, transform 0.5s;
+                }
+                .ml-btn-primary:hover .ml-btn-glow { opacity: 1; transform: scale(1); transition: 0s; }
+
             </style>
         </div>
         `;
@@ -120,24 +215,44 @@ class MagicLauncher {
         try {
             updateLog("Starting engine...");
 
-            const album = await window.magicCreateV2.run(
-                this.selectedPhotos,
+            const magicCreate = new window.MagicCreateV4();
+
+            // SECURITY: Use internal store assets if available to ensure ID consistency
+            const photosToUse = store?.state?.assets?.photos?.length > 0
+                ? store.state.assets.photos
+                : this.selectedPhotos;
+
+            const album = await magicCreate.run(
                 prompt,
-                (stage, percent) => {
-                    document.getElementById('magic-progress-title').textContent = stage;
-                    document.getElementById('magic-progress-bar').style.width = percent + '%';
-                    document.getElementById('magic-progress-text').textContent = `${percent}% Complete`;
-                    updateLog(stage);
+                photosToUse,
+                {
+                    maxPages: 10,
+                    photosPerPage: 3,
+                    includeAiBackgrounds: true,
+                    includeDecorativeText: true
                 }
             );
 
+            // V4 Handles its own progress via the instance methods which inject DOM
+            // But we have our own UI here in the launcher.
+            // Actually, V4 has its own UI for "Review Dialog".
+            // The "Progress" part in V4 is also injecting DOM elements (`mc4-progress`).
+            // So we might get double progress bars if we don't adjust.
+            // Let's hide the launcher's progress since V4 handles it.
+
+            this.close(); // Close launcher immediately so V4 UI can take over
+
             updateLog("Album generation complete!");
 
+            // V4 loads content itself. We just exit.
+
+            /*
             // Wait a moment then close and load
             setTimeout(() => {
                 this.close();
                 this.loadAlbumIntoEditor(album);
             }, 1000);
+            */
 
         } catch (e) {
             console.error(e);
@@ -147,99 +262,65 @@ class MagicLauncher {
     }
 
     loadAlbumIntoEditor(album) {
-        console.log("Loading Album:", album);
+        console.log("Loading Album (V3):", album);
 
         // 1. Reset Pages for new book
         store.state.pages = [];
         store.state.activePageId = null;
 
-        // 2. Load Cover Info
-        if (album.story) {
-            store.state.cover.title = album.story.title || "My Photo Book";
-            store.state.cover.subtitle = album.story.subtitle || "Magic Created";
+        // 2. Load Cover Info is handled inside pages, but we can extract title from TextElements of cover page?
+        // Or if 'theme' has name.
+        if (album.theme) {
+            console.log("Applied Theme:", album.theme.theme_name);
         }
 
         // 3. Process Pages
         const newPages = [];
+        const newAssetMap = new Map(); // Track new assets (backgrounds)
 
         album.pages.forEach(p => {
-            // Register Background Asset if new
-            let bgId = null;
-            if (p.background && p.background.imageUrl) {
-                // Check if valid URL or base64
-                // Create asset
-                const assetId = `bg_${crypto.randomUUID()}`;
-                bgId = assetId;
-
+            // Handle Background
+            let bgVal = p.background;
+            // If object, keep as object (RenderEngine V3 handles it)
+            // If generated AI image URL, we might want to cache it in assets?
+            if (bgVal && bgVal.ai_image_url) {
+                // Push to assets.backgrounds
+                const bgId = `bg_${crypto.randomUUID()}`;
+                // We don't necessarily need to replace the value in p.background if RenderEngine handles object
+                // But for sidebar visibility:
                 store.state.assets.backgrounds.push({
-                    id: assetId,
-                    url: p.background.imageUrl,
+                    id: bgId,
+                    url: bgVal.ai_image_url,
                     type: 'background',
-                    name: 'AI Background',
-                    source: 'magic-create'
+                    name: 'AI Generated',
+                    source: 'magic-create-v3'
                 });
-            } else if (p.background && p.background.color) {
-                // Determine logic for solid colors? 
-                // For now, render engine might support direct color if we set it on page
             }
 
-            // Create Page Object
-            const pageId = p.pageId || crypto.randomUUID();
-            const elements = (p.textElements || []).map(t => ({
-                id: t.id || `txt_${crypto.randomUUID()}`,
-                type: 'text',
-                content: t.content,
-                x: t.position?.x || 50,
-                y: t.position?.y || 50,
-                fontSize: t.style?.fontSize ? parseInt(t.style.fontSize) : 24,
-                fontFamily: t.style?.fontFamily || 'Inter',
-                color: t.style?.color || '#000000',
-                align: t.style?.textAlign || 'center',
-                width: 30
-            }));
-
-            newPages.push({
-                id: pageId,
-                backgroundId: bgId,
-                backgroundColor: p.background?.color || '#ffffff',
-                layout: p.layout,
-                photos: [], // We need to re-map photos from layout slots?
-                // The album.pages[i].layout should have slots with photoIds
-                // We need to ensure the photos referenced are in store.state.assets.photos
-                elements: elements
-            });
-
-            // Hack: Populate 'photos' array for the page based on layout slots
-            // The renderer needs page.photos to know what's on the page for some logic, 
-            // though standard layout engine usually derives layout FROM photos.
-            // Here we have specific layout.
-            // 4. Map Layout Slots (Flatten Schema)
-            if (p.layout && p.layout.photoSlots) {
-                const pagePhotos = [];
-                // Transform V2 Schema (position/size objects) to V1 Flat Schema (x,y,w,h)
-                p.layout.slots = p.layout.photoSlots.map(slot => {
-                    const flatSlot = {
-                        ...slot,
-                        x: slot.x || (slot.position ? slot.position.x : 0),
-                        y: slot.y || (slot.position ? slot.position.y : 0),
-                        width: slot.width || (slot.size ? slot.size.width : 0),
-                        height: slot.height || (slot.size ? slot.size.height : 0)
-                    };
-
-                    // Match Photo Assets for this page
-                    if (slot.originalPhotoId) {
-                        const photoAsset = store.state.assets.photos.find(ph => ph.id === slot.originalPhotoId);
-                        if (photoAsset) pagePhotos.push(photoAsset);
-                    } else if (slot.photoId) {
-                        const photoAsset = store.state.assets.photos.find(ph => ph.id === slot.photoId);
-                        if (photoAsset) pagePhotos.push(photoAsset);
+            // Handle Photos (Re-hydration for Store)
+            // The Store expects `page.photos` array to match the slots for some logic (e.g. remixing)
+            const pagePhotos = [];
+            if (p.layout && p.layout.slots) {
+                p.layout.slots.forEach(slot => {
+                    if (slot.photoId) {
+                        const asset = store.state.assets.photos.find(ph => ph.id === slot.photoId);
+                        if (asset && !pagePhotos.includes(asset)) {
+                            pagePhotos.push(asset);
+                        }
                     }
-
-                    return flatSlot;
                 });
-
-                newPages[newPages.length - 1].photos = pagePhotos;
             }
+
+            // Push page to state
+            newPages.push({
+                id: p.id,
+                templateId: p.type === 'cover' ? 'magic-cover-v3' : 'magic-page-v3',
+                background: p.background, // Pass full object
+                layout: p.layout,
+                photos: pagePhotos,
+                elements: p.elements || [],
+                decorations: p.decorations || []
+            });
         });
 
         // 4. Update Store
@@ -250,10 +331,16 @@ class MagicLauncher {
 
         // 5. Notify
         store.notify('pages', store.state.pages);
-        store.notify('cover', store.state.cover);
+        store.notify('cover', store.state.cover); // Cover might be handled as Page[0] in this flow? 
+        // Note: New Design Engine treats cover as Page 0.
+        // If viewMode is 'cover', we might need to map Page[0] back to state.cover?
+        // For now, let's stick to pages view.
+        store.state.viewMode = 'pages';
+        store.notify('viewMode', 'pages');
+
         store.notify('assets', store.state.assets);
 
-        alert("✨ Magic Aibum Created! Enjoy.");
+        alert("✨ Magic Model V3 Album Created!");
     }
 }
 
