@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brief Query System - Sourcing Team</title>
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+    }
+    
+    body {
+      font-family: 'Macan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      line-height: 1.6;
+      color: #222325;
+      background: linear-gradient(135deg, #f7f7f7 0%, #e8e8e8 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* LEFT SIDEBAR - Brief List */
+    .briefs-sidebar {
+      width: 350px;
+      background: white;
+      border-right: 1px solid #E4E5E7;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .sidebar-header {
+      padding: 24px;
+      border-bottom: 2px solid #E4E5E7;
+      background: linear-gradient(135deg, #1DBF73 0%, #00a35c 100%);
+      color: white;
+    }
+    
+    .sidebar-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .sidebar-subtitle {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    
+    .search-container {
+      padding: 16px;
+      border-bottom: 1px solid #E4E5E7;
+      background: #f7f7f7;
+    }
+    
+    .search-box {
+      position: relative;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 12px 40px 12px 16px;
+      border: 2px solid #E4E5E7;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.3s;
+    }
+    
+    .search-input:focus {
+      border-color: #1DBF73;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(29, 191, 115, 0.1);
+    }
+    
+    .search-icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #62646A;
+      font-size: 18px;
+    }
+    
+    .filters-section {
+      padding: 12px 16px;
+      border-bottom: 1px solid #E4E5E7;
+      background: #fafafa;
+    }
+    
+    .filters-toggle {
+      background: none;
+      border: none;
+      color: #1DBF73;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0;
+    }
+    
+    .filters-content {
+      display: none;
+      margin-top: 12px;
+    }
+    
+    .filters-content.show {
+      display: block;
+    }
+    
+    .filter-group {
+      margin-bottom: 10px;
+    }
+    
+    .filter-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #62646A;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    
+    .filter-group input,
+    .filter-group select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #E4E5E7;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      background: white;
+    }
+    
+    .briefs-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    
+    .brief-item {
+      background: white;
+      border: 2px solid #E4E5E7;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .brief-item:hover {
+      border-color: #1DBF73;
+      box-shadow: 0 2px 8px rgba(29, 191, 115, 0.1);
+    }
+    
+    .brief-item.active {
+      border-color: #1DBF73;
+      background: #f0fdf7;
+      box-shadow: 0 2px 8px rgba(29, 191, 115, 0.2);
+    }
+    
+    .brief-item-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #222325;
+      margin-bottom: 4px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .brief-item-meta {
+      font-size: 12px;
+      color: #62646A;
+      margin-bottom: 2px;
+    }
+    
+    .brief-item-date {
+      font-size: 11px;
+      color: #95979d;
+    }
+    
+    .no-briefs {
+      text-align: center;
+      padding: 40px 20px;
+      color: #62646A;
+    }
+    
+    .loading-briefs {
+      text-align: center;
+      padding: 40px 20px;
+      color: #1DBF73;
+    }
+    
+    /* MAIN CONTENT AREA */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .main-header {
+      background: white;
+      padding: 24px 32px;
+      border-bottom: 1px solid #E4E5E7;
+    }
+    
+    .main-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #222325;
+      margin-bottom: 4px;
+    }
+    
+    .main-subtitle {
+      font-size: 14px;
+      color: #62646A;
+    }
+    
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #62646A;
+    }
+    
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.3;
+    }
+    
+    .empty-state-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #222325;
+    }
+    
+    .empty-state-text {
+      font-size: 14px;
+    }
+    
+    /* BRIEF PREVIEW SECTION */
+    .brief-preview {
+      display: none;
+    }
+    
+    .brief-preview.show {
+      display: block;
+    }
+    
+    .preview-header {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .preview-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #222325;
+      margin-bottom: 16px;
+    }
+    
+    .preview-metadata {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    
+    .metadata-item {
+      padding: 12px;
+      background: #f7f7f7;
+      border-radius: 8px;
+      border-left: 3px solid #1DBF73;
+    }
+    
+    .metadata-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #62646A;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    
+    .metadata-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #222325;
+    }
+    
+    .preview-content {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .preview-content-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #222325;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #E4E5E7;
+    }
+    
+    .preview-content-text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #222325;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 12px;
+      background: #fafafa;
+      border-radius: 8px;
+    }
+    
+    /* AI CHAT SECTION */
+    .ai-chat-section {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .chat-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #222325;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #E4E5E7;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .chat-history {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #fafafa;
+      border-radius: 8px;
+      display: none;
+    }
+    
+    .chat-history.show {
+      display: block;
+    }
+    
+    .chat-message {
+      margin-bottom: 16px;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    
+    .chat-message.user {
+      background: #e3f9ed;
+      margin-left: 20px;
+    }
+    
+    .chat-message.ai {
+      background: white;
+      border: 1px solid #E4E5E7;
+      margin-right: 20px;
+    }
+    
+    .chat-message-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #62646A;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    
+    .chat-message-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #222325;
+    }
+    
+    .chat-input-container {
+      position: relative;
+    }
+    
+    .chat-input {
+      width: 100%;
+      padding: 14px 100px 14px 16px;
+      border: 2px solid #E4E5E7;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      min-height: 60px;
+      transition: all 0.3s;
+    }
+    
+    .chat-input:focus {
+      border-color: #1DBF73;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(29, 191, 115, 0.1);
+    }
+    
+    .chat-submit-btn {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      background: linear-gradient(135deg, #1DBF73 0%, #00a35c 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .chat-submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(29, 191, 115, 0.3);
+    }
+    
+    .chat-submit-btn:disabled {
+      background: #95979d;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* LOADING & ERROR STATES */
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: #1DBF73;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .loading-indicator.show {
+      display: block;
+    }
+    
+    .error-message {
+      display: none;
+      padding: 16px;
+      background: #fee;
+      border-left: 4px solid #f44;
+      border-radius: 8px;
+      color: #c33;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    
+    .error-message.show {
+      display: block;
+    }
+    
+    /* SCROLLBAR STYLING */
+    .briefs-list::-webkit-scrollbar,
+    .chat-history::-webkit-scrollbar,
+    .preview-content-text::-webkit-scrollbar,
+    .content-area::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .briefs-list::-webkit-scrollbar-track,
+    .chat-history::-webkit-scrollbar-track,
+    .preview-content-text::-webkit-scrollbar-track,
+    .content-area::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    
+    .briefs-list::-webkit-scrollbar-thumb,
+    .chat-history::-webkit-scrollbar-thumb,
+    .preview-content-text::-webkit-scrollbar-thumb,
+    .content-area::-webkit-scrollbar-thumb {
+      background: #1DBF73;
+      border-radius: 4px;
+    }
+    
+    .briefs-list::-webkit-scrollbar-thumb:hover,
+    .chat-history::-webkit-scrollbar-thumb:hover,
+    .preview-content-text::-webkit-scrollbar-thumb:hover,
+    .content-area::-webkit-scrollbar-thumb:hover {
+      background: #00a35c;
+    }
+    
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+      
+      .briefs-sidebar {
+        width: 100%;
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- LEFT SIDEBAR - Brief List -->
+    <div class="briefs-sidebar">
+      <div class="sidebar-header">
+        <div style="display: flex; justify-content: space-between; align-items: start; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div>
+              <div class="sidebar-title">📋 Project Briefs</div>
+              <div class="sidebar-subtitle" id="briefsCount">Loading briefs...</div>
+            </div>
+            <button onclick="loadAllBriefs()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+              🔄 Reload
+            </button>
+          </div>
+          <div style="display: flex; gap: 4px; width: 100%;">
+            <button onclick="testEcho()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; flex: 1;">
+              Test Echo
+            </button>
+            <button onclick="testSingleBrief()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; flex: 1;">
+              Test Single
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="search-container">
+        <div class="search-box">
+          <input 
+            type="text" 
+            id="briefSearchInput" 
+            class="search-input" 
+            placeholder="Search briefs..."
+            autocomplete="off"
+          >
+          <span class="search-icon">🔍</span>
+        </div>
+      </div>
+      
+      <div class="filters-section">
+        <button class="filters-toggle" onclick="toggleFilters()">
+          <span id="filterToggleIcon">▶</span>
+          <span>Advanced Filters</span>
+        </button>
+        <div class="filters-content" id="filtersContent">
+          <div class="filter-group">
+            <label>Role</label>
+            <input type="text" id="filterRole" placeholder="e.g. Developer">
+          </div>
+          <div class="filter-group">
+            <label>Company</label>
+            <input type="text" id="filterCompany" placeholder="e.g. Acme Corp">
+          </div>
+          <div class="filter-group">
+            <label>Date From</label>
+            <input type="date" id="filterDateFrom">
+          </div>
+          <div class="filter-group">
+            <label>Date To</label>
+            <input type="date" id="filterDateTo">
+          </div>
+        </div>
+      </div>
+      
+      <div class="briefs-list" id="briefsList">
+        <div class="loading-briefs">
+          <div>⏳ Loading briefs...</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- MAIN CONTENT AREA -->
+    <div class="main-content">
+      <div class="main-header">
+        <div class="main-title">Brief Preview & AI Assistant</div>
+        <div class="main-subtitle">Select a brief from the sidebar to view details and ask questions</div>
+      </div>
+      
+      <div class="content-area">
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+          <div class="empty-state-icon">📄</div>
+          <div class="empty-state-title">No Brief Selected</div>
+          <div class="empty-state-text">Select a brief from the sidebar to view its details and ask AI questions</div>
+        </div>
+        
+        <!-- Brief Preview Section -->
+        <div class="brief-preview" id="briefPreview">
+          <div class="preview-header">
+            <div class="preview-title" id="previewTitle">Brief Title</div>
+            <div class="preview-metadata" id="previewMetadata">
+              <!-- Metadata items will be inserted here -->
+            </div>
+          </div>
+          
+          <div class="preview-content">
+            <div class="preview-content-title">📝 Full Job Description</div>
+            <div class="preview-content-text" id="previewContentText">Loading...</div>
+          </div>
+          
+          <!-- AI Chat Section -->
+          <div class="ai-chat-section">
+            <div class="chat-title">
+              <span>🤖</span>
+              <span>Ask AI About This Brief</span>
+            </div>
+            
+            <div class="error-message" id="chatError"></div>
+            
+            <div class="chat-history" id="chatHistory">
+              <!-- Chat messages will be inserted here -->
+            </div>
+            
+            <div class="loading-indicator" id="chatLoading">
+              ⏳ AI is thinking...
+            </div>
+            
+            <div class="chat-input-container">
+              <textarea 
+                id="chatInput" 
+                class="chat-input" 
+                placeholder="Ask a question about this brief..."
+                rows="1"
+              ></textarea>
+              <button class="chat-submit-btn" id="chatSubmitBtn" onclick="askQuestion()">
+                <span>🚀</span>
+                <span>Ask</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allBriefs = [];
+    let currentBrief = null;
+    let chatMessages = [];
+    
+    // Load briefs on page load
+    window.onload = function() {
+      loadAllBriefs();
+    };
+    
+    function loadAllBriefs() {
+      console.log('Loading all briefs...');
+      
+      // Show loading state
+      const briefsList = document.getElementById('briefsList');
+      briefsList.innerHTML = '<div class="loading-briefs"><div>⏳ Loading briefs...</div></div>';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('Success handler called');
+          console.log('Result type:', typeof result);
+          console.log('Result is null?', result === null);
+          console.log('Result is undefined?', result === undefined);
+          
+          // CRITICAL: Check if result is actually null/undefined
+          if (result === null || result === undefined) {
+            console.error('CRITICAL: Received null/undefined from server');
+            
+            // Show helpful error to user
+            briefsList.innerHTML = `
+              <div class="no-briefs">
+                <div style="font-size: 32px; margin-bottom: 12px;">⚠️</div>
+                <div style="font-weight: 600; margin-bottom: 8px;">Unable to Load Briefs</div>
+                <div style="font-size: 12px; margin-bottom: 12px;">The server returned null. Possible causes:</div>
+                <ul style="text-align: left; font-size: 11px; margin-left: 20px;">
+                  <li>Response is too large for Google Apps Script</li>
+                  <li>Function has a runtime error</li>
+                  <li>Serialization issue</li>
+                </ul>
+                <div style="font-size: 12px; margin-top: 12px;">
+                  <button onclick="loadAllBriefs()" style="padding: 8px 16px; background: #1DBF73; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            `;
+            return;
+          }
+          
+          console.log('Result received successfully!');
+          console.log('Result.success:', result.success);
+          handleBriefsLoaded(result);
+        })
+        .withFailureHandler(function(error) {
+          console.error('Failure handler called');
+          console.error('Error type:', typeof error);
+          console.error('Error:', error);
+          handleBriefsError(error);
+        })
+        .getBriefListMinimal({
+          limit: 200  // Load up to 200 most recent briefs
+        });
+    }
+    
+    function handleBriefsLoaded(result) {
+      console.log('handleBriefsLoaded called');
+      console.log('Result:', result);
+      
+      if (!result || !result.success) {
+        handleBriefsError(result ? result.error : 'Failed to load briefs');
+        return;
+      }
+      
+      // Use the results as-is (they already have the correct field names)
+      allBriefs = result.results || [];
+      
+      // Sort by date - most recent first
+      allBriefs.sort((a, b) => {
+        const dateA = a.receivedDate ? new Date(a.receivedDate) : new Date(0);
+        const dateB = b.receivedDate ? new Date(b.receivedDate) : new Date(0);
+        return dateB - dateA; // Descending order (newest first)
+      });
+      
+      console.log('Loaded', allBriefs.length, 'briefs');
+      if (allBriefs.length > 0) {
+        console.log('Most recent brief:', allBriefs[0]);
+        console.log('Date:', allBriefs[0].receivedDate);
+      }
+      
+      displayBriefs(allBriefs);
+      updateBriefsCount();
+    }
+    
+    function handleBriefsError(error) {
+      console.error('Error loading briefs:', error);
+      const briefsList = document.getElementById('briefsList');
+      briefsList.innerHTML = `
+        <div class="no-briefs">
+          <div style="font-size: 32px; margin-bottom: 12px;">⚠️</div>
+          <div style="font-weight: 600; margin-bottom: 8px;">Error Loading Briefs</div>
+          <div style="font-size: 12px;">${error.message || error}</div>
+        </div>
+      `;
+    }
+    
+    function displayBriefs(briefs) {
+      const briefsList = document.getElementById('briefsList');
+      
+      if (!briefs || briefs.length === 0) {
+        briefsList.innerHTML = `
+          <div class="no-briefs">
+            <div style="font-size: 32px; margin-bottom: 12px;">📭</div>
+            <div style="font-weight: 600; margin-bottom: 8px;">No Briefs Found</div>
+            <div style="font-size: 12px;">Try adjusting your search or filters</div>
+          </div>
+        `;
+        return;
+      }
+      
+      briefsList.innerHTML = '';
+      
+      briefs.forEach(brief => {
+        const item = document.createElement('div');
+        item.className = 'brief-item';
+        item.onclick = () => selectBrief(brief);
+        
+        const title = document.createElement('div');
+        title.className = 'brief-item-title';
+        title.textContent = brief.projectRequestName || brief.projectRequestId || 'Untitled';
+        
+        const meta1 = document.createElement('div');
+        meta1.className = 'brief-item-meta';
+        meta1.textContent = `${brief.role || 'No role'} • ${brief.clientName || 'No client'}`;
+        
+        const meta2 = document.createElement('div');
+        meta2.className = 'brief-item-meta';
+        meta2.textContent = `ID: ${brief.projectRequestId || 'N/A'}`;
+        
+        const date = document.createElement('div');
+        date.className = 'brief-item-date';
+        if (brief.receivedDate) {
+          const d = new Date(brief.receivedDate);
+          date.textContent = `📅 ${d.toLocaleDateString()}`;
+        } else {
+          date.textContent = '📅 No date';
+        }
+        
+        item.appendChild(title);
+        item.appendChild(meta1);
+        item.appendChild(meta2);
+        item.appendChild(date);
+        
+        briefsList.appendChild(item);
+      });
+    }
+    
+    function updateBriefsCount() {
+      const count = allBriefs.length;
+      document.getElementById('briefsCount').textContent = `${count} brief${count !== 1 ? 's' : ''} available`;
+    }
+    
+    function selectBrief(brief) {
+      console.log('Selected brief:', brief);
+      
+      currentBrief = brief;
+      chatMessages = [];
+      
+      // Update active state
+      document.querySelectorAll('.brief-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      event.currentTarget.classList.add('active');
+      
+      // Hide empty state, show preview
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('briefPreview').classList.add('show');
+      
+      // Update preview header
+      document.getElementById('previewTitle').textContent = brief.projectRequestName || 'Untitled Brief';
+      
+      // Update metadata
+      const metadata = document.getElementById('previewMetadata');
+      metadata.innerHTML = `
+        <div class="metadata-item">
+          <div class="metadata-label">Project ID</div>
+          <div class="metadata-value">${brief.projectRequestId || 'N/A'}</div>
+        </div>
+        <div class="metadata-item">
+          <div class="metadata-label">Client</div>
+          <div class="metadata-value">${brief.clientName || 'N/A'}</div>
+        </div>
+        <div class="metadata-item">
+          <div class="metadata-label">Role</div>
+          <div class="metadata-value">${brief.role || 'N/A'}</div>
+        </div>
+        <div class="metadata-item">
+          <div class="metadata-label">Status</div>
+          <div class="metadata-value">${brief.status || 'N/A'}</div>
+        </div>
+        <div class="metadata-item">
+          <div class="metadata-label">Vertical</div>
+          <div class="metadata-value">${brief.vertical || 'N/A'}</div>
+        </div>
+        <div class="metadata-item">
+          <div class="metadata-label">Received Date</div>
+          <div class="metadata-value">${brief.receivedDate ? new Date(brief.receivedDate).toLocaleDateString() : 'N/A'}</div>
+        </div>
+      `;
+      
+      // Load full content
+      document.getElementById('previewContentText').textContent = 'Loading full brief content...';
+      document.getElementById('chatHistory').classList.remove('show');
+      document.getElementById('chatError').classList.remove('show');
+      document.getElementById('chatInput').value = '';
+      
+      google.script.run
+        .withSuccessHandler(handleBriefContentLoaded)
+        .withFailureHandler(handleBriefContentError)
+        .getBriefContent(brief.projectRequestId);
+    }
+    
+    function handleBriefContentLoaded(result) {
+      console.log('Brief content loaded:', result);
+      
+      if (!result || !result.success) {
+        document.getElementById('previewContentText').textContent = 'Error loading content: ' + (result ? result.error : 'Unknown error');
+        return;
+      }
+      
+      document.getElementById('previewContentText').textContent = result.content || 'No content available';
+    }
+    
+    function handleBriefContentError(error) {
+      console.error('Error loading brief content:', error);
+      document.getElementById('previewContentText').textContent = 'Error loading content: ' + (error.message || error);
+    }
+    
+    function askQuestion() {
+      if (!currentBrief) {
+        showChatError('No brief selected. Please select a brief first.');
+        return;
+      }
+      
+      const input = document.getElementById('chatInput');
+      const question = input.value.trim();
+      
+      if (!question) {
+        showChatError('Please enter a question.');
+        return;
+      }
+      
+      if (question.length < 10) {
+        showChatError('Please provide a more detailed question (at least 10 characters).');
+        return;
+      }
+      
+      // Add user message to chat
+      addChatMessage('user', question);
+      
+      // Clear input and disable button
+      input.value = '';
+      const submitBtn = document.getElementById('chatSubmitBtn');
+      submitBtn.disabled = true;
+      
+      // Show loading
+      document.getElementById('chatLoading').classList.add('show');
+      document.getElementById('chatError').classList.remove('show');
+      
+      // Call AI
+      google.script.run
+        .withSuccessHandler(handleAIResponse)
+        .withFailureHandler(handleAIError)
+        .askQuestionAboutBrief(currentBrief.projectRequestId, question);
+    }
+    
+    function handleAIResponse(result) {
+      console.log('AI response:', result);
+      
+      // Hide loading, enable button
+      document.getElementById('chatLoading').classList.remove('show');
+      document.getElementById('chatSubmitBtn').disabled = false;
+      
+      if (!result || !result.success) {
+        showChatError(result ? result.error : 'Failed to get AI response');
+        return;
+      }
+      
+      // Add AI message to chat
+      addChatMessage('ai', result.answer || 'No answer provided');
+    }
+    
+    function handleAIError(error) {
+      console.error('AI error:', error);
+      
+      // Hide loading, enable button
+      document.getElementById('chatLoading').classList.remove('show');
+      document.getElementById('chatSubmitBtn').disabled = false;
+      
+      showChatError('Error: ' + (error.message || error));
+    }
+    
+    function addChatMessage(type, text) {
+      chatMessages.push({ type, text });
+      
+      const chatHistory = document.getElementById('chatHistory');
+      chatHistory.classList.add('show');
+      
+      const message = document.createElement('div');
+      message.className = `chat-message ${type}`;
+      
+      const label = document.createElement('div');
+      label.className = 'chat-message-label';
+      label.textContent = type === 'user' ? 'You' : 'AI Assistant';
+      
+      const messageText = document.createElement('div');
+      messageText.className = 'chat-message-text';
+      messageText.textContent = text;
+      
+      message.appendChild(label);
+      message.appendChild(messageText);
+      
+      chatHistory.appendChild(message);
+      
+      // Scroll to bottom
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+    
+    function showChatError(message) {
+      const errorDiv = document.getElementById('chatError');
+      errorDiv.textContent = message;
+      errorDiv.classList.add('show');
+      
+      setTimeout(() => {
+        errorDiv.classList.remove('show');
+      }, 5000);
+    }
+    
+    // Search and filter functions
+    function performSearch() {
+      const searchTerm = document.getElementById('briefSearchInput').value.toLowerCase().trim();
+      const roleFilter = document.getElementById('filterRole').value.toLowerCase().trim();
+      const companyFilter = document.getElementById('filterCompany').value.toLowerCase().trim();
+      const dateFrom = document.getElementById('filterDateFrom').value;
+      const dateTo = document.getElementById('filterDateTo').value;
+      
+      console.log('Performing search with filters:', { searchTerm, roleFilter, companyFilter, dateFrom, dateTo });
+      
+      let filtered = allBriefs;
+      
+      // Text search
+      if (searchTerm) {
+        filtered = filtered.filter(brief =>
+          (brief.projectRequestName && brief.projectRequestName.toLowerCase().includes(searchTerm)) ||
+          (brief.projectRequestId && brief.projectRequestId.toLowerCase().includes(searchTerm)) ||
+          (brief.clientName && brief.clientName.toLowerCase().includes(searchTerm)) ||
+          (brief.role && brief.role.toLowerCase().includes(searchTerm)) ||
+          (brief.jobDescription && brief.jobDescription.toLowerCase().includes(searchTerm))
+        );
+        console.log('After text search:', filtered.length);
+      }
+      
+      // Role filter
+      if (roleFilter) {
+        filtered = filtered.filter(brief =>
+          brief.role && brief.role.toLowerCase().includes(roleFilter)
+        );
+        console.log('After role filter:', filtered.length);
+      }
+      
+      // Company filter
+      if (companyFilter) {
+        filtered = filtered.filter(brief =>
+          brief.clientName && brief.clientName.toLowerCase().includes(companyFilter)
+        );
+        console.log('After company filter:', filtered.length);
+      }
+      
+      // Date filters - need to handle ISO string dates
+      if (dateFrom) {
+        const from = new Date(dateFrom);
+        from.setHours(0, 0, 0, 0); // Start of day
+        console.log('Filtering from date:', from);
+        
+        filtered = filtered.filter(brief => {
+          if (!brief.receivedDate) return false;
+          const briefDate = new Date(brief.receivedDate);
+          briefDate.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
+          return briefDate >= from;
+        });
+        console.log('After dateFrom filter:', filtered.length);
+      }
+      
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999); // End of day
+        console.log('Filtering to date:', to);
+        
+        filtered = filtered.filter(brief => {
+          if (!brief.receivedDate) return false;
+          const briefDate = new Date(brief.receivedDate);
+          return briefDate <= to;
+        });
+        console.log('After dateTo filter:', filtered.length);
+      }
+      
+      // Sort filtered results by date (most recent first)
+      filtered.sort((a, b) => {
+        const dateA = a.receivedDate ? new Date(a.receivedDate) : new Date(0);
+        const dateB = b.receivedDate ? new Date(b.receivedDate) : new Date(0);
+        return dateB - dateA;
+      });
+      
+      displayBriefs(filtered);
+    }
+    
+    function toggleFilters() {
+      const content = document.getElementById('filtersContent');
+      const icon = document.getElementById('filterToggleIcon');
+      
+      if (content.classList.contains('show')) {
+        content.classList.remove('show');
+        icon.textContent = '▶';
+      } else {
+        content.classList.add('show');
+        icon.textContent = '▼';
+      }
+    }
+    
+    // Event listeners
+    document.getElementById('briefSearchInput').addEventListener('input', performSearch);
+    document.getElementById('filterRole').addEventListener('input', performSearch);
+    document.getElementById('filterCompany').addEventListener('input', performSearch);
+    document.getElementById('filterDateFrom').addEventListener('change', performSearch);
+    document.getElementById('filterDateTo').addEventListener('change', performSearch);
+    
+    document.getElementById('chatInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        askQuestion();
+      }
+    });
+    
+    // Auto-resize textarea
+    document.getElementById('chatInput').addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+    });
+    
+    // Test functions for debugging
+    function testEcho() {
+      console.log('Testing echo...');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('Echo test result:', result);
+          if (result) {
+            alert('✅ Echo test successful! Communication works.\n\n' + JSON.stringify(result, null, 2));
+          } else {
+            alert('❌ Echo test returned null!');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Echo test failed:', error);
+          alert('❌ Echo test failed: ' + error);
+        })
+        .echoTest();
+    }
+    
+    function testSingleBrief() {
+      console.log('Testing single brief...');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('Single brief test result:', result);
+          if (result) {
+            alert('✅ Single brief test successful!\n\n' + JSON.stringify(result, null, 2));
+          } else {
+            alert('❌ Single brief test returned null!');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Single brief test failed:', error);
+          alert('❌ Single brief test failed: ' + error);
+        })
+        .getSingleBriefTest();
+    }
+  </script>
+</body>
+</html>

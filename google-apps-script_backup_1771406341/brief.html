@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Professional Job Brief</title>
+  <?!= include('DesignSystem') ?>
+  <style>
+    /* Brief Specific Overrides */
+    body {
+      padding: 40px 20px;
+      background-color: var(--color-bg-secondary);
+    }
+
+    .brief-container {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .brief-header {
+      background: var(--color-bg-primary);
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .brief-content {
+      background: var(--color-bg-primary);
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+    }
+
+    .brief-logo-container {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 1px solid var(--color-border-subtle);
+      background: var(--color-bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .brief-logo-container svg {
+      width: 50px;
+      height: 50px;
+    }
+
+    .title-area h1 {
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .section {
+      margin-bottom: 32px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .section h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: var(--color-text-primary);
+      border-bottom: 2px solid var(--color-border-subtle);
+      padding-bottom: 8px;
+      display: inline-block;
+    }
+
+    .section p,
+    .section li {
+      color: var(--color-text-secondary);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .section ul {
+      padding-left: 20px;
+    }
+
+    .section li {
+      margin-bottom: 8px;
+    }
+
+    .details-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .detail-item {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      transition: var(--transition-default);
+    }
+
+    .detail-item:hover {
+      border-color: var(--color-border-default);
+    }
+
+    .detail-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .detail-value {
+      font-size: 15px;
+      color: var(--color-text-primary);
+      font-weight: 500;
+      white-space: pre-line;
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .brief-container {
+        max-width: 100%;
+        gap: 0;
+      }
+
+      .brief-header,
+      .brief-content {
+        border: none;
+        padding: 0;
+        border-radius: 0;
+      }
+
+      .brief-header {
+        margin-bottom: 30px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 20px;
+      }
+
+      .section {
+        page-break-inside: avoid;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .brief-header {
+        flex-direction: column-reverse;
+        gap: 20px;
+      }
+
+      .brief-logo-container {
+        align-self: flex-start;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="brief-container">
+    <div class="brief-header">
+      <div class="title-area">
+        <h1>
+          <?= data.jobTitle || "Position" ?>
+        </h1>
+        <? if (data.company) { ?>
+        <div style="font-size: 18px; color: var(--color-text-muted); font-weight: 500;">
+          <?= data.company ?>
+        </div>
+        <? } ?>
+      </div>
+      <div class="brief-logo-container">
+        <!-- Reusing the Fiverr Pro logo from the Design System/Sidebar but tailored -->
+        <svg version="1.1" id="ARTWORK" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+          <path fill="#222325"
+            d="M500,250C500,111.93,388.07,0,250,0S0,111.93,0,250s111.93,250,250,250S500,388.07,500,250z M360.42,382.5 h-65.65V237.2h-62.83v145.3H165.9V237.2h-37.45v-53.75h37.45v-16.32c0-42.59,32.22-71.65,80.15-71.65h48.73v53.74h-37.85 c-15.31,0-24.98,8.36-24.98,21.9v12.33h128.48V382.5z" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="brief-content">
+      <? if (data.roleOverview) { ?>
+      <div class="section">
+        <h2>Role Overview</h2>
+        <p>
+          <?= data.roleOverview ?>
+        </p>
+      </div>
+      <? } ?>
+
+      <? if (data.aboutUs) { ?>
+      <div class="section">
+        <h2>About the Project</h2>
+        <p>
+          <?= data.aboutUs ?>
+        </p>
+      </div>
+      <? } ?>
+
+      <? if (data.jobOverview) { ?>
+      <div class="section">
+        <h2>Job Overview</h2>
+        <p>
+          <?= data.jobOverview ?>
+        </p>
+      </div>
+      <? } ?>
+
+      <? if (data.responsibilities && data.responsibilities.length > 0) { ?>
+      <div class="section">
+        <h2>Key Responsibilities</h2>
+        <ul>
+          <? for (let i = 0; i < data.responsibilities.length; i++) { ?>
+          <li>
+            <?= data.responsibilities[i] ?>
+          </li>
+          <? } ?>
+        </ul>
+      </div>
+      <? } ?>
+
+      <? if (data.requirements) { ?>
+      <div class="section">
+        <h2>Requirements & Qualifications</h2>
+        <p>
+          <?= data.requirements ?>
+        </p>
+      </div>
+      <? } ?>
+
+      <div class="section">
+        <h2>Details</h2>
+        <div class="details-grid">
+          <? if (data.jobType) { ?>
+          <div class="detail-item">
+            <span class="detail-label">Job Type</span>
+            <div class="detail-value">
+              <?= data.jobType ?>
+            </div>
+          </div>
+          <? } ?>
+
+          <? if (data.engagement) { ?>
+          <div class="detail-item">
+            <span class="detail-label">Engagement Model</span>
+            <div class="detail-value">
+              <?= data.engagement ?>
+            </div>
+          </div>
+          <? } ?>
+
+          <? if (data.paymentDetails) { ?>
+          <div class="detail-item">
+            <span class="detail-label">Payment & Compensation</span>
+            <div class="detail-value">
+              <?= data.paymentDetails ?>
+            </div>
+          </div>
+          <? } ?>
+
+          <? if (data.timeline) { ?>
+          <div class="detail-item">
+            <span class="detail-label">Timeline</span>
+            <div class="detail-value">
+              <?= data.timeline ?>
+            </div>
+          </div>
+          <? } ?>
+
+          <? if (data.workplaceAndLogistics) { ?>
+          <div class="detail-item">
+            <span class="detail-label">Workplace & Logistics</span>
+            <div class="detail-value">
+              <?= data.workplaceAndLogistics ?>
+            </div>
+          </div>
+          <? } ?>
+
+          <? if (data.toolsAndPlatforms) { ?>
+          <div class="detail-item">
+            <span class="detail-label">Tools & Platforms</span>
+            <div class="detail-value">
+              <?= data.toolsAndPlatforms ?>
+            </div>
+          </div>
+          <? } ?>
+        </div>
+      </div>
+
+      <? if (data.bonusConsiderations) { ?>
+      <div class="section">
+        <h2>Bonus Considerations</h2>
+        <p>
+          <?= data.bonusConsiderations ?>
+        </p>
+      </div>
+      <? } ?>
+    </div>
+  </div>
+</body>
+
+</html>

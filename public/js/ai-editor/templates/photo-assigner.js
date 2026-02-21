@@ -51,15 +51,47 @@ export class PhotoAssigner {
 
         // Handle remaining photos with overflow layouts
         while (remainingPhotos.length > 0) {
+            // Try 2 photos first
             if (remainingPhotos.length >= 2) {
-                const layout = this.getLayout('two-photos-vertical') || this.getLayout('duo-horizontal');
-                const pagePhotos = remainingPhotos.splice(0, 2);
-                if (layout) pages.push({ layout, photos: pagePhotos, textContent: this.generateDefaultText(layout) });
+                // Try specific layouts first, then any 2-slot layout
+                let layout = this.getLayout('side-by-side') ||
+                    this.getLayout('two-photos-vertical') ||
+                    this.getLayout('duo-horizontal') ||
+                    this.findLayoutWithSlotCount(2);
+
+                if (layout) {
+                    const pagePhotos = remainingPhotos.splice(0, 2);
+                    pages.push({ layout, photos: pagePhotos, textContent: this.generateDefaultText(layout) });
+                } else {
+                    // Fallback to single photo logic if no 2-slot layout found
+                    // Push back to 1-photo logic below
+                    const layout1 = this.getLayout('story-right') ||
+                        this.getLayout('hero-with-caption') ||
+                        this.getLayout('full-bleed-hero') ||
+                        this.findLayoutWithSlotCount(1);
+
+                    if (layout1) {
+                        const pagePhotos = remainingPhotos.splice(0, 1);
+                        pages.push({ layout: layout1, photos: pagePhotos, textContent: this.generateDefaultText(layout1) });
+                    } else {
+                        console.warn('PhotoAssigner: No valid 1 or 2 slot layouts found for remaining photos.');
+                        remainingPhotos = []; // Prevent infinite loop
+                    }
+                }
             } else {
-                const layout = this.getLayout('story-right-photo') || this.getLayout('about-studio');
-                const pagePhotos = remainingPhotos.splice(0, 1);
-                if (layout) pages.push({ layout, photos: pagePhotos, textContent: this.generateDefaultText(layout) });
-                else remainingPhotos = []; // prevent infinite loop if no fallback
+                // Single photo remaining
+                const layout = this.getLayout('story-right') ||
+                    this.getLayout('hero-with-caption') ||
+                    this.getLayout('full-bleed-hero') ||
+                    this.findLayoutWithSlotCount(1);
+
+                if (layout) {
+                    const pagePhotos = remainingPhotos.splice(0, 1);
+                    pages.push({ layout, photos: pagePhotos, textContent: this.generateDefaultText(layout) });
+                } else {
+                    console.warn('PhotoAssigner: No valid 1-slot layout found for remaining photo.');
+                    remainingPhotos = []; // Prevent infinite loop
+                }
             }
         }
 
@@ -356,6 +388,17 @@ export class PhotoAssigner {
         return this.layouts.find(l => l.layoutId === layoutId);
     }
 
+    findLayoutWithSlotCount(count) {
+        // Find any layout with exactly `count` photo slots
+        // Optionally prioritize layouts that don't look like covers or special pages if needed
+        return this.layouts.find(l => {
+            const slots = l.photoSlots ? l.photoSlots.length : 0;
+            // Exclude covers from general fallback
+            const isCover = l.layoutId.toLowerCase().includes('cover') || l.pageType === 'cover';
+            return slots === count && !isCover;
+        });
+    }
+
     // ... existing helpers ...
     findBestHeroIndex(photos) {
         // Look for landscape
@@ -488,18 +531,49 @@ export class PhotoAssigner {
 
     addTravelGalleryPages(pages, photos) {
         while (photos.length > 0) {
-            const layoutId = this.selectTravelGalleryLayout(photos.length);
-            const layout = this.getLayout(layoutId);
-            if (!layout) break;
+            let layout = null;
+            let take = 0;
 
-            const slotCount = layout.photoSlots.length;
+            if (photos.length >= 4) {
+                // Try to find a layout for 4+ photos
+                layout = this.getLayout('hero-three-thumbnails') ||
+                    this.getLayout('gallery-four-large') ||
+                    this.findLayoutWithSlotCount(4) ||
+                    this.findLayoutWithSlotCount(5) ||
+                    this.findLayoutWithSlotCount(6);
+                if (layout) take = layout.photoSlots.length;
+            } else if (photos.length === 3) {
+                layout = this.getLayout('tall-left-stacked-right') || this.findLayoutWithSlotCount(3);
+                if (layout) take = layout.photoSlots.length;
+            } else if (photos.length === 2) {
+                layout = this.getLayout('two-tall-photos') ||
+                    this.getLayout('duo-horizontal') ||
+                    this.findLayoutWithSlotCount(2);
+                take = 2;
+            }
 
-            const pagePhotos = photos.splice(0, slotCount);
-            pages.push({
-                layout: layout,
-                photos: pagePhotos,
-                textContent: this.generateDefaultText(layout)
-            });
+            // If still no layout found (e.g. only 1 photo left or above failed), fallback to 1
+            if (!layout) {
+                layout = this.getLayout('single-centered') ||
+                    this.getLayout('full-bleed-hero') ||
+                    this.findLayoutWithSlotCount(1);
+                take = 1;
+            }
+
+            if (layout) {
+                // Determine how many to take based on layout
+                // In case findLayoutWithSlotCount returned something with specific slot count
+                const actualTake = Math.min(photos.length, layout.photoSlots ? layout.photoSlots.length : take);
+
+                pages.push({
+                    layout: layout,
+                    photos: photos.splice(0, actualTake),
+                    textContent: this.generateDefaultText(layout)
+                });
+            } else {
+                console.warn('PhotoAssigner: No valid gallery layouts found. Stopping.');
+                break;
+            }
         }
     }
 

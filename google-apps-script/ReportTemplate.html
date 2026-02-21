@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Fiverr Pro Business Analytics Report</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+ <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link href="https://fonts.googleapis.com/css2?family=Macan:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap" rel="stylesheet">
+ <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+ <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-VS6V7LY317"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-VS6V7LY317');
+</script>
+ <style>
+   * { margin: 0; padding: 0; box-sizing: border-box; }
+   body { font-family: 'Macan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.6; color: #222325; background: white; }
+   .report-container { max-width: 1336px; margin: 0 auto; background: white; }
+   .header { width: 100%; background: white; border-bottom: 1px solid #DADBDD; }
+   .header-wrapper { max-width: 1336px; margin: 0 auto; padding: 24px 20px; display: flex; justify-content: space-between; align-items: center; }
+   .logo-container { display: flex; align-items: center; }
+   .logo-container svg { display: block; }
+   .subscribe-btn { min-width: 160px; height: 40px; padding: 10px 16px; border: none; border-radius: 8px; background: #222325; color: white; font-size: 14px; font-weight: 600; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; transition: all 0.2s; }
+   .subscribe-btn:hover { background: #404145; }
+   .main-content { padding: 56px 0; background: white; }
+   .content-wrapper { max-width: 1336px; margin: 0 auto; padding: 0 20px; }
+   .title-section { margin-bottom: 48px; }
+   .title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 48px; }
+   .page-title { font-size: 32px; font-weight: 700; line-height: 38px; color: #222325; }
+   .greeting-section { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; }
+   .greeting-content { flex: 1; }
+   .greeting-title { font-size: 20px; font-weight: 700; line-height: 28px; color: #222325; margin-bottom: 4px; }
+   .greeting-text { font-size: 16px; font-weight: 400; line-height: 24px; color: #222325; }
+   .greeting-note { font-size: 14px; font-weight: 400; line-height: 22px; color: #62646A; margin-top: 8px; }
+   .date-range { display: flex; align-items: center; gap: 8px; color: #62646A; font-size: 14px; line-height: 22px; flex-shrink: 0; }
+   .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; margin-bottom: 32px; }
+   .card { background: white; border: 1px solid #DADBDD; border-radius: 12px; padding: 32px; display: flex; flex-direction: column; }
+   .card-section { margin-bottom: 34px; padding-bottom: 34px; border-bottom: 1px solid #DADBDD; }
+   .card-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+   .card-label { color: #62646A; font-size: 16px; font-weight: 600; line-height: 24px; margin-bottom: 20px; }
+   .card-value { font-size: 28px; font-weight: 700; line-height: 36px; color: #404145; margin-bottom: 8px; }
+   .card-value-wrapper { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+   .card-value-wrapper .card-value { margin-bottom: 0; }
+   .tier-icon-wrapper { display: flex; align-items: center; height: 36px; }
+   .tier-icon-wrapper svg { height: 28px; width: auto; }
+   .card-subtext { color: #62646A; font-size: 14px; line-height: 22px; }
+   .redeem-btn {
+      min-width: 160px;
+      height: 40px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      transition: all 0.2s;
+      margin-top: 32px;
+      background: transparent;
+      border: 1px solid #222325;
+      color: #222325;
+      gap: 8px;
+   }
+   .redeem-btn:hover { background-color: #f7f7f7; }
+   .breakdown-card { gap: 24px; }
+   .pie-chart-container { width: 135px; height: 135px; margin: 0 auto; position: relative; }
+   .breakdown-list { display: flex; flex-direction: column; gap: 16px; flex-grow: 1; }
+   .breakdown-item { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; }
+   .breakdown-item.extra-item { display: none; }
+   .breakdown-list.show-all .breakdown-item.extra-item { display: flex; }
+   .show-more-btn { background: transparent; border: 1px solid #DADBDD; border-radius: 8px; padding: 8px 16px; cursor: pointer; margin-top: 16px; font-weight: 600; align-self: center; }
+   .show-more-btn:hover { background-color: #f7f7f7; }
+   .breakdown-info { display: flex; align-items: center; gap: 8px; overflow: hidden; min-width: 0; flex-shrink: 1; }
+   .breakdown-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+   .breakdown-name { font-size: 14px; color: #404145; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+   .breakdown-value-details { text-align: right; font-size: 14px; color: #404145; line-height: 1.4; flex-shrink: 0; padding-left: 8px; }
+   .spend-value { font-weight: 700; display: block; }
+   .order-count { color: #62646A; display: block; }
+   .chart-container { background: white; border: 1px solid #DADBDD; border-radius: 12px; padding: 32px 40px; margin-bottom: 32px; }
+   .chart-header { margin-bottom: 24px; }
+   .chart-title { font-size: 20px; font-weight: 700; line-height: 28px; color: #222325; margin-bottom: 8px; }
+   .chart-subtitle { font-size: 16px; color: #74767E; line-height: 24px; }
+   .chart-wrapper { position: relative; height: 400px; margin-bottom: 20px; }
+   .chart-legend { display: flex; justify-content: center; align-items: center; gap: 24px; }
+   .legend-item { display: flex; align-items: center; gap: 8px; }
+   .legend-dot { width: 8px; height: 8px; border: 2px solid; background: white; border-radius: 1px; }
+   .legend-text { color: #62646A; font-size: 14px; line-height: 22px; }
+   .footer-section { background: #FAFAFA; padding: 56px 0; width: 100%;}
+   .footer-content { max-width: 1336px; margin: 0 auto; padding: 0 20px; }
+   .footer-title { font-size: 20px; font-weight: 700; line-height: 28px; color: #222325; text-align: left; margin-bottom: 32px; }
+   .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+   .service-card { background: white; border: 1px solid #DADBDD; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+   .service-icon { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; }
+   .service-content { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+   .service-title { font-size: 16px; font-weight: 700; line-height: 24px; color: #222325; }
+   .service-description { font-size: 16px; line-height: 24px; color: #404145; }
+   a.service-button-link { text-decoration: none; }
+   .service-button { width: 100%; min-height: 36px; padding: 10px 12px; border: 1px solid #222325; border-radius: 8px; background: transparent; color: #222325; font-size: 14px; font-weight: 600; line-height: 16px; cursor: pointer; text-align: center; display: block; margin-top: auto; }
+   .footer { background: white; padding: 24px 0; border-top: 1px solid #DADBDD; text-align: center; }
+   .footer-text { color: #74767E; font-size: 14px; line-height: 22px; }
+   .breakdown-card-content { display: flex; align-items: center; gap: 32px; margin-top: 16px; flex-direction: column;}
+   .legend-frame { border: 1px solid #DADBDD; border-radius: 8px; padding: 16px; width: 100%; flex-grow: 1; }
+
+   /* --- Styles for Legend Alignment & Expansion --- */
+   .expand-arrow { display: inline-block; width: 14px; flex-shrink: 0; font-size: inherit; color: #62646A; transition: transform 0.2s ease-in-out; text-align: center; }
+   .expand-arrow.expandable { cursor: pointer; }
+   .expanded > .breakdown-info .expand-arrow.expandable { transform: rotate(90deg); }
+   .sub-breakdown-list { width: 100%; display: none; margin-top: 10px; padding-left: calc(14px + 8px); max-height: 150px; overflow-y: auto; }
+   .expanded .sub-breakdown-list { display: block; }
+   .sub-breakdown-item { font-size: 13px; color: #404145; display: flex; justify-content: space-between; padding: 4px 0; }
+   .sub-breakdown-item > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
+   .sub-breakdown-value { color: #62646A; white-space: nowrap; padding-left: 1em; }
+   
+    @media (min-width: 992px) {
+     #order-breakdown-card .breakdown-card-content { flex-direction: row; }
+     #order-breakdown-card .pie-chart-wrapper { flex: 1; max-width: 250px; }
+     #order-breakdown-card .legend-frame { flex: 1.5; }
+   }
+   @media (max-width: 1200px) { .cards-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); } .services-grid { grid-template-columns: 1fr; } }
+   @media (max-width: 768px) { .title-row { flex-direction: column; align-items: flex-start; gap: 16px; } .greeting-section { flex-direction: column; align-items: flex-start; } .header-wrapper { flex-direction: column; gap: 16px; } }
+ </style>
+</head>
+<body>
+ <div class="header">
+    <div class="header-wrapper">
+      <div class="logo-container">
+        <svg width="139" height="34" viewBox="0 0 139 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M81.6463 13.1117H78.4949C76.4661 13.1117 75.3797 14.6592 75.3797 17.2363V26.5544H69.4034V13.1117H66.8677C64.839 13.1117 63.7526 14.6592 63.7526 17.2363V26.5544H57.7763V8.13963H63.7526V10.9393C64.7301 8.76575 66.0705 8.13963 68.063 8.13963H75.3797V10.9393C76.3572 8.76575 77.6976 8.13963 79.6901 8.13963H81.6463V13.1117ZM56.4721 18.7838H44.0103C44.3358 20.8466 45.6036 22.0251 47.7413 22.0251C49.3345 22.0251 50.4584 21.3621 50.8201 20.1836L56.1092 21.6942C54.8051 24.8986 51.5811 26.8508 47.7413 26.8508C41.2569 26.8508 38.2869 21.7311 38.2869 17.3482C38.2869 13.0391 40.8952 7.88251 47.3784 7.88251C54.2607 7.88251 56.5424 13.1129 56.5424 16.9804C56.5436 17.8267 56.5073 18.379 56.4721 18.7838ZM50.6761 15.2115C50.531 13.6283 49.4083 12.1547 47.3795 12.1547C45.4959 12.1547 44.3732 13.0022 44.0103 15.2115H50.6761ZM27.855 26.5556H33.1078L39.6636 8.13963H33.651L30.4633 18.8576L27.203 8.13963H21.2267L27.855 26.5556ZM3.3692 26.5556H9.3092V13.1117H14.96V26.5556H20.8649V8.13963H9.31037V6.99808C9.31037 5.74583 10.1802 4.9721 11.5557 4.9721H14.9612V0H10.577C6.22662 0 3.3692 2.689 3.3692 6.63026V8.14082H0V13.1129H3.3692V26.5556Z" fill="#222325"/><path d="M86.9869 34V8.15269H90.4697V10.8905C91.5467 9.06569 93.7371 7.85986 96.2505 7.85986C101.708 7.85986 104.832 11.8749 104.832 17.3517C104.832 22.8273 101.564 26.8436 96.0714 26.8436C93.6657 26.8436 91.5116 25.7116 90.4709 23.9594V33.9988H86.9869V34ZM101.313 17.3529C101.313 13.52 99.0871 10.9643 95.7471 10.9643C92.3721 10.9643 90.1817 13.52 90.1817 17.3529C90.1817 21.1859 92.3721 23.7415 95.7471 23.7415C99.0871 23.7415 101.313 21.1859 101.313 17.3529Z" fill="#222325"/><path d="M116.757 11.2189H114.136C110.834 11.2189 109.755 14.2127 109.755 18.2277V26.5519H106.274V8.15259H109.757V11.6939C110.582 9.24771 112.018 8.15259 114.568 8.15259H116.758V11.2189H116.757Z" fill="#222325"/><path d="M115.91 17.3529C115.91 11.8404 119.823 7.86108 125.245 7.86108C130.666 7.86108 134.543 11.8404 134.543 17.3529C134.543 22.8655 130.666 26.8448 125.245 26.8448C119.823 26.8436 115.91 22.8643 115.91 17.3529ZM130.988 17.3529C130.988 13.5926 128.655 10.9643 125.243 10.9643C121.797 10.9643 119.463 13.5926 119.463 17.3529C119.463 21.1133 121.796 23.7416 125.243 23.7416C128.655 23.7416 130.988 21.1121 130.988 17.3529Z" fill="#222325"/><path d="M139 24.5201V24.5629C139 25.814 138.003 26.8294 136.771 26.8294C135.541 26.8294 134.542 25.8152 134.542 24.5629V24.5201C134.542 23.269 135.54 22.2537 136.771 22.2537C138.001 22.2537 139 23.269 139 24.5201Z" fill="#222325"/></svg>
+      </div>
+      <a href="<?= data.bsmUrl ?>" target="_blank" class="subscribe-btn" id="subscribeBtn">
+        <span class="btn-text">Schedule a meeting</span>
+        <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10.5313 12.2188L14.75 8.00002M14.75 8.00002L10.5312 3.78127M14.75 8.00002H1.25" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+ </div>
+ <div class="report-container">
+   <div class="main-content">
+     <div class="content-wrapper">
+       <div class="title-section">
+         <div class="title-row">
+           <h1 class="page-title">Business analytics report</h1>
+         </div>
+         <div class="greeting-section">
+           <div class="greeting-content">
+             <div class="greeting-title">Hello <?= data.contact.firstName ?>,</div>
+             <div class="greeting-text">
+               Your customized report shows your account's activity on Fiverr Pro, including how many orders you've made, how much you've spent, and most importantly, how much you've saved.
+             </div>
+             <div class="greeting-note">Note: Currently, all data and amounts are displayed in U.S. Dollars (USD).</div>
+           </div>
+           <div class="date-range">
+             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+               <path d="M4.93176 1.58765V3.42852M11.0686 1.58765V3.42852M1.25 6.8954H14.7497M13.2313 3.6126H2.76904C1.93028 3.6126 1.25033 4.29256 1.25033 5.13132V12.8936C1.25033 13.7324 1.93028 14.4123 2.76904 14.4123H13.2313C14.07 14.4123 14.75 13.7324 14.75 12.8936V5.13132C14.75 4.29256 14.07 3.6126 13.2313 3.6126Z" stroke="#62646A" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+             </svg>
+             <?= data.reportPeriod ?>
+           </div>
+         </div>
+       </div>
+     
+       <div class="cards-grid">
+         <div class="card">
+           <div class="card-section">
+             <div class="card-label">Total order value</div>
+             <div class="card-value">$<?= data.mainKPIs.totalSpend.toLocaleString() ?></div>
+           </div>
+           <div class="card-section">
+             <div class="card-label">Potential savings</div>
+             <div class="card-value">$<?= data.mainKPIs.potentialSavings.toLocaleString() ?></div>
+             <div class="card-subtext">Estimate includes unredeemed points.</div>
+           </div>
+         </div>
+         <div class="card">
+           <? if (data.visibility && data.visibility.showAvgOrderValue) { ?>
+           <div class="card-section">
+             <div class="card-label">Average order value</div>
+             <div class="card-value">$<?= data.pendingKPIs.avgProjectValue.toLocaleString() ?></div>
+           </div>
+           <? } ?>
+           <div class="card-section">
+             <div class="card-label">Total orders</div>
+             <div class="card-value"><?= data.mainKPIs.orders ?></div>
+           </div>
+         </div>
+         <? if (data.contact.pointsBalance > 0) { ?>
+         <div class="card">
+           <div class="card-section">
+             <div class="card-label">Fiverr Pro points balance</div>
+             <div class="card-value-wrapper">
+                <div class="card-value"><?= data.contact.pointsBalance.toLocaleString() ?></div>
+                <div class="tier-icon-wrapper"><?!= data.contact.tierIcon ?></div>
+             </div>
+             
+             <? if (data.contact.pointsBalance >= 1500) { ?>
+               <div class="card-subtext">Available points to redeem</div>
+               <a href="https://pro.fiverr.com/business/loyalty_dashboard/redeem?openRedeemCreditsModal=true" target="_blank" class="redeem-btn">Redeem now
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                     <path d="M10.5313 12.2188L14.75 8.00002M14.75 8.00002L10.5312 3.78127M14.75 8.00002H1.25" stroke="#222325" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+               </a>
+             <? } else { 
+                  const pointsNeeded = 1500 - data.contact.pointsBalance;
+             ?>
+                <div class="card-subtext" style="margin-top: 8px;">
+                  Earn <?= pointsNeeded.toLocaleString() ?> more points to start redeeming.
+                </div>
+             <? } ?>
+           </div>
+         </div>
+         <? } ?>
+       </div>
+       <? if (data.visibility && (data.visibility.showSubCategories || data.visibility.showTeamMembers)) { ?>
+       <div class="cards-grid">
+         <? if (data.visibility.showSubCategories) { ?>
+         <div class="card" id="order-breakdown-card">
+             <div class="chart-title">Orders by category</div>
+             <div class="breakdown-card-content">
+                <div class="pie-chart-wrapper" style="position: relative; max-width: 250px; min-width: 150px; flex: 1 1 0%;">
+                    <canvas id="subCategoryPieChart"></canvas>
+                </div>
+                <div class="legend-frame" style="flex: 1.5 1 0%; display: flex; flex-direction: column;">
+                   <div class="breakdown-list" id="sub-category-list-container">
+                   </div>
+                </div>
+             </div>
+         </div>
+         <? } ?>
+         <? if (data.visibility.showTeamMembers) { ?>
+         <div class="card breakdown-card">
+           <div class="chart-title">Orders by account member</div>
+           <div class="pie-chart-container" style="margin-top:16px"><canvas id="teamMemberPieChart"></canvas></div>
+           <div class="breakdown-list" id="team-member-list-container"></div>
+         </div>
+         <? } ?>
+       </div>
+       <? } ?>
+       
+       <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">Monthly trends</div>
+          <div class="chart-subtitle">Explore your Fiverr Pro activity, spotting trends in orders and spend.</div>
+        </div>
+        <div class="chart-wrapper"><canvas id="monthlyTrendsChart"></canvas></div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="border-color: #49A2A5"></div><div class="legend-text">Order value</div></div>
+          <div class="legend-item"><div class="legend-dot" style="border-color: #7283C8"></div><div class="legend-text">Number of orders</div></div>
+        </div>
+      </div>
+       
+       <div class="cards-grid">
+        <div class="card">
+          <div class="chart-title">Top freelancers</div>
+          <div style="margin-top: 20px;">
+            <? if (data.topFreelancers.length > 0) { ?>
+              <? data.topFreelancers.forEach(function(freelancer, index) { ?>
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: <?= index < data.topFreelancers.length - 1 ? '1px solid #DADBDD' : 'none' ?>;">
+                  <div style="font-weight: 600; color: #222325;"><?= freelancer.name ?></div>
+                  <div style="font-size: 14px; color: #62646A;">$<?= freelancer.spend.toLocaleString() ?> &bull; <?= freelancer.orders ?> orders</div>
+                </div>
+              <? }) ?>
+            <? } else { ?>
+              <div style="color: #62646A;">No freelancer data available yet</div>
+            <? } ?>
+          </div>
+        </div>
+        <? if (data.visibility && data.visibility.showSellers) { ?>
+        <div class="card breakdown-card">
+          <div class="chart-title">Order value by freelancer</div>
+          <div class="pie-chart-container" style="margin-top:16px"><canvas id="sellerPieChart"></canvas></div>
+          <div class="breakdown-list" id="seller-list-container"></div>
+        </div>
+        <? } ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-section">
+    <div class="footer-content">
+      <h2 class="footer-title">Get more done with Fiverr Pro</h2>
+      <div class="services-grid">
+         <div class="service-card">
+          <div class="service-icon"><svg width="57" height="57" viewBox="0 0 57 57" fill="none" xmlns="http://www.w3.org/2000/svg"><g filter="url(#filter0_d_service1)"><path d="M45.5505 16.6304H5.88378C4.59511 16.6304 3.55045 17.6751 3.55045 18.9638V46.9638C3.55045 48.2524 4.59511 49.2971 5.88378 49.2971H45.5505C46.8391 49.2971 47.8838 48.2524 47.8838 46.9638V18.9638C47.8838 17.6751 46.8391 16.6304 45.5505 16.6304Z" fill="white" stroke="#DADBDD" stroke-width="0.5"/><path d="M45.5505 18.9638H5.88377V39.9638H45.5505V18.9638Z" fill="url(#paint0_linear_service1)"/><path fill-rule="evenodd" clip-rule="evenodd" d="M25.464 31.7971C27.8496 31.7971 29.7835 29.9689 29.7835 27.7138C29.7835 25.4586 27.8496 23.6304 25.464 23.6304C23.0784 23.6304 21.1445 25.4586 21.1445 27.7138C21.1445 29.9689 23.0784 31.7971 25.464 31.7971ZM33.8838 39.9632C32.9032 36.6781 29.7642 34.2487 26.0059 34.1299H25.4284C21.6701 34.2487 18.5311 36.6781 17.5504 39.9632H33.8838Z" fill="white"/><circle cx="18.7171" cy="44.6304" r="2.33333" fill="#E8F094"/><circle cx="32.7171" cy="44.6304" r="2.33333" fill="#E8F094"/><circle cx="25.7171" cy="44.6304" r="2.33333" fill="#E8F094"/></g><g filter="url(#filter1_d_service1)"><path d="M32.4254 13.7142C32.4254 8.07629 36.9958 3.50586 42.6337 3.50586C48.2717 3.50586 52.8421 8.07629 52.8421 13.7142C52.8421 19.3521 48.2717 23.9225 42.6337 23.9225H32.4254V13.7142Z" fill="white" stroke="#DADBDD" stroke-width="0.5"/><path d="M44.5781 15.3333L47.9634 17.5901C48.0689 17.6413 48.186 17.6469 48.2959 17.6061C48.4209 17.4869 48.467 17.3205 48.467 17.3205V12.0083C48.467 11.9513 48.452 11.8953 48.4234 11.8459C48.3538 11.7556 48.2549 11.6988 48.1418 11.6841C48.0288 11.6996 47.9796 11.7283 47.9796 11.7283L44.5781 13.7129" fill="#222325"/><path d="M43.2819 10.7975H38.0967C37.3808 10.7975 36.8004 11.3779 36.8004 12.0938V17.279C36.8004 17.9949 37.3808 18.5753 38.0967 18.5753H43.2819C43.9978 18.5753 44.5782 17.9949 44.5782 17.279V12.0938C44.5782 11.3779 43.9978 10.7975 43.2819 10.7975Z" fill="#222325"/></g><defs><filter id="filter0_d_service1" x="0.258789" y="13.3389" width="50.9167" height="39.25" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset/><feGaussianBlur stdDeviation="1.5"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/></filter><filter id="filter1_d_service1" x="29.4254" y="0.505859" width="26.4167" height="26.4165" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset/><feGaussianBlur stdDeviation="1.5"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/></filter><linearGradient id="paint0_linear_service1" x1="50.771" y1="68.2245" x2="38.7212" y2="8.9143" gradientUnits="userSpaceOnUse"><stop stop-color="#BBCE00"/><stop offset="1" stop-color="#005C25"/></linearGradient></defs></svg></div>
+          <div class="service-content"><div class="service-title">Contact your Success Manager</div><div class="service-description">Discuss your freelance hiring strategy and get guidance from your Success Manager.</div></div>
+          <a href="<?= data.bsmUrl ?>" target="_blank" rel="noopener noreferrer" class="service-button-link"><div class="service-button">Schedule a meeting</div></a>
+        </div>
+        <div class="service-card">
+          <div class="service-icon"><svg width="57" height="57" viewBox="0 0 57 57" fill="none" xmlns="http://www.w3.org/2000/svg"><g filter="url(#filter0_d_service2)"><rect x="7.05029" y="7.29736" width="42" height="42" rx="2.333" fill="white" stroke="#DADBDD" stroke-width="0.5"/><circle cx="11.717" cy="11.964" r="1.16667" fill="#222325"/><circle cx="15.217" cy="11.964" r="1.16667" fill="#222325"/><circle cx="18.717" cy="11.964" r="1.16667" fill="#222325"/><rect x="10.5503" y="16.6309" width="7" height="29.1667" fill="#E4E5E7"/><rect x="19.8835" y="16.6309" width="7" height="29.1667" fill="#E8F094"/><rect x="29.217" y="16.6309" width="7" height="29.1667" fill="#E4E5E7"/><rect x="38.5503" y="16.6309" width="7" height="29.1667" fill="#E4E5E7"/></g><g filter="url(#filter1_d_service2)"><rect x="3.55029" y="25.9639" width="18.6667" height="26.8333" rx="2.333" fill="white" stroke="#DADBDD" stroke-width="0.5"/><path fill-rule="evenodd" clip-rule="evenodd" d="M10.2585 34.7139C11.7083 34.7139 12.8835 33.5386 12.8835 32.0889C12.8835 33.5386 14.0588 34.7139 15.5085 34.7139C14.0588 34.7139 12.8835 35.8891 12.8835 37.3389C12.8835 35.8891 11.7083 34.7139 10.2585 34.7139ZM10.2585 34.7139C8.8088 34.7139 7.63354 35.8891 7.63354 37.3389C7.63354 38.7886 8.8088 39.9639 10.2585 39.9639C11.7083 39.9639 12.8835 38.7886 12.8835 37.3389C12.8835 38.7886 14.0588 39.9639 15.5085 39.9639C16.9583 39.9639 18.1335 38.7886 18.1335 37.3389C18.1335 35.8891 16.9583 34.7139 15.5085 34.7139C16.9583 34.7139 18.1335 33.5386 18.1335 32.0889C18.1335 30.6391 16.9583 29.4639 15.5085 29.4639C14.0588 29.4639 12.8835 30.6391 12.8835 32.0889C12.8835 30.6391 11.7083 29.4639 10.2585 29.4639C8.8088 29.4639 7.63354 30.6391 7.63354 32.0889C7.63354 33.5386 8.8088 34.7139 10.2585 34.7139Z" fill="url(#paint0_linear_service2)"/><rect x="7.05029" y="43.4639" width="11.6667" height="1.75" fill="#C5C6C9"/><rect x="7.05029" y="47.5474" width="11.6667" height="1.75" fill="#C5C6C9"/></g><g filter="url(#filter2_d_service2)"><path d="M52.5504 13.714C52.5504 19.1909 48.1105 23.6307 42.6337 23.6307H32.717V13.714C32.717 8.23721 37.1569 3.79736 42.6337 3.79736C48.1105 3.79736 52.5504 8.23721 52.5504 13.714Z" fill="white" stroke="#DADBDD" stroke-width="0.5"/><path fill-rule="evenodd" clip-rule="evenodd" d="M47.1252 18.964C48.3132 17.7288 49.0504 16.0074 49.0504 14.1034C49.0504 10.3445 46.1775 7.29736 42.6337 7.29736C39.0899 7.29736 36.217 10.3445 36.217 14.1034C36.217 16.0074 36.9542 17.7288 38.1423 18.964C38.6957 17.3563 40.497 16.1781 42.6337 16.1781C44.7704 16.1781 46.5717 17.3563 47.1252 18.964ZM42.6337 14.765C44.0395 14.765 45.1792 13.6222 45.1792 12.2125C45.1792 10.8028 44.0395 9.65998 42.6337 9.65998C41.2279 9.65998 40.0882 10.8028 40.0882 12.2125C40.0882 13.6222 41.2279 14.765 42.6337 14.765Z" fill="url(#paint1_linear_service2)"/></g><defs><filter id="filter0_d_service2" x="4.05029" y="4.29736" width="48" height="48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset/><feGaussianBlur stdDeviation="1.5"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/></filter><filter id="filter1_d_service2" x="0.550293" y="22.9639" width="24.6667" height="32.8335" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset/><feGaussianBlur stdDeviation="1.5"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/></filter><filter id="filter2_d_service2" x="29.717" y="0.797363" width="25.8333" height="25.8335" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset/><feGaussianBlur stdDeviation="1.5"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/></filter><linearGradient id="paint0_linear_service2" x1="12.8835" y1="25.9639" x2="12.8835" y2="53.3805" gradientUnits="userSpaceOnUse"><stop stop-color="#256020"/><stop offset="1" stop-color="#D0E500"/></linearGradient><linearGradient id="paint1_linear_service2" x1="42.0504" y1="4.96403" x2="42.0504" y2="28.2974" gradientUnits="userSpaceOnUse"><stop stop-color="#256020"/><stop offset="1" stop-color="#D0E500"/></linearGradient></defs></svg></div>
+          <div class="service-content"><div class="service-title">Project planning</div><div class="service-description">We'll scope your project with a discount, covering budgeting, goals, and freelancer sourcing.</div></div>
+          <a href="https://pro.fiverr.com/pro-solutions/project-planning?source=sourcing_drawer_planning" target="_blank" rel="noopener noreferrer" class="service-button-link"><div class="service-button">Schedule a call</div></a>
+        </div>
+        <div class="service-card">
+          <div class="service-icon"><svg width="57" height="57" viewBox="0 0 57 57" fill="none" xmlns="http://www.w3.org/2000/svg"><g filter="url(#filter0_d_service3)"><path d="M50.5603 14.896L34.1413 12.0008C32.8318 11.7699 31.583 12.6443 31.3521 13.9538L26.9206 39.0863C26.6897 40.3958 27.5641 41.6446 28.8736 41.8755L45.2926 44.7706C46.6021 45.0015 47.8509 44.1271 48.0818 42.8176L52.5133 17.6851C52.7442 16.3756 51.8698 15.1269 50.5603 14.896Z" fill="white" stroke="#DADBDD" stroke-width="0.5"/><path d="M33.8209 14.5118L50.003 17.3652L47.3691 32.3025L31.187 29.4492L33.8209 14.5118Z" fill="#E8F094"/><path d="M5.54028 14.896L21.9593 12.0008C23.2688 11.7699 24.5176 12.6443 24.7485 13.9538L29.18 39.0863C29.4109 40.3958 28.5365 41.6446 27.227 41.8755L10.808 44.7706C9.49846 45.0015 8.24969 44.1271 8.01879 42.8176L3.58727 17.6851C3.35637 16.3756 4.23076 15.1269 5.54028 14.896Z" fill="white" stroke="#DADBDD" stroke-width="0.5"/><path d="M22.2797 14.5118L6.0976 17.3652L8.73145 32.3025L24.9135 29.4492L22.2797 14.5118Z" fill="#E8F094"/><rect x="11.1335" y="4.96387" width="33.8333" height="46.6667" rx="2.333" fill="white" stroke="#DADBDD" stroke-width="0.5"/><rect x="24.5502" y="39.964" width="16.3333" height="1.59091" fill="#C5C6C9"/><rect x="24.5502" y="44.2064" width="12" height="1.59091" fill="#C5C6C9"/><path d="M17.7849 40.1023C17.8526 39.9177 18.1052 39.9177 18.1729 40.1023L18.7813 41.761C18.8101 41.8394 18.8803 41.8933 18.9611 41.899L20.6186 42.0168C20.8029 42.0299 20.8801 42.2667 20.741 42.3924L19.4482 43.5608C19.39 43.6134 19.3649 43.6951 19.3831 43.7727L19.7943 45.5315C19.8386 45.7211 19.635 45.8685 19.4778 45.7607L18.0936 44.8109C18.0241 44.7631 17.9337 44.7631 17.8641 44.8109L16.48 45.7607C16.3228 45.8685 16.1192 45.7211 16.1635 45.5315L16.5747 43.7727C16.5929 43.6951 16.5678 43.6134 16.5096 43.5608L15.2168 42.3924C15.0777 42.2667 15.1549 42.0299 15.3392 42.0168L16.9967 41.899C17.0775 41.8933 17.1477 41.8394 17.1765 41.761L17.7849 40.1023Z" fill="#222325"/><path fill-rule="evenodd" clip-rule="evenodd" d="M36.5387 32.9641C39.1293 30.6375 40.7589 27.262 40.7589 23.5058C40.7589 16.487 35.069 10.7972 28.0502 10.7972C21.0315 10.7972 15.3416 16.487 15.3416 23.5058C15.3416 27.2617 16.971 30.6371 19.5614 32.9637C20.6952 30.079 24.0669 27.9866 28.0499 27.9866C32.0332 27.9866 35.405 30.0792 36.5387 32.9641ZM28.0499 25.3621C30.7298 25.3621 32.9023 23.2397 32.9023 20.6215C32.9023 18.0034 30.7298 15.881 28.0499 15.881C25.37 15.881 23.1975 18.0034 23.1975 20.6215C23.1975 23.2397 25.37 25.3621 28.0499 25.3621Z" fill="url(#paint0_linear_service3)"/></g><defs><filter id="filter0_d_service3" x="0.550293" y="1.96387" width="55" height="52.6665" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset/><feGaussianBlur stdDeviation="1.5"/><feComposite in2="hardAlpha" operator="out"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/></filter><linearGradient id="paint0_linear_service3" x1="9.96693" y1="3.21403" x2="54.4517" y2="9.1198" gradientUnits="userSpaceOnUse"><stop stop-color="#005C25"/><stop offset="1" stop-color="#BBCE00"/></linearGradient></defs></svg></div>
+          <div class="service-content"><div class="service-title">Freelancer sourcing</div><div class="service-description">Our experts will source, vet, and recommend top freelance talent.</div></div>
+          <a href="https://pro.fiverr.com/pro-solutions/expert-sourcing-services?utm_source=analytics_dashboard&utm_campaign=analytics_dashboard" target="_blank" rel="noopener noreferrer" class="service-button-link"><div class="service-button">Get started</div></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="report-container">
+       <div class="footer-text">
+           This report was generated on <?= data.generatedDate ?> &#8226; © 2025 Fiverr Pro. All rights reserved.
+       </div>
+    </div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const reportData = <?!= JSON.stringify(data) ?>;
+
+  if (!reportData) {
+    console.error('Report data could not be loaded.');
+    return;
+  }
+  
+  console.log('Report loaded with tier notification data:', {
+    showTierNotification: reportData.showTierNotification,
+    tierNotification: reportData.tierNotification
+  });
+  
+  const truncateText = (text, maxLength) => {
+    if (text.length <= maxLength) {
+      return text;
+    }
+    return text.substr(0, maxLength) + '...';
+  };
+  
+  const createBreakdownPieChart = (chartId, listContainerId, chartData) => {
+    const ctx = document.getElementById(chartId);
+    const listContainer = document.getElementById(listContainerId);
+
+    if (!ctx || !listContainer || !chartData || Object.keys(chartData).length === 0) {
+      const parentCard = ctx.closest('.breakdown-card') || ctx.closest('.card');
+      if(parentCard) parentCard.innerHTML = '<div class="card-subtext" style="text-align:center; width: 100%;">No data available for this period.</div>';
+      return;
+    }
+
+    const sortedLabels = Object.keys(chartData).sort((a, b) => chartData[b].spend - chartData[a].spend);
+    const fullLabels = sortedLabels;
+    const dataValues = fullLabels.map(label => chartData[label].spend);
+    
+    const chartColors = [
+        '#49A2A5', '#7283C8', '#C28D54', '#222325', '#FFB800', '#62646A', '#954A91', '#47A025', 
+        '#FF6B6B', '#3E517A', '#F79F79', '#A16E83', '#56876D', '#E17055', '#74B9FF', '#F9CA24',
+        '#FD79A8', '#00B894', '#E09F3E', '#9C88FF', '#54A0FF'
+    ];
+
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: fullLabels,
+        datasets: [{ data: dataValues, backgroundColor: chartColors, borderColor: 'white', borderWidth: 2, hoverOffset: 4 }]
+      },
+      options: {
+        responsive: true,
+        aspectRatio: 1,
+        cutout: '60%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const fullLabel = context.label || '';
+                const itemData = chartData[fullLabel];
+                if (!itemData) return fullLabel;
+
+                const spendLine = `Spend: $${itemData.spend.toLocaleString()}`;
+                const ordersLine = `Orders: ${itemData.orders}`;
+                
+                if (itemData.details) {
+                    return [fullLabel, spendLine, ordersLine];
+                }
+
+                return [fullLabel, spendLine, ordersLine];
+              }
+            }
+          }
+        }
+      }
+    });
+
+    listContainer.innerHTML = '';
+    const legendNameForOthers = 'Your smaller orders';
+    
+    fullLabels.forEach((label, index) => {
+        const item = chartData[label];
+        const color = chartColors[index % chartColors.length];
+        const listItem = document.createElement('div');
+        listItem.className = 'breakdown-item';
+        
+        const isFreelancerChart = chartId === 'sellerPieChart';
+        const displayName = isFreelancerChart ? truncateText(label, 25) : label;
+        
+        if (index >= 5) {
+          listItem.classList.add('extra-item');
+        }
+
+        if (label === legendNameForOthers && item.details && item.details.length > 0) {
+            listItem.style.flexWrap = 'wrap'; 
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'breakdown-info';
+            infoDiv.innerHTML = `<span class="expand-arrow expandable">▸</span><div class="breakdown-dot" style="background-color: ${color};"></div><div class="breakdown-name" title="${label}">${displayName}</div>`;
+
+            const valueDiv = document.createElement('div');
+            valueDiv.className = 'breakdown-value-details';
+            valueDiv.innerHTML = `<span class="spend-value">$${item.spend.toLocaleString()}</span><span class="order-count">${item.orders} order(s)</span>`;
+            
+            const subListDiv = document.createElement('div');
+            subListDiv.className = 'sub-breakdown-list';
+            item.details.forEach(subItem => {
+                subListDiv.innerHTML += `<div class="sub-breakdown-item">
+                    <span title="${subItem.name}">${truncateText(subItem.name, 25)}</span>
+                    <span class="sub-breakdown-value">$${subItem.spend.toLocaleString()} &bull; ${subItem.orders} order(s)</span>
+                </div>`;
+            });
+
+            infoDiv.addEventListener('click', (e) => {
+                listItem.classList.toggle('expanded');
+                e.stopPropagation();
+            });
+
+            listItem.appendChild(infoDiv);
+            listItem.appendChild(valueDiv);
+            listItem.appendChild(subListDiv);
+        } else {
+            listItem.innerHTML = `
+            <div class="breakdown-info">
+                <span class="expand-arrow"></span>
+                <div class="breakdown-dot" style="background-color: ${color};"></div>
+                <div class="breakdown-name" title="${label}">${displayName}</div>
+            </div>
+            <div class="breakdown-value-details">
+                <span class="spend-value">$${item.spend.toLocaleString()}</span>
+                <span class="order-count">${item.orders} order(s)</span>
+            </div>`;
+        }
+        listContainer.appendChild(listItem);
+      });
+    
+    const applicableCharts = ['sub-category-list-container', 'seller-list-container'];
+    if (fullLabels.length > 5 && applicableCharts.includes(listContainerId)) {
+      const showMoreBtn = document.createElement('button');
+      showMoreBtn.textContent = 'Show more';
+      showMoreBtn.className = 'show-more-btn';
+      listContainer.parentNode.appendChild(showMoreBtn);
+
+      showMoreBtn.addEventListener('click', function() {
+        const isShowingAll = listContainer.classList.toggle('show-all');
+        this.textContent = isShowingAll ? 'Show less' : 'Show more';
+      });
+    }
+  };
+
+  const createMonthlyTrendsChart = () => {
+    const ctx = document.getElementById('monthlyTrendsChart');
+    if (!ctx || !reportData.monthlyTrends || reportData.monthlyTrends.length === 0) return;
+
+    const labels = reportData.monthlyTrends.map(d => d.month);
+    const chartType = reportData.monthlyTrends.length === 1 ? 'bar' : 'line';
+    
+    const datasets = chartType === 'line' ? [
+          { label: 'Order value', data: reportData.monthlyTrends.map(d => d.spend), borderColor: '#49A2A5', yAxisID: 'y_spend', tension: 0.4, fill: false, pointRadius: 5, pointBackgroundColor: '#fff', pointBorderWidth: 2 },
+          { label: 'Number of orders', data: reportData.monthlyTrends.map(d => d.orders), borderColor: '#7283C8', yAxisID: 'y_orders', tension: 0.4, fill: false, pointRadius: 5, pointBackgroundColor: '#fff', pointBorderWidth: 2 }
+       ] : [
+           { label: 'Order value', data: reportData.monthlyTrends.map(d => d.spend), backgroundColor: '#49A2A5', yAxisID: 'y_spend' },
+           { label: 'Number of orders', data: reportData.monthlyTrends.map(d => d.orders), backgroundColor: '#7283C8', yAxisID: 'y_orders' }
+       ];
+    
+    new Chart(ctx, {
+      type: chartType,
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if(label) label += ': ';
+                
+                if (context.parsed.y !== null) {
+                  if (context.dataset.yAxisID === 'y_spend') {
+                    label += '$' + context.parsed.y.toLocaleString();
+                  } else {
+                    label += context.parsed.y;
+                  }
+                }
+                return label;
+              }
+            }
+          },
+        },
+        scales: {
+           x: { grid: { display: false }, stacked: false },
+           y_spend: { 
+             type: 'linear', 
+             position: 'left', 
+             grid: { color: '#DADBDD' }, 
+             ticks: { callback: function(value) { return '$' + value.toLocaleString(); } }, 
+             title: { display: true, text: 'USD ($)' }, 
+             stacked: false 
+           },
+           y_orders: { 
+             type: 'linear', 
+             position: 'right', 
+             grid: { display: false }, 
+             ticks: { 
+               callback: function(value) { if (Number.isInteger(value)) return value; } 
+             }, 
+             title: { display: true, text: 'Number of orders' },
+             min: 0 
+            }
+        }
+      }
+    });
+  };
+
+  if (reportData.mainKPIs && reportData.pendingKPIs && !reportData.visibility) {
+    console.warn("Visibility data missing, recalculating...");
+    reportData.visibility = {
+      showSubCategories: Object.keys(reportData.spendBySubCategory || {}).length >= 2,
+      showSellers: Object.keys(reportData.spendBySeller || {}).length >= 2,
+      showTeamMembers: Object.keys(reportData.spendByTeamMember || {}).length >= 2,
+      showAvgOrderValue: reportData.pendingKPIs.avgProjectValue >= 2
+    };
+  }
+
+  if (reportData.visibility) {
+    if (reportData.visibility.showSubCategories) {
+      createBreakdownPieChart('subCategoryPieChart', 'sub-category-list-container', reportData.spendBySubCategory);
+    }
+    if (reportData.visibility.showTeamMembers) {
+      createBreakdownPieChart('teamMemberPieChart', 'team-member-list-container', reportData.spendByTeamMember);
+    }
+    if (reportData.visibility.showSellers) {
+      createBreakdownPieChart('sellerPieChart', 'seller-list-container', reportData.spendBySeller);
+    }
+  }
+  createMonthlyTrendsChart();
+});
+</script>
+
+<!-- Tier Notification System Integration -->
+<? if (data.showTierNotification && data.tierNotification) { ?>
+  <!-- Hidden data container for tier notification -->
+  <div id="tierModalData" 
+       data-spend="<?= data.tierNotification.annualSpend ?>"
+       data-tier="<?= data.tierNotification.currentTier ?>"
+       data-category="<?= data.tierNotification.topCategory ?>"
+       style="display: none;">
+  </div>
+  
+  <!-- Tier Notification Modal Styles -->
+  <style>
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    .modal-container {
+      background: white;
+      border-radius: 16px;
+      max-width: 440px;
+      width: 100%;
+      padding: 40px 32px;
+      position: relative;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      transform: scale(0.9);
+      animation: modalEntry 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards;
+    }
+
+    @keyframes modalEntry {
+      to { transform: scale(1); }
+    }
+
+    .tier-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      color: #62646A;
+      transition: color 0.2s;
+      z-index: 10;
+    }
+
+    .tier-close-btn:hover {
+      color: #222325;
+    }
+
+    .tier-close-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 2;
+    }
+
+    .illustration-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 32px;
+      position: relative;
+    }
+
+    .illustration-wrapper {
+      position: relative;
+      animation: bounce 0.6s ease-out 0.3s;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .tier-badge {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tier-badge::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      animation: shine 2s infinite;
+    }
+
+    @keyframes shine {
+      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+
+    .tier-platinum {
+      background: linear-gradient(135deg, #B7CFF3 0%, #4972B0 100%);
+    }
+
+    .tier-diamond {
+      background: linear-gradient(135deg, #B2CDFA 0%, #1F3056 100%);
+    }
+
+    @keyframes confetti-fall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(300px) rotate(720deg); opacity: 0; }
+    }
+
+    .confetti {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      animation: confetti-fall 2s ease-out forwards;
+    }
+
+    .message-section {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .tier-name {
+      font-size: 16px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      opacity: 0;
+      animation: slideUp 0.5s ease-out 0.6s forwards;
+    }
+
+    .tier-name.platinum {
+      color: #4972B0;
+    }
+
+    .tier-name.diamond {
+      color: #1F3056;
+    }
+
+    .message-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #222325;
+      line-height: 1.3;
+      margin-bottom: 16px;
+      opacity: 0;
+      animation: slideUp 0.5s ease-out 0.7s forwards;
+    }
+
+    .message-body {
+      font-size: 16px;
+      color: #62646A;
+      line-height: 1.6;
+      opacity: 0;
+      animation: slideUp 0.5s ease-out 0.8s forwards;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .highlight {
+      color: #222325;
+      font-weight: 700;
+    }
+
+    .cta-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      opacity: 0;
+      animation: slideUp 0.5s ease-out 0.9s forwards;
+    }
+
+    .cta-btn {
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .cta-primary {
+      background: #222325;
+      color: white;
+    }
+
+    .cta-primary:hover {
+      background: #404145;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(34, 35, 37, 0.2);
+    }
+
+    .cta-secondary {
+      background: transparent;
+      color: #222325;
+      border: 1px solid #222325;
+    }
+
+    .cta-secondary:hover {
+      background: #f7f7f7;
+    }
+
+    .cta-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .progress-section {
+      margin-bottom: 32px;
+      opacity: 0;
+      animation: slideUp 0.5s ease-out 0.8s forwards;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #62646A;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #E4E5E7;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #49A2A5 0%, #7283C8 100%);
+      border-radius: 4px;
+      transition: width 1s ease-out 1s;
+    }
+
+    @media (max-width: 480px) {
+      .modal-container { padding: 32px 24px; }
+      .message-title { font-size: 20px; }
+      .cta-container { gap: 8px; }
+    }
+  </style>
+  
+  <script>
+    (function() {
+      console.log('Loading tier notification system...');
+      
+      // Configuration
+      const TIER_THRESHOLDS = {
+        platinum: { min: 5000, name: 'Platinum', emoji: '💎', gradient: 'tier-platinum' },
+        diamond: { min: 25000, name: 'Diamond', emoji: '💎', gradient: 'tier-diamond' }
+      };
+
+      // Create confetti
+      function createConfetti(container) {
+        const colors = ['#49A2A5', '#7283C8', '#E8F094', '#FFB800', '#C28D54'];
+        const confettiCount = 30;
+
+        for (let i = 0; i < confettiCount; i++) {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.top = '-20px';
+          confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.animationDelay = Math.random() * 0.5 + 's';
+          confetti.style.animationDuration = (1.5 + Math.random()) + 's';
+          
+          if (Math.random() > 0.5) {
+            confetti.style.borderRadius = '50%';
+          }
+
+          container.appendChild(confetti);
+          setTimeout(function() { confetti.remove(); }, 3000);
+        }
+      }
+
+      // Calculate tier status
+      function calculateTierStatus(currentSpend, tier) {
+        const tierConfig = TIER_THRESHOLDS[tier] || TIER_THRESHOLDS.platinum;
+        const remaining = tierConfig.min - currentSpend;
+        const progress = Math.min((currentSpend / tierConfig.min) * 100, 100);
+
+        return {
+          tier: tierConfig.name,
+          remaining: Math.max(remaining, 0),
+          progress: progress,
+          emoji: tierConfig.emoji,
+          gradient: tierConfig.gradient,
+          needsMore: currentSpend < tierConfig.min
+        };
+      }
+
+      // Generate modal HTML
+      function generateModalHTML(status, topCategory) {
+        const tierClass = status.tier.toLowerCase();
+        const message = status.needsMore 
+          ? 'You\'re <span class="highlight">$' + status.remaining.toLocaleString() + '</span> away from maintaining your ' + status.tier + ' tier status this year.'
+          : 'Congratulations! You\'ve maintained your ' + status.tier + ' tier status for the year.';
+
+        const progressSection = status.needsMore ? 
+          '<div class="progress-section">' +
+            '<div class="progress-label">' +
+              '<span>Annual spend progress</span>' +
+              '<span class="highlight">$' + (TIER_THRESHOLDS[tierClass].min - status.remaining).toLocaleString() + ' / $' + TIER_THRESHOLDS[tierClass].min.toLocaleString() + '</span>' +
+            '</div>' +
+            '<div class="progress-bar">' +
+              '<div class="progress-fill" style="width: ' + status.progress + '%"></div>' +
+            '</div>' +
+          '</div>' : '';
+
+        return '<div class="modal-overlay" id="tierModal">' +
+          '<div class="modal-container">' +
+            '<button class="tier-close-btn" onclick="window.closeTierModal()">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">' +
+                '<path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>' +
+              '</svg>' +
+            '</button>' +
+            '<div class="illustration-container" id="illustrationContainer">' +
+              '<div class="illustration-wrapper">' +
+                '<div class="tier-badge ' + status.gradient + '">' +
+                  status.emoji +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="message-section">' +
+              '<div class="tier-name ' + tierClass + '">' + status.tier + ' Tier</div>' +
+              '<h2 class="message-title">' + (status.needsMore ? 'Keep Your Status!' : 'You\'re All Set!') + '</h2>' +
+              '<p class="message-body">' + message + '</p>' +
+            '</div>' +
+            progressSection +
+            '<div class="cta-container">' +
+              '<a href="#" class="cta-btn cta-primary" onclick="return window.browseTierCatalog(\'' + topCategory + '\')">' +
+                'Browse more services' +
+                '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor">' +
+                  '<path d="M10.5 12.2L14.75 8M14.75 8L10.5 3.8M14.75 8H1.25" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+                '</svg>' +
+              '</a>' +
+              '<a href="#" class="cta-btn cta-secondary" onclick="return window.bookTierBSMCall()">' +
+                'Book a call with your BSM' +
+              '</a>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }
+
+      // Show tier modal - expose to global scope
+      window.showTierModal = function(currentSpend, tier, topCategory) {
+        console.log('showTierModal called:', { currentSpend: currentSpend, tier: tier, topCategory: topCategory });
+        
+        const status = calculateTierStatus(currentSpend, tier);
+        console.log('Calculated status:', status);
+
+        const existingModal = document.getElementById('tierModal');
+        if (existingModal) {
+          existingModal.remove();
+        }
+
+        document.body.insertAdjacentHTML('beforeend', generateModalHTML(status, topCategory));
+
+        setTimeout(function() {
+          const container = document.getElementById('illustrationContainer');
+          if (container) {
+            createConfetti(container);
+          }
+        }, 400);
+
+        document.body.style.overflow = 'hidden';
+      };
+
+      // Close modal - expose to global scope
+      window.closeTierModal = function() {
+        const modal = document.getElementById('tierModal');
+        if (modal) {
+          modal.style.animation = 'fadeIn 0.2s ease-out reverse';
+          setTimeout(function() {
+            modal.remove();
+            document.body.style.overflow = '';
+          }, 200);
+        }
+      };
+
+      // CTA Handlers - expose to global scope
+      window.browseTierCatalog = function(category) {
+        const categorySlug = category.toLowerCase()
+          .replace(/\s+&\s+/g, '-and-')
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-]/g, '');
+        
+        const catalogUrl = 'https://pro.fiverr.com/categories?source=category_tree&expert_listings=true&q=' + encodeURIComponent(category);
+        console.log('Navigating to catalog:', catalogUrl);
+        window.open(catalogUrl, '_blank');
+        return false;
+      };
+
+      window.bookTierBSMCall = function() {
+        // Find the BSM link by looking for the service card with "Contact your Success Manager" title
+        const serviceCards = document.querySelectorAll('.service-card');
+        let bsmUrl = 'https://propages.fiverr.com/meetings/pro-168076799/bsm-round-robin-'; // fallback
+        
+        serviceCards.forEach(function(card) {
+          const title = card.querySelector('.service-title');
+          if (title && title.textContent.includes('Contact your Success Manager')) {
+            const link = card.querySelector('a.service-button-link');
+            if (link) {
+              bsmUrl = link.getAttribute('href');
+            }
+          }
+        });
+        
+        console.log('Opening BSM booking:', bsmUrl);
+        window.open(bsmUrl, '_blank');
+        return false;
+      };
+
+      // Close on overlay click
+      document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('modal-overlay')) {
+          window.closeTierModal();
+        }
+      });
+
+      // Close on Escape key
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          window.closeTierModal();
+        }
+      });
+
+      console.log('Tier notification system loaded successfully');
+      console.log('showTierModal function available:', typeof window.showTierModal);
+    })();
+  </script>
+  
+  <script>
+    // Trigger tier modal on page load
+    window.addEventListener('load', function() {
+      console.log('Page loaded, checking for tier modal...');
+      
+      const tierModalData = document.getElementById('tierModalData');
+      console.log('tierModalData element:', tierModalData);
+      console.log('showTierModal function available:', typeof window.showTierModal);
+      
+      if (tierModalData && typeof window.showTierModal === 'function') {
+        const currentSpend = parseFloat(tierModalData.dataset.spend);
+        const tier = tierModalData.dataset.tier;
+        const topCategory = tierModalData.dataset.category;
+        
+        console.log('Triggering tier modal with data:', { currentSpend: currentSpend, tier: tier, topCategory: topCategory });
+        
+        // Show modal after 2 seconds for better UX
+        setTimeout(function() {
+          window.showTierModal(currentSpend, tier, topCategory);
+        }, 2000);
+      } else {
+        if (!tierModalData) {
+          console.error('tierModalData element not found');
+        }
+        if (typeof window.showTierModal === 'undefined') {
+          console.error('showTierModal function not defined');
+        }
+      }
+    });
+  </script>
+<? } else { ?>
+  <script>
+    console.log('Tier notification not enabled for this user');
+  </script>
+<? } ?>
+
+</body>
+</html>

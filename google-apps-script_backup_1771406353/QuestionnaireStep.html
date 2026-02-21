@@ -1,0 +1,355 @@
+<!-- QuestionnaireStep.html - Include in MainUI.html -->
+<div class="card">
+    <h2>📝 Step 2: Complete Questionnaire</h2>
+    <p style="margin-bottom: 20px; color: var(--text-muted);">
+        Fill in the details below.
+    </p>
+
+    <!-- Initial Request Details -->
+    <div id="initialRequestDisplay"
+        style="display: none; background: #fff8e1; border: 1px solid #ffe0b2; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+        <h4 style="margin-top: 0; color: #f57c00; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+            <span>📄 Initial Request Details</span>
+        </h4>
+        <div id="initialRequestContent" style="font-size: 13px; color: #444; line-height: 1.5;"></div>
+    </div>
+
+    <!-- Test Data Helper -->
+    <div
+        style="background: #e8f0fe; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #d2e3fc;">
+        <strong style="display: block; margin-bottom: 8px; color: #1967d2;">🧪 Test Data Helper</strong>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary" onclick="fillTestData('tech')"
+                style="font-size: 12px; padding: 6px 12px;">Fill: Tech</button>
+            <button type="button" class="btn btn-secondary" onclick="fillTestData('design')"
+                style="font-size: 12px; padding: 6px 12px;">Fill: Design</button>
+            <button type="button" class="btn btn-secondary" onclick="fillTestData('video')"
+                style="font-size: 12px; padding: 6px 12px;">Fill: Video</button>
+            <button type="button" class="btn btn-secondary" onclick="fillTestData('marketing')"
+                style="font-size: 12px; padding: 6px 12px;">Fill: Marketing</button>
+        </div>
+    </div>
+
+    <form id="questionnaireForm" onsubmit="event.preventDefault(); validateAndGenerateBriefs();">
+        <!-- Dynamic Questions Section -->
+        <div class="dynamic-questions" id="dynamicQuestionsSection">
+            <h3>📋 <span id="dynamicQuestionsTitle">Category-Specific Questions</span></h3>
+            <div id="dynamicQuestionsContainer">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+
+        <!-- Salesforce Integration -->
+        <div class="card" style="margin-bottom: 24px;">
+            <h3>Salesforce Integration</h3>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="agentName">Your Name <span class="required">*</span></label>
+                    <input type="text" id="agentName" name="agentName" required>
+                </div>
+                <div class="form-group">
+                    <label for="opportunityId">Opportunity ID <span class="required">*</span></label>
+                    <input type="text" id="opportunityId" name="opportunityId" required>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="requestChannel">Request Channel <span class="required">*</span></label>
+                    <select id="requestChannel" name="requestChannel" required>
+                        <option value="">-- Select --</option>
+                        <option value="Meeting">Meeting</option>
+                        <option value="Email">Email</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dealProbability">Deal Probability <span class="required">*</span></label>
+                    <select id="dealProbability" name="dealProbability" required>
+                        <option value="">-- Select --</option>
+                        <option value="20%">20%</option>
+                        <option value="50%">50%</option>
+                        <option value="100%">100%</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="purchaseReason">DES Purchase Reason</label>
+                    <select id="purchaseReason" name="purchaseReason">
+                        <option value="">-- Select --</option>
+                        <option value="loading">Loading...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Basic Information -->
+        <div class="card" style="margin-bottom: 24px;">
+            <h3>Basic Information</h3>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="contactName">Contact Name <span class="required">*</span></label>
+                    <input type="text" id="contactName" name="contactName" required>
+                </div>
+                <div class="form-group">
+                    <label for="contactEmail">Contact Email <span class="required">*</span></label>
+                    <input type="email" id="contactEmail" name="contactEmail" required>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="company">Company Name <span class="required">*</span></label>
+                    <input type="text" id="company" name="company" required>
+                </div>
+                <div class="form-group">
+                    <label for="companyWebsite">Company Website</label>
+                    <input type="text" id="companyWebsite" name="companyWebsite" placeholder="https://...">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="about">About the Company</label>
+                <textarea id="about" name="about" rows="3"></textarea>
+            </div>
+        </div>
+
+        <!-- Role Information -->
+        <div class="card" style="margin-bottom: 24px;">
+            <h3>Role Information</h3>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="role">Role / Job Title <span class="required">*</span></label>
+                    <input type="text" id="role" name="role" required>
+                </div>
+                <div class="form-group">
+                    <label for="vertical">Vertical</label>
+                    <input type="text" id="vertical" name="vertical" readonly>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="theNeed">The Need / Project Description <span class="required">*</span></label>
+                <textarea id="theNeed" name="theNeed" rows="5" required></textarea>
+                <div class="form-description">Describe the specific tasks, projects, or services needed.</div>
+            </div>
+            <div class="form-group">
+                <label for="skillsAndExperience">Required Skills & Tools</label>
+                <textarea id="skillsAndExperience" name="skillsAndExperience" rows="3"></textarea>
+            </div>
+        </div>
+
+        <!-- Engagement Details -->
+        <div class="card" style="margin-bottom: 24px;">
+            <h3>Engagement Details</h3>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="engagementModel">Engagement Model <span class="required">*</span></label>
+                    <select id="engagementModel" name="engagementModel" required>
+                        <option value="">-- Select --</option>
+                        <option value="Gig">Gig (One-time)</option>
+                        <option value="Ongoing engagement">Ongoing</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="talentCapacity">Talent Capacity</label>
+                    <input type="text" id="talentCapacity" name="talentCapacity"
+                        placeholder="e.g., Full-time, 20 hrs/week">
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="startDate">Start Date <span class="required">*</span></label>
+                    <input type="date" id="startDate" name="startDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="submissionDeadline">Submission Deadline <span class="required">*</span></label>
+                    <input type="date" id="submissionDeadline" name="submissionDeadline" required>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="pricingType">Pricing Type <span class="required">*</span></label>
+                    <select id="pricingType" name="pricingType" required>
+                        <option value="">-- Select --</option>
+                        <option value="Fixed">Fixed Price</option>
+                        <option value="Hourly">Hourly</option>
+                        <option value="Flexible">Flexible</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="pricingRange">Pricing Range</label>
+                    <input type="text" id="pricingRange" name="pricingRange" placeholder="e.g., $5,000 - $10,000">
+                </div>
+            </div>
+        </div>
+
+        <!-- Workplace & Logistics -->
+        <div class="card" style="margin-bottom: 24px;">
+            <h3>Workplace & Logistics</h3>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="workplaceType">Workplace Type <span class="required">*</span></label>
+                    <select id="workplaceType" name="workplaceType" required>
+                        <option value="Remote">Remote</option>
+                        <option value="On-site">On-site</option>
+                        <option value="Hybrid">Hybrid</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="talentLocation">Talent Location</label>
+                    <input type="text" id="talentLocation" name="talentLocation" placeholder="e.g., US, Europe">
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="form-group">
+                    <label for="preferredTimeZone">Preferred Time Zone</label>
+                    <input type="text" id="preferredTimeZone" name="preferredTimeZone">
+                </div>
+                <div class="form-group">
+                    <label for="talentLanguage">Required Languages</label>
+                    <input type="text" id="talentLanguage" name="talentLanguage" value="English">
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="btn-container">
+            <button type="button" class="btn btn-secondary" onclick="goToStep(1)">← Back to Selection</button>
+            <!-- Changed from Submit to Next because specific generation happens in Step 3 -->
+            <button type="button" class="btn btn-primary" onclick="validateAndProceedToContext()">Next: Add Context /
+                Transcript
+                →</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function fillTestData(scenario) {
+        const common = {
+            agentName: 'Test Agent',
+            opportunityId: 'OPP-123456',
+            requestChannel: 'Meeting',
+            dealProbability: '50%',
+            contactName: 'John Doe',
+            contactEmail: 'john.doe@example.com',
+            company: 'Acme Corp',
+            companyWebsite: 'https://acme.example.com',
+            about: 'We are a leading provider of innovative solutions in our industry.',
+            engagementModel: 'Gig',
+            startDate: new Date().toISOString().split('T')[0],
+            submissionDeadline: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+            pricingType: 'Fixed',
+            workplaceType: 'Remote',
+            talentLocation: 'Global',
+            preferredTimeZone: 'EST',
+            priority: 'High',
+            priorityDES: 'Medium'
+        };
+
+        const scenarios = {
+            tech: {
+                role: 'Full Stack Developer',
+                vertical: 'Programming & Tech',
+                theNeed: 'We need a developer to build a new React-based dashboard for our internal metrics.',
+                skillsAndExperience: 'React, Node.js, PostgreSQL, AWS',
+                pricingRange: '$5000 - $8000',
+                meetingTranscript: `Client: We need a new dashboard.
+Agent: What tech stack?
+Client: React and Node.js. It needs to handle real-time data from our PostgreSQL DB.
+Agent: How about hosting?
+Client: We use AWS.
+Agent: Timeline?
+Client: ASAP. By next month.
+Agent: Budget?
+Client: Around $5k to $8k.`
+            },
+            design: {
+                role: 'Brand Designer',
+                vertical: 'Graphics & Design',
+                theNeed: 'Rebranding for our startup. Logo, color palette, and brand guidelines.',
+                skillsAndExperience: 'Adobe Illustrator, Photoshop, Branding, Logo Design',
+                pricingRange: '$2000 - $4000',
+                meetingTranscript: `Client: We need a fresh look. Our logo is outdated.
+Agent: What style?
+Client: Modern, minimalist, clean.
+Agent: Deliverables?
+Client: Logo, brand guide, business cards.
+Agent: Colors?
+Client: Blue and Green.
+Agent: Timeline?
+Client: 2 weeks.`
+            },
+            video: {
+                role: 'Video Editor',
+                vertical: 'Video & Animation',
+                theNeed: 'Create a 60-second explainer video for our new product launch.',
+                skillsAndExperience: 'Premiere Pro, After Effects, Motion Graphics',
+                pricingRange: '$1500 - $3000',
+                meetingTranscript: `Client: Launching a new app. Need a video.
+Agent: Length?
+Client: 60 seconds max.
+Agent: Style?
+Client: 2D animation with some screen recordings.
+Agent: Do you have a script?
+Client: Yes, we have a draft.
+Agent: Voiceover?
+Client: We need you to find a voice actor too.`
+            },
+            marketing: {
+                role: 'SEO Specialist',
+                vertical: 'Digital Marketing',
+                theNeed: 'Optimize our website for organic search traffic. Focus on B2B keywords.',
+                skillsAndExperience: 'SEO, SEMrush, Google Analytics, Content Strategy',
+                pricingRange: '$3000/month',
+                meetingTranscript: `Client: Traffic is low. We need SEO help.
+Agent: Any specific goals?
+Client: Increase organic leads by 20% in Q3.
+Agent: Current status?
+Client: We have a blog but it's not ranking.
+Agent: Competitors?
+Client: Mainly X and Y.
+Agent: Budget?
+Client: We can do a monthly retainer around $3k.`
+            }
+        };
+
+        const data = { ...common, ...scenarios[scenario] };
+
+        // Set basic fields
+        for (const [key, value] of Object.entries(data)) {
+            const el = document.getElementById(key);
+            if (el) el.value = value;
+        }
+
+        // Dynamic Questions Filling
+        const container = document.getElementById('dynamicQuestionsContainer');
+        if (container) {
+            const textareas = container.querySelectorAll('textarea');
+            textareas.forEach((ta, index) => {
+                // Find label for context
+                let labelText = "Question";
+                const id = ta.id;
+                const label = document.querySelector(`label[for="${id}"]`);
+                if (label) labelText = label.innerText;
+
+                // Generate contextual dummy answer
+                let answer = `(Test Data) Answer for ${labelText}...`;
+
+                // Specific overrides for better demo quality
+                if (scenario === 'marketing') {
+                    if (labelText.toLowerCase().includes('goal')) answer = "Our primary goal is to increase organic traffic by 20% quarter-over-quarter.";
+                    if (labelText.toLowerCase().includes('competitor')) answer = "Main competitors are Company X and Company Y.";
+                    if (labelText.toLowerCase().includes('budget')) answer = "$3,000 monthly retainer.";
+                } else if (scenario === 'tech') {
+                    if (labelText.toLowerCase().includes('stack')) answer = "React, Node.js, AWS.";
+                    if (labelText.toLowerCase().includes('scalability')) answer = "Must support 10k concurrent users.";
+                } else if (scenario === 'design') {
+                    if (labelText.toLowerCase().includes('style')) answer = "Clean, modern, minimalist, utilizing our brand palette.";
+                    if (labelText.toLowerCase().includes('format')) answer = "Vector (AI, SVG) and high-res PNG.";
+                }
+
+                ta.value = answer;
+                // Trigger auto-resize
+                ta.style.height = 'auto';
+                ta.style.height = ta.scrollHeight + 'px';
+            });
+        }
+    }
+</script>

@@ -154,9 +154,10 @@ const state = {
 const functions = firebase.functions();
 
 // For local development, use emulator:
-if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    functions.useEmulator("localhost", 5001);
-}
+// For local development, use emulator:
+// if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+//     functions.useEmulator("localhost", 5001);
+// }
 
 async function callFunction(name, data = {}, timeoutMs = 60000) {
     try {

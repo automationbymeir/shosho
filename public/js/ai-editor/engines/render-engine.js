@@ -43,7 +43,17 @@ export class RenderEngine {
         // Magic Create V2 / V3 Object Support
         else if (typeof page.background === 'object') {
             const bg = page.background;
-            if (bg.type === 'image' || bg.imageUrl) {
+            if (bg.textureId) {
+                const theme = window.BACKGROUND_TEXTURES?.find(t => t.id === bg.textureId);
+                if (theme) {
+                    if (theme.url.startsWith('http') || theme.url.startsWith('assets')) {
+                        pageEl.style.backgroundImage = `url('${theme.url}')`;
+                        pageEl.style.backgroundSize = 'cover';
+                    } else {
+                        pageEl.style.backgroundColor = theme.url;
+                    }
+                }
+            } else if (bg.type === 'image' || bg.imageUrl) {
                 pageEl.style.backgroundImage = `url('${bg.imageUrl}')`;
                 pageEl.style.backgroundSize = 'cover';
             } else if (bg.type === 'ai_generated' && bg.ai_image_url) {
@@ -83,6 +93,7 @@ export class RenderEngine {
                 slotEl.style.top = `${parseFloat(slot.y)}%`;
                 slotEl.style.width = `${parseFloat(slot.width)}%`;
                 slotEl.style.height = `${parseFloat(slot.height)}%`;
+                slotEl.style.overflow = 'hidden';
 
                 // Draggable for Swapping
                 slotEl.draggable = true;
@@ -108,14 +119,18 @@ export class RenderEngine {
                 });
 
                 // Add Photo
-                const photo = assets.photos.find(p => p.id == slot.photoId); // Relaxed matching
+                // Fallback for assetId (Legacy/Backend format mismatch)
+                const targetId = slot.photoId || slot.assetId;
+                slotEl.dataset.selectableId = targetId; // Required for drag-and-drop (frames/swaps)
+
+                const photo = assets.photos.find(p => p.id == targetId); // Relaxed matching
 
                 // DEBUG: Trace rendering
                 if (!photo) {
-                    console.warn(`[RenderEngine] Photo NOT FOUND for slot. Slot ID: ${slot.photoId}. Available Assets: ${assets.photos.length}`);
-                    // console.log('Available IDs:', assets.photos.map(p => p.id)); // Uncomment if needed
-                } else {
-                    // console.log(`[RenderEngine] Rendering photo ${photo.id} at ${slot.x},${slot.y}`);
+                    // Only warn if we actually have a targetId but can't find the photo
+                    if (targetId) {
+                        console.warn(`[RenderEngine] Photo NOT FOUND for slot. ID: ${targetId}. Available: ${assets.photos.length}`);
+                    }
                 }
 
                 if (photo) {
@@ -124,19 +139,25 @@ export class RenderEngine {
                     // --- HIGH RESOLUTION LOGIC ---
                     // Force high-res for Google Photos if available
                     // Priority: 1. highResUrl (explicit), 2. rawBaseUrl (google), 3. url (standard), 4. thumbnail
-                    let src = photo.highResUrl || photo.rawBaseUrl || photo.url || photo.thumbnailUrl;
+                    // CRITICAL: Prefer Thumbnail for initial render to avoid CORS/Loading delays
+                    let src = photo.thumbnailUrl || photo.highResUrl || photo.rawBaseUrl || photo.url;
 
                     img.style.width = '100%';
                     img.style.height = '100%';
 
                     // --- SMART CROP LOGIC ---
                     if (slot.crop) {
-                        // Apply calculated crop
-                        img.style.objectFit = 'none'; // scale manually
-                        img.style.position = 'absolute';
+                        // Use Object-Fit Cover with precise coordinate centering (prevents all distortion/stretching)
+                        img.style.objectFit = 'cover';
+                        img.style.width = '100%';
+                        img.style.height = '100%';
 
                         const cw = slot.crop.width || 100;
                         const ch = slot.crop.height || 100;
+
+                        // Calculate focal point 
+                        const focalX = slot.crop.x + (cw / 2);
+                        const focalY = slot.crop.y + (ch / 2);
 
                         let pw = photo.width;
                         let ph = photo.height;
@@ -146,25 +167,23 @@ export class RenderEngine {
                             pw = 1000 * ratio;
                         }
 
-                        const kW = 100 * (pw / cw);
-                        const kH = 100 * (ph / ch);
-                        const offX = 100 * (slot.crop.x / cw);
-                        const offY = 100 * (slot.crop.y / ch);
-
-                        img.style.width = `${kW}%`;
-                        img.style.height = `${kH}%`;
-                        img.style.left = `-${offX}%`;
-                        img.style.top = `-${offY}%`;
+                        // Apply the exact offset focal center directly so it covers but centers on Google Vision data
+                        const posX = (focalX / pw) * 100;
+                        const posY = (focalY / ph) * 100;
+                        img.style.objectPosition = slot.manualObjectPosition || `${posX}% ${posY}%`;
 
                     } else {
                         // Default: Center Cover
                         img.style.objectFit = 'cover';
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectPosition = slot.manualObjectPosition || '50% 50%';
 
                         // Trigger Async Analysis
-                        const analysisKey = `${page.id}_${slot.photoId}`;
+                        const analysisKey = `${page.id}_${targetId}`;
                         if (!window._shosoAnalysisCache) window._shosoAnalysisCache = new Set();
 
-                        if (photo.url && !window._shosoAnalysisCache.has(analysisKey) && !slot.smartCropDone) {
+                        if (!window._shosoAnalysisCache.has(analysisKey) && !slot.smartCropDone) {
                             window._shosoAnalysisCache.add(analysisKey);
 
                             // Estimate dimensions
@@ -175,23 +194,27 @@ export class RenderEngine {
                             const slotPixelW = (pageWidth * parseFloat(slot.width)) / 100;
                             const slotPixelH = (pageHeight * parseFloat(slot.height)) / 100;
 
-                            console.log(`[RenderEngine] Requesting smart crop for ${slot.photoId}...`);
+                            console.log(`[RenderEngine] Requesting smart crop for ${targetId}...`);
 
                             // Show loader while analyzing
                             const loader = document.createElement('div');
                             loader.className = 'smart-crop-loader';
                             slotEl.appendChild(loader);
 
+                            // USE THUMBNAIL URL FOR ANALYSIS TO BYPASS CORS
+                            // Analysis only needs visual data, high-res not required
+                            const analysisUrl = photo.thumbnailUrl || photo.url;
+
                             photoPositionService.getOptimalCrop(
-                                photo.url,
+                                analysisUrl,
                                 estimatedW,
                                 estimatedH,
                                 { width: slotPixelW, height: slotPixelH }
-                            ).then(crop => {
-                                console.log('[RenderEngine] Smart crop applied:', crop);
+                            ).then(response => {
+                                console.log('[RenderEngine] Smart crop applied:', response);
                                 // respecting manual override
                                 if (!slot.manualCrop) {
-                                    slot.crop = crop;
+                                    slot.crop = response.crop || response;
                                 }
                                 slot.smartCropDone = true;
                                 if (window.store) {
@@ -278,6 +301,98 @@ export class RenderEngine {
                         }
                     }
                     slotEl.appendChild(img);
+
+                    // --- MANUAL CROP PANNING (DOUBLE CLICK) ---
+                    slotEl.addEventListener('dblclick', (e) => {
+                        if (window.store && window.store.state && !window.store.state.isPreview) {
+                            e.stopPropagation();
+                            e.preventDefault();
+
+                            const isActive = slotEl.classList.contains('mc-crop-active');
+                            if (!isActive) {
+                                slotEl.classList.add('mc-crop-active');
+                                img.style.cursor = 'grab';
+                                slotEl.style.outline = '4px solid #007bff';
+                                slotEl.style.boxShadow = '0 0 15px rgba(0, 123, 255, 0.5)';
+                                slotEl.style.zIndex = '100';
+
+                                // Disable drag and drop functionality while cropping
+                                slotEl.setAttribute('draggable', 'false');
+
+                                const hint = document.createElement('div');
+                                hint.className = 'mc-crop-hint';
+                                hint.innerHTML = '<span style="background:rgba(0,0,0,0.8); color:#fff; padding:6px 12px; border-radius:6px; font-size:13px; pointer-events:none; font-weight:bold; letter-spacing:0.5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><i class="fa-solid fa-arrows-up-down-left-right"></i> Drag to reposition. Double-click to set.</span>';
+                                hint.style.position = 'absolute';
+                                hint.style.bottom = '15px';
+                                hint.style.left = '50%';
+                                hint.style.transform = 'translateX(-50%)';
+                                hint.style.zIndex = '101';
+                                slotEl.appendChild(hint);
+                            } else {
+                                // Finish crop
+                                slotEl.classList.remove('mc-crop-active');
+                                img.style.cursor = '';
+                                slotEl.style.outline = '';
+                                slotEl.style.boxShadow = '';
+                                slotEl.style.zIndex = '';
+                                slotEl.setAttribute('draggable', 'true');
+
+                                const hint = slotEl.querySelector('.mc-crop-hint');
+                                if (hint) hint.remove();
+
+                                // Save explicit position and force database sync
+                                slot.manualObjectPosition = img.style.objectPosition;
+                                if (window.store) {
+                                    window.store.pushState('Repositioned Photo');
+                                    window.store.notify('pages', window.store.state.pages);
+                                }
+                            }
+                        }
+                    });
+
+                    // Mouse Drag Logic for Repositioning
+                    img.addEventListener('mousedown', (e) => {
+                        if (slotEl.classList.contains('mc-crop-active')) {
+                            e.preventDefault(); // Stop standard DND API from hijacking mouse
+                            img.style.cursor = 'grabbing';
+
+                            const startX = e.clientX;
+                            const startY = e.clientY;
+
+                            const currentPos = img.style.objectPosition || '50% 50%';
+                            const parts = currentPos.split(' ');
+                            const cX = parseFloat(parts[0]) || 50;
+                            const cY = parseFloat(parts[1]) || 50;
+
+                            // Map pixel mouse movement to percentage shifts
+                            const imgRect = img.getBoundingClientRect();
+                            const sensitivityX = 100 / (imgRect.width || 200);
+                            const sensitivityY = 100 / (imgRect.height || 200);
+
+                            const onMouseMove = (moveEvt) => {
+                                const deltaX = moveEvt.clientX - startX;
+                                const deltaY = moveEvt.clientY - startY;
+
+                                // Subtracting mouse delta means moving mouse right shifts the image to the right boundaries (0%)
+                                let nX = cX - (deltaX * sensitivityX);
+                                let nY = cY - (deltaY * sensitivityY);
+
+                                nX = Math.max(0, Math.min(100, nX));
+                                nY = Math.max(0, Math.min(100, nY));
+
+                                img.style.objectPosition = `${nX}% ${nY}%`;
+                            };
+
+                            const onMouseUp = () => {
+                                img.style.cursor = 'grab';
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                            };
+
+                            document.addEventListener('mousemove', onMouseMove);
+                            document.addEventListener('mouseup', onMouseUp);
+                        }
+                    });
                 }
 
                 // Selection (Visual Only - handled by CSS)

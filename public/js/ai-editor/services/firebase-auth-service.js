@@ -14,7 +14,7 @@ const firebaseConfig = {
 // Initialize Firebase if not already initialized
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
-    console.log("Firebase Initialized in AI Editor");
+    console.log("Firebase Initialized in AI Editor - FORCE PRODUCTION MODE");
 }
 
 const auth = firebase.auth();
@@ -23,13 +23,13 @@ const storage = firebase.storage();
 const functions = firebase.functions(); // Initialize Cloud Functions
 
 // Connect to Emulators if running locally
-if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    console.log("Using Firebase Emulators");
-    auth.useEmulator("http://localhost:9099");
-    db.useEmulator("localhost", 8085);
-    // storage.useEmulator("localhost", 9199); // Uncomment if using storage emulator
-    functions.useEmulator("localhost", 5001);
-}
+// if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+//     console.log("Using Firebase Emulators");
+//     auth.useEmulator("http://localhost:9099");
+//     db.useEmulator("localhost", 8085);
+//     // storage.useEmulator("localhost", 9199); // Uncomment if using storage emulator
+//     functions.useEmulator("localhost", 5001);
+// }
 
 export const authService = {
     // Sign in with Google

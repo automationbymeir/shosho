@@ -20,6 +20,7 @@ export class PhotoPositionService {
      */
     async getOptimalCrop(photoUrl, photoWidth, photoHeight, layoutBox) {
         try {
+            console.log('[DEBUG] getOptimalCrop INITIATED with:', { photoUrl, photoWidth, photoHeight, layoutBox });
             const func = this.getFunctions().httpsCallable('analyzePhotoPosition');
             const result = await func({
                 photoUrl,

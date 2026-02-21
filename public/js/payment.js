@@ -111,9 +111,9 @@
 
   // Firebase Functions helper (copied pattern from app.js)
   const functions = firebase.functions();
-  if (window.location.hostname === 'localhost') {
-    functions.useEmulator('localhost', 5001);
-  }
+  // if (window.location.hostname === 'localhost') {
+  //   functions.useEmulator('localhost', 5001);
+  // }
 
   async function callFunction(name, data = {}) {
     const callable = functions.httpsCallable(name);

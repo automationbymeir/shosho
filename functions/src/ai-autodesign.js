@@ -186,6 +186,7 @@ async function generateAutoDesignPlan(photos, opts = {}) {
   const lang = String(opts.lang || "en");
   const isHe = lang.toLowerCase().startsWith("he");
   const seed = String(opts.seed || Date.now());
+  const userRequest = String(opts.userRequest || "").trim();
 
   if (!Array.isArray(photos) || photos.length === 0) {
     return {success: false, error: "No photos provided"};
@@ -295,8 +296,9 @@ async function generateAutoDesignPlan(photos, opts = {}) {
     const prompt = `You are an elite photo book designer.
 
 Goal: Create ONE coherent design system and a full album layout plan from the given photos.
-The result must feel curated, consistent, and beautiful — not random colors.
-Every run should vary (use the provided seed to introduce variation).
+The result must feel curated, consistent, and beautiful — not just random colors.
+
+${userRequest ? `CRITICAL DIRECTIVE FROM CLIENT: "${userRequest}" \nYou MUST analyze this request and explicitly select the backgroundTextureId, pageFrameId, photoFrameId, text styles, and templateId that BEST MATCH the mood, theme, and subjects of this request. Do not default to random.` : `Every run should vary (use the provided seed to introduce variation).`}
 
 Language: ${isHe ? "Hebrew (he)" : "English (en)"}.
 Seed: ${seed}

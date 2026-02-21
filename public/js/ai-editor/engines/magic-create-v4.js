@@ -9,7 +9,7 @@
  */
 
 class MagicCreateV4 {
-    constructor(baseUrl = 'http://localhost:8001') {
+    constructor(baseUrl = 'https://us-central1-shoso-photobook.cloudfunctions.net') {
         this.baseUrl = baseUrl;
         this.injectStyles();
     }
@@ -70,17 +70,26 @@ class MagicCreateV4 {
         for (let i = 0; i < photos.length; i += BATCH_SIZE) {
             const batch = photos.slice(i, i + BATCH_SIZE);
             try {
-                // Optimization: Use thumbnail if available for analysis to save bandwidth/string size
-                // But only if it's a data URL or we trust the backend to read it
+                // Optimization: Use thumbnail if available, or strip large base64
                 const payloadPhotos = batch.map(p => {
-                    // If local base64, try to send a lighter version if possible, 
-                    // but for now we rely on batching to handle the size.
+                    const isBase64 = p.url && p.url.startsWith('data:image');
+                    const isHuge = isBase64 && p.url.length > 5000;
+
+                    // Prefer Thumbnail > Raw URL > Null (if huge base64)
+                    let urlToSend = p.thumbnailUrl || (p.rawBaseUrl ? p.rawBaseUrl + '=w800-h800' : null);
+
+                    if (!urlToSend && !isHuge) {
+                        urlToSend = p.url;
+                    }
+
                     return {
                         id: p.id,
-                        url: p.url || (p.rawBaseUrl ? p.rawBaseUrl + '=w800-h800' : null),
+                        url: urlToSend, // Might be null if it was huge base64
                         thumbnailUrl: p.thumbnailUrl,
                         rawBaseUrl: p.rawBaseUrl,
-                        name: p.name
+                        name: p.name,
+                        width: p.width,
+                        height: p.height
                     };
                 });
 
@@ -124,24 +133,24 @@ class MagicCreateV4 {
                 body: JSON.stringify({
                     user_id: options.userId || 'web_user',
                     prompt: prompt,
-                    photos: approvedPhotos.map(p => {
-                        // CRITICAL FIX: Avoid sending massive Base64 strings if a thumbnail is available
-                        // The backend primarily uses this for layout/color analysis. 
-                        // High-res rendering happens on the client.
-                        let urlToSend = p.url;
-                        if (p.url && p.url.startsWith('data:image') && p.url.length > 1000000) {
-                            if (p.thumbnailUrl) {
-                                urlToSend = p.thumbnailUrl;
-                                console.log(`[MagicCreate v4] Using thumbnail for ${p.id} to save payload size`);
-                            }
-                        }
+                    photos: approvedPhotos.map((p, i) => {
+                        // CRITICAL FIX: STRIP ALL IMAGE DATA.
+                        // The backend 'create' endpoint (aiAutoDesign) ONLY uses metadata.
+                        // It does NOT need the image content.
 
                         return {
                             id: p.id,
-                            url: urlToSend || (p.rawBaseUrl ? p.rawBaseUrl + '=w1200-h1200' : null),
-                            thumbnailUrl: p.thumbnailUrl,
-                            rawBaseUrl: p.rawBaseUrl,
-                            name: p.name
+                            // Send NO image data to save bandwidth and avoid string length errors
+                            url: null,
+                            thumbnailUrl: null,
+                            rawBaseUrl: null,
+
+                            name: p.name,
+                            width: p.width,
+                            height: p.height,
+                            date: p.date,
+                            location: p.location,
+                            index: i // Ensure strictly sequential index for AI context
                         };
                     }),
                     max_pages: options.maxPages || 20,
@@ -293,15 +302,31 @@ class MagicCreateV4 {
 
                 // Hydrate page.photos from layout.slots if missing
                 if (!page.photos && page.layout && page.layout.slots) {
-                    // We need to look up the photo objects from the inputs or store assets
-                    // The result contains photoIds.
-                    // We can map slots to photo objects.
-                    // Assuming store.state.assets.photos has the photos (it should, as we passed them in)
                     const assetPhotos = window.store.state.assets.photos;
                     const pagePhotos = [];
-                    page.layout.slots.forEach(slot => {
+                    // Inject layout metrics if missing
+                    const LAYOUTS = {
+                        "single": [{ "x": 10, "y": 10, "width": 80, "height": 80 }],
+                        "two-vertical": [{ "x": 10, "y": 5, "width": 80, "height": 43 }, { "x": 10, "y": 52, "width": 80, "height": 43 }],
+                        "two-horizontal": [{ "x": 5, "y": 15, "width": 43, "height": 70 }, { "x": 52, "y": 15, "width": 43, "height": 70 }],
+                        "three-left": [{ "x": 5, "y": 5, "width": 55, "height": 90 }, { "x": 63, "y": 5, "width": 32, "height": 43 }, { "x": 63, "y": 52, "width": 32, "height": 43 }],
+                        "three-right": [{ "x": 10, "y": 5, "width": 80, "height": 50 }, { "x": 10, "y": 58, "width": 38, "height": 37 }, { "x": 52, "y": 58, "width": 38, "height": 37 }],
+                        "four-grid": [{ "x": 5, "y": 5, "width": 43, "height": 43 }, { "x": 52, "y": 5, "width": 43, "height": 43 }, { "x": 5, "y": 52, "width": 43, "height": 43 }, { "x": 52, "y": 52, "width": 43, "height": 43 }],
+                        "collage-5": [{ "x": 5, "y": 5, "width": 43, "height": 43 }, { "x": 52, "y": 5, "width": 43, "height": 43 }, { "x": 5, "y": 52, "width": 43, "height": 43 }, { "x": 52, "y": 52, "width": 20, "height": 20 }, { "x": 75, "y": 52, "width": 20, "height": 20 }],
+                        "collage-6": [{ "x": 5, "y": 5, "width": 30, "height": 40 }, { "x": 38, "y": 5, "width": 24, "height": 40 }, { "x": 65, "y": 5, "width": 30, "height": 40 }, { "x": 5, "y": 50, "width": 30, "height": 40 }, { "x": 38, "y": 50, "width": 24, "height": 40 }, { "x": 65, "y": 50, "width": 30, "height": 40 }]
+                    };
+                    const layoutMetrics = LAYOUTS[page.layout.id] || LAYOUTS["single"];
+
+                    page.layout.slots.forEach((slot, idx) => {
+                        if (slot.width === undefined) {
+                            const metrics = layoutMetrics[idx] || layoutMetrics[0];
+                            slot.x = metrics.x;
+                            slot.y = metrics.y;
+                            slot.width = metrics.width;
+                            slot.height = metrics.height;
+                        }
                         if (slot.photoId) {
-                            const p = assetPhotos.find(ap => ap.id === slot.photoId);
+                            const p = assetPhotos.find(ap => ap.id == slot.photoId);
                             if (p) pagePhotos.push(p);
                         }
                     });
@@ -346,6 +371,11 @@ class MagicCreateV4 {
      * Progress indicator with Magic Wand Animation
      */
     showProgress(step = 'initializing') {
+        if (this._progressInterval) {
+            clearInterval(this._progressInterval);
+            this._progressInterval = null;
+        }
+
         let progress = document.querySelector('.mc4-progress');
         if (!progress) {
             progress = document.createElement('div');
@@ -353,17 +383,7 @@ class MagicCreateV4 {
             document.body.appendChild(progress);
         }
 
-        // Determine message based on step or use raw string
-        const messages = {
-            'analyzing': '🔍 Analyzing your photos...',
-            'theme': '✨ Dreaming up a theme...',
-            'layout': '📐 Designing layouts...',
-            'backgrounds': '🎨 Painting custom backgrounds...',
-            'text': '✒️ Writing decorative text...',
-            'finalizing': '📚 Assembling your album...'
-        };
-        const message = messages[step] || step;
-
+        // Build initial HTML structure
         progress.innerHTML = `
             <div class="mc4-magic-scene">
                 <div class="mc4-book">
@@ -380,13 +400,39 @@ class MagicCreateV4 {
             </div>
             <div class="mc4-status">
                 <h3>Creating Magic</h3>
-                <p>${message}</p>
+                <p id="mc4-dynamic-msg">Initializing...</p>
             </div>
         `;
         progress.style.display = 'flex';
+
+        // Set up real-time visible steps interval to reflect Vision processing
+        const steps = [
+            '🔍 Analyzing your photos with Google Vision...',
+            '⚖️ Finding optimal crops and focal points...',
+            '✨ Dreaming up a theme...',
+            '📐 Designing optimal layouts...',
+            '🎨 Painting custom backgrounds...',
+            '✒️ Writing decorative text...',
+            '📚 Assembling your album...'
+        ];
+
+        let idx = step === 'analyzing' ? 0 : 2;
+        document.getElementById('mc4-dynamic-msg').innerText = step === 'initializing' ? 'Initializing...' : steps[idx];
+
+        if (step !== 'initializing') {
+            this._progressInterval = setInterval(() => {
+                idx = (idx + 1) % steps.length;
+                const el = document.getElementById('mc4-dynamic-msg');
+                if (el) el.innerText = steps[idx];
+            }, 3500);
+        }
     }
 
     hideProgress() {
+        if (this._progressInterval) {
+            clearInterval(this._progressInterval);
+            this._progressInterval = null;
+        }
         const progress = document.querySelector('.mc4-progress');
         if (progress) {
             progress.classList.add('mc4-fade-out');

@@ -86,6 +86,7 @@ function cleanDataForFirestore(obj, maxDepth = 10) {
         titleFont: value.titleFont || null,
         subtitle: value.subtitle || null,
         backgroundColor: value.backgroundColor || null,
+        backgroundImageUrl: value.backgroundImageUrl || null,
         photoBorder: value.photoBorder || null,
         // Keep either id and/or baseUrl. (Older projects sometimes had baseUrl but no id.)
         photo: value.photo && typeof value.photo === "object" ? {
@@ -308,9 +309,49 @@ async function deleteProject(userId, projectId) {
   };
 }
 
+/**
+ * Rename a project
+ * @param {string} userId - Firebase user ID
+ * @param {string} projectId - Project ID to rename
+ * @param {string} newName - New name for the project
+ * @return {Promise<Object>} Result
+ */
+async function renameProject(userId, projectId, newName) {
+  const db = admin.firestore();
+
+  const projectDoc = await db.collection("projects").doc(projectId).get();
+
+  if (!projectDoc.exists) {
+    return {
+      success: false,
+      error: "Project not found",
+    };
+  }
+
+  const project = projectDoc.data();
+
+  // Verify ownership
+  if (project.userId !== userId) {
+    return {
+      success: false,
+      error: "Unauthorized access to project",
+    };
+  }
+
+  await db.collection("projects").doc(projectId).update({
+    name: newName,
+    lastModified: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    success: true,
+  };
+}
+
 module.exports = {
   saveProject,
   loadProject,
   listProjects,
   deleteProject,
+  renameProject,
 };

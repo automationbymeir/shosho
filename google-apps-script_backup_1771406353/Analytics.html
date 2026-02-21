@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <title>Simba Brief Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <?!= include('DesignSystem') ?>
+    <style>
+        body {
+            background-color: var(--color-bg-secondary);
+            padding: 40px 20px;
+        }
+
+        .analytics-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
+        }
+
+        .kpi-card {
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-default);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-label {
+            font-size: 14px;
+            color: var(--color-text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--color-text-primary);
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-default);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+
+        .chart-canvas-container {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        /* Table Styles */
+        .table-card {
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-default);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text-muted);
+            border-bottom: 2px solid var(--color-border-subtle);
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--color-border-subtle);
+            font-size: 14px;
+            color: var(--color-text-primary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="analytics-container">
+        <div class="page-header">
+            <div>
+                <h1>Analytics Overview</h1>
+                <p class="body-text" style="color: var(--color-text-muted);">Performance metrics and spending trends.
+                </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div id="loadingStatus" class="caption-text">Loading data...</div>
+                <a href="<?!= ScriptApp.getService().getUrl() ?>" target="_top" style="text-decoration: none;">
+                    <button
+                        style="padding: 9px 16px; background: white; border: 1px solid var(--color-border-default); border-radius: 6px; font-weight: 600; color: var(--color-text-primary); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        Main App
+                    </button>
+                </a>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar"
+            style="background: white; padding: 16px; border-radius: 12px; border: 1px solid var(--color-border-default); margin-bottom: 24px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+            <div style="flex: 1; min-width: 200px;">
+                <label
+                    style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--color-text-muted);">Search</label>
+                <input type="text" id="filterSearch" placeholder="Search by Company, Agent, or ID..."
+                    style="width: 100%; padding: 8px 12px; border: 1px solid var(--color-border-input); border-radius: 6px; font-family: inherit; font-size: 14px;">
+            </div>
+            <div style="width: 180px;">
+                <label
+                    style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--color-text-muted);">Month</label>
+                <select id="filterMonth"
+                    style="width: 100%; padding: 8px 12px; border: 1px solid var(--color-border-input); border-radius: 6px; font-family: inherit; font-size: 14px; background: white;">
+                    <option value="All">All Time</option>
+                    <!-- Populated via JS -->
+                </select>
+            </div>
+            <div style="width: 200px;">
+                <label
+                    style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--color-text-muted);">Category</label>
+                <select id="filterCategory"
+                    style="width: 100%; padding: 8px 12px; border: 1px solid var(--color-border-input); border-radius: 6px; font-family: inherit; font-size: 14px; background: white;">
+                    <option value="All">All Categories</option>
+                    <option value="Programming & Tech">Programming & Tech</option>
+                    <option value="Graphics & Design">Graphics & Design</option>
+                    <option value="Digital Marketing">Digital Marketing</option>
+                    <option value="Video & Animation">Video & Animation</option>
+                    <option value="Writing & Translation">Writing & Translation</option>
+                </select>
+            </div>
+            <div>
+                <button onclick="applyFilters()"
+                    style="padding: 9px 20px; background: var(--color-accent-teal); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Search
+                    & Filter</button>
+            </div>
+            <div>
+                <button onclick="resetFilters()"
+                    style="padding: 9px 20px; background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border-default); border-radius: 6px; font-weight: 600; cursor: pointer;">Reset</button>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Briefs</div>
+                <div class="kpi-value" id="kpiTotalBriefs">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Total Orders</div>
+                <div class="kpi-value" id="kpiTotalOrders">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Potential Savings</div>
+                <div class="kpi-value" id="kpiSavings">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Avg. Order Value</div>
+                <div class="kpi-value" id="kpiAOV">-</div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Monthly Trends</div>
+                </div>
+                <div class="chart-canvas-container">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Spend by Category</div>
+                </div>
+                <div class="chart-canvas-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="chart-header">
+                <div class="chart-title">Detailed Analysis</div>
+            </div>
+
+            <!-- System Overview Grid -->
+            <div class="kpi-grid" style="margin-bottom: 32px;">
+                <div class="kpi-card">
+                    <div class="kpi-label">V1 Briefs (Legacy)</div>
+                    <div class="kpi-value" id="statV1Count">-</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">V2 Briefs (Current)</div>
+                    <div class="kpi-value" id="statV2Count">-</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">QA Reviews</div>
+                    <div class="kpi-value" id="statQACount">-</div>
+                </div>
+            </div>
+
+            <!-- Brief Comparison Table -->
+            <h3 class="chart-title" style="margin-bottom: 16px;">Brief Comparison: Standard vs Vertical</h3>
+            <table style="margin-bottom: 32px;">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Standard Wins</th>
+                        <th>Vertical Wins</th>
+                        <th>Ties</th>
+                        <th>Win Rate (Vert)</th>
+                    </tr>
+                </thead>
+                <tbody id="comparisonBody">
+                    <!-- JS populated -->
+                </tbody>
+            </table>
+
+            </tbody>
+            </table>
+
+            <!-- Purchase Reasons Table -->
+            <h3 class="chart-title" style="margin-bottom: 16px;">Briefs by Purchase Reason</h3>
+            <div
+                style="max-height: 300px; overflow-y: auto; margin-bottom: 32px; border: 1px solid var(--color-border-subtle); border-radius: 8px;">
+                <table id="purchaseReasonTable">
+                    <thead>
+                        <tr>
+                            <th style="position: sticky; top: 0; background: var(--color-bg-primary);">Purchase Reason
+                            </th>
+                            <th style="position: sticky; top: 0; background: var(--color-bg-primary);">Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchaseReasonBody">
+                        <!-- JS populated -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Top Categories Table -->
+            <h3 class="chart-title" style="margin-bottom: 16px;">Top Categories</h3>
+            <div
+                style="max-height: 400px; overflow-y: auto; margin-bottom: 32px; border: 1px solid var(--color-border-subtle); border-radius: 8px;">
+                <table id="categoriesTable">
+                    <thead>
+                        <tr>
+                            <th style="position: sticky; top: 0; background: var(--color-bg-primary);">Category</th>
+                            <th style="position: sticky; top: 0; background: var(--color-bg-primary);">Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoriesBody">
+                        <!-- JS populated -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Job Titles Table -->
+            <h3 class="chart-title" style="margin-bottom: 16px;">Top 20 Job Titles</h3>
+            <div
+                style="max-height: 300px; overflow-y: auto; margin-bottom: 32px; border: 1px solid var(--color-border-subtle); border-radius: 8px;">
+                <table id="titlesTable">
+                    <thead>
+                        <tr>
+                            <th style="position: sticky; top: 0; background: var(--color-bg-primary);">Job Title</th>
+                            <th style="position: sticky; top: 0; background: var(--color-bg-primary);">Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="titlesBody">
+                        <!-- JS populated -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Recent Briefs Table -->
+            <h3 class="chart-title" style="margin-bottom: 16px;">Recent Briefs (Last 20)</h3>
+            <div style="overflow-x: auto;">
+                <table id="recentBriefsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Company</th>
+                            <th>Job Title</th>
+                            <th>Category</th>
+                            <th>Date</th>
+                            <th>Version</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentBriefsBody">
+                        <!-- JS populated -->
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Category Details Modal -->
+    <div id="categoryModal" class="modal-overlay"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content"
+            style="background: white; width: 90%; max-width: 1000px; max-height: 85vh; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div class="modal-header"
+                style="padding: 24px; border-bottom: 1px solid var(--color-border-subtle); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 id="modalCategoryTitle" style="margin: 0; font-size: 24px; color: var(--color-text-primary);">
+                        Category Details</h2>
+                    <p style="margin: 4px 0 0 0; color: var(--color-text-muted);">Briefs breakdown and agent performance
+                    </p>
+                </div>
+                <button onclick="closeModal()"
+                    style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--color-text-muted);">&times;</button>
+            </div>
+
+            <div class="modal-body" style="padding: 24px; overflow-y: auto;">
+                <div id="modalLoading" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
+                    Loading briefs...
+                </div>
+
+                <table id="categoryBriefsTable" style="width: 100%; border-collapse: collapse; display: none;">
+                    <thead>
+                        <tr style="background: var(--color-bg-secondary);">
+                            <th
+                                style="text-align: left; padding: 12px; border-bottom: 2px solid var(--color-border-subtle);">
+                                ID</th>
+                            <th
+                                style="text-align: left; padding: 12px; border-bottom: 2px solid var(--color-border-subtle);">
+                                Job Title</th>
+                            <th
+                                style="text-align: left; padding: 12px; border-bottom: 2px solid var(--color-border-subtle);">
+                                Company</th>
+                            <th
+                                style="text-align: left; padding: 12px; border-bottom: 2px solid var(--color-border-subtle);">
+                                Agent</th>
+                            <th
+                                style="text-align: left; padding: 12px; border-bottom: 2px solid var(--color-border-subtle);">
+                                Date</th>
+                            <th
+                                style="text-align: left; padding: 12px; border-bottom: 2px solid var(--color-border-subtle);">
+                                Version</th>
+                            <th
+                                style="text-align: left; padding: 12px; border-bottom: 2px solid var(--color-border-subtle);">
+                                Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoryBriefsBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Antigrevity Palette for JS
+        const colors = {
+            teal: '#49A2A5',
+            purple: '#7283C8',
+            gold: '#C28D54',
+            yellow: '#FFB800',
+            lime: '#E8F094',
+            dark: '#222325',
+            grid: '#E4E5E7'
+        };
+
+        Chart.defaults.font.family = "'Macan', sans-serif";
+        Chart.defaults.color = '#62646A';
+        Chart.defaults.scale.grid.color = '#E4E5E7';
+
+        let trendsChartInstance = null;
+        let categoryChartInstance = null;
+
+        function init() {
+            populateMonthFilter();
+            applyFilters(); // Initial load
+        }
+
+        function populateMonthFilter() {
+            const select = document.getElementById('filterMonth');
+            const today = new Date();
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                const opt = document.createElement('option');
+                opt.value = value;
+                opt.textContent = label;
+                select.appendChild(opt);
+            }
+        }
+
+        function applyFilters() {
+            const filters = {
+                search: document.getElementById('filterSearch').value,
+                month: document.getElementById('filterMonth').value,
+                category: document.getElementById('filterCategory').value
+            };
+
+            document.getElementById('loadingStatus').textContent = 'Updating...';
+            document.getElementById('loadingStatus').style.display = 'block';
+
+            google.script.run
+                .withSuccessHandler(renderDashboard)
+                .withFailureHandler(handleError)
+                .getAnalyticsDataForThemedView(filters);
+        }
+
+        function resetFilters() {
+            document.getElementById('filterSearch').value = '';
+            document.getElementById('filterMonth').value = 'All';
+            document.getElementById('filterCategory').value = 'All';
+            applyFilters();
+        }
+
+        function renderDashboard(data) {
+            document.getElementById('loadingStatus').style.display = 'none';
+            if (!data) return;
+
+            // KPIs
+            const kpis = data.mainKPIs || {};
+            document.getElementById('kpiTotalBriefs').textContent = kpis.totalSpend || 0;
+            document.getElementById('kpiTotalOrders').textContent = kpis.orders || 0;
+            document.getElementById('kpiSavings').textContent = kpis.potentialSavings || 0;
+
+            // Calc AOV
+            const aov = data.pendingKPIs ? (data.pendingKPIs.avgProjectValue || 0) : 0;
+            document.getElementById('kpiAOV').textContent = '$' + aov;
+
+            // Trends Chart (Bar/Line)
+            const trends = data.monthlyTrends || [];
+
+            if (trendsChartInstance) {
+                trendsChartInstance.destroy();
+            }
+
+            const ctxTrends = document.getElementById('trendsChart').getContext('2d');
+            trendsChartInstance = new Chart(ctxTrends, {
+                type: 'bar',
+                data: {
+                    labels: trends.map(t => t.month),
+                    datasets: [{
+                        label: 'Briefs',
+                        data: trends.map(t => t.orders),
+                        backgroundColor: colors.teal,
+                        borderRadius: 4,
+                        barThickness: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Category Chart (Doughnut)
+
+            if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+            }
+
+            const cats = data.spendBySubCategory || {};
+            const catLabels = Object.keys(cats);
+            const catValues = catLabels.map(k => cats[k].orders || 0);
+
+            const ctxCat = document.getElementById('categoryChart').getContext('2d');
+            categoryChartInstance = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catValues,
+                        backgroundColor: [colors.teal, colors.purple, colors.gold, colors.yellow, colors.lime],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }
+                    },
+                    cutout: '70%',
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const categoryName = catLabels[index];
+                            openCategoryDetails(categoryName);
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                }
+            });
+
+            // Detailed Analysis Tables
+            const stats = data.fullStats || {};
+
+            // System Overview
+            if (stats.versionStats) {
+                const v1El = document.getElementById('statV1Count');
+                if (v1El) v1El.textContent = stats.versionStats.v1Count || 0;
+
+                const v2El = document.getElementById('statV2Count');
+                if (v2El) v2El.textContent = stats.versionStats.v2Count || 0;
+            }
+            if (stats.qaStats) {
+                const qaEl = document.getElementById('statQACount');
+                if (qaEl) qaEl.textContent = stats.qaStats.totalReviews || 0;
+            }
+
+            // Comparison Table
+            const qa = stats.qaStats?.qaDecision || {};
+            const exp = stats.qaStats?.expertChoice || {};
+            const compBody = document.getElementById('comparisonBody');
+            if (compBody) {
+                compBody.innerHTML = `
+                    <tr>
+                        <td><strong>QA Decision</strong></td>
+                        <td>${qa.standardWins || 0}</td>
+                        <td><strong style="color: var(--color-accent-teal)">${qa.verticalWins || 0}</strong></td>
+                        <td>${qa.ties || 0}</td>
+                        <td>${qa.verticalWinRate || 0}%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Expert Choice</strong></td>
+                        <td>${exp.standardWins || 0}</td>
+                        <td><strong style="color: var(--color-accent-teal)">${exp.verticalWins || 0}</strong></td>
+                        <td>${exp.ties || 0}</td>
+                        <td>${exp.verticalWinRate || 0}%</td>
+                    </tr>
+                `;
+            }
+
+            // Purchase Reasons Table
+            const reasonBody = document.getElementById('purchaseReasonBody');
+            const reasons = stats.purchaseReasonStats || [];
+            if (reasonBody) {
+                reasonBody.innerHTML = reasons.map(r => `
+                    <tr>
+                        <td>${r.reason}</td>
+                        <td>${r.count}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Categories Table with Clickable Rows
+            const catBody = document.getElementById('categoriesBody');
+            const categories = stats.categoryStats?.categories || [];
+            if (catBody) {
+                catBody.innerHTML = categories.map(c => `
+                    <tr style="cursor: pointer;" onclick="openCategoryDetails('${c.name}')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
+                        <td><span style="color: var(--color-accent-teal); font-weight: 500;">${c.name}</span></td>
+                        <td>${c.count}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Titles Table
+            const titleBody = document.getElementById('titlesBody');
+            const titles = stats.jobTitleStats || [];
+            if (titleBody) {
+                titleBody.innerHTML = titles.map(t => `
+                    <tr>
+                        <td>${t.title}</td>
+                        <td>${t.count}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Recent Briefs Table
+            const briefBody = document.getElementById('recentBriefsBody');
+            const briefs = stats.recentBriefs || [];
+            if (briefBody) {
+                briefBody.innerHTML = briefs.map(b => `
+                    <tr>
+                        <td style="font-family: monospace;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 12px;">${b.id}</span>
+                                <button onclick="copyToClipboard('${b.fullId || b.id}')" title="Copy Full ID" style="background: none; border: none; cursor: pointer; padding: 2px; color: var(--color-text-muted); opacity: 0.6; transition: opacity 0.2s;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td>${b.company}</td>
+                        <td>${b.jobTitle}</td>
+                        <td>${b.category}</td>
+                        <td>${new Date(b.createdDate).toLocaleDateString()}</td>
+                        <td><span style="padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; background: ${b.version === 'v2' ? '#e6f4ea' : '#f1f3f4'}; color: ${b.version === 'v2' ? '#137333' : '#616161'}">${b.version.toUpperCase()}</span></td>
+                        <td>${b.status}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function handleError(err) {
+            console.error(err);
+            document.getElementById('loadingStatus').textContent = 'Error loading data: ' + err.message;
+            document.getElementById('loadingStatus').style.color = 'var(--color-error)';
+        }
+
+        // Modal Functions
+        function openCategoryDetails(categoryName) {
+            const modal = document.getElementById('categoryModal');
+            const title = document.getElementById('modalCategoryTitle');
+            const loader = document.getElementById('modalLoading');
+            const table = document.getElementById('categoryBriefsTable');
+            const tbody = document.getElementById('categoryBriefsBody');
+
+            modal.style.display = 'flex';
+            title.textContent = categoryName;
+
+            // Reset state
+            loader.style.display = 'block';
+            table.style.display = 'none';
+            tbody.innerHTML = '';
+
+            // Fetch Data
+            google.script.run
+                .withSuccessHandler((response) => {
+                    loader.style.display = 'none';
+                    if (response.success && response.data.length > 0) {
+                        table.style.display = 'table';
+                        renderBriefsList(response.data, tbody);
+                    } else {
+                        loader.textContent = 'No detailed briefs found for this category.';
+                        loader.style.display = 'block';
+                    }
+                })
+                .withFailureHandler((err) => {
+                    loader.textContent = 'Error loading briefs: ' + err.message;
+                })
+                .getBriefsByCategory(categoryName);
+        }
+
+        function renderBriefsList(briefs, tbody) {
+            tbody.innerHTML = briefs.map(b => {
+                const dateStr = b.createdDate ? new Date(b.createdDate).toLocaleDateString() : '-';
+                const actionHtml = b.url
+                    ? `<a href="${b.url}" target="_blank" style="color: var(--color-accent-teal); font-weight: 600; text-decoration: none;">View Doc &rarr;</a>`
+                    : `<span style="color: var(--color-text-muted); font-size: 12px;">No Link</span>`;
+
+                return `
+                    <tr style="border-bottom: 1px solid var(--color-border-subtle);">
+                        <td style="padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-family: monospace; font-size: 12px;">${b.id}</span>
+                                <button onclick="copyToClipboard('${b.fullId || b.id}')" title="Copy Full ID" style="background: none; border: none; cursor: pointer; padding: 2px; color: var(--color-text-muted); opacity: 0.6; transition: opacity 0.2s;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td style="padding: 12px; font-weight: 500;">${b.jobTitle}</td>
+                        <td style="padding: 12px;">${b.company || '-'}</td>
+                        <td style="padding: 12px;">${b.agentName || 'Unknown'}</td>
+                        <td style="padding: 12px;">${dateStr}</td>
+                        <td style="padding: 12px;"><span style="padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; background: ${b.version === 'v2' ? '#e6f4ea' : '#f1f3f4'}; color: ${b.version === 'v2' ? '#137333' : '#616161'}">${b.version.toUpperCase()}</span></td>
+                        <td style="padding: 12px;">${actionHtml}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Simple visual feedback could go here, for now relying on browser behavior 
+                // or maybe changing button color temporarily if I had reference to the element.
+                // Let's create a temporary toast notification.
+                showToast("ID Copied to Clipboard");
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        function showToast(message) {
+            let toast = document.createElement("div");
+            toast.textContent = message;
+            toast.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 24px; border-radius: 8px; z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fadeIn 0.3s, fadeOut 0.3s 2.7s forwards;";
+            document.body.appendChild(toast);
+            setTimeout(() => document.body.removeChild(toast), 3000);
+        }
+
+        // Add fade animations for toast
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(10px); } }
+        `;
+        document.head.appendChild(style);
+
+        function closeModal() {
+            document.getElementById('categoryModal').style.display = 'none';
+        }
+
+        // Close modal on outside click
+        window.onclick = function (event) {
+            const modal = document.getElementById('categoryModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

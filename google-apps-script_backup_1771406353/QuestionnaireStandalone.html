@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    html, body {
+      height: 100%;
+      overflow: auto;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      color: #333;
+    }
+    
+    #form-container {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      padding: 20px;
+      box-sizing: border-box;
+      max-width: 100%;
+      position: relative;
+    }
+    
+    h1, h2, h3 {
+      color: #2E7D32;
+    }
+    
+    .form-section {
+      margin-bottom: 30px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+      border-left: 4px solid #4CAF50;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    input[type="text"], 
+    input[type="email"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    textarea {
+      min-height: 80px;
+      min-width: 100px;
+      resize: both; /* Allows both vertical and horizontal resizing */
+    }
+    
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 20px;
+    }
+    
+    button:hover {
+      background-color: #388E3C;
+    }
+    
+    .form-description {
+      color: #666;
+      font-style: italic;
+      margin-bottom: 5px;
+    }
+    
+    .progress-container {
+      width: 100%;
+      height: 10px;
+      background-color: #f3f3f3;
+      border-radius: 5px;
+      margin-top: 20px;
+      display: none;
+    }
+    
+    .progress-bar {
+      height: 10px;
+      background-color: #4CAF50;
+      border-radius: 5px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .success-message {
+      color: #4CAF50;
+      font-weight: bold;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 5px;
+      background-color: #E8F5E9;
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="form-container">
+    <h1>Domain Expert Sourcing Questionnaire</h1>
+    
+    <form id="sourcing-form">
+      <!-- Basic Information -->
+      <div class="form-section">
+        <h2>Basic Information</h2>
+        
+        <div class="form-group">
+          <label for="contactName">Contact Name</label>
+          <input type="text" id="contactName" name="contactName">
+        </div>
+        
+        <div class="form-group">
+          <label for="contactEmail">Contact Email</label>
+          <input type="email" id="contactEmail" name="contactEmail">
+        </div>
+        
+        <div class="form-group">
+          <label for="companyName">Company Name</label>
+          <input type="text" id="companyName" name="companyName">
+        </div>
+        
+        <div class="form-group">
+          <label for="about">About</label>
+          <textarea id="about" name="about"></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="agencyOrFreelancer">Agency or Freelancer</label>
+          <select id="agencyOrFreelancer" name="agencyOrFreelancer">
+            <option value="">-- Please Select --</option>
+            <option value="Agency">Agency</option>
+            <option value="Freelancer">Freelancer</option>
+            <option value="Both">Both / Either</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Role Information -->
+      <div class="form-section">
+        <h2>Role Information</h2>
+        
+        <div class="form-group">
+          <label for="jobTitle">Role or Job Title</label>
+          <input type="text" id="jobTitle" name="jobTitle">
+          <div class="form-description">Do you have a specific role or job title in mind for this position?</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="theNeed">The Need</label>
+          <textarea id="theNeed" name="theNeed"></textarea>
+          <div class="form-description">
+            - What specific role or service are you looking for?<br>
+            - Can you describe the tasks or projects involved?<br>
+            - Please provide a deep dive with specific details about the service needed.
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="skillsAndExperience">Skills and Experience</label>
+          <textarea id="skillsAndExperience" name="skillsAndExperience"></textarea>
+          <div class="form-description">Do you need the talent to have any specific skills, experience with tools or platforms, or expertise in particular keywords?</div>
+        </div>
+      </div>
+      
+      <!-- Industry and Background -->
+      <div class="form-section">
+        <h2>Industry and Background</h2>
+        
+        <div class="form-group">
+          <label for="industry">Industry and Background</label>
+          <textarea id="industry" name="industry"></textarea>
+          <div class="form-description">
+            - Which industry does your project or need align with?<br>
+            - Is there a particular background or expertise you're looking for in the candidate?
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="experienceQualifications">Experience and Qualifications</label>
+          <textarea id="experienceQualifications" name="experienceQualifications"></textarea>
+          <div class="form-description">
+            - How many years of experience do you expect the candidate to have?<br>
+            - Are there any certifications, skills, or qualifications that are must-haves? (Name at least two.)
+          </div>
+        </div>
+      </div>
+      
+      <!-- Engagement Details -->
+      <div class="form-section">
+        <h2>Engagement Details</h2>
+        
+        <div class="form-group">
+          <label for="engagementModel">Engagement Model</label>
+          <textarea id="engagementModel" name="engagementModel"></textarea>
+          <div class="form-description">
+            - Are you looking for a one-time engagement or an ongoing collaboration?<br>
+            - If ongoing, what does the ideal duration of this engagement look like?
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="timeline">Timeline</label>
+          <textarea id="timeline" name="timeline"></textarea>
+          <div class="form-description">
+            - When do you need the work to start?<br>
+            - Do you have a deadline or specific timeline for this project?
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="paymentPreferences">Payment Preferences</label>
+          <textarea id="paymentPreferences" name="paymentPreferences"></textarea>
+          <div class="form-description">
+            - What is your preferred payment structure: hourly or fixed-price?<br>
+            - If fixed-price, what is your overall budget for this project?
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="workplaceLogistics">Workplace and Logistics</label>
+          <textarea id="workplaceLogistics" name="workplaceLogistics"></textarea>
+          <div class="form-description">
+            - Will the work be remote, on-site, or a hybrid arrangement?<br>
+            - Are there specific time zones or working hours you prefer?<br>
+            - Are there language requirements for this role?
+          </div>
+        </div>
+      </div>
+      
+      <!-- Sourcing Information -->
+      <div class="form-section">
+        <h2>Sourcing Information</h2>
+        
+        <div class="form-group">
+          <label for="preferredSourcingChannels">Preferred Sourcing Channels</label>
+          <textarea id="preferredSourcingChannels" name="preferredSourcingChannels"></textarea>
+          <div class="form-description">
+            - Are there specific sourcing channels or communities you'd like us to explore for this role?<br>
+            - Have you already tried sourcing for this role elsewhere? If so, what was your experience?
+          </div>
+        </div>
+      </div>
+      
+      <!-- Additional Information -->
+      <div class="form-section">
+        <h2>Additional Information</h2>
+        
+        <div class="form-group">
+          <label for="challengesInHiring">Challenges in Hiring</label>
+          <textarea id="challengesInHiring" name="challengesInHiring"></textarea>
+          <div class="form-description">
+            - What challenges have you faced hiring for this role?<br>
+            - Understanding any difficulties or gaps in previous hiring efforts
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="idealCandidateProfile">Ideal Candidate Profile</label>
+          <textarea id="idealCandidateProfile" name="idealCandidateProfile"></textarea>
+          <div class="form-description">
+            - Do you have an ideal candidate profile example?<br>
+            - Which industries, markets, or companies are most relevant for your needs?<br>
+            - Are there competitors, organizations, or products where ideal talent can be found?
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="sourcingPriorities">Sourcing Priorities</label>
+          <textarea id="sourcingPriorities" name="sourcingPriorities"></textarea>
+          <div class="form-description">
+            - Which platforms or channels should we prioritize for sourcing?<br>
+            - What keywords will you be looking for in the ideal talent's experience?
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="screeningQuestions">Screening Questions</label>
+          <textarea id="screeningQuestions" name="screeningQuestions"></textarea>
+          <div class="form-description">
+            - What two questions should we ask candidates to confirm their fit?<br>
+            - Streamlining the screening process and providing strong reasoning for selection.
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="hiringProcess">Hiring Process</label>
+          <textarea id="hiringProcess" name="hiringProcess"></textarea>
+          <div class="form-description">What is your hiring process? (Talent expectation matters)</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="additionalInfo">Important Things to Know</label>
+          <textarea id="additionalInfo" name="additionalInfo"></textarea>
+          <div class="form-description">Any other important details we should know about this role or your requirements?</div>
+        </div>
+      </div>
+      
+      <button type="submit" id="submit-btn">Submit & Generate Brief</button>
+    </form>
+    
+    <div class="progress-container" id="progress-container">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    
+    <div class="success-message" id="success-message">
+      Brief generated successfully! You can now close this window.
+    </div>
+  </div>
+
+  <script>
+    // Form submission handler
+    document.getElementById('sourcing-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Show progress bar
+      document.getElementById('progress-container').style.display = 'block';
+      
+      // Collect all form data
+      const formData = {};
+      const formElements = document.getElementById('sourcing-form').elements;
+      
+      for (let i = 0; i < formElements.length; i++) {
+        const element = formElements[i];
+        if (element.name && element.name !== '') {
+          formData[element.name] = element.value;
+        }
+      }
+      
+      // Convert form data to a POST parameter
+      const formDataStr = JSON.stringify(formData);
+      
+      // Post this data back to the parent window if possible
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: 'questionnaireSubmit', formData: formDataStr }, '*');
+        
+        // Show success
+        document.getElementById('form-container').style.display = 'none';
+        document.getElementById('success-message').style.display = 'block';
+        
+        // Close the window after a delay
+        setTimeout(function() {
+          window.close();
+        }, 3000);
+      } else {
+        // If window.opener is not available, alert the user
+        alert('Please copy your responses and submit them manually. The original window is no longer available.');
+      }
+    });
+  </script>
+</body>
+</html>

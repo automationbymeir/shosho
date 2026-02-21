@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <?!= include('DesignSystem') ?>
+    <style>
+        /* Sidebar Specific Overrides */
+        html,
+        body {
+            height: 100%;
+            background-color: var(--color-bg-hover);
+            /* Light grey for sidebar background */
+            font-family: 'Macan', sans-serif;
+        }
+
+        #sidebar-content {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        /* Logo Container */
+        .logo-container {
+            margin-bottom: 24px;
+            background-color: var(--color-bg-primary);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--color-border-default);
+        }
+
+        .logo-container svg {
+            width: auto;
+            height: 34px;
+            display: inline-block;
+        }
+
+        /* Progress Bar */
+        #progressContainer {
+            width: 100%;
+            margin: 16px 0;
+            background-color: var(--color-border-subtle);
+            border-radius: 8px;
+            display: none;
+            overflow: hidden;
+            height: 8px;
+        }
+
+        #progressBar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--color-accent-teal);
+            border-radius: 8px;
+            transition: width 0.3s ease-out, background-color 0.3s ease;
+        }
+
+        /* Results */
+        #regenResult,
+        #errorResult {
+            margin: 16px 0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: 1px solid transparent;
+            display: none;
+            line-height: 1.5;
+        }
+
+        #regenResult {
+            background-color: rgba(29, 191, 115, 0.1);
+            color: #060;
+            border-color: rgba(29, 191, 115, 0.2);
+        }
+
+        #errorResult {
+            background-color: #FEE;
+            color: #C00;
+            border-color: #FCC;
+        }
+
+        /* Brief Items */
+        .brief-item {
+            background-color: var(--color-bg-primary);
+            border: 1px solid var(--color-border-subtle);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            transition: var(--transition-default);
+        }
+
+        .brief-item:hover {
+            border-color: var(--color-border-default);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .brief-title {
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+
+        .brief-subtitle {
+            font-size: 12px;
+            color: var(--color-text-muted);
+        }
+
+        .brief-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .brief-actions button {
+            padding: 4px 8px;
+            font-size: 12px;
+            height: auto;
+            min-width: auto;
+            background: transparent;
+            border: 1px solid var(--color-border-default);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--color-border-default);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar-content">
+        <div class="logo-container">
+            <svg width="139" height="34" viewBox="0 0 139 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M81.6463 13.1117H78.4949C76.4661 13.1117 75.3797 14.6592 75.3797 17.2363V26.5544H69.4034V13.1117H66.8677C64.839 13.1117 63.7526 14.6592 63.7526 17.2363V26.5544H57.7763V8.13963H63.7526V10.9393C64.7301 8.76575 66.0705 8.13963 68.063 8.13963H75.3797V10.9393C76.3572 8.76575 77.6976 8.13963 79.6901 8.13963H81.6463V13.1117ZM56.4721 18.7838H44.0103C44.3358 20.8466 45.6036 22.0251 47.7413 22.0251C49.3345 22.0251 50.4584 21.3621 50.8201 20.1836L56.1092 21.6942C54.8051 24.8986 51.5811 26.8508 47.7413 26.8508C41.2569 26.8508 38.2869 21.7311 38.2869 17.3482C38.2869 13.0391 40.8952 7.88251 47.3784 7.88251C54.2607 7.88251 56.5424 13.1129 56.5424 16.9804C56.5436 17.8267 56.5073 18.379 56.4721 18.7838ZM50.6761 15.2115C50.531 13.6283 49.4083 12.1547 47.3795 12.1547C45.4959 12.1547 44.3732 13.0022 44.0103 15.2115H50.6761ZM27.855 26.5556H33.1078L39.6636 8.13963H33.651L30.4633 18.8576L27.203 8.13963H21.2267L27.855 26.5556ZM3.3692 26.5556H9.3092V13.1117H14.96V26.5556H20.8649V8.13963H9.31037V6.99808C9.31037 5.74583 10.1802 4.9721 11.5557 4.9721H14.9612V0H10.577C6.22662 0 3.3692 2.689 3.3692 6.63026V8.14082H0V13.1129H3.3692V26.5556Z"
+                    fill="#222325" />
+                <path
+                    d="M86.9869 34V8.15269H90.4697V10.8905C91.5467 9.06569 93.7371 7.85986 96.2505 7.85986C101.708 7.85986 104.832 11.8749 104.832 17.3517C104.832 22.8273 101.564 26.8436 96.0714 26.8436C93.6657 26.8436 91.5116 25.7116 90.4709 23.9594V33.9988H86.9869V34ZM101.313 17.3529C101.313 13.52 99.0871 10.9643 95.7471 10.9643C92.3721 10.9643 90.1817 13.52 90.1817 17.3529C90.1817 21.1859 92.3721 23.7415 95.7471 23.7415C99.0871 23.7415 101.313 21.1859 101.313 17.3529Z"
+                    fill="#222325" />
+                <path
+                    d="M116.757 11.2189H114.136C110.834 11.2189 109.755 14.2127 109.755 18.2277V26.5519H106.274V8.15259H109.757V11.6939C110.582 9.24771 112.018 8.15259 114.568 8.15259H116.758V11.2189H116.757Z"
+                    fill="#222325" />
+                <path
+                    d="M115.91 17.3529C115.91 11.8404 119.823 7.86108 125.245 7.86108C130.666 7.86108 134.543 11.8404 134.543 17.3529C134.543 22.8655 130.666 26.8448 125.245 26.8448C119.823 26.8436 115.91 22.8643 115.91 17.3529ZM130.988 17.3529C130.988 13.5926 128.655 10.9643 125.243 10.9643C121.797 10.9643 119.463 13.5926 119.463 17.3529C119.463 21.1133 121.796 23.7416 125.243 23.7416C128.655 23.7416 130.988 21.1121 130.988 17.3529Z"
+                    fill="#222325" />
+                <path
+                    d="M139 24.5201V24.5629C139 25.814 138.003 26.8294 136.771 26.8294C135.541 26.8294 134.542 25.8152 134.542 24.5629V24.5201C134.542 23.269 135.54 22.2537 136.771 22.2537C138.001 22.2537 139 23.269 139 24.5201Z"
+                    fill="#222325" />
+            </svg>
+        </div>
+
+        <div class="service-card">
+            <h3>Brief Generation</h3>
+            <p>Generate precise job briefs with AI assistance.</p>
+            <button class="btn-primary full-width" onclick="openQuestionnaire()">Start Questionnaire</button>
+            <button class="btn-secondary full-width" onclick="generateEntirePostFromNotes()">From Meeting Notes</button>
+        </div>
+
+        <div class="service-card">
+            <h3>Refinement & Export</h3>
+            <p>Enhance content and export deliverables.</p>
+            <button class="btn-secondary full-width" onclick="regenerateHighlightedText()">Regenerate Text</button>
+            <button class="btn-primary full-width" onclick="generatePDF()">Export to PDF</button>
+            <button class="btn-secondary full-width" onclick="getBriefDataAndShowFeedback()">Provide Feedback</button>
+
+            <div id="progressContainer">
+                <div id="progressBar"></div>
+            </div>
+            <div id="regenResult"></div>
+            <div id="errorResult"></div>
+        </div>
+
+        <div class="service-card">
+            <h3>Budget Estimator</h3>
+            <p>Get instant project cost estimates.</p>
+            <button class="btn-secondary full-width" onclick="estimateBudget()">Estimate Cost</button>
+            <div id="budgetResultContainer">
+                <div id="budgetResultText"></div>
+                <button id="copyBudgetButton" onclick="copyBudgetText()">Copy</button>
+            </div>
+        </div>
+
+        <div id="previousBriefsContainer">
+            <h3>Recent Briefs</h3>
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search briefs...">
+                <button id="searchButton" class="btn-primary" onclick="searchBriefs()">Search</button>
+            </div>
+            <div id="previousBriefs">
+                <div class="loading-text">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Helper functions
+        function showMessage(id, message) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.innerHTML = message;
+                element.style.display = 'block';
+            }
+        }
+
+        function hideMessage(id) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.style.display = 'none';
+            }
+        }
+
+        function clearMessages() {
+            hideMessage('regenResult');
+            hideMessage('errorResult');
+        }
+
+        // Progress bar functions
+        let progressInterval = null;
+
+        function startProgress() {
+            clearMessages();
+            const container = document.getElementById("progressContainer");
+            const bar = document.getElementById("progressBar");
+            if (!container || !bar) return;
+
+            container.style.display = "block";
+            bar.style.backgroundColor = '#49A2A5'; /* Teal from Design System */
+            bar.style.width = "0%";
+            let progress = 0;
+            if (progressInterval) clearInterval(progressInterval);
+
+            progressInterval = setInterval(() => {
+                progress += 10;
+                if (progress >= 95) {
+                    progress = 95;
+                    clearInterval(progressInterval);
+                }
+                bar.style.width = progress + "%";
+            }, 250);
+        }
+
+        function completeProgress(success = true) {
+            if (progressInterval) clearInterval(progressInterval);
+            progressInterval = null;
+            const bar = document.getElementById("progressBar");
+            const container = document.getElementById("progressContainer");
+            if (!bar || !container) return;
+
+            bar.style.width = "100%";
+            bar.style.backgroundColor = success ? '#49A2A5' : '#c5221f';
+
+            setTimeout(() => {
+                container.style.display = "none";
+                bar.style.width = "0%";
+                bar.style.backgroundColor = '#49A2A5';
+            }, 1200);
+        }
+
+        function handleFailure(error) {
+            console.error("Script Error:", error);
+            completeProgress(false);
+            let errorMessage = "An unexpected error occurred.";
+            if (typeof error === 'string') {
+                errorMessage = error;
+            } else if (error && error.message) {
+                errorMessage = error.message;
+            }
+            errorMessage = errorMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            showMessage('errorResult', `<strong>Error:</strong> ${errorMessage}`);
+        }
+
+        // Budget estimation
+        function estimateBudget() {
+            startProgress();
+            clearMessages();
+            document.getElementById('budgetResultContainer').style.display = 'none';
+
+            google.script.run
+                .withSuccessHandler(function (briefText) {
+                    if (typeof briefText === 'string' && briefText.toLowerCase().startsWith('error:')) {
+                        handleFailure(briefText);
+                        return;
+                    }
+                    if (!briefText || briefText.trim() === "") {
+                        handleFailure("Could not extract brief text from the document.");
+                        return;
+                    }
+
+                    google.script.run
+                        .withSuccessHandler(function (budgetResult) {
+                            completeProgress(true);
+                            if (typeof budgetResult === 'string' && budgetResult.toLowerCase().startsWith('error:')) {
+                                showMessage('errorResult', `<strong>Budget Estimation Error:</strong> ${budgetResult}`);
+                            } else if (typeof budgetResult === 'string') {
+                                document.getElementById('budgetResultText').innerHTML = `<strong>Estimated Budget:</strong> ${budgetResult.replace(/</g, "&lt;")}`;
+                                document.getElementById('budgetResultContainer').style.display = 'block';
+                                showMessage('regenResult', "Budget estimation complete.");
+                            } else {
+                                showMessage('errorResult', "Received an invalid response.");
+                            }
+                        })
+                        .withFailureHandler(handleFailure)
+                        .estimateBudgetForBrief(briefText);
+                })
+                .withFailureHandler(handleFailure)
+                .getBriefTextFromDocument();
+        }
+
+        function copyBudgetText() {
+            const budgetTextElement = document.getElementById('budgetResultText');
+            let budgetText = budgetTextElement.innerText || budgetTextElement.textContent;
+
+            const prefix = "Estimated Budget: ";
+            if (budgetText.startsWith(prefix)) {
+                budgetText = budgetText.substring(prefix.length);
+            }
+
+            navigator.clipboard.writeText(budgetText.trim())
+                .then(() => {
+                    showMessage('regenResult', "Budget copied to clipboard!");
+                    const copyButton = document.getElementById('copyBudgetButton');
+                    const originalText = copyButton.innerText;
+                    copyButton.innerText = "Copied!";
+                    setTimeout(() => {
+                        copyButton.innerText = originalText;
+                        hideMessage('regenResult');
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('Failed to copy budget text: ', err);
+                    showMessage('errorResult', "Failed to copy budget.");
+                });
+        }
+
+        // Action functions
+        function openQuestionnaire() {
+            startProgress();
+            google.script.run
+                .withSuccessHandler(function (success) {
+                    if (success) {
+                        completeProgress(true);
+                    } else {
+                        handleFailure("Could not open the questionnaire dialog.");
+                    }
+                })
+                .withFailureHandler(handleFailure)
+                .showQuestionnaireDialog();
+        }
+
+        function generateEntirePostFromNotes() {
+            startProgress();
+            google.script.run
+                .withSuccessHandler(function (msg) {
+                    if (typeof msg === 'string' && msg.toLowerCase().startsWith('error:')) {
+                        handleFailure(msg);
+                    } else {
+                        completeProgress(true);
+                        showMessage('regenResult', msg || "Job post generated successfully!");
+                    }
+                })
+                .withFailureHandler(handleFailure)
+                .formatMeetingNotesToJobPost();
+        }
+
+        function regenerateHighlightedText() {
+            const userPrompt = prompt("Enter instructions for rewriting (e.g., 'make it more concise'):");
+            if (!userPrompt || !userPrompt.trim()) return;
+
+            startProgress();
+            google.script.run
+                .withSuccessHandler(function (result) {
+                    if (typeof result === 'string') {
+                        handleFailure(result);
+                    } else if (result && result.regenerated !== undefined && result.original !== undefined) {
+                        completeProgress(true);
+                        showMessage('regenResult',
+                            `<strong>Original:</strong><br><em>${result.original.replace(/</g, "&lt;")}</em><br><br>` +
+                            `<strong>Rewritten:</strong><br><em>${result.regenerated.replace(/</g, "&lt;")}</em>`
+                        );
+                    } else {
+                        handleFailure("Invalid response received.");
+                    }
+                })
+                .withFailureHandler(handleFailure)
+                .regenerateSectionWithPrompt(userPrompt);
+        }
+
+        function generatePDF() {
+            startProgress();
+            google.script.run
+                .withSuccessHandler(function (result) {
+                    if (result && result.error) {
+                        handleFailure(result.error);
+                    } else if (result && result.pdfUrl) {
+                        completeProgress(true);
+                        showMessage('regenResult', `PDF generated! <a href="${result.pdfUrl}" target="_blank">Open PDF</a>.`);
+                        window.open(result.pdfUrl, "_blank");
+                        loadPreviousBriefs();
+                    } else {
+                        handleFailure("PDF generation failed.");
+                    }
+                })
+                .withFailureHandler(handleFailure)
+                .generateStyledPdfWithCopy();
+        }
+
+        // Feedback functions
+        function getBriefDataAndShowFeedback() {
+            startProgress();
+            clearMessages();
+            google.script.run
+                .withSuccessHandler(function (briefData) {
+                    if (briefData && briefData.error) {
+                        handleFailure(briefData.error);
+                    } else if (briefData && briefData.docId) {
+                        google.script.run
+                            .withSuccessHandler(function () {
+                                completeProgress(true);
+                            })
+                            .withFailureHandler(handleFailure)
+                            .showFeedbackDialogServerSide(briefData);
+                    } else {
+                        let msg = "Could not retrieve necessary brief data.";
+                        if (briefData && briefData.docId) {
+                            console.warn("Brief data properties missing, proceeding with only Doc ID.");
+                            google.script.run
+                                .withSuccessHandler(() => completeProgress(true))
+                                .withFailureHandler(handleFailure)
+                                .showFeedbackDialogServerSide({ docId: briefData.docId });
+                        } else {
+                            handleFailure(msg);
+                        }
+                    }
+                })
+                .withFailureHandler(handleFailure)
+                .getBriefDataFromActiveDoc();
+        }
+
+        // Previous briefs functions
+        function openBriefDoc(docId) {
+            if (!docId) {
+                showMessage('errorResult', "Error: Missing Document ID.");
+                return;
+            }
+            google.script.run
+                .withSuccessHandler(function (success) {
+                    if (!success) {
+                        console.error("Server indicated failure opening document.");
+                    }
+                })
+                .withFailureHandler(handleFailure)
+                .openBriefDocument(docId);
+        }
+
+        function searchBriefs() {
+            const query = document.getElementById('searchInput').value.trim();
+            loadPreviousBriefs(query);
+        }
+
+        function loadPreviousBriefs(query = '') {
+            displayBriefs('<div class="loading-text">Loading briefs...</div>');
+            const serverFunction = query ? 'searchBriefs' : 'getPreviousBriefs';
+            const argument = query ? query : 20;
+
+            google.script.run
+                .withSuccessHandler(renderBriefs)
+                .withFailureHandler(function (error) {
+                    console.error("Error loading/searching briefs:", error);
+                    let errorMsg = "Failed to load briefs.";
+                    if (typeof error === 'string') errorMsg = error;
+                    else if (error && error.message) errorMsg = error.message;
+                    displayBriefs(`<div class="error-text">Error: ${errorMsg}</div>`);
+                })
+            [serverFunction](argument);
+        }
+
+        function renderBriefs(briefsResult) {
+            if (briefsResult && briefsResult.error) {
+                displayBriefs(`<div class="error-text">Error loading briefs: ${briefsResult.error}</div>`);
+                return;
+            }
+
+            const briefs = Array.isArray(briefsResult) ? briefsResult : [];
+
+            if (briefs.length === 0) {
+                displayBriefs('<div class="no-briefs-text">No briefs found.</div>');
+                return;
+            }
+
+            let html = '';
+            for (const brief of briefs) {
+                let dateStr = "Unknown date";
+                try {
+                    if (brief.createdAt) {
+                        const date = new Date(brief.createdAt);
+                        if (!isNaN(date.getTime())) {
+                            dateStr = date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                        }
+                    }
+                } catch (e) { console.warn("Date formatting error", e); }
+
+                const jobTitle = brief.jobTitle || "N/A";
+                const contactName = brief.contactName || "N/A";
+                const contactEmail = brief.contactEmail || "";
+                const creatorEmail = brief.creatorEmail || "";
+
+                const escapeHtml = (unsafe) => {
+                    if (unsafe === null || unsafe === undefined) return '';
+                    return String(unsafe)
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/"/g, "&quot;")
+                        .replace(/'/g, "&#039;");
+                };
+
+                const pdfButton = (brief.pdfUrl && brief.pdfUrl !== '#')
+                    ? `<button onclick="window.open('${escapeHtml(brief.pdfUrl)}', '_blank')">PDF</button>`
+                    : '';
+                const openDocButton = brief.docId
+                    ? `<button onclick="openBriefDoc('${escapeHtml(brief.docId)}')">Doc</button>`
+                    : '';
+
+                html += `
+                  <div class="brief-item">
+                      <div class="brief-title">${escapeHtml(contactName)}</div>
+                      <div class="brief-subtitle">Job: ${escapeHtml(jobTitle)}</div>
+                      <div class="brief-subtitle">Created: ${escapeHtml(dateStr)}</div>
+                      <div class="brief-actions">
+                          ${pdfButton}
+                          ${openDocButton}
+                      </div>
+                  </div>`;
+            }
+            displayBriefs(html);
+        }
+
+        function displayBriefs(htmlContent) {
+            const container = document.getElementById('previousBriefs');
+            if (container) {
+                container.innerHTML = htmlContent;
+            }
+        }
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', function () {
+            loadPreviousBriefs();
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function (event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        searchBriefs();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

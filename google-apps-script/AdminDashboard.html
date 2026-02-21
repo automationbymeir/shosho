@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Fiverr Pro Analytics - Admin Dashboard</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+ <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link href="https://fonts.googleapis.com/css2?family=Macan:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap" rel="stylesheet">
+ <style>
+   * { margin: 0; padding: 0; box-sizing: border-box; }
+   body { font-family: 'Macan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.6; color: #222325; background: #f7f7f7; }
+   .dashboard-container { max-width: 1440px; margin: 0 auto; padding: 20px; }
+   .header { background: white; border-radius: 12px; padding: 24px 32px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+   .header-content { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+   .logo-container svg { display: block; }
+   .header-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+   .btn { padding: 10px 20px; border: 1px solid #222325; border-radius: 8px; background: transparent; color: #222325; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+   .btn:hover { background: #f0f0f0; }
+   .btn:disabled { opacity: 0.5; cursor: not-allowed; background: #e4e5e7; border-color: #e4e5e7; }
+   .btn-primary { background: #222325; color: white; }
+   .btn-primary:hover { background: #404145; }
+   .btn-primary:disabled { background: #95979d; border-color: #95979d; }
+   .btn-date { padding: 8px 16px; font-size: 13px; }
+   .main-content { display: grid; grid-template-columns: 1fr 3fr; gap: 24px; }
+   .sidebar { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+   .sidebar-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #222325; }
+   .stats-grid { display: flex; flex-direction: column; gap: 16px; }
+   .stat-card { padding: 16px; background: #f7f7f7; border-radius: 8px; }
+   .stat-value { font-size: 24px; font-weight: 700; color: #222325; }
+   .stat-label { font-size: 14px; color: #62646A; }
+   .content-area { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+   .content-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+   .content-title { font-size: 20px; font-weight: 700; color: #222325; }
+   .controls-wrapper { display: flex; gap: 16px; align-items: center; flex-grow: 1; flex-wrap: wrap; }
+   .filter-controls { display: flex; gap: 8px; }
+   .btn-filter { padding: 8px 16px; border: 1px solid #DADBDD; border-radius: 20px; background: white; font-size: 14px; font-weight: 600; color: #62646A; cursor: pointer; transition: all 0.2s; }
+   .btn-filter:hover { background: #f7f7f7; }
+   .btn-filter.active { background: #222325; color: white; border-color: #222325; }
+   .search-box { padding: 8px 16px; border: 1px solid #E4E5E7; border-radius: 8px; font-size: 14px; width: 300px; }
+   .dropdown-filter { padding: 8px 12px; border: 1px solid #E4E5E7; border-radius: 8px; font-size: 14px; background: white; cursor: pointer; }
+   .table-container { overflow-x: auto; }
+   table { width: 100%; border-collapse: collapse; }
+   th { background: #f7f7f7; padding: 12px; text-align: left; font-weight: 600; color: #62646A; font-size: 14px; border-bottom: 1px solid #E4E5E7; }
+   th:first-child, td:first-child { padding-left: 16px; }
+   td { padding: 12px; border-bottom: 1px solid #E4E5E7; font-size: 14px; }
+   tr:hover { background: #fafafa; }
+   .user-name { font-weight: 600; color: #222325; }
+   .tier-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+   .tier-diamond { background: #E3F2FD; color: #1976D2; }
+   .tier-platinum { background: #F3E5F5; color: #7B1FA2; }
+   .tier-advanced { background: #FFF3E0; color: #F57C00; }
+   .actions-cell { display: flex; gap: 8px; }
+   .action-btn { padding: 6px 12px; border: 1px solid #E4E5E7; border-radius: 6px; background: white; color: #222325; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+   .action-btn:hover { background: #f7f7f7; }
+   .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+   .loading { text-align: center; padding: 40px; color: #62646A; }
+   .error { background: #FEE; color: #C00; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+   .success { background: #EFE; color: #060; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+   .info { background: #E3F2FD; color: #1976D2; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+   .date-selector { display: flex; gap: 8px; align-items: center; }
+   .date-input { padding: 8px 12px; border: 1px solid #E4E5E7; border-radius: 8px; font-size: 14px; }
+   .selection-action-wrapper { display: flex; align-items: center; gap: 10px; }
+   .selection-count-badge { font-size: 14px; color: #222325; font-weight: 600; display: none; }
+   .data-actions { display: flex; gap: 8px; align-items: center; }
+   .tab-list { display: flex; border-bottom: 2px solid #DADBDD; margin-bottom: 24px; }
+   .tab-list-item { padding: 12px 16px; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+   .tab-list-item.active { border-bottom-color: #222325; color: #222325; }
+   .tab-content { display: none; }
+   .tab-content.active { display: block; }
+   .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+   .log-header h3 { font-size: 18px; }
+   .log-table-container { max-height: 600px; overflow-y: auto; }
+
+   @media (max-width: 1024px) { .main-content { grid-template-columns: 1fr; } }
+   @media (max-width: 768px) { .header-content, .content-header { flex-direction: column; gap: 16px; align-items: stretch; } .search-box { width: 100%; } .controls-wrapper { flex-direction: column; align-items: stretch; } .data-actions { flex-direction: column; align-items: stretch; } }
+ </style>
+</head>
+<body>
+ <div class="dashboard-container">
+   <div class="header">
+     <div class="header-content">
+       <div class="logo-container">
+         <svg width="139" height="34" viewBox="0 0 139 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M81.6463 13.1117H78.4949C76.4661 13.1117 75.3797 14.6592 75.3797 17.2363V26.5544H69.4034V13.1117H66.8677C64.839 13.1117 63.7526 14.6592 63.7526 17.2363V26.5544H57.7763V8.13963H63.7526V10.9393C64.7301 8.76575 66.0705 8.13963 68.063 8.13963H75.3797V10.9393C76.3572 8.76575 77.6976 8.13963 79.6901 8.13963H81.6463V13.1117ZM56.4721 18.7838H44.0103C44.3358 20.8466 45.6036 22.0251 47.7413 22.0251C49.3345 22.0251 50.4584 21.3621 50.8201 20.1836L56.1092 21.6942C54.8051 24.8986 51.5811 26.8508 47.7413 26.8508C41.2569 26.8508 38.2869 21.7311 38.2869 17.3482C38.2869 13.0391 40.8952 7.88251 47.3784 7.88251C54.2607 7.88251 56.5424 13.1129 56.5424 16.9804C56.5436 17.8267 56.5073 18.379 56.4721 18.7838ZM50.6761 15.2115C50.531 13.6283 49.4083 12.1547 47.3795 12.1547C45.4959 12.1547 44.3732 13.0022 44.0103 15.2115H50.6761ZM27.855 26.5556H33.1078L39.6636 8.13963H33.651L30.4633 18.8576L27.203 8.13963H21.2267L27.855 26.5556ZM3.3692 26.5556H9.3092V13.1117H14.96V26.5556H20.8649V8.13963H9.31037V6.99808C9.31037 5.74583 10.1802 4.9721 11.5557 4.9721H14.9612V0H10.577C6.22662 0 3.3692 2.689 3.3692 6.63026V8.14082H0V13.1129H3.3692V26.5556Z" fill="#222325"/><path d="M86.9869 34V8.15269H90.4697V10.8905C91.5467 9.06569 93.7371 7.85986 96.2505 7.85986C101.708 7.85986 104.832 11.8749 104.832 17.3517C104.832 22.8273 101.564 26.8436 96.0714 26.8436C93.6657 26.8436 91.5116 25.7116 90.4709 23.9594V33.9988H86.9869V34ZM101.313 17.3529C101.313 13.52 99.0871 10.9643 95.7471 10.9643C92.3721 10.9643 90.1817 13.52 90.1817 17.3529C90.1817 21.1859 92.3721 23.7415 95.7471 23.7415C99.0871 23.7415 101.313 21.1859 101.313 17.3529Z" fill="#222325"/><path d="M116.757 11.2189H114.136C110.834 11.2189 109.755 14.2127 109.755 18.2277V26.5519H106.274V8.15259H109.757V11.6939C110.582 9.24771 112.018 8.15259 114.568 8.15259H116.758V11.2189H116.757Z" fill="#222325"/><path d="M115.91 17.3529C115.91 11.8404 119.823 7.86108 125.245 7.86108C130.666 7.86108 134.543 11.8404 134.543 17.3529C134.543 22.8655 130.666 26.8448 125.245 26.8448C119.823 26.8436 115.91 22.8643 115.91 17.3529ZM130.988 17.3529C130.988 13.5926 128.655 10.9643 125.243 10.9643C121.797 10.9643 119.463 13.5926 119.463 17.3529C119.463 21.1133 121.796 23.7416 125.243 23.7416C128.655 23.7416 130.988 21.1121 130.988 17.3529Z" fill="#222325"/><path d="M139 24.5201V24.5629C139 25.814 138.003 26.8294 136.771 26.8294C135.541 26.8294 134.542 25.8152 134.542 24.5629V24.5201C134.542 23.269 135.54 22.2537 136.771 22.2537C138.001 22.2537 139 23.269 139 24.5201Z" fill="#222325"/></svg>
+       </div>
+       <div class="header-actions">
+         <div>
+           <button class="btn" onclick="loadDashboardData()" id="refreshBtn">Refresh Live View</button>
+         </div>
+         <div style="border: 1px solid #e4e5e7; padding: 12px; border-radius: 8px;">
+           <p style="font-weight: 600; margin-bottom: 8px;">Report & Live View Controls</p>
+           <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+             <div class="date-selector">
+               <input type="date" class="date-input" id="startDateInput">
+               <span style="margin: 0 8px;">to</span>
+               <input type="date" class="date-input" id="endDateInput">
+             </div>
+             <button class="btn btn-primary" onclick="updateDashboardByDate()">Go</button>
+             <div class="selection-action-wrapper">
+                <button class="btn" onclick="generateSelectedReports()" id="generateSelectedBtn" disabled>Generate Selected</button>
+                <span id="selectionCount" class="selection-count-badge"></span>
+             </div>
+             <button class="btn btn-primary" onclick="generateAllReports()" id="generateAllBtn">Generate All Reports</button>
+           </div>
+           <p style="font-size: 12px; color: #62646A; margin-top: 8px;">
+             <b>Note:</b> Click 'Go' to apply date filters to the table below and for report generation.
+           </p>
+         </div>
+       </div>
+       </div>
+   </div>
+  
+   <div class="main-content">
+     <div class="sidebar">
+       <h2 class="sidebar-title">Dashboard Stats</h2>
+       <div class="stats-grid">
+         <div class="stat-card">
+           <div class="stat-value" id="totalUsers">0</div>
+           <div class="stat-label">Total Users</div>
+         </div>
+         <div class="stat-card">
+           <div class="stat-value" id="eligibleUsers">0</div>
+           <div class="stat-label">Eligible Users</div>
+         </div>
+         <div class="stat-card">
+           <div class="stat-value" id="reportsGenerated">0</div>
+           <div class="stat-label">Reports Generated</div>
+         </div>
+         <div class="stat-card">
+           <div class="stat-value" id="reportsSkipped">0</div>
+           <div class="stat-label">Reports Skipped</div>
+         </div>
+       </div>
+     </div>
+
+     <div class="content-area">
+        <div class="tab-list">
+            <div class="tab-list-item active" data-tab="users">User Management</div>
+            <div class="tab-list-item" data-tab="logs">Report Log Viewer</div>
+        </div>
+
+        <div id="tab-users" class="tab-content active">
+          <div id="messageArea"></div>
+          <div class="content-header">
+            <h2 class="content-title">User Management</h2>
+            <div class="controls-wrapper">
+              <div class="filter-controls">
+                <button class="btn-filter active" id="filterAll">All</button>
+                <button class="btn-filter" id="filterEligible">Eligible</button>
+                <button class="btn-filter" id="filterNotEligible">Not Eligible</button>
+              </div>
+              <input type="text" placeholder="Search users..." class="search-box" id="searchBox">
+              <select class="dropdown-filter" id="tierFilter">
+                <option value="">All Tiers</option>
+                <option value="diamond">Diamond</option>
+                <option value="platinum">Platinum</option>
+                <option value="standard">Standard</option>
+              </select>
+              <select class="dropdown-filter" id="packageFilter">
+                <option value="">All Packages</option>
+                <option value="pro_diamond">Pro Diamond</option>
+                <option value="pro_platinum">Pro Platinum</option>
+                <option value="pro_standard">Pro Standard</option>
+                <option value="pro_advanced">Pro Advanced</option>
+              </select>
+              <div class="data-actions">
+                <button class="btn" id="exportCsvBtn">Export to CSV</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="selectAllCheckbox"></th>
+                  <th>User ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Tier</th>
+                  <th>Package</th>
+                  <th>Points</th>
+                  <th>Total Spend</th> <th>Eligibility</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr>
+                  <td colspan="10" class="loading">Loading dashboard data...</td> </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-logs" class="tab-content">
+            <div class="log-header">
+                <h3>BigQuery Order Data for Reports</h3>
+                <div>
+                    <input type="text" placeholder="Enter User ID..." class="search-box" id="logUserIdInput" style="width: 250px;">
+                    <button class="btn btn-primary" onclick="loadReportLog()">Load Report Log</button>
+                </div>
+            </div>
+            <div id="logMessageArea"></div>
+            <div class="log-table-container">
+                <table id="logTable">
+                    <thead id="logTableHead">
+                        </thead>
+                    <tbody id="logTableBody">
+                        <tr>
+                            <td colspan="9" class="loading">Select a user's report log to view their order data.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+     </div>
+   </div>
+ </div>
+<script>
+ let allUsers = [];
+ let currentFilter = 'all';
+
+  window.addEventListener('DOMContentLoaded', function() {
+   setupEventListeners();
+   // ✅ UPDATED: Default start date is now January 1, 2025
+   const now = new Date();
+   const endDate = now.toISOString().split('T')[0];
+   const startDate = '2025-01-01'; // Hard-coded to January 1, 2025
+   document.getElementById('startDateInput').value = startDate;
+   document.getElementById('endDateInput').value = endDate;
+   // Initial load with default dates
+   updateDashboardByDate();
+ });
+
+  function setupEventListeners() {
+   document.getElementById('searchBox').addEventListener('input', applyFiltersAndSearch);
+   document.getElementById('exportCsvBtn').addEventListener('click', exportToCSV);
+   document.getElementById('filterAll').addEventListener('click', () => setFilter('all'));
+   document.getElementById('filterEligible').addEventListener('click', () => setFilter('eligible'));
+   document.getElementById('filterNotEligible').addEventListener('click', () => setFilter('not-eligible'));
+   document.getElementById('tierFilter').addEventListener('change', applyFiltersAndSearch);
+   document.getElementById('packageFilter').addEventListener('change', applyFiltersAndSearch);
+   document.getElementById('selectAllCheckbox').addEventListener('click', handleSelectAll);
+   document.getElementById('usersTableBody').addEventListener('click', handleRowSelection);
+   document.querySelectorAll('.tab-list-item').forEach(tab => tab.addEventListener('click', handleTabClick));
+ }
+
+  function setFilter(filterType) {
+   currentFilter = filterType;
+   document.querySelectorAll('.filter-controls .btn-filter').forEach(btn => btn.classList.remove('active'));
+   if (filterType === 'all') document.getElementById('filterAll').classList.add('active');
+   if (filterType === 'eligible') document.getElementById('filterEligible').classList.add('active');
+   if (filterType === 'not-eligible') document.getElementById('filterNotEligible').classList.add('active');
+   applyFiltersAndSearch();
+ }
+ 
+ function handleTabClick(event) {
+    const targetTab = event.target.dataset.tab;
+    document.querySelectorAll('.tab-list-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(`tab-${targetTab}`).classList.add('active');
+ }
+
+ function getFilteredUsers() {
+   const query = document.getElementById('searchBox').value.toLowerCase();
+   const tierFilter = document.getElementById('tierFilter').value;
+   const packageFilter = document.getElementById('packageFilter').value;
+   let filteredUsers = allUsers;
+   if (currentFilter === 'eligible') filteredUsers = allUsers.filter(user => user.isEligible);
+   else if (currentFilter === 'not-eligible') filteredUsers = allUsers.filter(user => !user.isEligible);
+   if (tierFilter) filteredUsers = filteredUsers.filter(user => user.tier === tierFilter);
+   if (packageFilter) filteredUsers = filteredUsers.filter(user => user.packageType === packageFilter);
+   if (query) {
+     filteredUsers = filteredUsers.filter(user =>
+       user.userId.toLowerCase().includes(query) ||
+       user.ownerName.toLowerCase().includes(query) ||
+       user.email.toLowerCase().includes(query)
+     );
+   }
+   return filteredUsers;
+ }
+
+  function applyFiltersAndSearch() {
+   const filteredUsers = getFilteredUsers();
+   renderUsersTable(filteredUsers);
+   updateSelectionState();
+ }
+
+ function exportToCSV() {
+   const usersToExport = getFilteredUsers();
+   if (usersToExport.length === 0) {
+       showMessage('info', "There is no data to export based on the current filters.");
+       return;
+   }
+   // MODIFIED (5): Added 'Total Spend' to headers
+   const headers = ['User ID', 'Name', 'Email', 'Tier', 'Package Type', 'Points Balance', 'Total Spend', 'Is Eligible', 'Eligibility Reasons'];
+   const escapeCSV = (str) => {
+     let result = String(str || '').replace(/"/g, '""');
+     if (result.search(/("|,|\n)/g) >= 0) result = `"${result}"`;
+     return result;
+   };
+   const csvRows = [headers.join(',')];
+   usersToExport.forEach(user => {
+       // MODIFIED (6): Added user.totalSpend to the row data
+       const row = [user.userId, user.ownerName, user.email, user.tier, user.packageType, user.pointsBalance, user.totalSpend, user.isEligible, (user.reasons || []).join('; ')].map(escapeCSV);
+       csvRows.push(row.join(','));
+   });
+   const csvString = csvRows.join('\n');
+   const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+   const link = document.createElement("a");
+   if (link.download !== undefined) {
+       const url = URL.createObjectURL(blob);
+       const date = new Date().toISOString().split('T')[0];
+       link.setAttribute("href", url);
+       link.setAttribute("download", `fiverr-pro-users-export-${date}.csv`);
+       link.style.visibility = 'hidden';
+       document.body.appendChild(link);
+       link.click();
+       document.body.removeChild(link);
+       URL.revokeObjectURL(url);
+   }
+ }
+
+ function setButtonsState(disabled) {
+   document.getElementById('refreshBtn').disabled = disabled;
+   document.getElementById('generateAllBtn').disabled = disabled;
+   document.getElementById('generateSelectedBtn').disabled = disabled;
+   document.getElementById('exportCsvBtn').disabled = disabled;
+   document.querySelectorAll('.action-btn').forEach(btn => btn.disabled = disabled);
+ }
+
+ function updateDashboardByDate() {
+    const startDate = document.getElementById('startDateInput').value;
+    const endDate = document.getElementById('endDateInput').value;
+
+    if (!startDate || !endDate) {
+      showMessage('error', 'Please select both start and end dates.');
+      return;
+    }
+    if (new Date(startDate) > new Date(endDate)) {
+      showMessage('error', 'End date must be after the start date.');
+      return;
+    }
+
+    showMessage('info', 'Updating dashboard with data from BigQuery...');
+    setButtonsState(true);
+    document.getElementById('reportsGenerated').textContent = '0';
+    document.getElementById('reportsSkipped').textContent = '0';
+
+    google.script.run
+      .withSuccessHandler(handleDashboardDataLoaded)
+      .withFailureHandler(handleError)
+      .getDashboardData(startDate, endDate);
+ }
+
+ function handleDashboardDataLoaded(users) {
+   if (users && users.error) { handleError(users); return; }
+   allUsers = users || [];
+   renderUsersTable(allUsers);
+   updateSelectionState();
+   updateStats();
+   setButtonsState(false);
+   showMessage('success', 'Dashboard loaded successfully.');
+ }
+
+ function loadDashboardData() {
+    updateDashboardByDate();
+ }
+
+ function renderUsersTable(users) {
+   const tbody = document.getElementById('usersTableBody');
+   tbody.innerHTML = '';
+   if (users.length === 0) {
+     // MODIFIED (3): Colspan changed from 9 to 10
+     tbody.innerHTML = '<tr><td colspan="10" class="loading">No users match the current filters.</td></tr>';
+     return;
+   }
+   users.forEach(user => {
+     const tierClass = `tier-${user.tier || 'standard'}`;
+     const eligibleBadge = user.isEligible ? '<span style="color: #0A8E00; font-weight: 600;">✓ Eligible</span>' : `<span style="color: #C53041; font-weight: 600;">✗ Not Eligible</span>`;
+     const tr = document.createElement('tr');
+     tr.dataset.userId = user.userId;
+     // MODIFIED (4): Added Total Spend cell
+     tr.innerHTML = `
+       <td><input type="checkbox" class="user-checkbox" data-user-id="${user.userId}"></td>
+       <td>${user.userId}</td>
+       <td class="user-name">${user.ownerName || 'N/A'}</td>
+       <td>${user.email || 'N/A'}</td>
+       <td><span class="tier-badge ${tierClass}">${user.tier || 'N/A'}</span></td>
+       <td>${user.packageType || 'N/A'}</td>
+       <td>${user.pointsBalance ? user.pointsBalance.toLocaleString() : '0'}</td>
+       <td>$${user.totalSpend ? Math.round(user.totalSpend).toLocaleString() : '0'}</td>
+       <td>${eligibleBadge}</td>
+       <td class="actions-cell">
+         <button class="action-btn" onclick="previewReport('${user.userId}')">Preview</button>
+         <button class="action-btn" onclick="generateSingleReport('${user.userId}')">Generate</button>
+       </td>
+     `;
+     tbody.appendChild(tr);
+   });
+ }
+
+ function updateStats() {
+   const totalUsers = allUsers.length;
+   const eligibleUsers = allUsers.filter(user => user.isEligible).length;
+   document.getElementById('totalUsers').textContent = totalUsers;
+   document.getElementById('eligibleUsers').textContent = eligibleUsers;
+ }
+
+ function handleSelectAll() {
+   const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+   const checkboxes = document.querySelectorAll('.user-checkbox');
+   checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+   updateSelectionState();
+ }
+
+ function handleRowSelection(event) {
+   if (event.target.classList.contains('user-checkbox')) {
+     updateSelectionState();
+   }
+ }
+
+ function updateSelectionState() {
+   const checkboxes = document.querySelectorAll('.user-checkbox');
+   const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+   const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+   selectAllCheckbox.checked = checkedCount === checkboxes.length && checkboxes.length > 0;
+   const generateSelectedBtn = document.getElementById('generateSelectedBtn');
+   const selectionCountBadge = document.getElementById('selectionCount');
+   if (checkedCount > 0) {
+     generateSelectedBtn.disabled = false;
+     selectionCountBadge.textContent = `(${checkedCount} selected)`;
+     selectionCountBadge.style.display = 'inline';
+   } else {
+     generateSelectedBtn.disabled = true;
+     selectionCountBadge.style.display = 'none';
+   }
+ }
+
+ function generateSingleReport(userId) {
+   const dateRange = { startDate: document.getElementById('startDateInput').value, endDate: document.getElementById('endDateInput').value };
+   if (!dateRange.startDate || !dateRange.endDate) {
+     showMessage('error', 'Please select a valid date range before generating reports.');
+     return;
+   }
+   showMessage('info', `Generating report for user ${userId}...`);
+   setButtonsState(true);
+   google.script.run
+     .withSuccessHandler(result => {
+       handleReportGenerated(result);
+       setButtonsState(false);
+     })
+     .withFailureHandler(error => {
+       handleError(error);
+       setButtonsState(false);
+     })
+     .generateReportsForUsers([userId], dateRange);
+ }
+
+ function generateAllReports() {
+   const dateRange = { startDate: document.getElementById('startDateInput').value, endDate: document.getElementById('endDateInput').value };
+   if (!dateRange.startDate || !dateRange.endDate) {
+     showMessage('error', 'Please select a valid date range before generating reports.');
+     return;
+   }
+   const eligibleUserIds = allUsers.filter(user => user.isEligible).map(user => user.userId);
+   if (eligibleUserIds.length === 0) {
+     showMessage('error', 'No eligible users found for report generation.');
+     return;
+   }
+   startGenerationProcess(eligibleUserIds, dateRange);
+ }
+
+ function generateSelectedReports() {
+   const dateRange = { startDate: document.getElementById('startDateInput').value, endDate: document.getElementById('endDateInput').value };
+   if (!dateRange.startDate || !dateRange.endDate) {
+     showMessage('error', 'Please select a valid date range before generating reports.');
+     return;
+   }
+   const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+   const selectedUserIds = Array.from(checkboxes).map(cb => cb.dataset.userId);
+   if (selectedUserIds.length === 0) {
+     showMessage('error', 'No users selected for report generation.');
+     return;
+   }
+   startGenerationProcess(selectedUserIds, dateRange);
+ }
+
+ function startGenerationProcess(userIds, dateRange) {
+  setButtonsState(true);
+  showMessage('info', `Starting report generation for ${userIds.length} selected users...`, true);
+  
+  // Skip the index check phase and go straight to generation
+  document.getElementById('reportsSkipped').textContent = '0';
+  runBatchProcess(userIds, dateRange);
+}
+
+ function runBatchProcess(idsToProcess, dateRange) {
+   const BATCH_SIZE = 50;
+   let currentIndex = 0;
+   let totalSuccess = 0, totalFailed = 0, totalNotEligible = 0;
+   document.getElementById('reportsGenerated').textContent = '0';
+  
+   function processNextBatch() {
+     if (currentIndex >= idsToProcess.length) {
+       const skippedCount = document.getElementById('reportsSkipped').textContent;
+       const finalMessage = `Batch generation complete. Created: ${totalSuccess}, Failed: ${totalFailed}, Not Eligible: ${totalNotEligible}, Skipped: ${skippedCount}.`;
+       showMessage('success', finalMessage, true);
+       setButtonsState(false);
+       return;
+     }
+
+     const batchIds = idsToProcess.slice(currentIndex, currentIndex + BATCH_SIZE);
+     const batchNum = Math.floor(currentIndex / BATCH_SIZE) + 1;
+     const totalBatches = Math.ceil(idsToProcess.length / BATCH_SIZE);
+
+     showMessage('info', `Generating reports... (Processing batch ${batchNum} of ${totalBatches})`, true);
+    
+     google.script.run
+       .withSuccessHandler(results => {
+         totalSuccess += results.success || 0;
+         totalFailed += results.failed || 0;
+         totalNotEligible += results.notEligible || 0;
+        
+         document.getElementById('reportsGenerated').textContent = totalSuccess;
+         currentIndex += BATCH_SIZE;
+         processNextBatch();
+       })
+       .withFailureHandler(error => {
+         handleError(error);
+         showMessage('error', `Batch processing failed at batch ${batchNum}. The process has been stopped.`, true);
+       })
+       .generateReportsForUsers(batchIds, dateRange);
+   }
+   processNextBatch();
+ }
+
+  function handleReportGenerated(result) {
+   if (result && result.status === 'created') {
+     showMessage('success', result.message);
+     const counter = document.getElementById('reportsGenerated');
+     counter.textContent = parseInt(counter.textContent) + 1;
+   } else {
+     showMessage('error', result ? result.message : 'Unknown error occurred');
+   }
+ }
+
+ function previewReport(userId) {
+   google.script.run.withSuccessHandler(function(url) {
+       if (url) {
+         const dateRange = { startDate: document.getElementById('startDateInput').value, endDate: document.getElementById('endDateInput').value };
+         const dateParams = `&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+         window.open(url + '?page=preview&userId=' + userId + dateParams, '_blank');
+       } else { showMessage('error', 'Web app URL not available.'); }
+     }).withFailureHandler(handleError).getScriptUrl();
+ }
+
+ function loadReportLog() {
+    const userId = document.getElementById('logUserIdInput').value.trim();
+    if (!userId) {
+        showLogMessage('error', 'Please enter a User ID.');
+        return;
+    }
+
+    const startDate = document.getElementById('startDateInput').value;
+    const endDate = document.getElementById('endDateInput').value;
+
+    if (!startDate || !endDate) {
+        showLogMessage('error', 'Please select a date range first using the controls at the top.');
+        return;
+    }
+
+    showLogMessage('info', `Loading report log for user ${userId}...`);
+    google.script.run
+        .withSuccessHandler(function(data) {
+            if (data && data.error) {
+                showLogMessage('error', data.message || 'Failed to load report log.');
+                return;
+            }
+            if (!data || data.length === 0) {
+                showLogMessage('info', `No order data found for user ${userId} in the selected date range.`);
+                document.getElementById('logTableBody').innerHTML = '<tr><td colspan="9" class="loading">No data found for this user and date range.</td></tr>';
+                return;
+            }
+
+            renderLogTable(data);
+            showLogMessage('success', `Successfully loaded ${data.length - 1} orders for user ${userId}.`);
+        })
+        .withFailureHandler(function(error) {
+            showLogMessage('error', 'Error: ' + (error.message || error.toString()));
+            console.error('Failed to load report log:', error);
+        })
+        .getReportLogData(userId, startDate, endDate);
+}
+
+function renderLogTable(data) {
+    const thead = document.getElementById('logTableHead');
+    const tbody = document.getElementById('logTableBody');
+    
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td class="loading">No data available.</td></tr>';
+        return;
+    }
+
+    // First row is headers
+    const headers = data[0];
+    const headerRow = document.createElement('tr');
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+
+    // Remaining rows are data
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const tr = document.createElement('tr');
+        row.forEach(cell => {
+            const td = document.createElement('td');
+            td.textContent = cell || '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    }
+}
+
+function showLogMessage(type, message) {
+    const messageArea = document.getElementById('logMessageArea');
+    const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+    messageArea.innerHTML = `<div class="${className}">${message}</div>`;
+    if (type !== 'error') {
+        setTimeout(() => {
+            if (messageArea.innerHTML.includes(message)) messageArea.innerHTML = '';
+        }, 5000);
+    }
+}
+
+ function showMessage(type, message, sticky = false) {
+   const messageArea = document.getElementById('messageArea');
+   const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+   messageArea.innerHTML = `<div class="${className}">${message}</div>`;
+   if (type !== 'error' && !sticky) {
+     setTimeout(() => { if (messageArea.innerHTML.includes(message)) messageArea.innerHTML = ''; }, 7000);
+   }
+ }
+
+ function handleError(error) {
+   const errorMessage = error ? (error.message || error.toString()) : 'An unknown server error occurred';
+   showMessage('error', 'Error: ' + errorMessage, true);
+   console.error('An error occurred:', error);
+   setButtonsState(false);
+   document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="10" class="loading" style="color: #C53041;">Failed to load dashboard data.</td></tr>`; // MODIFIED: Colspan
+   document.getElementById('totalUsers').textContent = 'Error';
+   document.getElementById('eligibleUsers').textContent = 'Error';
+   document.getElementById('reportsGenerated').textContent = '0';
+   document.getElementById('reportsSkipped').textContent = '0';
+ }
+</script>
+</body>
+</html>

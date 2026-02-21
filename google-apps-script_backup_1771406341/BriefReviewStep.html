@@ -1,0 +1,146 @@
+<div class="card">
+    <h2>👀 Step 3: Review & Select Brief</h2>
+    <div class="field-row">
+        <div>
+            <p style="margin-bottom: 8px; color: var(--text-muted);">
+                Two briefs have been generated. Review them side-by-side, make any necessary edits, and select ONE to
+                submit.
+            </p>
+        </div>
+    </div>
+    <div id="briefMetadata" style="text-align: right; font-size: 13px; color: var(--text-muted);">
+        <!-- Metadata populated by JS -->
+    </div>
+    <!-- TEST BUTTON FOR QA EMAIL -->
+    <div style="text-align: right; margin-top: 8px;">
+        <button type="button" class="btn btn-secondary" onclick="manualTriggerEmail()"
+            style="font-size: 11px; padding: 4px 8px; background: #f0f0f0;">📧 Test: Send QA Email</button>
+    </div>
+</div>
+
+<div class="brief-comparison">
+    <!-- Standard Brief Panel -->
+    <div class="brief-panel" data-brief="standard">
+        <div class="brief-panel-header">
+            <h3>📄 Option A: Standard Brief</h3>
+            <div style="font-size: 12px; color: var(--text-muted);">Traditional generation method</div>
+        </div>
+        <div class="brief-content">
+            <textarea id="standardBriefTextarea" class="brief-textarea" spellcheck="true"></textarea>
+        </div>
+    </div>
+
+    <!-- Vertical-Specific Brief Panel -->
+    <div class="brief-panel" data-brief="vertical">
+        <div class="brief-panel-header">
+            <h3>🎯 Option B: Vertical-Specific Brief</h3>
+            <div style="font-size: 12px; color: var(--success);">Tailored for selected category</div>
+        </div>
+        <div class="brief-content">
+            <textarea id="verticalBriefTextarea" class="brief-textarea" spellcheck="true"></textarea>
+        </div>
+    </div>
+</div>
+
+<div class="selection-panel">
+    <h3>Which brief would you like to submit?</h3>
+    <p style="font-size: 14px; color: var(--text-muted);">
+        Only the selected brief will be sent to Salesforce. The unselected brief will be saved for analytics
+        purposes.
+    </p>
+
+    <div class="selection-options">
+        <div class="selection-option" data-type="standard" onclick="selectBriefType('standard')">
+            <div style="font-weight: 600; margin-bottom: 4px;">Submit Standard Brief (Option A)</div>
+            <div style="font-size: 13px; color: var(--text-muted);">Choose this if the vertical-specific brief
+                missed key details</div>
+        </div>
+
+        <div class="selection-option" data-type="vertical" onclick="selectBriefType('vertical')">
+            <div style="font-weight: 600; margin-bottom: 4px;">Submit Vertical Brief (Option B)</div>
+            <div style="font-size: 13px; color: var(--text-muted);">Recommended if the category-specific details are
+                accurate</div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    function manualTriggerEmail() {
+        if (!state.briefId) {
+            showMessage('No brief ID found. Please generate briefs first.', 'error');
+            return;
+        }
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'Sending...';
+
+        google.script.run
+            .withSuccessHandler(res => {
+                btn.disabled = false;
+                btn.innerText = originalText;
+                if (res.success) showMessage('📧 Email sent successfully!', 'success');
+                else showMessage('Error sending email: ' + res.error, 'error');
+            })
+            .withFailureHandler(err => {
+                btn.disabled = false;
+                btn.innerText = originalText;
+                showMessage('Failed to trigger email: ' + err, 'error');
+            })
+            .triggerManualNotification(state.briefId);
+    }
+
+    // Function to render results
+    function showFinderResults(results) {
+        // Find existing container or append to selection panel
+        let container = document.getElementById('finderResultsContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'finderResultsContainer';
+            // Insert after selection panel
+            document.querySelector('.selection-panel').after(container);
+        }
+
+        let resultsHtml = `
+            <div style="margin-top: 20px; padding: 20px; background: white; border-radius: 8px; border: 2px solid #1DBF73; margin-bottom: 30px;">
+                <h3 style="color: #1DBF73; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+                    <span>🎯</span> Top Talent Matches Found!
+                </h3>
+                <p style="margin-bottom: 15px; color: #555;">We found <strong>${results.length}</strong> similar briefs/talent profiles in the Talent Lake.</p>
+                <div style="max-height: 400px; overflow-y: auto; background: #fafafa; border-radius: 6px; border: 1px solid #eee; padding: 10px;">
+        `;
+
+        results.forEach(item => {
+            resultsHtml += `
+                <div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #1DBF73; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: #333;">${item.projectRequestName || item.projectRequestId || 'Untitled'}</div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 4px; display: flex; gap: 8px;">
+                        <span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px;">${item.role || 'No Role'}</span>
+                        <span style="background: #f5f5f5; color: #666; padding: 2px 6px; border-radius: 4px;">${item.clientName || 'No Client'}</span>
+                    </div>
+                    <div style="font-size: 11px; color: #999;">ID: ${item.projectRequestId || 'N/A'} • Status: ${item.status || 'N/A'}</div>
+                </div>
+            `;
+        });
+
+        resultsHtml += `
+                </div>
+                <div style="margin-top: 20px; text-align: right;">
+                    <button onclick="goToStep(1)" class="btn btn-secondary">Done</button>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = resultsHtml;
+
+        // Scroll to results
+        container.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+
+<div class="btn-container">
+    <button class="btn btn-secondary" onclick="goToStep(2)">← Back to Edit Data</button>
+    <button class="btn btn-success" id="submitBriefBtn" onclick="submitSelectedBrief()">Submit Selected Brief to
+        Salesforce →</button>
+</div>

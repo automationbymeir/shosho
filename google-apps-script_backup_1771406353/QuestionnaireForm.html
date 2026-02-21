@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Domain Expert Sourcing Questionnaire</title>
+  <base target="_top">
+  <?!= include('DesignSystem') ?>
+  <style>
+    /* Questionnaire Specific Overrides */
+    html,
+    body {
+      height: 100%;
+      overflow: auto;
+      font-family: 'Macan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--color-text-primary);
+      background-color: var(--color-bg-secondary);
+    }
+
+    #form-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .page-header {
+      background: var(--color-bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      margin-bottom: 24px;
+      border: 1px solid var(--color-border-default);
+    }
+
+    h1 {
+      color: var(--color-text-primary);
+      margin-bottom: 12px;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .page-description {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+
+    .form-card {
+      background: var(--color-bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      margin-bottom: 24px;
+      border: 1px solid var(--color-border-default);
+    }
+
+    h2 {
+      color: var(--color-text-primary);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      font-size: 20px;
+      font-weight: 700;
+      border-bottom: 2px solid var(--color-border-subtle);
+    }
+
+    .form-section {
+      margin-bottom: 0;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--color-text-primary);
+    }
+
+    /* Input styles inherited/overriden from DesignSystem */
+    input[type="text"],
+    input[type="email"],
+    input[type="date"],
+    input[type="number"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 10px 16px;
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-family: inherit;
+      background-color: var(--color-bg-primary);
+      color: var(--color-text-primary);
+      transition: var(--transition-default);
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--color-text-primary);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(34, 35, 37, 0.1);
+    }
+
+    input:hover,
+    textarea:hover,
+    select:hover {
+      border-color: var(--color-text-secondary);
+    }
+
+    .checkbox-group {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: var(--color-bg-secondary);
+      border-radius: var(--radius-md);
+      transition: background 0.2s;
+      border: 1px solid transparent;
+    }
+
+    .checkbox-item:hover {
+      background: var(--color-bg-hover);
+      border-color: var(--color-border-subtle);
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      margin-right: 12px;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .checkbox-item label {
+      display: inline;
+      font-weight: 500;
+      margin-bottom: 0;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    button {
+      background-color: var(--color-text-primary);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      transition: var(--transition-default);
+    }
+
+    button:hover {
+      background-color: var(--color-text-secondary);
+    }
+
+    button:disabled {
+      background-color: var(--color-text-subtle);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .form-description {
+      color: var(--color-text-muted);
+      font-size: 13px;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .progress-container {
+      width: 100%;
+      height: 6px;
+      background-color: var(--color-border-subtle);
+      border-radius: 3px;
+      margin-top: 20px;
+      display: none;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background-color: var(--color-accent-teal);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .success-message {
+      color: #0d7a3f;
+      font-weight: 600;
+      margin-top: 20px;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      background-color: #e6f4ea;
+      border: 1px solid #b8dac3;
+      text-align: center;
+      display: none;
+    }
+
+    .error-message {
+      color: #c5221f;
+      font-weight: 600;
+      margin-top: 20px;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      background-color: #fce8e6;
+      border: 1px solid #f5c2c1;
+      display: none;
+    }
+
+    .button-container {
+      margin-top: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    #test-data-btn,
+    #clear-storage-btn {
+      background-color: var(--color-bg-secondary);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border-subtle);
+      font-size: 14px;
+      padding: 10px 20px;
+    }
+
+    #test-data-btn:hover,
+    #clear-storage-btn:hover {
+      background-color: var(--color-bg-hover);
+      border-color: var(--color-border-default);
+    }
+
+    #preview-btn {
+      background-color: var(--color-text-primary);
+      color: white;
+    }
+
+    #preview-btn:hover {
+      background-color: var(--color-text-secondary);
+    }
+
+    .required {
+      color: var(--color-error, #c5221f);
+      font-weight: 700;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .field-row {
+        grid-template-columns: 1fr;
+      }
+
+      .button-container {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .button-group {
+        width: 100%;
+      }
+
+      .button-group button {
+        flex: 1;
+      }
+    }
+
+    /* Searchable dropdown styles */
+    .searchable-select-wrapper {
+      position: relative;
+    }
+
+    .searchable-select-input {
+      width: 100%;
+      padding: 10px 16px;
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-family: inherit;
+      background-color: var(--color-bg-primary);
+      color: var(--color-text-primary);
+      cursor: text;
+      transition: all 0.2s;
+    }
+
+    .searchable-select-input:focus {
+      border-color: var(--color-text-primary);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(34, 35, 37, 0.1);
+    }
+
+    .searchable-select-input:hover {
+      border-color: var(--color-text-secondary);
+    }
+
+    .searchable-select-dropdown {
+      position: absolute;
+      width: 100%;
+      max-height: 240px;
+      overflow-y: auto;
+      background: var(--color-bg-primary);
+      border: 1px solid var(--color-border-default);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      z-index: 1000;
+      display: none;
+      box-shadow: var(--shadow-md);
+      margin-top: -8px;
+    }
+
+    .searchable-select-option {
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--color-bg-secondary);
+      font-size: 14px;
+      color: var(--color-text-primary);
+      transition: background 0.15s;
+    }
+
+    .searchable-select-option:hover {
+      background-color: var(--color-bg-hover);
+    }
+
+    .searchable-select-option:last-child {
+      border-bottom: none;
+    }
+
+    .searchable-select-option.selected {
+      background-color: var(--color-bg-secondary);
+      font-weight: 600;
+    }
+
+    .searchable-select-hidden {
+      display: none;
+    }
+
+    /* ========================================
+       PREVIEW MODAL STYLES (Refactored)
+       ======================================== */
+
+    .preview-modal {
+      display: none;
+      position: fixed;
+      z-index: 10000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(34, 35, 37, 0.6);
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .preview-modal-content {
+      background-color: var(--color-bg-primary);
+      margin: 2% auto;
+      padding: 0;
+      border: 1px solid var(--color-border-default);
+      width: 90%;
+      max-width: 1200px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .preview-modal-header {
+      padding: 24px 32px;
+      background-color: var(--color-text-primary);
+      color: white;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .preview-modal-header h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      color: white;
+      border: none;
+      padding: 0;
+    }
+
+    .preview-close {
+      color: white;
+      font-size: 28px;
+      font-weight: 400;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      line-height: 28px;
+      text-align: center;
+      transition: opacity 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-close:hover {
+      opacity: 0.7;
+    }
+
+    .preview-modal-body {
+      padding: 32px;
+      overflow-y: auto;
+      flex: 1;
+      background: var(--color-bg-secondary);
+    }
+
+    .preview-section {
+      margin-bottom: 24px;
+      background-color: var(--color-bg-primary);
+      padding: 24px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--color-border-default);
+    }
+
+    .preview-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .preview-section h3 {
+      color: var(--color-text-primary);
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 18px;
+      font-weight: 700;
+      border-bottom: 2px solid var(--color-border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .preview-content {
+      white-space: pre-wrap;
+      line-height: 1.6;
+      color: var(--color-text-primary);
+      font-size: 14px;
+      background-color: var(--color-bg-secondary);
+      padding: 20px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border-subtle);
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .preview-field {
+      margin-bottom: 16px;
+      padding: 16px;
+      background-color: var(--color-bg-secondary);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border-subtle);
+    }
+
+    .preview-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .preview-field-label {
+      font-weight: 600;
+      color: var(--color-text-primary);
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .preview-field-value {
+      color: var(--color-text-secondary);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .preview-modal-footer {
+      padding: 24px 32px;
+      background-color: var(--color-bg-primary);
+      border-top: 1px solid var(--color-border-default);
+      border-radius: 0 0 12px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .preview-modal-footer button {
+      padding: 12px 32px;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
+      flex: 1;
+      max-width: 300px;
+    }
+
+    #approve-submit-btn {
+      background-color: var(--color-text-primary);
+      order: 2;
+    }
+
+    #approve-submit-btn:hover {
+      background-color: var(--color-text-secondary);
+    }
+
+    #cancel-preview-btn {
+      background-color: var(--color-bg-secondary);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border-subtle);
+      order: 1;
+    }
+
+    #cancel-preview-btn:hover {
+      background-color: var(--color-bg-hover);
+    }
+
+    .preview-warning {
+      background-color: #fff3cd;
+      border: 1px solid #ffd966;
+      color: #856404;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: start;
+      gap: 12px;
+      font-size: 14px;
+    }
+
+    .preview-warning strong {
+      font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+      .preview-modal-content {
+        width: 95%;
+        margin: 5% auto;
+      }
+
+      .preview-modal-header,
+      .preview-modal-body,
+      .preview-modal-footer {
+        padding: 20px;
+      }
+
+      .preview-modal-footer {
+        flex-direction: column-reverse;
+      }
+
+      .preview-modal-footer button {
+        max-width: 100%;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="form-container">
+    <div class="page-header">
+      <h1>Domain Expert Sourcing Questionnaire</h1>
+      <p class="page-description">Please fill out the details below to help us generate an accurate job brief and create
+        a sourcing request in Salesforce. Your progress is saved automatically.</p>
+    </div>
+
+    <form id="sourcing-form">
+      <!-- SALESFORCE INTEGRATION -->
+      <div class="form-card">
+        <div class="form-section">
+          <h2>Salesforce Integration</h2>
+          <div class="form-group">
+            <label for="agentName">Your Name (Agent) <span class="required">*</span></label>
+            <input type="text" id="agentName" name="agentName" required placeholder="Enter your full name">
+            <div class="form-description">Your name will be recorded as the creator of this brief.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="opportunityId">Salesforce Opportunity ID <span class="required">*</span></label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="opportunityId" name="opportunityId" required style="flex: 1;">
+              <button type="button" id="lookup-opp-btn" onclick="lookupOpportunity()"
+                style="white-space: nowrap; padding: 10px 16px;">
+                🔍 Lookup
+              </button>
+            </div>
+            <div class="form-description">Enter the Salesforce Opportunity ID and click Lookup to auto-fill contact
+              details.</div>
+            <div id="lookup-status" style="margin-top: 8px; font-size: 13px;"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="requestChannel">Request Channel <span class="required">*</span></label>
+            <select id="requestChannel" name="requestChannel" required>
+              <option value="">-- Please Select --</option>
+              <option value="Meeting">Meeting</option>
+              <option value="Email">Email</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- BASIC INFORMATION -->
+      <div class="form-card">
+        <div class="form-section">
+          <h2>Basic Information</h2>
+          <div class="form-group">
+            <label for="contactName">Contact Name <span class="required">*</span></label>
+            <input type="text" id="contactName" name="contactName" required>
+          </div>
+          <div class="form-group">
+            <label for="contactEmail">Contact Email <span class="required">*</span></label>
+            <input type="email" id="contactEmail" name="contactEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="company">Company Name <span class="required">*</span></label>
+            <input type="text" id="company" name="company" required>
+          </div>
+          <div class="form-group">
+            <label for="companyWebsite">Company Website</label>
+            <input type="text" id="companyWebsite" name="companyWebsite" placeholder="https://example.com">
+          </div>
+          <div class="form-group">
+            <label for="about">About the Company</label>
+            <textarea id="about" name="about" rows="3"></textarea>
+            <div class="form-description">Briefly describe the company.</div>
+          </div>
+          <div class="form-group">
+            <label for="similarCompanies">Similar Known Companies (Optional)</label>
+            <input type="text" id="similarCompanies" name="similarCompanies">
+            <div class="form-description">List any companies that are similar to yours or operate in a similar space.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROLE INFORMATION -->
+      <div class="form-card">
+        <div class="form-section">
+          <h2>Role Information</h2>
+          <div class="form-group">
+            <label for="role">Role or Job Title <span class="required">*</span></label>
+            <div class="searchable-select-wrapper">
+              <input type="text" class="searchable-select-input" id="role-search" placeholder="Type to search roles..."
+                autocomplete="off">
+              <div class="searchable-select-dropdown" id="role-dropdown"></div>
+              <select id="role" name="role" class="searchable-select-hidden" required></select>
+            </div>
+            <div class="form-description">Select the specific role or job title for this position.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="vertical">Vertical <span class="required">*</span></label>
+            <div class="searchable-select-wrapper">
+              <input type="text" class="searchable-select-input" id="vertical-search"
+                placeholder="Type to search verticals..." autocomplete="off">
+              <div class="searchable-select-dropdown" id="vertical-dropdown"></div>
+              <select id="vertical" name="vertical" class="searchable-select-hidden" required></select>
+            </div>
+            <div class="form-description">Select the primary creative vertical for this role. This may auto-populate
+              based on the selected role.</div>
+          </div>
+
+          <div class="form-group" id="vertical-examples-container" style="display: none;">
+            <label for="verticalExamples">Brief Examples/Links</label>
+            <textarea id="verticalExamples" name="verticalExamples" rows="3"></textarea>
+            <div class="form-description">Provide links to briefs or examples of work similar to what you're looking
+              for.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="theNeed">The Need / Project Description <span class="required">*</span></label>
+            <textarea id="theNeed" name="theNeed" rows="5" required></textarea>
+            <div class="form-description">Describe the specific tasks, projects, or services involved in detail.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="skillsAndExperience">Required Skills &amp; Tools</label>
+            <textarea id="skillsAndExperience" name="skillsAndExperience" rows="4"></textarea>
+            <div class="form-description">List specific skills, tools (e.g., Figma, Google Ads), platforms required.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPERIENCE & QUALIFICATIONS -->
+      <div class="form-card">
+        <div class="form-section">
+          <h2>Experience &amp; Qualifications</h2>
+          <div class="form-group">
+            <label for="industry">Industry Context</label>
+            <textarea id="industry" name="industry" rows="3"></textarea>
+            <div class="form-description">Which industry does this project belong to?</div>
+          </div>
+          <div class="form-group">
+            <label for="experienceQualifications">Years of Experience &amp; Must-Have Qualifications</label>
+            <textarea id="experienceQualifications" name="experienceQualifications" rows="4"></textarea>
+            <div class="form-description">Specify expected years of experience and essential qualifications.</div>
+          </div>
+          <div class="form-group">
+            <label for="portfolioRequirement">Portfolio / Work Samples</label>
+            <textarea id="portfolioRequirement" name="portfolioRequirement" rows="3"></textarea>
+            <div class="form-description">Is a portfolio required? What specific types of samples are needed?</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENGAGEMENT DETAILS -->
+      <div class="form-card">
+        <div class="form-section">
+          <h2>Engagement Details</h2>
+          <div class="form-group">
+            <label for="talentTypePreference">Talent Type Preference</label>
+            <select id="talentTypePreference" name="talentTypePreference">
+              <option value="">-- Please Select --</option>
+              <option value="Either">Freelancer or Agency (No Preference)</option>
+              <option value="Freelancer_Primary">Freelancer (Top Priority), Agency (Second Priority)</option>
+              <option value="Agency_Primary">Agency (Top Priority), Freelancer (Second Priority)</option>
+              <option value="Freelancer_Only">Freelancer Only</option>
+              <option value="Agency_Only">Agency Only</option>
+            </select>
+            <div class="form-description">Select your preference for the type of talent you are looking for.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="engagementModel">Engagement Model <span class="required">*</span></label>
+            <select id="engagementModel" name="engagementModel" required>
+              <option value="">-- Please Select --</option>
+              <option value="Gig">Gig (One-time project)</option>
+              <option value="Ongoing engagement">Ongoing engagement</option>
+            </select>
+            <div class="form-description">Is this a one-time project or ongoing collaboration?</div>
+          </div>
+
+          <div class="field-row">
+            <div class="form-group">
+              <label for="startDate">Start Date <span class="required">*</span></label>
+              <input type="date" id="startDate" name="startDate" required>
+            </div>
+
+            <div class="form-group">
+              <label for="submissionDeadline">Submission Deadline <span class="required">*</span></label>
+              <input type="date" id="submissionDeadline" name="submissionDeadline" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="timeline">Timeline Details</label>
+            <textarea id="timeline" name="timeline" rows="3"></textarea>
+            <div class="form-description">Additional timeline information, project deadlines, or key milestones.</div>
+          </div>
+
+          <div class="field-row">
+            <div class="form-group">
+              <label for="pricingType">Pricing Type <span class="required">*</span></label>
+              <select id="pricingType" name="pricingType" required>
+                <option value="">-- Please Select --</option>
+                <option value="Fixed">Fixed Price</option>
+                <option value="Hourly">Hourly</option>
+                <option value="Flexible">Flexible</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="pricingRange">Pricing Range</label>
+              <input type="text" id="pricingRange" name="pricingRange" placeholder="e.g., $5,000 - $10,000">
+              <div class="form-description">Provide a budget range if applicable.</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="paymentPreferences">Payment Preferences (Additional Details)</label>
+            <textarea id="paymentPreferences" name="paymentPreferences" rows="3"></textarea>
+            <div class="form-description">Any other payment structure preferences (e.g., milestones, retainer).</div>
+          </div>
+
+          <div class="form-group">
+            <label for="talentCapacity">Talent Capacity</label>
+            <input type="text" id="talentCapacity" name="talentCapacity"
+              placeholder="e.g., Full-time, Part-time (20 hrs/week)">
+            <div class="form-description">Expected time commitment or capacity needed from the talent.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WORKPLACE & LOGISTICS -->
+      <div class="form-card">
+        <div class="form-section">
+          <h2>Workplace &amp; Logistics</h2>
+          <div class="field-row">
+            <div class="form-group">
+              <label for="workplaceType">Workplace Type <span class="required">*</span></label>
+              <select id="workplaceType" name="workplaceType" required>
+                <option value="">-- Please Select --</option>
+                <option value="Remote" selected>Remote</option>
+                <option value="On-site">On-site</option>
+                <option value="Hybrid">Hybrid</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="talentLocation">Talent Location</label>
+              <div class="searchable-select-wrapper">
+                <input type="text" class="searchable-select-input" id="talentLocation-search"
+                  placeholder="Type to search locations..." autocomplete="off">
+                <div class="searchable-select-dropdown" id="talentLocation-dropdown"></div>
+                <select id="talentLocation" name="talentLocation" class="searchable-select-hidden"></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="preferredTimeZone">Preferred Time Zone</label>
+            <div class="searchable-select-wrapper">
+              <input type="text" class="searchable-select-input" id="preferredTimeZone-search"
+                placeholder="Type to search time zones..." autocomplete="off">
+              <div class="searchable-select-dropdown" id="preferredTimeZone-dropdown"></div>
+              <select id="preferredTimeZone" name="preferredTimeZone" class="searchable-select-hidden"></select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="talentLanguage">Talent Language(s)</label>
+            <select id="talentLanguage" name="talentLanguage" multiple size="5">
+              <option value="loading">Loading languages...</option>
+            </select>
+            <div class="form-description">Hold Ctrl (Cmd on Mac) to select multiple languages.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="workplaceLogistics">Additional Workplace &amp; Logistics Details</label>
+            <textarea id="workplaceLogistics" name="workplaceLogistics" rows="3"></textarea>
+            <div class="form-description">Any other logistics requirements or preferences.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOURCING & HIRING -->
+      <div class="form-card">
+        <div class="form-section">
+          <h2>Sourcing &amp; Hiring Process</h2>
+          <div class="field-row">
+            <div class="form-group">
+              <label for="priority">Priority <span class="required">*</span></label>
+              <select id="priority" name="priority" required>
+                <option value="">-- Please Select --</option>
+                <option value="Urgent">Urgent</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="priorityDES">DES Priority <span class="required">*</span></label>
+              <select id="priorityDES" name="priorityDES" required>
+                <option value="">-- Please Select --</option>
+                <option value="Urgent">Urgent</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="purchaseReason">DES Purchase Reason</label>
+              <select id="purchaseReason" name="purchaseReason">
+                <option value="">-- Please Select --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Special Attention Reasons</label>
+            <div class="checkbox-group">
+              <div class="checkbox-item">
+                <input type="checkbox" id="reasonHighBudget" name="reasonHighBudget">
+                <label for="reasonHighBudget">High Budget</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="reasonInterestedInPJM" name="reasonInterestedInPJM">
+                <label for="reasonInterestedInPJM">Interested in PJM (Project Management)</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="reasonNeedsMultipleServices" name="reasonNeedsMultipleServices">
+                <label for="reasonNeedsMultipleServices">Needs Multiple Services</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="reasonPotentiallyProblematicClient"
+                  name="reasonPotentiallyProblematicClient">
+                <label for="reasonPotentiallyProblematicClient">Potentially Problematic Client</label>
+              </div>
+              <div class="checkbox-item">
+                <input type="checkbox" id="reasonOther" name="reasonOther">
+                <label for="reasonOther">Other (Please specify below)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" id="specialAttentionContainer" style="display: none;">
+            <label for="specialAttentionFreeText">Special Attention Details</label>
+            <textarea id="specialAttentionFreeText" name="specialAttentionFreeText" rows="2" maxlength="255"></textarea>
+            <div class="form-description">Required if "Other" is selected above (max 255 characters).</div>
+          </div>
+
+          <div class="form-group">
+            <label for="preferredSourcingChannels">Preferred Sourcing Channels</label>
+            <textarea id="preferredSourcingChannels" name="preferredSourcingChannels" rows="3"
+              maxlength="255"></textarea>
+            <div class="form-description">Specific platforms or communities to focus on (max 255 characters).</div>
+          </div>
+
+          <div class="form-group">
+            <label for="challengesInHiring">Potential Hiring Challenges</label>
+            <textarea id="challengesInHiring" name="challengesInHiring" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="idealCandidateProfile">Ideal Candidate Profile</label>
+            <textarea id="idealCandidateProfile" name="idealCandidateProfile" rows="4"></textarea>
+            <div class="form-description">Describe the ideal candidate beyond just skills.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="sourcingPriorities">Sourcing Priorities / Keywords</label>
+            <textarea id="sourcingPriorities" name="sourcingPriorities" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="screeningQuestions">Key Screening Questions</label>
+            <textarea id="screeningQuestions" name="screeningQuestions" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="hiringProcess">Hiring Process Overview</label>
+            <textarea id="hiringProcess" name="hiringProcess" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="dealProbability">Deal Probability <span class="required">*</span></label>
+            <select id="dealProbability" name="dealProbability" required>
+              <option value="">-- Please Select --</option>
+              <option value="20%">20%</option>
+              <option value="50%">50%</option>
+              <option value="100%">100%</option>
+            </select>
+            <div class="form-description">What is the probability of closing this deal?</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADDITIONAL INFORMATION -->
+      <div class="form-card">
+        <div class="form-section">
+          <h2>Additional Information</h2>
+          <div class="form-group">
+            <label for="additionalNotes">Additional Notes / Important Details</label>
+            <textarea id="additionalNotes" name="additionalNotes" rows="4"></textarea>
+            <div class="form-description">Any other crucial details, context, or nice-to-haves.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="meetingTranscript">Meeting Transcript (Optional)</label>
+            <textarea id="meetingTranscript" name="meetingTranscript" rows="8"></textarea>
+            <div class="form-description">Paste relevant meeting notes or transcript for additional context.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="button-container">
+          <div class="button-group">
+            <button type="button" id="preview-btn">📋 Preview Salesforce Request</button>
+          </div>
+          <div class="button-group">
+            <button type="button" id="test-data-btn">Fill Test Data</button>
+            <button type="button" id="clear-storage-btn">Clear Saved Data</button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="progress-container" id="progress-container">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="success-message" id="success-message"></div>
+    <div class="error-message" id="error-message"></div>
+
+    <!-- ========================================
+         PREVIEW MODAL
+         ======================================== -->
+    <div id="preview-modal" class="preview-modal">
+      <div class="preview-modal-content">
+        <div class="preview-modal-header">
+          <h2>📋 Preview: Salesforce Project Request</h2>
+          <button class="preview-close" onclick="closePreview()" aria-label="Close preview">&times;</button>
+        </div>
+
+        <div class="preview-modal-body">
+          <div class="preview-warning">
+            <span style="font-size: 20px;">ℹ️</span>
+            <div>
+              <strong>Preview Mode:</strong> Review the information below as it will appear in Salesforce.
+              Click "Approve & Submit to Salesforce" to proceed with submission, or "Edit Form" to make changes.
+            </div>
+          </div>
+
+          <div class="preview-section">
+            <h3>📄 Generated Job Description <span style="font-size: 12px; font-weight: normal; color: #62646A;">(You
+                can edit this text directly)</span></h3>
+            <textarea id="preview-job-description" class="preview-content"
+              style="min-height: 400px; width: 100%; resize: vertical; font-family: inherit;">Loading preview...</textarea>
+          </div>
+
+          <div class="preview-section">
+            <h3>📝 DES Questionnaire (Salesforce Format)</h3>
+            <div id="preview-des-questionnaire" class="preview-content">
+              Loading preview...
+            </div>
+          </div>
+
+          <div class="preview-section">
+            <h3>📊 Key Form Data Summary</h3>
+            <div id="preview-form-summary">
+              Loading summary...
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-modal-footer">
+          <button type="button" id="cancel-preview-btn" onclick="closePreview()">
+            ✏️ Edit Form
+          </button>
+          <button type="button" id="approve-submit-btn" onclick="approveAndSubmit()">
+            ✅ Approve & Submit to Salesforce
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const form = document.getElementById('sourcing-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const testDataBtn = document.getElementById('test-data-btn');
+    const clearStorageBtn = document.getElementById('clear-storage-btn');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const successMessage = document.getElementById('success-message');
+    const errorMessage = document.getElementById('error-message');
+
+    // Storage for dropdown data
+    const dropdownData = {
+      roles: [],
+      verticals: [],
+      timeZones: [],
+      locations: [],
+      languages: [],
+      purchaseReasons: []
+    };
+
+    // Storage for preview
+    let previewedFormData = null;
+
+    // Conditional field visibility
+    const verticalSelect = document.getElementById('vertical');
+    const verticalExamplesContainer = document.getElementById('vertical-examples-container');
+    const reasonOtherCheckbox = document.getElementById('reasonOther');
+    const specialAttentionContainer = document.getElementById('specialAttentionContainer');
+
+    function handleVerticalChange() {
+      const selectedValue = verticalSelect.value;
+      if (selectedValue === 'Design' || selectedValue === 'Video & animation') {
+        verticalExamplesContainer.style.display = 'block';
+      } else {
+        verticalExamplesContainer.style.display = 'none';
+        document.getElementById('verticalExamples').value = '';
+      }
+    }
+
+    function handleReasonOtherChange() {
+      if (reasonOtherCheckbox.checked) {
+        specialAttentionContainer.style.display = 'block';
+      } else {
+        specialAttentionContainer.style.display = 'none';
+        document.getElementById('specialAttentionFreeText').value = '';
+      }
+    }
+    // Lookup Opportunity data from Salesforce
+    function lookupOpportunity() {
+      const opportunityId = document.getElementById('opportunityId').value.trim();
+      const statusDiv = document.getElementById('lookup-status');
+      const lookupBtn = document.getElementById('lookup-opp-btn');
+
+      if (!opportunityId || opportunityId.length < 15) {
+        statusDiv.innerHTML = '<span style="color: #c5221f;">Please enter a valid Opportunity ID (at least 15 characters)</span>';
+        return;
+      }
+
+      // Show loading state
+      lookupBtn.disabled = true;
+      lookupBtn.textContent = '⏳ Looking up...';
+      statusDiv.innerHTML = '<span style="color: #62646A;">Searching Salesforce...</span>';
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          lookupBtn.disabled = false;
+          lookupBtn.textContent = '🔍 Lookup';
+
+          if (result && result.success) {
+            // Auto-fill the fields
+            if (result.contactName) {
+              document.getElementById('contactName').value = result.contactName;
+            }
+            if (result.contactEmail) {
+              document.getElementById('contactEmail').value = result.contactEmail;
+            }
+            if (result.company) {
+              document.getElementById('company').value = result.company;
+            }
+            if (result.companyWebsite) {
+              document.getElementById('companyWebsite').value = result.companyWebsite;
+            }
+
+            statusDiv.innerHTML = '<span style="color: #0d7a3f;">✓ Contact details loaded successfully!</span>';
+            saveFormData();
+
+            // Clear status after 3 seconds
+            setTimeout(() => { statusDiv.innerHTML = ''; }, 3000);
+          } else {
+            statusDiv.innerHTML = '<span style="color: #c5221f;">Could not find opportunity. Please fill in details manually.</span>';
+          }
+        })
+        .withFailureHandler(function (error) {
+          lookupBtn.disabled = false;
+          lookupBtn.textContent = '🔍 Lookup';
+          statusDiv.innerHTML = '<span style="color: #c5221f;">Lookup failed: ' + (error.message || error) + '</span>';
+        })
+        .lookupOpportunityData(opportunityId);
+    }
+    // ========================================
+    // CORRECTED SEARCHABLE DROPDOWN IMPLEMENTATION
+    // ========================================
+    function initSearchableDropdown(fieldName, options) {
+      const searchInput = document.getElementById(`${fieldName}-search`);
+      const dropdown = document.getElementById(`${fieldName}-dropdown`);
+      const hiddenSelect = document.getElementById(fieldName);
+
+      if (!searchInput || !dropdown || !hiddenSelect) {
+        console.warn(`Searchable dropdown elements not found for ${fieldName}`);
+        return;
+      }
+
+      let filteredOptions = [...options];
+      let selectedValue = '';
+
+      function renderOptions(opts) {
+        dropdown.innerHTML = '';
+        if (opts.length === 0) {
+          dropdown.innerHTML = '<div class="searchable-select-option" style="color: #62646A;">No results found</div>';
+          return;
+        }
+        opts.forEach(option => {
+          const div = document.createElement('div');
+          div.className = 'searchable-select-option';
+          if (option === selectedValue) {
+            div.classList.add('selected');
+          }
+          div.textContent = option;
+          div.onclick = function () {
+            selectOption(option);
+          };
+          dropdown.appendChild(div);
+        });
+      }
+
+      function selectOption(value) {
+        selectedValue = value;
+        searchInput.value = value;
+        hiddenSelect.value = value;
+        dropdown.style.display = 'none';
+
+        // Clear validation error styling
+        searchInput.style.borderColor = '#E4E5E7';
+
+        if (fieldName === 'vertical') {
+          handleVerticalChange();
+        }
+
+        // Auto-populate vertical when role is selected
+        if (fieldName === 'role' && dropdownData.roleVerticalMapping) {
+          const mappedVertical = dropdownData.roleVerticalMapping[value];
+          if (mappedVertical && dropdownData.verticals.includes(mappedVertical)) {
+            document.getElementById('vertical-search').value = mappedVertical;
+            document.getElementById('vertical').value = mappedVertical;
+            handleVerticalChange();
+          }
+        }
+
+        saveFormData();
+      }
+
+      function validateSelection() {
+        const currentValue = searchInput.value.trim();
+
+        // If the typed value doesn't exactly match an option, clear it
+        if (currentValue && !options.includes(currentValue)) {
+          searchInput.value = selectedValue || '';
+          hiddenSelect.value = selectedValue || '';
+
+          // Show visual feedback
+          if (!selectedValue) {
+            searchInput.style.borderColor = '#c5221f';
+            searchInput.placeholder = 'Please select from dropdown';
+          }
+
+          return false;
+        }
+        return true;
+      }
+
+      searchInput.addEventListener('focus', function () {
+        filteredOptions = [...options];
+        renderOptions(filteredOptions);
+        dropdown.style.display = 'block';
+      });
+
+      searchInput.addEventListener('input', function () {
+        const query = this.value.toLowerCase();
+        filteredOptions = options.filter(opt => opt.toLowerCase().includes(query));
+        renderOptions(filteredOptions);
+        dropdown.style.display = 'block';
+
+        // Clear the hidden select value if typing doesn't match
+        if (!options.includes(this.value)) {
+          hiddenSelect.value = '';
+          selectedValue = '';
+        }
+      });
+
+      searchInput.addEventListener('blur', function () {
+        setTimeout(() => {
+          validateSelection();
+          dropdown.style.display = 'none';
+        }, 200);
+      });
+
+      searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          const optionDivs = dropdown.querySelectorAll('.searchable-select-option');
+          if (optionDivs.length === 0) return;
+
+          if (e.key === 'ArrowDown' && optionDivs.length > 0) {
+            optionDivs[0].click();
+          }
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          const firstOption = dropdown.querySelector('.searchable-select-option');
+          if (firstOption && firstOption.textContent !== 'No results found') {
+            firstOption.click();
+          }
+        } else if (e.key === 'Escape') {
+          dropdown.style.display = 'none';
+          validateSelection();
+        }
+      });
+
+      // Store valid options for validation
+      hiddenSelect.dataset.validOptions = JSON.stringify(options);
+    }
+
+    // Load dropdown values from Google Sheet
+    // Load dropdown values from Google Sheet
+    function loadDropdownValues() {
+      google.script.run
+        .withSuccessHandler(function (values) {
+          if (values.roles && values.roles.length > 0) {
+            dropdownData.roles = values.roles;
+            initSearchableDropdown('role', values.roles);
+            populateHiddenSelect('role', values.roles);
+          }
+          if (values.verticals && values.verticals.length > 0) {
+            dropdownData.verticals = values.verticals;
+            initSearchableDropdown('vertical', values.verticals);
+            populateHiddenSelect('vertical', values.verticals);
+          }
+          if (values.timeZones && values.timeZones.length > 0) {
+            dropdownData.timeZones = values.timeZones;
+            initSearchableDropdown('preferredTimeZone', values.timeZones);
+            populateHiddenSelect('preferredTimeZone', values.timeZones);
+          }
+          if (values.locations && values.locations.length > 0) {
+            dropdownData.locations = values.locations;
+            initSearchableDropdown('talentLocation', values.locations);
+            populateHiddenSelect('talentLocation', values.locations);
+          }
+          if (values.languages && values.languages.length > 0) {
+            dropdownData.languages = values.languages;
+            populateMultiSelect('talentLanguage', values.languages);
+          }
+          if (values.purchaseReasons && values.purchaseReasons.length > 0) {
+            dropdownData.purchaseReasons = values.purchaseReasons;
+            populateHiddenSelect('purchaseReason', values.purchaseReasons);
+          }
+          // Store the role-to-vertical mapping
+          if (values.roleVerticalMapping) {
+            dropdownData.roleVerticalMapping = values.roleVerticalMapping;
+          }
+        })
+        .withFailureHandler(function (error) {
+          console.error('Error loading dropdown values:', error);
+        })
+        .getDropdownValues();
+    }
+
+    function populateHiddenSelect(elementId, options) {
+      const select = document.getElementById(elementId);
+      if (!select) return;
+      select.innerHTML = '<option value="">-- Please Select --</option>';
+      options.forEach(function (option) {
+        const opt = document.createElement('option');
+        opt.value = option;
+        opt.textContent = option;
+        select.appendChild(opt);
+      });
+    }
+
+    function populateMultiSelect(elementId, options) {
+      const select = document.getElementById(elementId);
+      select.innerHTML = '';
+      options.forEach(function (option) {
+        const opt = document.createElement('option');
+        opt.value = option;
+        opt.textContent = option;
+        select.appendChild(opt);
+      });
+    }
+
+    // ========================================
+    // ENHANCED FORM VALIDATION
+    // ========================================
+    function validateSearchableDropdowns() {
+      const errors = [];
+
+      ['role', 'vertical', 'talentLocation', 'preferredTimeZone'].forEach(fieldName => {
+        const hiddenSelect = document.getElementById(fieldName);
+        const searchInput = document.getElementById(`${fieldName}-search`);
+
+        if (!hiddenSelect || !searchInput) return;
+
+        // Check if field is required
+        const isRequired = hiddenSelect.hasAttribute('required');
+        if (!isRequired) return;
+
+        const validOptions = JSON.parse(hiddenSelect.dataset.validOptions || '[]');
+        const currentValue = hiddenSelect.value;
+        const searchValue = searchInput.value.trim();
+
+        // Validate: must have a value and it must be in the valid options list
+        if (!currentValue || !validOptions.includes(currentValue)) {
+          const fieldLabel = hiddenSelect.previousElementSibling?.previousElementSibling?.textContent || fieldName;
+          errors.push({
+            field: fieldName,
+            label: fieldLabel.replace('*', '').trim(),
+            message: searchValue ?
+              `Please select a valid option from the dropdown (typed value "${searchValue}" is not valid)` :
+              'This field is required'
+          });
+
+          searchInput.style.borderColor = '#c5221f';
+        } else {
+          searchInput.style.borderColor = '#E4E5E7';
+        }
+      });
+
+      return errors;
+    }
+
+    // ========================================
+    // ENHANCED COLLECT FORM DATA
+    // ========================================
+    function collectFormData() {
+      const formData = {};
+      const elements = form.elements;
+
+      for (let i = 0; i < elements.length; i++) {
+        const element = elements[i];
+        if (element.name && element.type !== 'submit' && element.type !== 'button') {
+          if (element.type === 'checkbox') {
+            formData[element.name] = element.checked;
+          } else if (element.tagName === 'SELECT' && element.multiple) {
+            formData[element.name] = Array.from(element.selectedOptions).map(opt => opt.value);
+          } else if (element.tagName === 'SELECT') {
+            // For searchable dropdowns, ONLY accept values that are in the valid options
+            let value = element.value;
+
+            if (element.classList.contains('searchable-select-hidden')) {
+              const validOptions = JSON.parse(element.dataset.validOptions || '[]');
+
+              // Only include the value if it's in the valid options list
+              if (value && validOptions.includes(value)) {
+                formData[element.name] = value;
+              } else {
+                formData[element.name] = ''; // Clear invalid values
+                console.warn(`Invalid value for ${element.name}: "${value}". Expected one of:`, validOptions);
+              }
+            } else {
+              formData[element.name] = value;
+            }
+          } else {
+            formData[element.name] = element.value;
+          }
+        }
+      }
+
+      return formData;
+    }
+
+    // AUTO-SAVE LOGIC
+    const STORAGE_KEY = 'questionnaireFormData';
+    let autoSaveTimeout = null;
+
+    function saveFormData() {
+      const formData = {};
+      const elements = form.elements;
+      for (let i = 0; i < elements.length; i++) {
+        const element = elements[i];
+        if (element.name && element.type !== 'submit' && element.type !== 'button') {
+          if (element.type === 'checkbox') {
+            formData[element.name] = element.checked;
+          } else if (element.tagName === 'SELECT' && element.multiple) {
+            formData[element.name] = Array.from(element.selectedOptions).map(opt => opt.value);
+          } else {
+            formData[element.name] = element.value;
+          }
+        }
+      }
+
+      ['role', 'vertical', 'talentLocation', 'preferredTimeZone'].forEach(fieldName => {
+        const searchInput = document.getElementById(`${fieldName}-search`);
+        if (searchInput) {
+          formData[`${fieldName}-search`] = searchInput.value;
+        }
+      });
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        console.log('Form data auto-saved.');
+      } catch (e) {
+        console.error('Error saving form data:', e);
+      }
+    }
+
+    function loadFormData() {
+      try {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData) {
+          const formData = JSON.parse(savedData);
+          const elements = form.elements;
+          for (let i = 0; i < elements.length; i++) {
+            const element = elements[i];
+            if (element.name && formData.hasOwnProperty(element.name)) {
+              if (element.type === 'checkbox') {
+                element.checked = formData[element.name];
+              } else if (element.tagName === 'SELECT' && element.multiple) {
+                const values = formData[element.name];
+                if (Array.isArray(values)) {
+                  Array.from(element.options).forEach(opt => {
+                    opt.selected = values.includes(opt.value);
+                  });
+                }
+              } else {
+                element.value = formData[element.name];
+              }
+            }
+          }
+
+          ['role', 'vertical', 'talentLocation', 'preferredTimeZone'].forEach(fieldName => {
+            const searchInput = document.getElementById(`${fieldName}-search`);
+            const hiddenSelect = document.getElementById(fieldName);
+            if (searchInput && formData[`${fieldName}-search`]) {
+              searchInput.value = formData[`${fieldName}-search`];
+              if (hiddenSelect) {
+                hiddenSelect.value = formData[`${fieldName}-search`];
+              }
+            }
+          });
+
+          console.log('Form data loaded.');
+          handleVerticalChange();
+          handleReasonOtherChange();
+        }
+      } catch (e) {
+        console.error('Error loading form data:', e);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function clearSavedData() {
+      if (confirm("Clear all saved data from this form?")) {
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+          form.reset();
+          ['role', 'vertical', 'talentLocation', 'preferredTimeZone'].forEach(fieldName => {
+            const searchInput = document.getElementById(`${fieldName}-search`);
+            if (searchInput) {
+              searchInput.value = '';
+            }
+          });
+          handleVerticalChange();
+          handleReasonOtherChange();
+          alert('Cleared locally saved form data.');
+        } catch (e) {
+          console.error('Error clearing saved data:', e);
+        }
+      }
+    }
+
+    function debouncedSave(event) {
+      clearTimeout(autoSaveTimeout);
+      if (event.target && form.contains(event.target)) {
+        autoSaveTimeout = setTimeout(saveFormData, 1500);
+      }
+    }
+
+    // ========================================
+    // PREVIEW FUNCTIONALITY
+    // ========================================
+
+    function displayPreview(previewData) {
+      document.getElementById('preview-job-description').value = previewData.jobDescription || 'No job description generated';
+      document.getElementById('preview-des-questionnaire').textContent = previewData.desQuestionnaire || 'No questionnaire data';
+
+      const formData = previewData.formData;
+      const summaryHtml = `
+        <div class="preview-field">
+          <div class="preview-field-label">Salesforce Opportunity ID:</div>
+          <div class="preview-field-value">${formData.opportunityId || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Deal Probability:</div>
+          <div class="preview-field-value">${formData.dealProbability || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Request Channel:</div>
+          <div class="preview-field-value">${formData.requestChannel || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Contact:</div>
+          <div class="preview-field-value">${formData.contactName || 'N/A'} (${formData.contactEmail || 'N/A'})</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Company:</div>
+          <div class="preview-field-value">${formData.company || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Role:</div>
+          <div class="preview-field-value">${formData.role || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Vertical:</div>
+          <div class="preview-field-value">${formData.vertical || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Engagement Model:</div>
+          <div class="preview-field-value">${formData.engagementModel || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Priority:</div>
+          <div class="preview-field-value">${formData.priority || 'N/A'} (DES: ${formData.priorityDES || 'N/A'})</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Start Date:</div>
+          <div class="preview-field-value">${formData.startDate || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Submission Deadline:</div>
+          <div class="preview-field-value">${formData.submissionDeadline || 'N/A'}</div>
+        </div>
+        <div class="preview-field">
+          <div class="preview-field-label">Pricing:</div>
+          <div class="preview-field-value">${formData.pricingType || 'N/A'} (${formData.pricingRange || 'Not specified'})</div>
+        </div>
+      `;
+      document.getElementById('preview-form-summary').innerHTML = summaryHtml;
+
+      document.getElementById('preview-modal').style.display = 'block';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closePreview() {
+      document.getElementById('preview-modal').style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+
+    function approveAndSubmit() {
+      if (!previewedFormData) {
+        showError("No form data available. Please try generating a preview again.");
+        closePreview();
+        return;
+      }
+
+      // Capture the edited job description from the textarea
+      const editedJobDescription = document.getElementById('preview-job-description').value;
+      previewedFormData.editedJobDescription = editedJobDescription;
+
+      closePreview();
+      showProgress();
+      hideMessages();
+
+      let progress = 10;
+      progressBar.style.width = progress + '%';
+      const interval = setInterval(function () {
+        progress += Math.random() * 15;
+        if (progress >= 90) {
+          progress = 90;
+          clearInterval(interval);
+        }
+        progressBar.style.width = progress + '%';
+      }, 400);
+
+      google.script.run
+        .withSuccessHandler(function (response) {
+          clearInterval(interval);
+          progressBar.style.width = '100%';
+          console.log('Server response:', response);
+
+          if (typeof response === 'string' && response.toLowerCase().startsWith('error:')) {
+            showError(response);
+            resetFormState();
+          } else {
+            showSuccess(response || "Brief generated and sent to Salesforce successfully!");
+            localStorage.removeItem(STORAGE_KEY);
+            setTimeout(function () {
+              google.script.host.close();
+            }, 3000);
+          }
+        })
+        .withFailureHandler(function (error) {
+          clearInterval(interval);
+          console.error('Server Error:', error);
+          showError('An error occurred: ' + (error.message || error));
+          resetFormState();
+        })
+        .processQuestionnaireForm(previewedFormData);
+    }
+
+    // ========================================
+    // UPDATED PREVIEW BUTTON HANDLER
+    // ========================================
+    document.getElementById('preview-btn').addEventListener('click', function () {
+      let isValid = true;
+      const validationErrors = [];
+
+      // First validate searchable dropdowns
+      const dropdownErrors = validateSearchableDropdowns();
+      if (dropdownErrors.length > 0) {
+        isValid = false;
+        validationErrors.push(...dropdownErrors);
+      }
+
+      // Then validate other required fields
+      const requiredFields = form.querySelectorAll('[required]');
+
+      requiredFields.forEach(field => {
+        // Skip searchable dropdowns (already validated above)
+        if (field.classList.contains('searchable-select-hidden')) {
+          return;
+        }
+
+        let fieldValue = field.value.trim();
+
+        if (!fieldValue) {
+          isValid = false;
+          field.style.borderColor = '#c5221f';
+
+          const label = field.previousElementSibling?.textContent || field.name;
+          validationErrors.push({
+            field: field.name,
+            label: label.replace('*', '').trim(),
+            message: 'This field is required'
+          });
+        } else {
+          field.style.borderColor = '#E4E5E7';
+        }
+      });
+
+      if (!isValid) {
+        // Show detailed error message
+        let errorMsg = "<strong>Please fix the following errors:</strong><br><br>";
+        validationErrors.forEach((error, index) => {
+          errorMsg += `${index + 1}. <strong>${error.label}</strong>: ${error.message}<br>`;
+        });
+
+        showError(errorMsg);
+
+        // Scroll to first error
+        const firstErrorField = validationErrors[0]?.field;
+        if (firstErrorField) {
+          const errorElement = document.getElementById(`${firstErrorField}-search`) ||
+            document.getElementById(firstErrorField);
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            errorElement.focus();
+          }
+        }
+        return;
+      }
+
+      const formData = collectFormData();
+      previewedFormData = formData;
+
+      showProgress();
+      hideMessages();
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          completeProgress(true);
+          if (result && result.success) {
+            displayPreview(result);
+          } else {
+            showError(result.error || "Failed to generate preview. Please try again.");
+          }
+        })
+        .withFailureHandler(function (error) {
+          completeProgress(false);
+          console.error('Preview generation error:', error);
+          showError('An error occurred generating preview: ' + (error.message || error));
+        })
+        .generatePreviewFromForm(formData);
+    });
+
+    // Form submission handler (now shows message to use preview)
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      showError("Please use the 'Preview Salesforce Request' button to review and submit.");
+      return false;
+    });
+
+    // Close modal on outside click
+    window.addEventListener('click', function (event) {
+      const modal = document.getElementById('preview-modal');
+      if (event.target === modal) {
+        closePreview();
+      }
+    });
+
+    // Close modal on Escape key
+    window.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        const modal = document.getElementById('preview-modal');
+        if (modal && modal.style.display === 'block') {
+          closePreview();
+        }
+      }
+    });
+
+    // Helper Functions
+    function showProgress() {
+      if (submitBtn) submitBtn.disabled = true;
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      hideMessages();
+    }
+
+    function completeProgress(success = true) {
+      progressBar.style.width = '100%';
+      progressBar.style.backgroundColor = success ? '#222325' : '#c5221f';
+      setTimeout(() => {
+        progressContainer.style.display = 'none';
+        progressBar.style.width = '0%';
+        progressBar.style.backgroundColor = '#222325';
+      }, 1000);
+    }
+
+    function resetFormState() {
+      if (submitBtn) submitBtn.disabled = false;
+      progressContainer.style.display = 'none';
+      progressBar.style.width = '0%';
+    }
+
+    function showSuccess(message) {
+      resetFormState();
+      successMessage.innerText = message;
+      successMessage.style.display = 'block';
+      errorMessage.style.display = 'none';
+      form.style.display = 'none';
+    }
+
+    function showError(message) {
+      resetFormState();
+      errorMessage.innerHTML = message; // Use innerHTML for HTML content
+      errorMessage.style.display = 'block';
+      successMessage.style.display = 'none';
+    }
+
+    function hideMessages() {
+      successMessage.style.display = 'none';
+      errorMessage.style.display = 'none';
+    }
+
+    // Test Data
+    testDataBtn.addEventListener('click', function () {
+      const testData = {
+        opportunityId: '006XXXXXXXXXXXXXXX',
+        dealProbability: '50%',
+        requestChannel: 'Meeting',
+        contactName: "Alex Test",
+        contactEmail: "alex.test@example.com",
+        company: "Creative Works Inc.",
+        companyWebsite: "https://creativeworks.example.com",
+        about: "A creative agency specializing in branding and motion graphics.",
+        similarCompanies: "Buck, Giant Ant",
+        talentTypePreference: "Freelancer_Primary",
+        theNeed: "We need a skilled motion designer to create a 60-second animated explainer video.",
+        skillsAndExperience: "Adobe After Effects, Cinema 4D, Adobe Illustrator, Lottie",
+        industry: "Technology, Marketing",
+        experienceQualifications: "5+ years of professional motion design experience.",
+        portfolioRequirement: "A portfolio showcasing character animation is required.",
+        engagementModel: "Gig",
+        startDate: "2025-11-01",
+        submissionDeadline: "2025-10-25",
+        timeline: "Project to start ASAP. Final delivery within 4 weeks.",
+        pricingType: "Fixed",
+        pricingRange: "$8,000 - $10,000",
+        paymentPreferences: "Milestone payments preferred.",
+        talentCapacity: "Full-time availability for 4 weeks",
+        workplaceType: "Remote",
+        priority: "High",
+        priorityDES: "High",
+        reasonHighBudget: true,
+        reasonInterestedInPJM: false,
+        reasonNeedsMultipleServices: false,
+        reasonPotentiallyProblematicClient: false,
+        reasonOther: false,
+        specialAttentionFreeText: "",
+        preferredSourcingChannels: "Dribbble, Behance, Working Not Working",
+        challengesInHiring: "Finding a designer who matches our aesthetic.",
+        idealCandidateProfile: "Someone who has worked with tech startups.",
+        sourcingPriorities: "Motion Graphics, Explainer Video, After Effects",
+        screeningQuestions: "1. What is your process for developing concepts?",
+        hiringProcess: "1. Portfolio Review 2. Creative test 3. Interview",
+        additionalNotes: "Looking for a creative collaborator.",
+        meetingTranscript: ""
+      };
+
+      for (const [key, value] of Object.entries(testData)) {
+        const element = document.getElementById(key);
+        if (element) {
+          if (element.type === 'checkbox') {
+            element.checked = value;
+          } else {
+            element.value = value;
+          }
+        }
+      }
+
+      setTimeout(() => {
+        if (dropdownData.roles.length > 0) {
+          const roleSearch = document.getElementById('role-search');
+          if (roleSearch && dropdownData.roles[0]) {
+            roleSearch.value = dropdownData.roles[0];
+            document.getElementById('role').value = dropdownData.roles[0];
+          }
+        }
+        if (dropdownData.verticals.length > 0) {
+          const verticalSearch = document.getElementById('vertical-search');
+          if (verticalSearch && dropdownData.verticals[0]) {
+            verticalSearch.value = dropdownData.verticals[0];
+            document.getElementById('vertical').value = dropdownData.verticals[0];
+          }
+        }
+      }, 500);
+
+      handleVerticalChange();
+      handleReasonOtherChange();
+      console.log('Test data filled.');
+      saveFormData();
+    });
+
+    // Event Listeners
+    form.addEventListener('input', debouncedSave);
+    form.addEventListener('change', debouncedSave);
+    clearStorageBtn.addEventListener('click', clearSavedData);
+    reasonOtherCheckbox.addEventListener('change', handleReasonOtherChange);
+    verticalSelect.addEventListener('change', handleVerticalChange);
+
+    window.addEventListener('load', function () {
+      loadDropdownValues();
+      setTimeout(loadFormData, 500);
+
+      // Auto-fill agent name from Google account
+      google.script.run
+        .withSuccessHandler(function (userInfo) {
+          const agentNameField = document.getElementById('agentName');
+          if (agentNameField && !agentNameField.value && userInfo.name) {
+            agentNameField.value = userInfo.name;
+            saveFormData();
+          }
+        })
+        .withFailureHandler(function (error) {
+          console.log('Could not auto-fill agent name:', error);
+        })
+        .getCurrentUserInfo();
+    });
+  </script>
+</body>
+
+</html>
