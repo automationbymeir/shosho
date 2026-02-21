@@ -310,9 +310,34 @@ class App {
                 this.saveDebounced(state);
 
                 // Update Timeline Preview for Active Page dynamically
-                this.updateActivePagePreview();
+                // ONLY update the active thumbnail, don't rebuild the entire timeline.
+                this.updateActiveThumbnailOnly();
             }
         });
+    }
+
+    updateActiveThumbnailOnly() {
+        if (!store.state.pages || !store.state.activePageId) return;
+        const activeId = store.state.activePageId;
+        const pageEl = document.querySelector(`.timeline-page.active`);
+        if (pageEl && pageEl._lazyRender) {
+            // If it's active and hasn't rendered yet (unlikely), don't force it unless visible
+        } else if (pageEl) {
+            // Ideally here we just run _lazyRender again to update the thumbnail image
+            // But rebuilding the entire timeline is a performance killer.
+            // We can safely leave the thumbnail slightly stale until a major page swap,
+            // or manually re-render just this one element.
+
+            // For now, let's just let it be slightly stale to prevent the "bouncing" 
+            // IntersectionObserver loop bug that wipes the whole list.
+            // If we must sync it, we can call updateTimeline(store.state.pages, activeId)
+            // but we MUST throttle it drastically.
+
+            if (this.timelineDebounceTimer) clearTimeout(this.timelineDebounceTimer);
+            this.timelineDebounceTimer = setTimeout(() => {
+                this.updateTimeline(store.state.pages, store.state.activePageId);
+            }, 1000);
+        }
     }
 
     renderActivePage() {
@@ -588,9 +613,15 @@ class App {
                     this.renderActivePage();
                 }
 
-                this.updateTimeline(state.pages, state.activePageId);
+                // If only selection changed, we don't need to rebuild the timeline
+                if (prop !== 'selection') {
+                    this.updateTimeline(state.pages, state.activePageId);
+                } else if (prop === 'selection') {
+                    // Just update properties panel
+                    this.updatePropertiesPanel(state);
+                }
 
-                if (prop === 'selection' || prop === 'pages' || prop === 'viewMode' || prop === 'cover') {
+                if (prop === 'pages' || prop === 'viewMode' || prop === 'cover') {
                     this.updatePropertiesPanel(state);
                 }
             }
@@ -2935,9 +2966,10 @@ class App {
         return null;
     }
 
+    // This is now handled safely by updateActiveThumbnailOnly
     updateActivePagePreview() {
         if (!store.state.pages) return;
-        this.updateTimeline(store.state.pages, store.state.activePageId);
+        this.updateActiveThumbnailOnly();
     }
 
     static init() {
