@@ -96,8 +96,8 @@
   <script src="/js/ai-editor/schemas/photo-analysis-schema.js" type="module"></script>
   <script src="/js/ai-editor/schemas/album-schema.js" type="module"></script>
   <script src="/js/ai-editor/schemas/page-schema.js" type="module"></script>
-  <script src="/js/ai-editor/gemini-banana-service.js" type="module"></script>
-  <script src="/js/ai-editor/magic-create-v2.js" type="module"></script>
+  <script src="/js/ai-editor/services/ai-service.js" type="module"></script>
+  <script src="/js/ai-editor/engines/magic-create-v2.js" type="module"></script>
   <script src="/js/ai-editor/ui-components/magic-launcher.js" type="module"></script>
 </head>
 
@@ -1883,7 +1883,7 @@
   <script src="/js/icons.js"></script>
 
   <!-- Nano Banana AI Service -->
-  <script type="module" src="/js/ai-editor/gemini-banana-service.js"></script>
+  <script type="module" src="/js/ai-editor/services/ai-service.js"></script>
 
   <!-- Main Application Script -->
   <script src="/js/app.js?v=v84_dropdown_bounce_fix"></script>
@@ -1895,7 +1895,7 @@
   <!-- <script src="/js/support-chat.js"></script> -->
   <!-- Magic Create v2 Helper -->
   <script type="module">
-    import { store } from '/js/ai-editor/state.js';
+    import { store } from '/js/ai-editor/core/state.js';
     window.getSelectedPhotos = () => {
       return store.state.assets.photos || [];
     };
