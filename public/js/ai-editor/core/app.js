@@ -21,8 +21,7 @@ import { BarMitzvahRenderer } from '../templates/bar-mitzvah-renderer.js';
 import { UnifiedCoverRenderer } from '../engines/unified-cover-renderer.js';
 import { WeddingPrestigeRenderer } from '../templates/wedding-prestige-renderer.js';
 import { ProfileModal } from '../ui-components/profile-modal.js';
-
-
+import { photoPositionService } from '../services/photo-position-service.js';
 
 // Expose for debugging
 window.pdfExport = pdfExport;
@@ -1148,6 +1147,21 @@ class App {
                     store.state.assets.photos = [...store.state.assets.photos, ...newPhotos];
                     this.renderAssetSidebar();
                     uploadModal.style.display = 'none';
+
+                    // --- BATCH VISION PROCESSING (BACKGROUND) ---
+                    photoPositionService.batchAnalyzePhotos(newPhotos).then(focalDict => {
+                        let updated = false;
+                        store.state.assets.photos.forEach(p => {
+                            if (focalDict[p.id]) {
+                                p.visionFocalPoint = focalDict[p.id];
+                                updated = true;
+                            }
+                        });
+                        if (updated && window.app) {
+                            console.log("[App] Background Vision Batch Completed. Refreshing UI.");
+                            store.notify('pages', store.state.pages);
+                        }
+                    });
 
                     // --- AUTO START TRIGGER ---
                     if (this.isAutoStart && this.templateSidebar) {
@@ -2506,6 +2520,21 @@ class App {
                 console.log("Photos successfully imported.");
                 // Use a toast or non-blocking notification if possible, otherwise simple alert
                 alert(`Successfully imported ${photos.length} photos. Drag them onto your pages to begin.`);
+
+                // --- BATCH VISION PROCESSING (BACKGROUND) ---
+                photoPositionService.batchAnalyzePhotos(photos).then(focalDict => {
+                    let updated = false;
+                    store.state.assets.photos.forEach(p => {
+                        if (focalDict[p.id]) {
+                            p.visionFocalPoint = focalDict[p.id];
+                            updated = true;
+                        }
+                    });
+                    if (updated && window.app) {
+                        console.log("[App] Background Vision Batch Completed. Refreshing UI.");
+                        store.notify('pages', store.state.pages);
+                    }
+                });
 
             } catch (err) {
                 console.error(err);

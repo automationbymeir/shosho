@@ -320,8 +320,82 @@ function centerCrop(photo, layoutBox) {
   };
 }
 
+/**
+ * Calculate the center of mass (Focal Point) from the importance map.
+ * Returns x, y as percentages (0-100).
+ * @param {Array<Array<number>>} importanceMap - The importance map grid.
+ * @return {Object} An object containing focalX and focalY.
+ */
+function calculateFocalPoint(importanceMap) {
+  let totalWeight = 0;
+  let sumX = 0;
+  let sumY = 0;
+
+  const gridHeight = importanceMap.length;
+  const gridWidth = importanceMap[0].length;
+
+  for (let y = 0; y < gridHeight; y++) {
+    for (let x = 0; x < gridWidth; x++) {
+      const weight = importanceMap[y][x];
+      if (weight > 0) {
+        totalWeight += weight;
+        sumX += x * weight;
+        sumY += y * weight;
+      }
+    }
+  }
+
+  if (totalWeight === 0) {
+    return {focalX: 50, focalY: 50}; // default center
+  }
+
+  // Calculate percentage of grid
+  const centerX = (sumX / totalWeight) / gridWidth;
+  const centerY = (sumY / totalWeight) / gridHeight;
+
+  return {
+    focalX: Math.max(0, Math.min(100, centerX * 100)),
+    focalY: Math.max(0, Math.min(100, centerY * 100)),
+  };
+}
+
+/**
+ * Process a batch of photos and return their focal points
+ * @param {Array<Object>} photos - [{ id, url, width, height }]
+ */
+async function analyzeBatchFocalPoints(photos) {
+  const results = {};
+
+  // We process in parallel using Promise.all
+  // We cap concurrency to 10 in real-world scenarios, but here let's just do Promise.all
+  const promises = photos.map(async (photo) => {
+    try {
+      if (!photo.url) {
+        results[photo.id] = {focalX: 50, focalY: 50};
+        return;
+      }
+
+      const analysis = await analyzePhoto(photo.url);
+      const importanceMap = generateImportanceMap(
+          analysis,
+          photo.width || 1000,
+          photo.height || 1000,
+      );
+
+      results[photo.id] = calculateFocalPoint(importanceMap);
+    } catch (err) {
+      console.warn(`[BatchVision] Failed for photo ${photo.id}:`, err);
+      results[photo.id] = {focalX: 50, focalY: 50}; // Fallback
+    }
+  });
+
+  await Promise.allSettled(promises);
+  return results;
+}
+
 module.exports = {
   analyzeAndPosition,
+  analyzeBatchFocalPoints,
   generateImportanceMap,
   calculateOptimalCrop,
 };

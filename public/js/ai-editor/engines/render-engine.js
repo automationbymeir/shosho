@@ -136,128 +136,58 @@ export class RenderEngine {
                 if (photo) {
                     const img = document.createElement('img');
 
-                    // --- HIGH RESOLUTION LOGIC ---
-                    // Force high-res for Google Photos if available
-                    // Priority: 1. highResUrl (explicit), 2. rawBaseUrl (google), 3. url (standard), 4. thumbnail
-                    // CRITICAL: Prefer Thumbnail for initial render to avoid CORS/Loading delays
-                    let src = photo.thumbnailUrl || photo.highResUrl || photo.rawBaseUrl || photo.url;
+                    // --- MEMORY OPTIMIZATION: ENFORCE THUMBNAILS ON CANVAS ---
+                    // The Canvas ONLY needs thumbnails (low memory). High-res is only pulled by PDF export engine.
+                    let src = photo.thumbnailUrl || photo.url || photo.rawBaseUrl;
 
                     img.style.width = '100%';
                     img.style.height = '100%';
 
-                    // --- SMART CROP LOGIC ---
-                    if (slot.crop) {
-                        // Use Object-Fit Cover with precise coordinate centering (prevents all distortion/stretching)
-                        img.style.objectFit = 'cover';
-                        img.style.width = '100%';
-                        img.style.height = '100%';
+                    // --- VERY FAST SMART CROP (SYNCHRONOUS) ---
+                    img.style.objectFit = 'cover';
+                    img.style.width = '100%';
+                    img.style.height = '100%';
 
+                    // 1. Check if user manually panned it
+                    if (slot.manualObjectPosition) {
+                        img.style.objectPosition = slot.manualObjectPosition;
+                    }
+                    // 2. Legacy save state (if old `crop` object exists)
+                    else if (slot.crop) {
                         const cw = slot.crop.width || 100;
                         const ch = slot.crop.height || 100;
-
-                        // Calculate focal point 
                         const focalX = slot.crop.x + (cw / 2);
                         const focalY = slot.crop.y + (ch / 2);
-
-                        let pw = photo.width;
-                        let ph = photo.height;
-                        if (!pw || !ph) {
-                            const ratio = photo.ratio || 1.5;
-                            ph = 1000;
-                            pw = 1000 * ratio;
-                        }
-
-                        // Apply the exact offset focal center directly so it covers but centers on Google Vision data
+                        let pw = photo.width || 1000 * (photo.ratio || 1.5);
+                        let ph = photo.height || 1000;
                         const posX = (focalX / pw) * 100;
                         const posY = (focalY / ph) * 100;
-                        img.style.objectPosition = slot.manualObjectPosition || `${posX}% ${posY}%`;
-
-                    } else {
-                        // Default: Center Cover
-                        img.style.objectFit = 'cover';
-                        img.style.width = '100%';
-                        img.style.height = '100%';
-                        img.style.objectPosition = slot.manualObjectPosition || '50% 50%';
-
-                        // Trigger Async Analysis
-                        const analysisKey = `${page.id}_${targetId}`;
-                        if (!window._shosoAnalysisCache) window._shosoAnalysisCache = new Set();
-
-                        if (!window._shosoAnalysisCache.has(analysisKey) && !slot.smartCropDone) {
-                            window._shosoAnalysisCache.add(analysisKey);
-
-                            // Estimate dimensions
-                            const ratio = photo.ratio || 1.5;
-                            const estimatedW = photo.width || (1000 * ratio);
-                            const estimatedH = photo.height || 1000;
-
-                            const slotPixelW = (pageWidth * parseFloat(slot.width)) / 100;
-                            const slotPixelH = (pageHeight * parseFloat(slot.height)) / 100;
-
-                            console.log(`[RenderEngine] Requesting smart crop for ${targetId}...`);
-
-                            // Show loader while analyzing
-                            const loader = document.createElement('div');
-                            loader.className = 'smart-crop-loader';
-                            slotEl.appendChild(loader);
-
-                            // USE THUMBNAIL URL FOR ANALYSIS TO BYPASS CORS
-                            // Analysis only needs visual data, high-res not required
-                            const analysisUrl = photo.thumbnailUrl || photo.url;
-
-                            photoPositionService.getOptimalCrop(
-                                analysisUrl,
-                                estimatedW,
-                                estimatedH,
-                                { width: slotPixelW, height: slotPixelH }
-                            ).then(response => {
-                                console.log('[RenderEngine] Smart crop applied:', response);
-                                // respecting manual override
-                                if (!slot.manualCrop) {
-                                    slot.crop = response.crop || response;
-                                }
-                                slot.smartCropDone = true;
-                                if (window.store) {
-                                    window.store.notify('pages', window.store.state.pages);
-                                }
-                            }).catch(err => {
-                                console.warn('[RenderEngine] Smart crop error:', err);
-                                slot.smartCropDone = true;
-                                // Force re-render to remove loader even if failed
-                                if (window.store) window.store.notify('pages', window.store.state.pages);
-                            });
-                        }
+                        img.style.objectPosition = `${posX}% ${posY}%`;
+                    }
+                    // 3. New Synchronous Batch Vision Focal Point
+                    else if (photo.visionFocalPoint) {
+                        img.style.objectPosition = `${photo.visionFocalPoint.focalX}% ${photo.visionFocalPoint.focalY}%`;
+                    }
+                    // 4. Default Base Center
+                    else {
+                        img.style.objectPosition = '50% 50%';
                     }
 
-                    // Google Photos - Use backend proxy to avoid 403 errors
+
+                    // Memory Limit Enforcer: Only assign URL/Thumbnail directly. Do NOT preload 4K proxy URLs on browser
                     if (photo.source === 'google-photos' || (src && src.includes('googleusercontent.com'))) {
-                        // Show thumbnail immediately while loading high-res via proxy
-                        if (photo.thumbnailUrl) {
-                            img.src = photo.thumbnailUrl;
-                        }
+                        // Google Photos allows direct rendering of standard URLs with `=w` params without hitting 403 on standard tags
+                        // Apply reasonable generic limit `=w800` to Google Photos URLs if no equal sign is present to save memory.
+                        let targetParams = src;
+                        if (!targetParams.includes('=')) targetParams += '=w800';
+                        else if (targetParams.includes('=d')) targetParams = targetParams.replace('=d', '=w800'); // downgrade =d to =w800 on UI
 
-                        // Fetch high-res via backend proxy
-                        import('../services/google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
-                            // Prepare high-res URL
-                            let targetUrl = photo.rawBaseUrl || photo.url;
-                            if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
-                                targetUrl = targetUrl.split('=')[0] + '=d';
-                            } else if (!targetUrl.includes('=d')) {
-                                targetUrl = `${targetUrl}=d`;
-                            }
+                        img.src = photo.thumbnailUrl || targetParams;
 
-                            googlePhotosService.fetchHighResImage(targetUrl)
-                                .then(dataUri => {
-                                    img.src = dataUri;
-                                })
-                                .catch(err => {
-                                    console.warn('[RenderEngine] Proxy fetch failed:', err);
-                                    // Keep thumbnail if proxy fails
-                                    if (!photo.thumbnailUrl) {
-                                        img.src = 'assets/placeholder-image.png';
-                                    }
-                                });
-                        });
+                        // Fallback
+                        img.onerror = () => {
+                            if (!photo.thumbnailUrl) img.src = 'assets/placeholder-image.png';
+                        };
                     } else {
                         // Non-Google Photos - load directly
                         if (src && src.includes('unsplash.com') && src.includes('&w=') && !src.includes('&w=2048')) {

@@ -36,6 +36,37 @@ export class PhotoPositionService {
         }
     }
 
+    /**
+     * Analyze a batch of photos synchronously to find their focal points.
+     * @param {Array<Object>} photos - [{ id, url, width, height }]
+     * @returns {Promise<Object>} - Dictionary of { focalX, focalY } mapped by photo ID
+     */
+    async batchAnalyzePhotos(photos) {
+        try {
+            if (!photos || photos.length === 0) return {};
+            console.log(`[PhotoPositionService] Batch analyzing ${photos.length} photos...`);
+
+            // To be safe, let's chunk to 50 photos max at a time
+            const chunkSize = 50;
+            const results = {};
+
+            for (let i = 0; i < photos.length; i += chunkSize) {
+                const chunk = photos.slice(i, i + chunkSize);
+                const func = this.getFunctions().httpsCallable('analyzeBatchPhotoPositions');
+                const result = await func({ photos: chunk });
+                if (result.data) {
+                    Object.assign(results, result.data);
+                }
+            }
+
+            console.log('[PhotoPositionService] Batch analysis complete.', results);
+            return results;
+        } catch (error) {
+            console.error('[PhotoPositionService] Batch Error:', error);
+            return {};
+        }
+    }
+
     calculateCenterCrop(photo, layoutBox) {
         const photoAspect = photo.width / photo.height;
         const boxAspect = layoutBox.width / layoutBox.height;

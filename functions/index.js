@@ -749,6 +749,30 @@ exports.analyzePhotoPosition = onCall(async (request) => {
   }
 });
 
+exports.analyzeBatchPhotoPositions = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  const {photos} = request.data;
+
+  if (!photos || !Array.isArray(photos)) {
+    throw new HttpsError("invalid-argument", "photos array is required");
+  }
+
+  // To avoid timeouts and memory blowups, cap at 50 photos per batch.
+  if (photos.length > 50) {
+    throw new HttpsError("invalid-argument", "Max batch size is 50 photos.");
+  }
+
+  try {
+    return await photoPositionService.analyzeBatchFocalPoints(photos);
+  } catch (error) {
+    console.error("analyzeBatchPhotoPositions error:", error);
+    throw new HttpsError("internal", error.message || "Batch analysis failed");
+  }
+});
+
 // ============================================
 // SUPPORT BOT (AI + HUMAN ESCALATION)
 // ============================================
