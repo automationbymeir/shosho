@@ -3,8 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -51,8 +50,8 @@
     <link rel="stylesheet" href="css/adventure-journal.css">
     <!-- Enhanced 3D Book Styles -->
     <link rel="stylesheet" href="css/book-3d-enhanced.css">
-    <!-- Mobile Responsive Styles -->
-    <link rel="stylesheet" href="css/ai-editor-mobile.css">
+    <!-- Responsive Styles -->
+    <link rel="stylesheet" href="css/ai-editor-responsive.css">
     <!-- Travel Journey Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <!-- Template Fonts (Baby & Adventure) -->
@@ -362,13 +361,13 @@
         <div class="loader-text">Extracting Photos from Google...</div>
         <div class="loader-subtext">Optimizing high-resolution memories for your book</div>
 
-        <div class="loader-progress-track">
-            <div class="loader-progress-fill"></div>
-        </div>
-    </div>
+        <!-- Mobile Drag and Drop Polyfill -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
+        <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/scroll-behaviour.min.js"></script>
 
-    <!-- Mobile Handler -->
-    <script src="js/ai-editor-mobile.js"></script>
+        <!-- Responsive Layout Handler -->
+        <script src="js/ai-editor-responsive.js"></script>
 </body>
 
 </html>
