@@ -2741,6 +2741,7 @@ class App {
         }
     }
 
+    // Fully Virtualized Timeline Construction 
     updateTimeline(pages, activeId) {
         const tl = document.getElementById('page-timeline');
         if (!tl) return;
@@ -2748,27 +2749,47 @@ class App {
 
         // Determine Base Dimensions
         const manager = this.templateSidebar?.manager;
-        // Default design system dimensions
         let rw = 800;
         let rh = 600;
 
-        // Try to get active layout dimensions from template config
         if (manager && manager.config && manager.config.designSystem && manager.config.designSystem.canvas) {
             rw = manager.config.designSystem.canvas.scaledWidth || manager.config.designSystem.canvas.width || rw;
             rh = manager.config.designSystem.canvas.scaledHeight || manager.config.designSystem.canvas.height || rh;
         }
 
-        // Standardized Thumbnail Size (Square)
-        const THUMB_SIZE = 110; // Slightly larger square
+        const THUMB_SIZE = 110;
 
-        // Scale Calculation Helper
         const calculateScale = (contentW, contentH, targetSize) => {
             const scaleX = targetSize / contentW;
             const scaleY = targetSize / contentH;
-            return Math.max(scaleX, scaleY); // Cover (occupies all square)
+            return Math.max(scaleX, scaleY);
         };
 
-        // Cover Handling - Use UNIFIED cover renderer for thumbnail
+        // --- Intersection Observer for Lazy Rendering ---
+        if (!this.timelineObserver) {
+            this.timelineObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // The thumbnail is visible! Trigger its lazy render method
+                        const lazyRenderFn = entry.target._lazyRender;
+                        if (lazyRenderFn) {
+                            lazyRenderFn();
+                            // Only render once
+                            entry.target._lazyRender = null;
+                        }
+                    }
+                });
+            }, {
+                root: tl, // Observe relative to the timeline container
+                rootMargin: '200px', // Buffer zone so it renders slightly before coming into view
+                threshold: 0.1
+            });
+        }
+
+        // Clear previous observations
+        this.timelineObserver.disconnect();
+
+        // 1. Cover
         if (store.state.viewMode === 'cover' || store.state.cover) {
             const coverEl = document.createElement('div');
             coverEl.className = `timeline-page cover ${store.state.viewMode === 'cover' ? 'active' : ''}`;
@@ -2777,43 +2798,53 @@ class App {
             coverEl.style.overflow = 'hidden';
             coverEl.style.position = 'relative';
 
+            // Placeholder skeleton until observed
+            const skeleton = document.createElement('div');
+            skeleton.style.width = '100%';
+            skeleton.style.height = '100%';
+            skeleton.style.background = '#e9ecef';
+            coverEl.appendChild(skeleton);
+
             const coverScale = calculateScale(rw, rh, THUMB_SIZE);
 
-            const preview = document.createElement('div');
-            preview.style.width = `${rw}px`;
-            preview.style.height = `${rh}px`;
-            preview.style.position = 'absolute';
-            preview.style.top = '50%';
-            preview.style.left = '50%';
-            preview.style.transform = `translate(-50%, -50%) scale(${coverScale})`;
-            preview.style.transformOrigin = 'center center';
-            preview.style.pointerEvents = 'none';
-            preview.style.background = '#fff';
-            // preview.style.overflow = 'hidden';
+            // Create the lazy loader function attached to the element
+            coverEl._lazyRender = () => {
+                skeleton.remove(); // Remove skeleton
+                const preview = document.createElement('div');
+                preview.style.width = `${rw}px`;
+                preview.style.height = `${rh}px`;
+                preview.style.position = 'absolute';
+                preview.style.top = '50%';
+                preview.style.left = '50%';
+                preview.style.transform = `translate(-50%, -50%) scale(${coverScale})`;
+                preview.style.transformOrigin = 'center center';
+                preview.style.pointerEvents = 'none';
+                preview.style.background = '#fff';
 
-            // Use UNIFIED cover renderer for timeline thumbnail
-            const templateConfig = manager?.config || null;
-            UnifiedCoverRenderer.render({
-                cover: store.state.cover,
-                assets: store.state.assets,
-                templateConfig,
-                container: preview,
-                interactive: false,
-                thumbnail: false  // Full cover, but scaled via CSS
-            });
+                const templateConfig = manager?.config || null;
+                UnifiedCoverRenderer.render({
+                    cover: store.state.cover,
+                    assets: store.state.assets,
+                    templateConfig,
+                    container: preview,
+                    interactive: false,
+                    thumbnail: false
+                });
+                coverEl.appendChild(preview);
+            };
 
-            coverEl.appendChild(preview);
             coverEl.onclick = () => {
                 store.state.viewMode = 'cover';
                 store.state.activePageId = null;
                 store.notify('viewMode', 'cover');
-                // Force update UI
                 this.updatePropertiesPanel(store.state);
             };
+
             tl.appendChild(coverEl);
+            this.timelineObserver.observe(coverEl);
         }
 
-        // Pages Handling - Filter out cover pages (cover is handled above separately)
+        // 2. Interior Pages
         const contentPages = pages.filter(page => {
             const layoutId = (page.rawLayoutId || page.layout?.id || page.layout?.layoutId || '').toLowerCase();
             return !layoutId.includes('cover');
@@ -2827,53 +2858,56 @@ class App {
             el.style.overflow = 'hidden';
             el.style.position = 'relative';
 
+            // Fast skeleton
+            const skeleton = document.createElement('div');
+            skeleton.style.width = '100%';
+            skeleton.style.height = '100%';
+            skeleton.style.background = '#e9ecef';
+            skeleton.className = 'timeline-skeleton-shimmer';
+            el.appendChild(skeleton);
+
             const pageScale = calculateScale(rw, rh, THUMB_SIZE);
 
-            const previewWrapper = document.createElement('div');
-            previewWrapper.style.width = `${rw}px`;
-            previewWrapper.style.height = `${rh}px`;
-            previewWrapper.style.position = 'absolute';
-            previewWrapper.style.top = '50%';
-            previewWrapper.style.left = '50%';
-            previewWrapper.style.transform = `translate(-50%, -50%) scale(${pageScale})`;
-            previewWrapper.style.transformOrigin = 'center center';
-            previewWrapper.style.pointerEvents = 'none';
-            previewWrapper.style.backgroundColor = '#fff';
+            // The expensive work happens HERE, only when observed
+            el._lazyRender = () => {
+                skeleton.remove();
+                const previewWrapper = document.createElement('div');
+                previewWrapper.style.width = `${rw}px`;
+                previewWrapper.style.height = `${rh}px`;
+                previewWrapper.style.position = 'absolute';
+                previewWrapper.style.top = '50%';
+                previewWrapper.style.left = '50%';
+                previewWrapper.style.transform = `translate(-50%, -50%) scale(${pageScale})`;
+                previewWrapper.style.transformOrigin = 'center center';
+                previewWrapper.style.pointerEvents = 'none';
+                previewWrapper.style.backgroundColor = '#fff';
 
-            // Unified Render Logic
-            let rendered = false;
-
-            // 1. Try Specialized Renderer (Template)
-            if (page.templateId) {
-                const manager = this.templateSidebar?.manager; // Use central manager
-                if (manager && manager.config && manager.config.templateId === page.templateId) {
-                    const renderer = this.getSpecializedRenderer(page.templateId, manager.config);
-
-                    if (renderer && page.rawLayoutId) {
-                        const layout = manager.config.pageLayouts.find(l => l.layoutId === page.rawLayoutId);
-                        if (layout) {
-                            const dom = renderer.renderPage(layout, page.photos || [], page.textContent || {}, page.textPositions || {});
-                            if (dom) {
-                                // Force full size to fill the wrapper (fixes rendering for templates with 0-height default)
-                                dom.style.width = '100%';
-                                dom.style.height = '100%';
-                                previewWrapper.appendChild(dom);
-                                rendered = true;
+                let rendered = false;
+                if (page.templateId) {
+                    if (manager && manager.config && manager.config.templateId === page.templateId) {
+                        const renderer = this.getSpecializedRenderer(page.templateId, manager.config);
+                        if (renderer && page.rawLayoutId) {
+                            const layout = manager.config.pageLayouts.find(l => l.layoutId === page.rawLayoutId);
+                            if (layout) {
+                                const dom = renderer.renderPage(layout, page.photos || [], page.textContent || {}, page.textPositions || {});
+                                if (dom) {
+                                    dom.style.width = '100%';
+                                    dom.style.height = '100%';
+                                    previewWrapper.appendChild(dom);
+                                    rendered = true;
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // 2. Fallback to Default RenderEngine (Generic) if not rendered
-            if (!rendered) {
-                // Use the new Unified Method
-                this.renderer.renderPageToContainer(page, store.state.assets, previewWrapper);
-            }
+                if (!rendered) {
+                    this.renderer.renderPageToContainer(page, store.state.assets, previewWrapper);
+                }
 
-            el.appendChild(previewWrapper);
+                el.appendChild(previewWrapper);
+            };
 
-            // Number Label
             const label = document.createElement('div');
             label.className = 'page-num';
             label.textContent = idx + 1;
@@ -2886,6 +2920,7 @@ class App {
             };
 
             tl.appendChild(el);
+            this.timelineObserver.observe(el);
         });
     }
 
