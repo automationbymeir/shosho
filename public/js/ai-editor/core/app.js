@@ -614,14 +614,17 @@ class App {
                 }
 
                 // If only selection changed, we don't need to rebuild the timeline
-                if (prop !== 'selection') {
+                if (prop === 'activePageId' || prop === 'viewMode') {
+                    this.updateTimelineActiveState(state);
+                    if (prop === 'viewMode') this.updatePropertiesPanel(state);
+                } else if (prop !== 'selection') {
                     this.updateTimeline(state.pages, state.activePageId);
-                } else if (prop === 'selection') {
-                    // Just update properties panel
+                } else {
+                    // prop === 'selection'
                     this.updatePropertiesPanel(state);
                 }
 
-                if (prop === 'pages' || prop === 'viewMode' || prop === 'cover') {
+                if (prop === 'pages' || prop === 'cover') {
                     this.updatePropertiesPanel(state);
                 }
             }
@@ -2772,6 +2775,25 @@ class App {
         }
     }
 
+    updateTimelineActiveState(state) {
+        const tl = document.getElementById('page-timeline');
+        if (!tl) return;
+        Array.from(tl.children).forEach(child => {
+            if (child.dataset.isCover === 'true') {
+                if (state.viewMode === 'cover') child.classList.add('active');
+                else child.classList.remove('active');
+            } else if (child.dataset.pageId) {
+                if (state.viewMode !== 'cover' && child.dataset.pageId === state.activePageId) {
+                    child.classList.add('active');
+                    // Ensure it's scrolled into view smoothly
+                    child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                } else {
+                    child.classList.remove('active');
+                }
+            }
+        });
+    }
+
     // Fully Virtualized Timeline Construction 
     updateTimeline(pages, activeId) {
         const tl = document.getElementById('page-timeline');
@@ -2828,6 +2850,7 @@ class App {
             coverEl.style.height = `${THUMB_SIZE}px`;
             coverEl.style.overflow = 'hidden';
             coverEl.style.position = 'relative';
+            coverEl.dataset.isCover = 'true';
 
             // Placeholder skeleton until observed
             const skeleton = document.createElement('div');
@@ -2888,6 +2911,7 @@ class App {
             el.style.height = `${THUMB_SIZE}px`;
             el.style.overflow = 'hidden';
             el.style.position = 'relative';
+            el.dataset.pageId = page.id;
 
             // Fast skeleton
             const skeleton = document.createElement('div');
