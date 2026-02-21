@@ -13,6 +13,7 @@ if (process.env.FUNCTIONS_EMULATOR === "true" || process.env.FUNCTIONS_EMULATOR 
 
 admin.initializeApp({
   projectId: "shoso-photobook",
+  storageBucket: "shoso-photobook.firebasestorage.app",
 });
 
 // Import modules

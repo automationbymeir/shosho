@@ -6,6 +6,7 @@ import { layoutEngine } from '../engines/layout-engine.js';
 import { RenderEngine } from '../engines/render-engine.js';
 import { pdfExport } from '../engines/pdf-export.js';
 import { pdfCanvasExport } from '../engines/pdf-canvas-export.js';
+import { pdfServerExport } from '../engines/pdf-server-export.js';
 import { googlePhotosService } from '../services/google-photos-service.js?v=forceNew6';
 import { geminiService } from '../services/ai-service.js';
 import { aiDirector } from '../engines/ai-director.js';
@@ -85,9 +86,8 @@ class App {
                 return;
             }
 
-            if (store.state.user) {
-                persistenceService.saveProject(store.state.user.uid, state);
-            }
+            // We now pass userId if it exists, otherwise pass null to allow local-only save.
+            persistenceService.saveProject(store.state.user?.uid || null, state);
         }, 3000);
 
         // Check for Auto-Start Params immediately
@@ -184,10 +184,10 @@ class App {
                 return;
             }
 
-            if (user) {
-                console.log("User Logged In:", user.email);
-                // Load saved project if exists
-                let savedData = await persistenceService.loadProject(user.uid);
+            if (true) {
+                console.log("Auth State Changed, checking for projects. Logged in:", !!user);
+                // Load saved project if exists (passing null userId will load from local DB)
+                let savedData = await persistenceService.loadProject(user?.uid || null);
 
                 if (savedData) {
                     console.log("Loading saved project...");
@@ -233,10 +233,23 @@ class App {
                     // Prevent Auth Observer from clobbering photos imported via AutoStart/Manual Upload before Auth resolves.
                     const activePhotos = [...(store.state.assets?.photos || [])];
 
-                    if (savedData.assets) {
-                        console.log(`[App] Clearing ${savedData.assets.photos?.length || 0} stale blob URLs from save, preserving ${activePhotos.length} active photos.`);
-                        savedData.assets.photos = activePhotos;
-                    } else if (activePhotos.length > 0) {
+                    if (savedData.assets && savedData.assets.photos) {
+                        // Keep valid URLs (Google Photos, Firebase Storage), discard stale blobs
+                        // BUT: We now save blobs LOCALLY as Base64 in IndexedDB, so those are valid!
+                        // Let's filter out 'blob:' if they don't work, but keep 'data:'
+                        const persistentPhotos = savedData.assets.photos.filter(p => p.url && !p.url.startsWith('blob:'));
+
+                        // Merge active photos from the current session (like fresh blobs before auth resolved)
+                        const mergedPhotos = [...persistentPhotos];
+                        for (const activePhoto of activePhotos) {
+                            if (!mergedPhotos.find(p => p.id === activePhoto.id)) {
+                                mergedPhotos.push(activePhoto);
+                            }
+                        }
+
+                        console.log(`[App] Hydrating ${persistentPhotos.length} saved photos, adding ${activePhotos.length} active session photos.`);
+                        savedData.assets.photos = mergedPhotos;
+                    } else {
                         savedData.assets = { photos: activePhotos };
                     }
 
@@ -321,23 +334,13 @@ class App {
         const activeId = store.state.activePageId;
         const pageEl = document.querySelector(`.timeline-page.active`);
         if (pageEl && pageEl._lazyRender) {
-            // If it's active and hasn't rendered yet (unlikely), don't force it unless visible
-        } else if (pageEl) {
-            // Ideally here we just run _lazyRender again to update the thumbnail image
-            // But rebuilding the entire timeline is a performance killer.
-            // We can safely leave the thumbnail slightly stale until a major page swap,
-            // or manually re-render just this one element.
-
-            // For now, let's just let it be slightly stale to prevent the "bouncing" 
-            // IntersectionObserver loop bug that wipes the whole list.
-            // If we must sync it, we can call updateTimeline(store.state.pages, activeId)
-            // but we MUST throttle it drastically.
-
-            if (this.timelineDebounceTimer) clearTimeout(this.timelineDebounceTimer);
-            this.timelineDebounceTimer = setTimeout(() => {
-                this.updateTimeline(store.state.pages, store.state.activePageId);
-            }, 1000);
+            // If it's active and hasn't rendered yet, aggressively render it now
+            pageEl._lazyRender();
+            pageEl._lazyRender = null;
         }
+        // Completely removed the setTimeout that was forcefully rebuilding the 
+        // entire timeline 1000ms after navigating between pages. This was causing
+        // the massive bouncing/flickering bug where thumbnails blanked out.
     }
 
     renderActivePage() {
@@ -596,7 +599,7 @@ class App {
         // Subscribe to state changes
         store.subscribe((state, prop, value) => {
             // TRIGGER AUTO-SAVE
-            if (['pages', 'cover', 'assets', 'theme'].includes(prop)) {
+            if (['pages', 'cover', 'assets', 'theme', 'history_restore'].includes(prop)) {
                 if (this.saveDebounced) this.saveDebounced(state);
             }
 
@@ -604,7 +607,7 @@ class App {
                 if (this.renderAssetSidebar) this.renderAssetSidebar();
             }
 
-            if (prop === 'activePageId' || prop === 'pages' || prop === 'selection' || prop === 'theme' || prop === 'viewMode' || prop === 'cover') {
+            if (prop === 'activePageId' || prop === 'pages' || prop === 'selection' || prop === 'theme' || prop === 'viewMode' || prop === 'cover' || prop === 'history_restore') {
                 if (state.viewMode === 'cover') {
                     this.renderCoverWithTemplate();
                 } else {
@@ -624,7 +627,7 @@ class App {
                     this.updatePropertiesPanel(state);
                 }
 
-                if (prop === 'pages' || prop === 'cover') {
+                if (prop === 'pages' || prop === 'cover' || prop === 'history_restore') {
                     this.updatePropertiesPanel(state);
                 }
             }
@@ -981,7 +984,7 @@ class App {
             const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
 
             // Import and open the album preview
-            import(`../ui-components/album-preview.js?v=${Date.now()}`).then(({ albumPreview }) => {
+            import(`../ui-components/album-preview.js`).then(({ albumPreview }) => {
                 albumPreview.open(
                     store.state.pages,
                     store.state.cover,
@@ -1041,26 +1044,18 @@ class App {
         // Review & Order Actions
         // 1. Review (Download PDF)
         document.getElementById('btn-review').addEventListener('click', async () => {
-            console.log("Generating Review PDF...");
+            console.log("Generating Review PDF via Server...");
 
             // Ensure config is up to date
             const hasTemplateConfig = this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config;
             const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
 
             if (templateConfig) {
-                pdfExport.setTemplateConfig(templateConfig);
-                pdfCanvasExport.setTemplateConfig(templateConfig);
+                pdfServerExport.setTemplateConfig(templateConfig);
             }
 
-            // Use canvas-based export for template-based pages
-            const firstPage = store.state.pages[0];
-            const isTemplateBased = firstPage && firstPage.templateId && templateConfig;
-
-            if (isTemplateBased) {
-                await pdfCanvasExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
-            } else {
-                await pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
-            }
+            // Always use High-Res Server Export for final fidelity
+            await pdfServerExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
 
             // Show Order Button
             document.getElementById('btn-order-print').style.display = 'inline-block';
@@ -1075,20 +1070,11 @@ class App {
             const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
 
             if (templateConfig) {
-                pdfExport.setTemplateConfig(templateConfig);
-                pdfCanvasExport.setTemplateConfig(templateConfig);
+                pdfServerExport.setTemplateConfig(templateConfig);
             }
 
-            // Generate Blob - use canvas-based export for template-based pages
-            const firstPage = store.state.pages[0];
-            const isTemplateBased = firstPage && firstPage.templateId && templateConfig;
-
-            let blob;
-            if (isTemplateBased) {
-                blob = await pdfCanvasExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
-            } else {
-                blob = await pdfExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
-            }
+            // Generate Blob - use Server Export
+            const blob = await pdfServerExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
 
             if (blob) {
                 orderFlow.startOrderFlow(blob);
@@ -1722,8 +1708,10 @@ class App {
         store.addPage();
         store.state.viewMode = 'pages';
 
-        // Clear Persistence immediatley to prevent reload of old data
+        // Clear local persistence ID so next save creates a new file instead of overwriting the previous one
+        persistenceService.currentProjectId = null;
         if (store.state.user) {
+            // First save empty slate to local DB, it will just establish the new UUID file
             persistenceService.saveProject(store.state.user.uid, store.state);
         }
 
@@ -3347,18 +3335,10 @@ window.addEventListener('DOMContentLoaded', () => {
     window.app = new App();
 });
 
-// PDF Preview Handler
+// PDF Preview Handler (Now handled by Component UI)
 window.downloadPdfOnly = async () => {
-    console.log("Preview PDF Clicked");
-    // Use current store state
-    const { pages, cover, assets } = store.state;
-
-    // Set template config before generating PDF
-    if (window.app && window.app.templateSidebar && window.app.templateSidebar.manager && window.app.templateSidebar.manager.config) {
-        pdfExport.setTemplateConfig(window.app.templateSidebar.manager.config);
-    }
-
-    await pdfExport.generatePDF(pages, cover, assets);
+    console.log("PDF download triggered externally.");
+    // This is a legacy hook. Real generation happens via UI component buttons communicating with pdfServerExport
 };
 
 // --- DEMO HELPER: Create Mock Album ---

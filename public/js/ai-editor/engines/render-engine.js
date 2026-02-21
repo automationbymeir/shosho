@@ -552,22 +552,15 @@ export class RenderEngine {
                 img.style.height = '100%';
                 img.style.objectFit = 'cover';
 
-                // Use proxy for Google Photos
+                // Use standard UI sizing for Google Photos (Edge CDN caching)
                 if (photo.source === 'google-photos' || (photo.url && photo.url.includes('googleusercontent.com'))) {
-                    if (photo.thumbnailUrl) {
-                        img.src = photo.thumbnailUrl;
+                    let targetUrl = photo.rawBaseUrl || photo.url;
+                    if (!targetUrl.includes('=')) {
+                        targetUrl += '=w1200';
+                    } else if (targetUrl.includes('=d')) {
+                        targetUrl = targetUrl.replace('=d', '=w1200');
                     }
-                    import('../services/google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
-                        let targetUrl = photo.rawBaseUrl || photo.url;
-                        if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
-                            targetUrl = targetUrl.split('=')[0] + '=d';
-                        } else if (!targetUrl.includes('=d')) {
-                            targetUrl = `${targetUrl}=d`;
-                        }
-                        googlePhotosService.fetchHighResImage(targetUrl)
-                            .then(dataUri => { img.src = dataUri; })
-                            .catch(err => console.warn('[RenderEngine] Cover back photo proxy failed:', err));
-                    });
+                    img.src = photo.thumbnailUrl || targetUrl;
                 } else {
                     img.src = photo.url;
                 }
@@ -665,22 +658,15 @@ export class RenderEngine {
                 photoEl.dataset.selectableId = 'cover-photo';
                 photoEl.dataset.selectableType = 'cover-photo';
 
-                // Use proxy for Google Photos
+                // Use standard UI sizing for Google Photos (Edge CDN caching)
                 if (photo.source === 'google-photos' || (photo.url && photo.url.includes('googleusercontent.com'))) {
-                    if (photo.thumbnailUrl) {
-                        photoEl.style.backgroundImage = `url(${photo.thumbnailUrl})`;
+                    let targetUrl = photo.rawBaseUrl || photo.url;
+                    if (!targetUrl.includes('=')) {
+                        targetUrl += '=w1200';
+                    } else if (targetUrl.includes('=d')) {
+                        targetUrl = targetUrl.replace('=d', '=w1200');
                     }
-                    import('../services/google-photos-service.js?v=forceNew6').then(({ googlePhotosService }) => {
-                        let targetUrl = photo.rawBaseUrl || photo.url;
-                        if (targetUrl.includes('=w') || targetUrl.includes('=h') || targetUrl.includes('=s')) {
-                            targetUrl = targetUrl.split('=')[0] + '=d';
-                        } else if (!targetUrl.includes('=d')) {
-                            targetUrl = `${targetUrl}=d`;
-                        }
-                        googlePhotosService.fetchHighResImage(targetUrl)
-                            .then(dataUri => { photoEl.style.backgroundImage = `url(${dataUri})`; })
-                            .catch(err => console.warn('[RenderEngine] Cover front photo proxy failed:', err));
-                    });
+                    photoEl.style.backgroundImage = `url(${photo.thumbnailUrl || targetUrl})`;
                 } else {
                     photoEl.style.backgroundImage = `url(${photo.url})`;
                 }

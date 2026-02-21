@@ -7,8 +7,7 @@
  */
 
 import { store } from '../core/state.js';
-import { pdfExport } from '../engines/pdf-export.js';
-import { pdfCanvasExport } from '../engines/pdf-canvas-export.js';
+import { pdfServerExport } from '../engines/pdf-server-export.js';
 import { RenderEngine } from '../engines/render-engine.js';
 
 // Template renderers for page preview
@@ -1655,18 +1654,10 @@ export class AlbumPreview {
         try {
             // Use the template config
             if (this.templateConfig) {
-                pdfExport.setTemplateConfig(this.templateConfig);
-                pdfCanvasExport.setTemplateConfig(this.templateConfig);
+                pdfServerExport.setTemplateConfig(this.templateConfig);
             }
 
-            const firstPage = this.pages[0];
-            const isTemplateBased = firstPage && firstPage.templateId && this.templateConfig;
-
-            if (isTemplateBased) {
-                await pdfCanvasExport.generatePDF(this.pages, this.cover, this.assets);
-            } else {
-                await pdfExport.generatePDF(this.pages, this.cover, this.assets);
-            }
+            await pdfServerExport.generatePDF(this.pages, this.cover, this.assets);
 
         } catch (error) {
             console.error('PDF generation failed:', error);

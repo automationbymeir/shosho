@@ -10,12 +10,16 @@ class EditorStore {
         this.historyIndex = -1;
         this.maxHistory = 50;
 
+        this._isBatchUpdating = false;
+
         const initialState = this.getInitialState();
 
         this.state = new Proxy(initialState, {
             set: (target, property, value) => {
                 target[property] = value;
-                this.notify(property, value);
+                if (!this._isBatchUpdating) {
+                    this.notify(property, value);
+                }
                 return true;
             }
         });
@@ -64,7 +68,9 @@ class EditorStore {
             }
         });
 
+        this._isBatchUpdating = true;
         Object.assign(this.state, freshState);
+        this._isBatchUpdating = false;
 
         // Clear History
         this.history = [];
@@ -155,13 +161,19 @@ class EditorStore {
         const s = historyItem.snapshot;
 
         // Restore components
-        // We do this individually to trigger notifications appropriately if needed, 
-        // though our simple proxy might just need singular updates.
-        // Direct assignment triggers the Proxy trap.
-        if (s.pages) this.state.pages = JSON.parse(JSON.stringify(s.pages));
+        // We temporarily disable individual notifications to avoid intermediate broken states
+        this._isBatchUpdating = true;
+        if (s.pages) {
+            this.state.pages = JSON.parse(JSON.stringify(s.pages));
+            // Ensure the active page wasn't deleted in this historical state
+            if (!this.state.pages.find(p => p.id === this.state.activePageId) && this.state.pages.length > 0) {
+                this.state.activePageId = this.state.pages[0].id;
+            }
+        }
         if (s.cover) this.state.cover = JSON.parse(JSON.stringify(s.cover));
         if (s.assets) this.state.assets = JSON.parse(JSON.stringify(s.assets));
         if (s.theme) this.state.theme = s.theme;
+        this._isBatchUpdating = false;
 
         // Force a global refresh notification to ensure all UI components update
         this.notify('history_restore', null);
