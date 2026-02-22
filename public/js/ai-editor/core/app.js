@@ -70,6 +70,7 @@ class App {
     init() {
         this.renderer = new RenderEngine('canvas-container');
         this.state = store.state; // Direct access ref
+        this.moveableInstance = null; // Groundwork for Moveable integration
         this.bindEvents();
         this.createHoverTooltip();
         this.loadAssets();
@@ -607,6 +608,71 @@ class App {
         document.body.appendChild(tooltip);
     }
 
+    updateMoveable(state) {
+        if (!window.Moveable) return;
+
+        const container = document.getElementById('canvas-container');
+        if (!container) return;
+
+        // Clean up existing instance if no selection
+        if (!state.selection) {
+            if (this.moveableInstance) {
+                this.moveableInstance.destroy();
+                this.moveableInstance = null;
+            }
+            return;
+        }
+
+        // Find the newly rendered selected element
+        const targetEl = document.querySelector(`[data-selectable-id="${state.selection}"]`);
+
+        if (!targetEl) {
+            if (this.moveableInstance) {
+                this.moveableInstance.destroy();
+                this.moveableInstance = null;
+            }
+            return;
+        }
+
+        // We have a selection and a DOM element
+        if (this.moveableInstance) {
+            this.moveableInstance.target = targetEl;
+            this.moveableInstance.updateRect();
+        } else {
+            console.log("[App] Instantiating Moveable for element config groundwork.");
+            this.moveableInstance = new window.Moveable(container, {
+                target: targetEl,
+                draggable: true,
+                resizable: true,
+                rotatable: true,
+                snappable: true,
+                edge: false,
+                origin: true,
+                keepRatio: false
+            });
+
+            // Groundwork for Moveable transformations mapped to inline styles
+            this.moveableInstance.on('drag', ({ target, transform }) => {
+                target.style.transform = transform;
+            }).on('resize', ({ target, width, height, drag }) => {
+                target.style.width = `${width}px`;
+                target.style.height = `${height}px`;
+                target.style.transform = drag.transform;
+            }).on('rotate', ({ target, transform }) => {
+                target.style.transform = transform;
+            }).on('dragEnd', () => {
+                // Groundwork for future state persistence
+                console.log("[Moveable] Drag End - Need to map to state later");
+            }).on('resizeEnd', () => {
+                // Groundwork for future state persistence
+                console.log("[Moveable] Resize End - Need to map to state later");
+            }).on('rotateEnd', () => {
+                // Groundwork for future state persistence
+                console.log("[Moveable] Rotate End - Need to map to state later");
+            });
+        }
+    }
+
     bindEvents() {
         // Profile Button
         const btnProfile = document.getElementById('btn-profile');
@@ -653,6 +719,9 @@ class App {
                 // Update properties panel for all these changes
                 this.updatePropertiesPanel(state);
             }
+
+            // Attach/Update Moveable after the DOM has been fully re-rendered
+            this.updateMoveable(state);
         });
 
         // ... existing code ...
