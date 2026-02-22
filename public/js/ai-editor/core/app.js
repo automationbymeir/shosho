@@ -978,8 +978,14 @@ class App {
 
                 const styleLeft = parseFloat(targetEl.style.left) || targetEl.offsetLeft;
                 const styleTop = parseFloat(targetEl.style.top) || targetEl.offsetTop;
-                const unscaledWidth = targetEl.offsetWidth;
-                const unscaledHeight = targetEl.offsetHeight;
+
+                // FIXED: Use getBoundingClientRect divided by scale instead of offsetWidth/Height
+                // because offsetWidth is unreliable when the element itself is scaled.
+                const scaleX = targetEl.dragScaleX || 1;
+                const scaleY = targetEl.dragScaleY || 1;
+                const rect = targetEl.getBoundingClientRect();
+                const unscaledWidth = rect.width / scaleX;
+                const unscaledHeight = rect.height / scaleY;
 
                 const containerWidth = relativeContainer ? relativeContainer.offsetWidth : canvas.clientWidth;
                 const containerHeight = relativeContainer ? relativeContainer.offsetHeight : canvas.clientHeight;
@@ -1000,12 +1006,16 @@ class App {
                     if (store.state.viewMode === 'cover' || (targetContainer.templateId && !targetContainer.templateId.startsWith('layout-'))) {
                         store.pushState('Move Element');
                         if (!targetContainer.textPositions) targetContainer.textPositions = {};
-                        targetContainer.textPositions[dragTargetId] = {
-                            x: relativeX + '%',
-                            y: relativeY + '%',
-                            width: relativeW + '%',
-                            height: relativeH + '%'
-                        };
+
+                        // Sanity Check: Ensure valid numbers so it doesn't get stuck in a bad state
+                        if (!isNaN(relativeX) && !isNaN(relativeY)) {
+                            targetContainer.textPositions[dragTargetId] = {
+                                x: relativeX + '%',
+                                y: relativeY + '%',
+                                width: (isNaN(relativeW) || relativeW === 0) ? 'auto' : relativeW + '%',
+                                height: (isNaN(relativeH) || relativeH === 0) ? 'auto' : relativeH + '%'
+                            };
+                        }
                         if (store.state.viewMode === 'cover') {
                             store.notify('cover', store.state.cover);
                         } else {
