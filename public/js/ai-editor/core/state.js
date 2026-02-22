@@ -100,12 +100,17 @@ class EditorStore {
 
         let snapshot;
         try {
-            // Attempt to stringify the state
-            // If this fails (e.g. base64 images making it too large), we catch it.
-            // Use a clean clone of pages to ensure full photo objects and nested properties are kept.
+            // Use structuredClone to bypass V8 JSON.stringify 512MB string length limits with high-res base64 arrays
+            const cloneObject = (obj) => {
+                if (typeof structuredClone === 'function') {
+                    try { return structuredClone(obj); } catch (e) { }
+                }
+                return JSON.parse(JSON.stringify(obj));
+            };
+
             const rawSnapshot = {
-                pages: JSON.parse(JSON.stringify(this.state.pages || [])),
-                cover: JSON.parse(JSON.stringify(this.state.cover || {})),
+                pages: cloneObject(this.state.pages || []),
+                cover: cloneObject(this.state.cover || {}),
                 theme: this.state.theme
             };
             snapshot = rawSnapshot;
@@ -156,17 +161,24 @@ class EditorStore {
         const s = historyItem.snapshot;
 
         // Restore components
-        // We temporarily disable individual notifications to avoid intermediate broken states
         this._isBatchUpdating = true;
+
+        const cloneObject = (obj) => {
+            if (typeof structuredClone === 'function') {
+                try { return structuredClone(obj); } catch (e) { }
+            }
+            return JSON.parse(JSON.stringify(obj));
+        };
+
         if (s.pages) {
-            this.state.pages = JSON.parse(JSON.stringify(s.pages));
+            this.state.pages = cloneObject(s.pages);
             // Ensure the active page wasn't deleted in this historical state
             if (!this.state.pages.find(p => p.id === this.state.activePageId) && this.state.pages.length > 0) {
                 this.state.activePageId = this.state.pages[0].id;
             }
         }
-        if (s.cover) this.state.cover = JSON.parse(JSON.stringify(s.cover));
-        if (s.assets) this.state.assets = JSON.parse(JSON.stringify(s.assets));
+        if (s.cover) this.state.cover = cloneObject(s.cover);
+        if (s.assets) this.state.assets = cloneObject(s.assets);
         if (s.theme) this.state.theme = s.theme;
         this._isBatchUpdating = false;
 

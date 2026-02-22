@@ -83,11 +83,18 @@ export const persistenceService = {
 
             // 2. Prepare Data for Local Storage
             // IndexedDB can handle Blobs directly, which is great for performance
+            const cloneObject = (obj) => {
+                if (typeof structuredClone === 'function') {
+                    try { return structuredClone(obj); } catch (e) { }
+                }
+                return JSON.parse(JSON.stringify(obj));
+            };
+
             const localDataToSave = {
                 id: this.currentProjectId,
                 title: projectData.cover?.title || "Untitled Album",
                 lastModified: Date.now(),
-                state: JSON.parse(JSON.stringify(projectData)) // Deep clone to avoid proxy issues, blobs are strings here typically, but structured clone is better if real Blobs
+                state: cloneObject(projectData) // Deep clone passing V8 string limits
             };
 
             // Convert live active session Blob URLs to Base64 *before* saving locally 
