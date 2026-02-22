@@ -660,16 +660,51 @@ class App {
                 target.style.transform = drag.transform;
             }).on('rotate', ({ target, transform }) => {
                 target.style.transform = transform;
-            }).on('dragEnd', () => {
-                // Groundwork for future state persistence
-                console.log("[Moveable] Drag End - Need to map to state later");
-            }).on('resizeEnd', () => {
-                // Groundwork for future state persistence
-                console.log("[Moveable] Resize End - Need to map to state later");
-            }).on('rotateEnd', () => {
-                // Groundwork for future state persistence
-                console.log("[Moveable] Rotate End - Need to map to state later");
+            }).on('dragEnd', ({ target }) => {
+                this.persistMoveableState(target);
+            }).on('resizeEnd', ({ target }) => {
+                this.persistMoveableState(target);
+            }).on('rotateEnd', ({ target }) => {
+                this.persistMoveableState(target);
             });
+        }
+    }
+
+    persistMoveableState(target) {
+        if (!target) return;
+        const id = target.dataset.selectableId;
+        const type = target.dataset.selectableType;
+
+        if (!id || !type) return;
+
+        if (type === 'cover-text') {
+            if (!store.state.cover.textStyles) store.state.cover.textStyles = {};
+            if (!store.state.cover.textStyles[id]) store.state.cover.textStyles[id] = {};
+
+            // Save transformations
+            store.state.cover.textStyles[id].transform = target.style.transform;
+            store.state.cover.textStyles[id].width = target.style.width;
+            store.state.cover.textStyles[id].height = target.style.height;
+
+            clearTimeout(window._moveableDebounce);
+            window._moveableDebounce = setTimeout(() => {
+                store.notify('cover', store.state.cover);
+            }, 500);
+        } else if (type === 'text' || type === 'shape') {
+            const page = store.state.pages.find(p => p.id === store.state.activePageId);
+            if (page && page.elements) {
+                const el = page.elements.find(e => e.id === id);
+                if (el) {
+                    el.transform = target.style.transform;
+                    el.pixelWidth = target.style.width;
+                    el.pixelHeight = target.style.height;
+
+                    clearTimeout(window._moveableDebounce);
+                    window._moveableDebounce = setTimeout(() => {
+                        store.notify('pages', store.state.pages);
+                    }, 500);
+                }
+            }
         }
     }
 

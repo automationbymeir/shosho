@@ -371,12 +371,21 @@ export class RenderEngine {
                 domEl.style.top = `${el.y}%`;
                 if (el.zIndex !== undefined) domEl.style.zIndex = el.zIndex;
 
+                // Retain drag coordinates from Moveable
+                if (el.transform) domEl.style.transform = el.transform;
+
                 domEl.dataset.selectableType = el.type;
                 domEl.dataset.selectableId = el.id;
 
                 if (el.type === 'text') {
                     domEl.classList.add('text-element');
                     domEl.style.minWidth = '200px';
+                    if (el.pixelWidth) {
+                        domEl.style.width = el.pixelWidth;
+                    }
+                    if (el.pixelHeight) {
+                        domEl.style.height = el.pixelHeight;
+                    }
                     domEl.style.maxWidth = `${el.width || 50}%`;
                     if (!el.zIndex) domEl.style.zIndex = 10;
 
