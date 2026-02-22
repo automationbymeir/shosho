@@ -19,7 +19,7 @@ import { RomanticJourneyRenderer } from '../templates/romantic-journey-renderer.
 import { TravelJourneyRenderer } from '../templates/travel-journey-renderer.js';
 import { FamilyRootsRenderer } from '../templates/family-roots-renderer.js';
 import { BarMitzvahRenderer } from '../templates/bar-mitzvah-renderer.js';
-import { UnifiedCoverRenderer } from '../engines/unified-cover-renderer.js';
+import { UnifiedCoverRenderer } from '../engines/unified-cover-renderer.js?v=align2';
 import { WeddingPrestigeRenderer } from '../templates/wedding-prestige-renderer.js';
 import { ProfileModal } from '../ui-components/profile-modal.js';
 import { photoPositionService } from '../services/photo-position-service.js';
@@ -868,6 +868,11 @@ class App {
         });
 
         canvas.addEventListener('click', (e) => {
+            // Ignore clicks on Moveable elements to prevent deselection bugs after drag
+            if (e.target.closest('*[class*="moveable-"]')) {
+                return;
+            }
+
             // Check if clicked on a selectable item
             const target = e.target.closest('[data-selectable-id]');
 
@@ -2472,6 +2477,32 @@ class App {
         sizeGroup.innerHTML = `<label>גודל: ${textEl.fontSize}px</label><input type="range" id="prop-text-size" min="12" max="120" value="${textEl.fontSize}">`;
         container.appendChild(sizeGroup);
 
+        // Alignment Buttons
+        const alignGroup = document.createElement('div');
+        alignGroup.className = 'prop-group';
+        alignGroup.innerHTML = `
+            <label>יישור טקסט</label>
+            <div style="display:flex; gap:10px; margin-top:5px; margin-bottom: 10px;" class="align-buttons">
+                <button class="btn-secondary btn-sm align-btn" data-align="right" title="ימין" style="flex:1"><i class="fa-solid fa-align-right"></i></button>
+                <button class="btn-secondary btn-sm align-btn" data-align="center" title="מרכז" style="flex:1"><i class="fa-solid fa-align-center"></i></button>
+                <button class="btn-secondary btn-sm align-btn" data-align="left" title="שמאל" style="flex:1"><i class="fa-solid fa-align-left"></i></button>
+            </div>
+        `;
+        container.appendChild(alignGroup);
+
+        alignGroup.querySelectorAll('.align-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const align = e.currentTarget.dataset.align;
+                textEl.textAlign = align;
+                const visualEl = document.querySelector(`[data-selectable-id="${textEl.id}"]`);
+                if (visualEl) {
+                    visualEl.style.textAlign = align;
+                    if (window.app && window.app.moveableInstance) window.app.moveableInstance.updateRect();
+                }
+                store.notify('pages', store.state.pages);
+            });
+        });
+
         // Bindings
         container.querySelector('#prop-text-content').addEventListener('input', (e) => {
             textEl.content = e.target.value;
@@ -2581,11 +2612,35 @@ class App {
                         השתמש במחוון כדי לשנות את הגודל ביחס לגודל המקורי בתבנית.
                     </div>
                 </div>
+                <div>
+                    <label>יישור טקסט</label>
+                    <div style="display:flex; gap:10px; margin-top:5px; margin-bottom: 10px;" class="align-buttons">
+                        <button class="btn-secondary btn-sm align-btn" data-align="right" title="ימין" style="flex:1"><i class="fa-solid fa-align-right"></i></button>
+                        <button class="btn-secondary btn-sm align-btn" data-align="center" title="מרכז" style="flex:1"><i class="fa-solid fa-align-center"></i></button>
+                        <button class="btn-secondary btn-sm align-btn" data-align="left" title="שמאל" style="flex:1"><i class="fa-solid fa-align-left"></i></button>
+                    </div>
+                </div>
             </div>
         `;
 
         panel.querySelector('#btn-back-to-cover').addEventListener('click', () => {
             store.state.selection = null;
+        });
+
+        panel.querySelectorAll('.align-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const align = e.currentTarget.dataset.align;
+                if (!store.state.cover.textStyles) store.state.cover.textStyles = {};
+                if (!store.state.cover.textStyles[selectionId]) store.state.cover.textStyles[selectionId] = {};
+                store.state.cover.textStyles[selectionId].textAlign = align;
+
+                const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"]`);
+                if (visualEl) {
+                    visualEl.style.setProperty('text-align', align, 'important');
+                    if (window.app && window.app.moveableInstance) window.app.moveableInstance.updateRect();
+                }
+                store.notify('cover', store.state.cover);
+            });
         });
 
         panel.querySelector('#prop-inline-text').addEventListener('input', (e) => {

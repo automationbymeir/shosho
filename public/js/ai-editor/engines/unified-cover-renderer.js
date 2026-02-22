@@ -716,6 +716,18 @@ export class UnifiedCoverRenderer {
 
                 el.style.cssText = cssString;
 
+                // Apply custom text styles (size scale and alignment)
+                const customStyles = (cover.textStyles && cover.textStyles[textSpec.elementId]) || {};
+                if (customStyles.textAlign) {
+                    el.style.setProperty('text-align', customStyles.textAlign, 'important');
+                }
+                if (customStyles.size) {
+                    const scaleVal = customStyles.size / 100;
+                    // Preserve existing transform if any, then append scaling
+                    el.style.transform = `scale(${scaleVal})`;
+                    el.style.transformOrigin = 'center center';
+                }
+
                 if (interactive && textSpec.editable !== false) {
                     el.dataset.selectableId = textSpec.elementId;
                     el.dataset.selectableType = 'cover-text';
