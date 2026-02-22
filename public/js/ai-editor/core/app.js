@@ -10,7 +10,7 @@ import { pdfServerExport } from '../engines/pdf-server-export.js';
 import { googlePhotosService } from '../services/google-photos-service.js?v=forceNew6';
 import { geminiService } from '../services/ai-service.js';
 import { aiDirector } from '../engines/ai-director.js';
-import { orderFlow } from '../services/order-flow.js';
+import { orderFlow } from '../services/order-flow.js?v=bookpod1';
 import { authService } from '../services/firebase-auth-service.js?v=forceProduction';
 import { persistenceService } from '../services/persistence-service.js';
 import { TemplateSidebar } from '../ui-components/template-sidebar.js?v=force_refresh_1';
