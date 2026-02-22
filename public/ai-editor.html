@@ -1,14 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0f172a">
-    <title>Shosho AI Editor</title>
+    <title>עורך Shosho AI</title>
 
     <!-- Favicon -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -50,8 +51,8 @@
     <link rel="stylesheet" href="css/adventure-journal.css">
     <!-- Enhanced 3D Book Styles -->
     <link rel="stylesheet" href="css/book-3d-enhanced.css">
-    <!-- Responsive Styles -->
-    <link rel="stylesheet" href="css/ai-editor-responsive.css">
+    <!-- Mobile Responsive Styles -->
+    <link rel="stylesheet" href="css/ai-editor-mobile.css">
     <!-- Travel Journey Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <!-- Template Fonts (Baby & Adventure) -->
@@ -65,22 +66,22 @@
         <!-- Left Sidebar: Assets -->
         <aside id="sidebar-left">
             <div class="sidebar-nav">
-                <button class="nav-item active" data-tab="photos" title="Photos"><i
+                <button class="nav-item active" data-tab="photos" title="תמונות"><i
                         class="fa-regular fa-images"></i></button>
-                <button class="nav-item" data-tab="templates" title="Templates"><i
+                <button class="nav-item" data-tab="templates" title="תבניות"><i
                         class="fa-solid fa-book-open"></i></button>
-                <button class="nav-item" data-tab="designs" title="Designs"><i
+                <button class="nav-item" data-tab="designs" title="עיצובים"><i
                         class="fa-solid fa-paintbrush"></i></button>
-                <button class="nav-item" data-tab="text" title="Text"><i class="fa-solid fa-font"></i></button>
-                <button class="nav-item" data-tab="ai" title="AI Generate"><i
+                <button class="nav-item" data-tab="text" title="טקסט"><i class="fa-solid fa-font"></i></button>
+                <button class="nav-item" data-tab="ai" title="יצירת AI"><i
                         class="fa-solid fa-wand-magic-sparkles"></i></button>
-                <button class="nav-item" data-tab="frames" title="Frames"><i class="fa-regular fa-square"></i></button>
+                <button class="nav-item" data-tab="frames" title="מסגרות"><i class="fa-regular fa-square"></i></button>
             </div>
 
             <div class="sidebar-content">
                 <div id="tab-photos" class="tab-pane active">
                     <div class="panel-header">
-                        <h3>Photos</h3>
+                        <h3>תמונות</h3>
                         <button class="btn-icon" id="btn-add-photos-sidebar"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <!-- Photo Grid Injection Point -->
@@ -89,21 +90,21 @@
 
                 <div id="tab-templates" class="tab-pane">
                     <div class="panel-header">
-                        <h3>Templates</h3>
+                        <h3>תבניות</h3>
                     </div>
                     <div id="template-library" class="asset-list"></div>
                 </div>
 
                 <div id="tab-designs" class="tab-pane">
                     <div class="panel-header">
-                        <h3>Designs</h3>
+                        <h3>עיצובים</h3>
                     </div>
                     <div id="design-library" class="asset-list"></div>
                 </div>
 
                 <div id="tab-text" class="tab-pane">
                     <div class="panel-header">
-                        <h3>Typography</h3>
+                        <h3>טיפוגרפיה</h3>
                     </div>
                     <div id="text-library" class="asset-list"></div>
                 </div>
@@ -113,27 +114,27 @@
                     <div class="panel-header" style="background: linear-gradient(135deg, #1e1e2f 0%, #2d2b42 100%);">
                         <h3 style="display:flex; align-items:center; gap:8px;">
                             <i class="fa-solid fa-wand-magic-sparkles" style="color: #a855f7;"></i>
-                            AI Studio
+                            סטודיו AI
                         </h3>
                     </div>
                     <div style="padding: 15px;">
                         <p style="font-size: 0.85em; color: #aaa; margin-bottom: 10px;">
-                            Generate unique assets using <strong>Nano Banana</strong> logic.
+                            צור נכסים ייחודיים באמצעות לוגיקת <strong>Nano Banana</strong>.
                         </p>
                         <textarea id="ai-prompt-input" rows="4"
-                            placeholder="Describe an image (e.g., 'golden sunset over mountains, oil painting style')"
+                            placeholder="תאר תמונה (לדוגמה: 'שקיעה מוזהבת מעל הרים, סגנון ציור שמן')"
                             style="width: 100%; padding: 10px; background: #333; border: 1px solid #444; color: white; border-radius: 6px; font-family: inherit; margin-bottom: 10px; resize: vertical;"></textarea>
 
                         <button id="btn-generate-ai" class="btn-primary"
                             style="width: 100%; justify-content: center; background: linear-gradient(90deg, #a855f7, #6366f1);">
-                            <i class="fa-solid fa-bolt"></i> Generate Asset
+                            <i class="fa-solid fa-bolt"></i> צור נכס
                         </button>
                     </div>
                 </div>
 
                 <div id="tab-frames" class="tab-pane">
                     <div class="panel-header">
-                        <h3>Frames</h3>
+                        <h3>מסגרות</h3>
                     </div>
                     <div id="frame-library" class="asset-list"></div>
                 </div>
@@ -146,27 +147,28 @@
                 <div class="toolbar-group">
                     <button class="btn-tool" id="btn-undo"><i class="fa-solid fa-rotate-left"></i></button>
                     <button class="btn-tool" id="btn-redo"><i class="fa-solid fa-rotate-right"></i></button>
-                    <button class="btn-tool" id="btn-new-project" title="Start New Project" style="margin-left: 10px;">
-                        <i class="fa-solid fa-file-circle-plus"></i> New
+                    <button class="btn-tool" id="btn-new-project" title="פרויקט חדש"
+                        style="margin-right: 10px; gap: 6px; display: inline-flex; align-items: center;">
+                        <i class="fa-solid fa-file-circle-plus"></i> חדש
                     </button>
                 </div>
 
                 <div class="toolbar-group center">
                     <button class="btn-pill" id="btn-remix-layout" style="background: rgba(255,255,255,0.1);">
-                        <i class="fa-solid fa-shuffle"></i> Remix Layout
+                        <i class="fa-solid fa-shuffle"></i> ערבב פריסה
                     </button>
                     <!-- New Magic Director Button -->
                     <button class="btn-pill" id="btn-magic-create"
-                        style="background: linear-gradient(90deg, #a855f7, #ec4899); color: white; font-weight: bold; border: none; margin-left: 10px;">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Magic Create
+                        style="background: linear-gradient(90deg, #a855f7, #ec4899); color: white; font-weight: bold; border: none; margin-right: 10px;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> יצירת קסם
                     </button>
                 </div>
 
                 <div class="toolbar-group">
-                    <button class="btn-secondary" id="btn-preview">Preview</button>
-                    <button class="btn-primary" id="btn-review">Review & Order</button>
+                    <button class="btn-secondary" id="btn-preview">תצוגה מקדימה</button>
+                    <button class="btn-primary" id="btn-review">סקירה והזמנה</button>
                     <button class="btn-primary" id="btn-order-print"
-                        style="display:none; background-color: #27ae60; border-color: #27ae60;">Order Album</button>
+                        style="display:none; background-color: #27ae60; border-color: #27ae60;">הזמן אלבום</button>
                 </div>
             </div>
 
@@ -181,10 +183,10 @@
         <!-- Right Sidebar: Properties -->
         <aside id="sidebar-right">
             <div class="panel-header">
-                <h3>Properties</h3>
+                <h3>מאפיינים</h3>
             </div>
             <div id="properties-panel">
-                <div class="empty-state">Select an element to edit</div>
+                <div class="empty-state">בחר אלמנט לעריכה</div>
             </div>
         </aside>
 
@@ -199,7 +201,7 @@
             <div class="timeline-controls">
                 <button class="btn-icon" id="btn-next-page"><i class="fa-solid fa-chevron-right"></i></button>
             </div>
-            <button class="btn-add-page"><i class="fa-solid fa-plus"></i> Add Page</button>
+            <button class="btn-add-page"><i class="fa-solid fa-plus"></i> הוסף עמוד</button>
         </footer>
     </div>
 
@@ -237,7 +239,7 @@
 
             <div class="modal-header"
                 style="justify-content: center; border-bottom: none; padding-bottom: 0; margin-bottom: 20px;">
-                <h3 style="font-size: 1.5rem; margin: 0;">Add Photos</h3>
+                <h3 style="font-size: 1.5rem; margin: 0;">הוסף תמונות</h3>
             </div>
 
             <div class="modal-body"
@@ -245,7 +247,7 @@
                 <button id="btn-upload-local" class="btn-secondary"
                     style="flex: 1; display: flex; align-items: center; justify-content: center; height: 60px; gap: 12px; font-size: 1.1rem;">
                     <i class="fa-solid fa-computer" style="font-size: 20px;"></i>
-                    Computer
+                    מחשב
                 </button>
                 <button id="btn-upload-google" class="btn-primary"
                     style="flex: 1; display: flex; align-items: center; justify-content: center; height: 60px; gap: 12px; font-size: 1.1rem; background-color: #4285F4; color: white; border: none;">
@@ -306,10 +308,10 @@
                 onclick="document.getElementById('pdfDownloadModal').classList.remove('active')">&times;</button>
             <div class="modal-body">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
-                <h2>PDF Ready!</h2>
-                <p style="margin-bottom: 2rem; color: #94a3b8;">Your high-resolution PDF has been generated.</p>
+                <h2>ה-PDF מוכן!</h2>
+                <p style="margin-bottom: 2rem; color: #94a3b8;">ה-PDF ברזולוציה גבוהה שלך נוצר בהצלחה.</p>
                 <a id="btn-download-trigger" class="btn-pill">
-                    Download PDF
+                    הורד PDF
                 </a>
             </div>
         </div>
@@ -358,16 +360,32 @@
             </div>
         </div>
 
-        <div class="loader-text">Extracting Photos from Google...</div>
-        <div class="loader-subtext">Optimizing high-resolution memories for your book</div>
+        <div class="loader-text">מייצא תמונות מ-Google...</div>
+        <div class="loader-subtext">מבצע אופטימיזציה של זכרונות ברזולוציה גבוהה עבור הספר שלך</div>
 
-        <!-- Mobile Drag and Drop Polyfill -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
-        <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/scroll-behaviour.min.js"></script>
+        <div class="loader-progress-track">
+            <div class="loader-progress-fill"></div>
+        </div>
+    </div>
 
-        <!-- Responsive Layout Handler -->
-        <script src="js/ai-editor-responsive.js"></script>
+    <!-- Mobile Drag and Drop Polyfill -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/scroll-behaviour.min.js"></script>
+    <script>
+        // Initialize polyfill immediately
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            MobileDragDrop.polyfill({
+                dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride,
+                holdToDrag: 100 // small delay
+            });
+            window.addEventListener('touchmove', function () { }, { passive: false });
+            console.log("Mobile Drag & Drop polyfill initialized.");
+        }
+    </script>
+
+    <!-- Mobile Handler -->
+    <script src="js/ai-editor-mobile.js"></script>
 </body>
 
 </html>

@@ -241,25 +241,32 @@
         z-index: 1;
     }
 
-    /* Top Toolbar - Mobile Optimized */
+    /* Top Toolbar - Mobile Optimized (Scrollable Ribbon) */
     .toolbar-top {
         height: auto;
         min-height: var(--mobile-toolbar-height);
         padding: 8px 8px;
         flex-wrap: nowrap;
-        gap: 4px;
-        background: linear-gradient(to bottom, var(--bg-dark) 70%, transparent);
-        position: relative;
+        gap: 10px;
+        background: var(--bg-dark);
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
         z-index: 50;
-        justify-content: space-between;
+        justify-content: flex-start;
         align-items: center;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        /* Smooth scrolling */
     }
 
     .toolbar-group {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 8px;
         flex-shrink: 0;
+        /* Keep items on a single line */
     }
 
     /* Remove absolute positioning on mobile - causes overlap */
@@ -311,21 +318,14 @@
         white-space: nowrap;
     }
 
-    /* Hide buttons not critical on mobile */
+    /* ALL tools are explicitly visible in the horizontal ribbon */
     #btn-new-project,
     #btn-redo,
     #btn-remix-layout,
-    #btn-review {
-        display: none !important;
-    }
-
-    #btn-undo {
-        display: none !important;
-    }
-
-    /* Hide top toolbar magic button on mobile - use bottom nav AI tab instead */
+    #btn-review,
+    #btn-undo,
     #btn-magic-create {
-        display: none !important;
+        display: inline-flex !important;
     }
 
     /* Canvas Viewport */
@@ -353,11 +353,19 @@
     }
 
     /* ============================================
-       TIMELINE BAR → HORIZONTAL SCROLL
+       TIMELINE BAR → FIXED ABOVE BOTTOM PANEL
        ============================================ */
     #timeline-bar {
-        display: none;
-        /* Hidden by default, integrated into bottom panel */
+        display: flex !important;
+        position: fixed;
+        bottom: var(--mobile-panel-collapsed);
+        left: 0;
+        right: 0;
+        z-index: 99;
+        background: var(--bg-dark);
+        border-top: 1px solid var(--border);
+        height: auto;
+        padding: 8px 0;
     }
 
     /* Timeline in bottom panel */
@@ -455,9 +463,12 @@
         transform: scale(0.95);
     }
 
-    /* Hide Magic FAB on mobile - use bottom nav AI tab instead */
+    /* Provide Magic FAB on mobile anyway as redundancy/quick access */
     .mobile-fab-magic {
-        display: none !important;
+        display: flex !important;
+        bottom: calc(var(--mobile-panel-collapsed) + 90px);
+        right: 20px;
+        background: linear-gradient(135deg, var(--accent), #ec4899);
     }
 
     .mobile-fab-properties {
