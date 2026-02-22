@@ -16,11 +16,9 @@ class GooglePhotosService {
      * Open the Google Photos Picker via Backend Session
      */
     async openPicker() {
-        // Show Loader
+        // Find but do NOT show loader yet
         const loader = document.getElementById('google-photos-loader');
-        if (loader) loader.classList.add('active');
         const progressFill = document.querySelector('#google-photos-loader .loader-progress-fill');
-        if (progressFill) progressFill.style.width = '10%';
 
         return new Promise(async (resolve, reject) => {
             try {
@@ -212,8 +210,6 @@ class GooglePhotosService {
                 }, 2000);
 
                 const processAndResolve = async (sessionData) => {
-                    if (progressFill) progressFill.style.width = '80%';
-
                     let photos = (sessionData.photos || []).map(p => {
                         // Ensure baseUrl is clean
                         const baseUrl = p.baseUrl;
@@ -246,37 +242,43 @@ class GooglePhotosService {
                     // For speed, just fetch thumbnails for sidebar.
                     // The main app will handle HighRes errors on demand via the new RenderEngine proxy.
 
-                    try {
-                        const fetchThumbnails = functions.httpsCallable('fetchThumbnailBatch');
-                        // Use rawBaseUrl
-                        const baseUrls = photos.map(p => p.rawBaseUrl);
-                        const BATCH_SIZE = 10;
-                        const thumbMap = {};
+                    if (photos.length > 0) {
+                        // Only show the big loader now that we actually have photos to process
+                        if (loader) loader.classList.add('active');
+                        if (progressFill) progressFill.style.width = '40%';
 
-                        for (let i = 0; i < baseUrls.length; i += BATCH_SIZE) {
-                            const chunk = baseUrls.slice(i, i + BATCH_SIZE);
-                            // Validating:
-                            if (progressFill) {
-                                const p = 80 + (i / baseUrls.length) * 20;
-                                progressFill.style.width = `${p}%`;
-                            }
-                            try {
-                                const thumbResult = await fetchThumbnails({ baseUrls: chunk });
-                                if (thumbResult.data && thumbResult.data.thumbnails) {
-                                    thumbResult.data.thumbnails.forEach(t => {
-                                        if (t.thumbnailUrl) thumbMap[t.baseUrl] = t.thumbnailUrl;
-                                    });
+                        try {
+                            const fetchThumbnails = functions.httpsCallable('fetchThumbnailBatch');
+                            // Use rawBaseUrl
+                            const baseUrls = photos.map(p => p.rawBaseUrl);
+                            const BATCH_SIZE = 10;
+                            const thumbMap = {};
+
+                            for (let i = 0; i < baseUrls.length; i += BATCH_SIZE) {
+                                const chunk = baseUrls.slice(i, i + BATCH_SIZE);
+                                // Validating:
+                                if (progressFill) {
+                                    const p = 80 + (i / baseUrls.length) * 20;
+                                    progressFill.style.width = `${p}%`;
                                 }
-                            } catch (chunkErr) { console.error(chunkErr); }
-                        }
+                                try {
+                                    const thumbResult = await fetchThumbnails({ baseUrls: chunk });
+                                    if (thumbResult.data && thumbResult.data.thumbnails) {
+                                        thumbResult.data.thumbnails.forEach(t => {
+                                            if (t.thumbnailUrl) thumbMap[t.baseUrl] = t.thumbnailUrl;
+                                        });
+                                    }
+                                } catch (chunkErr) { console.error(chunkErr); }
+                            }
 
-                        photos = photos.map(p => ({
-                            ...p,
-                            // Use valid thumb or placeholder
-                            thumbnailUrl: thumbMap[p.rawBaseUrl] || 'data:image/svg+xml;base64,...(error)'
-                        }));
-                    } catch (err) {
-                        console.error(err);
+                            photos = photos.map(p => ({
+                                ...p,
+                                // Use valid thumb or placeholder
+                                thumbnailUrl: thumbMap[p.rawBaseUrl] || 'data:image/svg+xml;base64,...(error)'
+                            }));
+                        } catch (err) {
+                            console.error(err);
+                        }
                     }
 
                     if (progressFill) progressFill.style.width = '100%';

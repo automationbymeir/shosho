@@ -17,13 +17,13 @@ export class UnifiedCoverRenderer {
      * Available cover layout options
      */
     static LAYOUTS = [
-        { id: 'standard', label: 'Standard', description: 'Photo on top, text below' },
-        { id: 'full-bleed', label: 'Full Bleed', description: 'Photo fills entire cover' },
-        { id: 'photo-bottom', label: 'Photo Bottom', description: 'Text on top, photo below' },
-        { id: 'centered', label: 'Centered', description: 'Centered photo with text overlay' },
-        { id: 'minimal', label: 'Minimal', description: 'Text only, no photo area' },
-        { id: 'split', label: 'Split', description: 'Photo left, text right' },
-        { id: 'elegant', label: 'Elegant', description: 'Decorative borders with centered content' }
+        { id: 'standard', label: 'רגיל', description: 'תמונה למעלה, טקסט למטה' },
+        { id: 'full-bleed', label: 'תמונה מלאה', description: 'התמונה ממלאת את כל הכריכה' },
+        { id: 'photo-bottom', label: 'תמונה למטה', description: 'טקסט למעלה, תמונה למטה' },
+        { id: 'centered', label: 'ממורכז', description: 'תמונה ממורכזת עם שכבת טקסט מעל' },
+        { id: 'minimal', label: 'מינימליסטי', description: 'טקסט בלבד, ללא תמונה' },
+        { id: 'split', label: 'מפוצל', description: 'תמונה משמאל, טקסט מימין' },
+        { id: 'elegant', label: 'אלגנטי', description: 'עיטורי גבול על תוכן ממורכז' }
     ];
 
     /**
@@ -39,7 +39,14 @@ export class UnifiedCoverRenderer {
         { id: 'dancing', family: "'Dancing Script', cursive", label: 'Dancing Script' },
         { id: 'great-vibes', family: "'Great Vibes', cursive", label: 'Great Vibes' },
         { id: 'cinzel', family: "'Cinzel', serif", label: 'Cinzel' },
-        { id: 'raleway', family: "'Raleway', sans-serif", label: 'Raleway' }
+        { id: 'raleway', family: "'Raleway', sans-serif", label: 'Raleway' },
+        // Hebrew Fonts
+        { id: 'heebo', family: "'Heebo', sans-serif", label: 'Heebo (היבו)' },
+        { id: 'frankruhl', family: "'Frank Ruhl Libre', serif", label: 'Frank Ruhl Libre (פרנק ריהל)' },
+        { id: 'rubik', family: "'Rubik', sans-serif", label: 'Rubik (רוביק)' },
+        { id: 'varela', family: "'Varela Round', sans-serif", label: 'Varela Round (ורלה)' },
+        { id: 'aleo', family: "'Aleo', serif", label: 'Aleo (אלאו)' },
+        { id: 'caveat', family: "'Caveat', cursive", label: 'Caveat (כתב יד)' }
     ];
 
     /**
@@ -268,7 +275,15 @@ export class UnifiedCoverRenderer {
 
         if (interactive) {
             backEl.dataset.selectableId = 'cover-back-photo';
-            backEl.dataset.selectableType = 'cover-back-photo';
+            backEl.dataset.selectableType = 'cover-photo';
+
+            if (cover.textPositions && cover.textPositions['cover-back-photo']) {
+                backEl.style.position = 'absolute';
+                backEl.style.left = cover.textPositions['cover-back-photo'].x;
+                backEl.style.top = cover.textPositions['cover-back-photo'].y;
+                backEl.style.width = cover.textPositions['cover-back-photo'].width || '50%';
+                backEl.style.height = cover.textPositions['cover-back-photo'].height || '100%';
+            }
         }
 
         return backEl;
@@ -615,21 +630,29 @@ export class UnifiedCoverRenderer {
                 const el = document.createElement('div');
                 el.className = 'cover-text-element';
 
-                // Content priority: existing override > placeholder > default
+                // Content priority: manual textContent > existing override > placeholder > default
                 let content = textSpec.content || textSpec.placeholder || '';
 
-                // Map specific dynamic fields for wedding
-                // This is a bit of a hack until we have full content mapping in TemplateManager
-                if (textSpec.elementId === 'groomName') content = 'אריאל';
-                if (textSpec.elementId === 'brideName') content = 'מיכל'; // Defaults
-                // If cover has specific overrides (e.g. from user edit), use them.
-                // Cover State usually has title/subtitle.
-                if (textSpec.elementId === 'groomName' || textSpec.elementId === 'brideName') {
-                    // logic to parse title "Ariel & Michal"? 
-                    // For now stick to JSON placeholder or cover title if it matches
+                if (cover.textContent && cover.textContent[textSpec.elementId]) {
+                    content = cover.textContent[textSpec.elementId];
+                } else {
+                    // Pre-population logic if not manually edited yet:
+                    if (textSpec.elementId === 'groomName' || textSpec.elementId === 'brideName') {
+                        // Very basic split if they put "A & B" in title
+                        if (cover.title && cover.title.includes('&')) {
+                            const parts = cover.title.split('&').map(s => s.trim());
+                            if (textSpec.elementId === 'groomName' && parts.length > 0) content = parts[0];
+                            if (textSpec.elementId === 'brideName' && parts.length > 1) content = parts[1];
+                        } else {
+                            if (textSpec.elementId === 'groomName') content = 'אריאל';
+                            if (textSpec.elementId === 'brideName') content = 'מיכל';
+                        }
+                    } else if (textSpec.elementId === 'title' && cover.title) {
+                        content = cover.title;
+                    } else if (textSpec.elementId === 'date') {
+                        content = cover.subtitle || new Date().getFullYear();
+                    }
                 }
-                if (textSpec.elementId === 'title' && cover.title) content = cover.title;
-                if (textSpec.elementId === 'date') content = cover.subtitle || new Date().getFullYear();
 
                 el.textContent = content;
 
@@ -641,33 +664,75 @@ export class UnifiedCoverRenderer {
                 else if (style.font === 'accent') fontFamily = "'Cinzel', serif";
                 else if (style.font === 'display') fontFamily = "'Cormorant Garamond', serif";
                 else if (style.font === 'body') fontFamily = "'Heebo', serif";
+                // If cover has a custom titleFont, apply it to the main template title fields:
+                if (options.titleFont && (textSpec.elementId === 'title' || textSpec.elementId === 'groomName' || textSpec.elementId === 'brideName')) {
+                    fontFamily = options.titleFont;
+                }
+                if (options.bodyFont && (textSpec.elementId === 'date' || textSpec.elementId === 'subtitle')) {
+                    fontFamily = options.bodyFont;
+                }
 
                 // Color Resolution
                 let color = style.color;
-                if (color === 'gold') color = '#C9A962';
+                if (color === 'gold') color = options.accentColor || '#C9A962';
                 if (color === 'light') color = '#FDFCFA';
                 if (color === 'secondary') color = '#B8B0A0';
+                if (color === 'primary') color = options.textColor || '#000000';
 
-                el.style.cssText = `
+                // Allow direct override from cover text color
+                if (options.interactive && cover._userCustomTextColor) {
+                    color = options.textColor;
+                }
+
+                // Fetch custom position if user dragged it
+                const customPos = (cover.textPositions && cover.textPositions[textSpec.elementId]) ? cover.textPositions[textSpec.elementId] : null;
+
+                let cssString = `
                     position: absolute;
-                    left: ${textSpec.position.x};
-                    top: ${textSpec.position.y};
                     font-family: ${fontFamily};
                     font-size: ${style.size || '16px'};
                     font-weight: ${style.weight || 400};
                     color: ${color || 'white'};
-                    text-align: ${style.align || 'center'};
-                    letter-spacing: ${style.letterSpacing || 'normal'};
                     z-index: 10;
-                    ${textSpec.alignment?.method || ''};
                 `;
 
-                if (interactive && textSpec.editable) {
-                    el.dataset.selectableId = textSpec.elementId; // e.g. groomName
+                if (customPos && customPos.x) {
+                    cssString += `
+                        left: ${customPos.x};
+                        top: ${customPos.y};
+                        text-align: right;
+                    `;
+                    // If moving, we might need width for alignment properly, or keep it auto
+                    if (customPos.width) cssString += `width: ${customPos.width};`;
+                } else {
+                    cssString += `
+                        left: ${textSpec.position.x};
+                        top: ${textSpec.position.y};
+                        text-align: ${style.align || 'center'};
+                        letter-spacing: ${style.letterSpacing || 'normal'};
+                        ${textSpec.alignment?.method || ''}
+                    `;
+                }
+
+                el.style.cssText = cssString;
+
+                if (interactive && textSpec.editable !== false) {
+                    el.dataset.selectableId = textSpec.elementId;
                     el.dataset.selectableType = 'cover-text';
-                    el.style.cursor = 'pointer';
+                    el.style.cursor = 'grab';
                     el.style.border = '1px solid transparent';
-                    // Hover effect handled by global css
+                    // Let hover outline it, etc.
+                }
+
+                // Apply Text Scale
+                if (cover.textStyles && cover.textStyles[textSpec.elementId] && cover.textStyles[textSpec.elementId].size) {
+                    const inlineScale = cover.textStyles[textSpec.elementId].size / 100;
+                    if (el.style.transform && el.style.transform !== 'none') {
+                        el.style.transform += ` scale(${inlineScale})`;
+                    } else {
+                        el.style.transform = `scale(${inlineScale})`;
+                        el.style.transformOrigin = 'center center';
+                    }
                 }
 
                 frontEl.appendChild(el);
@@ -728,6 +793,16 @@ export class UnifiedCoverRenderer {
         if (interactive) {
             photoEl.dataset.selectableId = 'cover-photo';
             photoEl.dataset.selectableType = 'cover-photo';
+
+            if (cover.textPositions && cover.textPositions['cover-photo']) {
+                photoEl.style.position = 'absolute';
+                photoEl.style.left = cover.textPositions['cover-photo'].x;
+                photoEl.style.top = cover.textPositions['cover-photo'].y;
+                if (cover.textPositions['cover-photo'].width) {
+                    photoEl.style.width = cover.textPositions['cover-photo'].width;
+                    photoEl.style.height = cover.textPositions['cover-photo'].height;
+                }
+            }
         }
 
         return photoEl;
@@ -760,6 +835,13 @@ export class UnifiedCoverRenderer {
         if (interactive) {
             titleEl.dataset.selectableId = 'cover-title';
             titleEl.dataset.selectableType = 'cover-text';
+
+            if (cover.textPositions && cover.textPositions['cover-title']) {
+                titleEl.style.position = 'absolute';
+                titleEl.style.left = cover.textPositions['cover-title'].x;
+                titleEl.style.top = cover.textPositions['cover-title'].y;
+                titleEl.style.transform = 'translate(-50%, -50%)';
+            }
         }
 
         // Subtitle
@@ -776,6 +858,29 @@ export class UnifiedCoverRenderer {
         if (interactive) {
             subEl.dataset.selectableId = 'cover-subtitle';
             subEl.dataset.selectableType = 'cover-text';
+
+            if (cover.textPositions && cover.textPositions['cover-subtitle']) {
+                subEl.style.position = 'absolute';
+                subEl.style.left = cover.textPositions['cover-subtitle'].x;
+                subEl.style.top = cover.textPositions['cover-subtitle'].y;
+                subEl.style.transform = 'translate(-50%, -50%)';
+            }
+        }
+
+        // Apply global text scales for non-custom layouts
+        if (cover.textStyles) {
+            if (cover.textStyles['cover-title'] && cover.textStyles['cover-title'].size) {
+                const ts = cover.textStyles['cover-title'].size / 100;
+                titleEl.style.transform = titleEl.style.transform && titleEl.style.transform !== 'none'
+                    ? titleEl.style.transform + ` scale(${ts})`
+                    : `scale(${ts})`;
+            }
+            if (cover.textStyles['cover-subtitle'] && cover.textStyles['cover-subtitle'].size) {
+                const ss = cover.textStyles['cover-subtitle'].size / 100;
+                subEl.style.transform = subEl.style.transform && subEl.style.transform !== 'none'
+                    ? subEl.style.transform + ` scale(${ss})`
+                    : `scale(${ss})`;
+            }
         }
 
         textArea.appendChild(titleEl);

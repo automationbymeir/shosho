@@ -26,25 +26,25 @@ export class ProfileModal {
                 <button class="profile-close-btn">&times;</button>
                 <div class="profile-header">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin:0;">My Profile</h2>
-                        <button id="btn-modal-logout" class="btn-sm btn-danger">Logout</button>
+                        <h2 style="margin:0;">הפרופיל שלי</h2>
+                        <button id="btn-modal-logout" class="btn-sm btn-danger">התנתק</button>
                     </div>
                     <div class="profile-tabs">
-                        <button class="tab-btn active" data-tab="projects">My Projects</button>
-                        <button class="tab-btn" data-tab="billing">Billing & Invoices</button>
+                        <button class="tab-btn active" data-tab="projects">הפרויקטים שלי</button>
+                        <button class="tab-btn" data-tab="billing">חיובים וחשבוניות</button>
                     </div>
                 </div>
                 
-                <div class="tab-content active" id="tab-projects">
+                <div class="tab-content active" id="tab-projects" dir="rtl">
                     <div class="projects-list-container">
-                        <div class="loading-spinner">Loading projects...</div>
+                        <div class="loading-spinner">טוען פרויקטים...</div>
                         <ul class="projects-list"></ul>
                     </div>
                 </div>
 
-                <div class="tab-content" id="tab-billing">
+                <div class="tab-content" id="tab-billing" dir="rtl">
                    <div class="billing-list-container">
-                        <div class="loading-spinner">Loading purchases...</div>
+                        <div class="loading-spinner">טוען רכישות...</div>
                         <ul class="billing-list"></ul>
                     </div>
                 </div>
@@ -119,7 +119,7 @@ export class ProfileModal {
         const logoutBtn = modal.querySelector('#btn-modal-logout');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async () => {
-                if (confirm("Log out?")) {
+                if (confirm("להתנתק?")) {
                     await authService.signOut();
                     this.close();
                 }
@@ -173,7 +173,7 @@ export class ProfileModal {
             spinner.style.display = 'none';
 
             if (projects.length === 0) {
-                listEl.innerHTML = '<div style="padding:20px; text-align:center; color:#666">No saved projects yet.</div>';
+                listEl.innerHTML = '<div style="padding:20px; text-align:center; color:#666">אין פרויקטים שמורים עדיין.</div>';
                 return;
             }
 
@@ -184,18 +184,18 @@ export class ProfileModal {
                 li.className = 'project-item';
 
                 const isCurrent = currentId === p.id;
-                const badge = isCurrent ? '<span class="project-current-badge">ACTIVE</span>' : '';
+                const badge = isCurrent ? '<span class="project-current-badge">פעיל</span>' : '';
                 const date = new Date(p.lastModified).toLocaleDateString() + ' ' + new Date(p.lastModified).toLocaleTimeString();
 
                 li.innerHTML = `
                     <div class="project-info">
-                        <h4>${p.name || 'Untitled Project'} ${badge}</h4>
-                        <p>Last modified: ${date}</p>
+                        <h4>${p.name || 'פרויקט ללא שם'} ${badge}</h4>
+                        <p>שונה לאחרונה: ${date}</p>
                     </div>
                     <div class="project-actions">
-                        <button class="btn-sm btn-rename" data-id="${p.id}" data-name="${p.name}">Rename</button>
-                        ${!isCurrent ? `<button class="btn-sm btn-primary btn-load" data-id="${p.id}">Load</button>` : ''}
-                        <button class="btn-sm btn-danger btn-delete" data-id="${p.id}">Delete</button>
+                        <button class="btn-sm btn-rename" data-id="${p.id}" data-name="${p.name}">שינוי שם</button>
+                        ${!isCurrent ? `<button class="btn-sm btn-primary btn-load" data-id="${p.id}">טען</button>` : ''}
+                        <button class="btn-sm btn-danger btn-delete" data-id="${p.id}">מחק</button>
                     </div>
                 `;
 
@@ -217,20 +217,20 @@ export class ProfileModal {
     }
 
     async handleRename(project) {
-        const newName = prompt("Enter new name:", project.name);
+        const newName = prompt("הזן שם חדש:", project.name);
         if (newName && newName.trim() !== "" && newName !== project.name) {
             try {
                 await persistenceService.renameProject(project.id, newName);
                 this.loadProjects(); // Refresh list
                 // If current, update window title?
             } catch (e) {
-                alert("Rename failed: " + e.message);
+                alert("שינוי שם נכשל: " + e.message);
             }
         }
     }
 
     async handleLoad(id) {
-        if (confirm("Load this project? Any unsaved changes in the current session will be lost.")) {
+        if (confirm("לטעון את הפרויקט הזה? כל שינוי שלא נשמר יאבד.")) {
             try {
                 const data = await persistenceService.loadProject(authService.getCurrentUser().uid, id);
                 if (data) {
@@ -238,18 +238,18 @@ export class ProfileModal {
                     this.close();
                 }
             } catch (e) {
-                alert("Load failed: " + e.message);
+                alert("טעינה נכשלה: " + e.message);
             }
         }
     }
 
     async handleDelete(id) {
-        if (confirm("Are you sure you want to delete this project? This cannot be undone.")) {
+        if (confirm("האם אתה בטוח שברצונך למחוק פרויקט זה? לא ניתן לבטל פעולה זו.")) {
             try {
                 await persistenceService.deleteProject(id);
                 this.loadProjects();
             } catch (e) {
-                alert("Delete failed: " + e.message);
+                alert("מחיקה נכשלה: " + e.message);
             }
         }
     }
@@ -271,7 +271,7 @@ export class ProfileModal {
             spinner.style.display = 'none';
 
             if (purchases.length === 0) {
-                listEl.innerHTML = '<div style="padding:20px; text-align:center; color:#666">No purchases yet.</div>';
+                listEl.innerHTML = '<div style="padding:20px; text-align:center; color:#666">אין רכישות עדיין.</div>';
                 return;
             }
 
@@ -285,12 +285,12 @@ export class ProfileModal {
 
                 li.innerHTML = `
                     <div class="project-info">
-                        <h4>Order #${p.id.substring(0, 8)}...</h4>
+                        <h4>הזמנה #${p.id.substring(0, 8)}...</h4>
                         <p>${date} • ${amount}</p>
                     </div>
                     <div class="project-actions">
                         <span class="billing-status status-${status}">${status}</span>
-                        ${p.invoiceUrl ? `<a href="${p.invoiceUrl}" target="_blank" class="btn-sm">Invoice</a>` : ''}
+                        ${p.invoiceUrl ? `<a href="${p.invoiceUrl}" target="_blank" class="btn-sm">חשבונית</a>` : ''}
                     </div>
                 `;
                 listEl.appendChild(li);
@@ -299,7 +299,7 @@ export class ProfileModal {
         } catch (e) {
             console.error(e);
             spinner.style.display = 'none';
-            listEl.innerHTML = '<div class="error">Failed to load billing history.</div>';
+            listEl.innerHTML = '<div class="error">טעינת היסטוריית חיובים נכשלה.</div>';
         }
     }
 }

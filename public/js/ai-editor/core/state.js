@@ -102,18 +102,13 @@ class EditorStore {
         try {
             // Attempt to stringify the state
             // If this fails (e.g. base64 images making it too large), we catch it.
+            // Use a clean clone of pages to ensure full photo objects and nested properties are kept.
             const rawSnapshot = {
-                pages: this.state.pages.map(p => ({
-                    ...p,
-                    // Store strict lightweight photos (ID + Ratio only) to prevent JSON explosion if assets have base64
-                    photos: p.photos ? p.photos.map(ph => ({ id: ph.id, ratio: ph.ratio })) : []
-                })),
-                cover: this.state.cover,
+                pages: JSON.parse(JSON.stringify(this.state.pages || [])),
+                cover: JSON.parse(JSON.stringify(this.state.cover || {})),
                 theme: this.state.theme
             };
-            // Test stringify here to catch the error
-            JSON.stringify(rawSnapshot);
-            snapshot = JSON.parse(JSON.stringify(rawSnapshot));
+            snapshot = rawSnapshot;
         } catch (e) {
             console.warn("[Store] Failed to push state to history (State too large?):", e);
             return; // Exit gracefully instead of crashing

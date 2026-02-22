@@ -155,11 +155,11 @@ class AIDirector {
             store.notify('pages', store.state.pages);
             store.notify('assets', store.state.assets);
             this.log("Magic Create Complete!");
-            alert("✨ Nano Banana has spoken! Album Created.");
+            alert("✨ הקסם הושלם! האלבום נוצר.");
 
         } catch (e) {
             console.error("AI Director Error:", e);
-            alert("AI Magic Failed: " + e.message);
+            alert("יצירת הקסם נכשלה: " + e.message);
         } finally {
             this.isWorking = false;
         }

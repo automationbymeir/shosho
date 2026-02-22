@@ -142,9 +142,18 @@ body {
     border-radius: 8px;
     overflow: hidden;
     cursor: grab;
-    transition: transform 0.2s;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     background-position: center;
     background-size: cover;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 1;
+}
+
+.asset-item:hover {
+    transform: translateY(-8px) scale(1.05) rotate(2deg);
+    box-shadow: -5px 15px 25px rgba(0, 0, 0, 0.4);
+    z-index: 10;
 }
 
 .text-style-item span {
@@ -243,6 +252,10 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.force-ltr {
+    direction: ltr !important;
 }
 
 /* Page Rendering */

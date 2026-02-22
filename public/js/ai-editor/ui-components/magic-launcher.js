@@ -32,34 +32,34 @@ class MagicLauncher {
                         <div class="ml-icon-wrapper">
                             <i class="fa-solid fa-wand-magic-sparkles"></i>
                         </div>
-                        <h2>Create Magic</h2>
-                        <p>Let AI weave your photos into a story.</p>
+                        <h2>יצירת קסם</h2>
+                        <p>תן ל-AI לטוות את התמונות שלך לסיפור.</p>
                     </div>
 
                     <div class="ml-input-group">
-                        <label>What's the vibe of this album?</label>
+                        <label>מה האווירה של האלבום הזה?</label>
                         <div class="ml-textarea-wrapper">
                             <textarea id="magic-prompt-input" 
-                                placeholder="e.g. A whimsical forest wedding with soft green tones..."></textarea>
+                                placeholder="לדוגמה חתונת יער קסומה עם גוונים ירוקים רכים..." style="text-align: right;" dir="rtl"></textarea>
                             <i class="fa-solid fa-pen-fancy ml-input-icon"></i>
                         </div>
                         <div class="ml-hints">
-                            <span>Examples:</span>
-                            <button onclick="document.getElementById('magic-prompt-input').value='Romantic beach sunset'">Beach</button>
-                            <button onclick="document.getElementById('magic-prompt-input').value='Modern minimalist architecture'">Modern</button>
-                            <button onclick="document.getElementById('magic-prompt-input').value='Vintage family history'">Vintage</button>
+                            <span>דוגמאות:</span>
+                            <button onclick="document.getElementById('magic-prompt-input').value='שקיעה רומנטית בחוף'">חוף ים</button>
+                            <button onclick="document.getElementById('magic-prompt-input').value='אדריכלות מודרנית ומינימליסטית'">מודרני</button>
+                            <button onclick="document.getElementById('magic-prompt-input').value='היסטוריה משפחתית בסגנון וינטג\''">וינטג'</button>
                         </div>
                     </div>
 
-                    <div class="ml-footer">
-                        <button class="ml-btn ml-btn-cancel" onclick="magicLauncher.close()">
-                            Cancel
-                        </button>
+                    <div class="ml-footer" style="flex-direction: row-reverse;">
                         <button class="ml-btn ml-btn-primary" onclick="magicLauncher.start()">
                             <span class="ml-btn-content">
-                                <i class="fa-solid fa-stars"></i> Create Album
+                                <i class="fa-solid fa-stars"></i> צור אלבום
                             </span>
                             <div class="ml-btn-glow"></div>
+                        </button>
+                        <button class="ml-btn ml-btn-cancel" onclick="magicLauncher.close()">
+                            ביטול
                         </button>
                     </div>
                 </div>
@@ -67,7 +67,7 @@ class MagicLauncher {
                 <!-- Progress State (Legacy - kept for fallback but usually hidden) -->
                 <div id="magic-launcher-progress" style="display: none; text-align: center; color: white;">
                     <div class="spinner"></div>
-                    <p>Initializing...</p>
+                    <p>מאתחל...</p>
                     <div id="magic-log" style="display:none"></div>
                 </div>
             </div>
@@ -178,7 +178,7 @@ class MagicLauncher {
     open(photos) {
         if (!this.initialized) this.init();
         if (!photos || photos.length === 0) {
-            alert('Please select some photos first!');
+            alert('אנא בחר מספר תמונות קודם!');
             return;
         }
         this.selectedPhotos = photos;
@@ -256,7 +256,7 @@ class MagicLauncher {
 
         } catch (e) {
             console.error(e);
-            alert("Magic Create Failed: " + e.message);
+            alert("יצירת קסם נכשלה: " + e.message);
             this.close();
         }
     }
@@ -340,7 +340,7 @@ class MagicLauncher {
 
         store.notify('assets', store.state.assets);
 
-        alert("✨ Magic Model V3 Album Created!");
+        alert("✨ אלבום נוצר באמצעות Magic Model V3!");
     }
 }
 

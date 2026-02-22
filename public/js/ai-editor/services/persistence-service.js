@@ -108,6 +108,24 @@ export const persistenceService = {
                         }
                     }
                 }
+
+                // CRITICAL FIX: The pages store photo objects which got deep cloned initially,
+                // so they still have old blob urls. Sync them with the newly converted assets.
+                if (localDataToSave.state.pages && Array.isArray(localDataToSave.state.pages)) {
+                    localDataToSave.state.pages.forEach(page => {
+                        if (page.photos && Array.isArray(page.photos)) {
+                            page.photos.forEach((pagePhoto, idx) => {
+                                if (pagePhoto && pagePhoto.id) {
+                                    const asset = localDataToSave.state.assets.photos.find(p => p.id === pagePhoto.id);
+                                    if (asset) {
+                                        page.photos[idx].url = asset.url; // sync base64 or remote url
+                                        if (asset.thumbnailUrl) page.photos[idx].thumbnailUrl = asset.thumbnailUrl;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
             }
 
             console.log(`[Persistence] Saving to Local IndexedDB (ID: ${this.currentProjectId})...`);

@@ -23,6 +23,7 @@ import { UnifiedCoverRenderer } from '../engines/unified-cover-renderer.js';
 import { WeddingPrestigeRenderer } from '../templates/wedding-prestige-renderer.js';
 import { ProfileModal } from '../ui-components/profile-modal.js';
 import { photoPositionService } from '../services/photo-position-service.js';
+import { ProjectManager } from '../ui-components/project-manager.js';
 
 // Expose for debugging
 window.pdfExport = pdfExport;
@@ -76,6 +77,9 @@ class App {
         // Initialize Profile Modal
         this.profileModal = new ProfileModal(this);
 
+        // Initialize Project Manager
+        this.projectManager = new ProjectManager(this);
+
         // Auth Init
         this.saveDebounced = persistenceService.debounce((state) => {
             // SMART SAVE: Don't save if state is effectively empty
@@ -127,7 +131,7 @@ class App {
                             } catch (e) {
                                 this.magicCreateGenerationStarted = false;
                                 console.error("Login failed", e);
-                                alert("Login failed. Please try again.");
+                                alert("ההתחברות נכשלה. אנא נסה שוב.");
                                 return;
                             }
                         }
@@ -157,7 +161,7 @@ class App {
                                 this.magicCreateGenerationStarted = false;
                                 // No photos selected (User cancelled or empty selection)
                                 console.log("[App] Google Photos Picker cancelled or empty.");
-                                alert("No photos were selected. Please select photos or upload from your computer to continue creating your book.");
+                                alert("לא נבחרו תמונות. אנא בחר תמונות או העלה מהמחשב כדי להמשיך ביצירת הספר.");
                                 modal.style.display = 'flex'; // Ensure modal is visible for retry/alternate choice
                             }
                         } catch (e) {
@@ -165,7 +169,7 @@ class App {
                             console.error("Google Photos Error:", e);
                             const msg = e.message || "Unknown error";
                             if (!msg.includes("popup_b_closed") && !msg.includes("cancel")) {
-                                alert("Failed to load Google Photos. Please try again or upload from your computer.");
+                                alert("טעינת תמונות מ-Google נכשלה. אנא נסה שוב או העלה מהמחשב.");
                             }
                             modal.style.display = 'flex'; // Show again on error
                         }
@@ -373,6 +377,23 @@ class App {
                     const layout = manager.config.pageLayouts.find(l => l.layoutId === p.rawLayoutId);
                     if (layout) {
                         const el = renderer.renderPage(layout, p.photos || [], p.textContent || {}, p.textPositions || {}, p);
+
+                        // Apply custom text styles/scales universally across any template
+                        if (p.textStyles) {
+                            Object.entries(p.textStyles).forEach(([elementId, styles]) => {
+                                const targetEl = el.querySelector(`[data-selectable-id="${elementId}"]`);
+                                if (targetEl && styles.size) {
+                                    const val = styles.size / 100;
+                                    if (targetEl.style.transform && targetEl.style.transform !== 'none') {
+                                        targetEl.style.transform += ` scale(${val})`;
+                                    } else {
+                                        targetEl.style.transform = `scale(${val})`;
+                                        targetEl.style.transformOrigin = 'center center';
+                                    }
+                                }
+                            });
+                        }
+
                         const container = document.getElementById('canvas-container');
                         container.innerHTML = '';
                         container.appendChild(el);
@@ -608,12 +629,17 @@ class App {
             }
 
             if (prop === 'activePageId' || prop === 'pages' || prop === 'selection' || prop === 'theme' || prop === 'viewMode' || prop === 'cover' || prop === 'history_restore') {
-                if (state.viewMode === 'cover') {
-                    this.renderCoverWithTemplate();
-                } else {
-                    // IMPORTANT: Use renderActivePage() instead of renderer.renderPage()
-                    // This ensures template-specific renderers are used consistently
-                    this.renderActivePage();
+
+                // PERFORMANCE OPTIMIZATION: Only rerender the main heavy canvas if the structure changed
+                // (pages, cover) or we switched views. Do NOT rerender canvas for just selection change.
+                if (prop !== 'selection') {
+                    if (state.viewMode === 'cover') {
+                        this.renderCoverWithTemplate();
+                    } else {
+                        // IMPORTANT: Use renderActivePage() instead of renderer.renderPage()
+                        // This ensures template-specific renderers are used consistently
+                        this.renderActivePage();
+                    }
                 }
 
                 // If only selection changed, we don't need to rebuild the timeline
@@ -622,14 +648,10 @@ class App {
                     if (prop === 'viewMode') this.updatePropertiesPanel(state);
                 } else if (prop !== 'selection') {
                     this.updateTimeline(state.pages, state.activePageId);
-                } else {
-                    // prop === 'selection'
-                    this.updatePropertiesPanel(state);
                 }
 
-                if (prop === 'pages' || prop === 'cover' || prop === 'history_restore') {
-                    this.updatePropertiesPanel(state);
-                }
+                // Update properties panel for all these changes
+                this.updatePropertiesPanel(state);
             }
         });
 
@@ -675,10 +697,10 @@ class App {
             if (!data) return;
 
             const item = JSON.parse(data);
-            const targetSlotEl = e.target.closest('.photo-slot');
+            const targetSlotEl = e.target.closest('.photo-slot') || e.target.closest('.cover-photo-area') || e.target.closest('.back-cover');
 
             // Handle Photo Swapping (Slot to Slot)
-            if (item.type === 'slot-swap' && targetSlotEl) {
+            if (item.type === 'slot-swap' && targetSlotEl && targetSlotEl.classList.contains('photo-slot')) {
                 const targetPhotoId = targetSlotEl.dataset.selectableId; // We set this in RenderEngine
                 if (targetPhotoId && targetPhotoId !== item.photoId) {
                     store.pushState('Swap Photos');
@@ -690,8 +712,17 @@ class App {
             // Handle New Photo Drop
             if (item.type === 'photo') {
                 if (targetSlotEl) {
-                    // Check if this is an empty slot
-                    if (targetSlotEl.classList.contains('empty-slot')) {
+                    if (targetSlotEl.classList.contains('back-cover')) {
+                        store.pushState('Add Photo to Back Cover');
+                        if (!store.state.cover) store.state.cover = {};
+                        store.state.cover.backPhotoId = item.id;
+                        store.notify('cover', store.state.cover);
+                    } else if (targetSlotEl.classList.contains('cover-photo-area')) {
+                        store.pushState('Add Photo to Front Cover');
+                        if (!store.state.cover) store.state.cover = {};
+                        store.state.cover.frontPhotoId = item.id;
+                        store.notify('cover', store.state.cover);
+                    } else if (targetSlotEl.classList.contains('empty-slot')) {
                         const slotIndex = parseInt(targetSlotEl.dataset.slotIndex);
                         store.pushState('Add Photo to Slot');
                         this.addPhotoToSlot(item.id, slotIndex);
@@ -755,7 +786,7 @@ class App {
                 // Use a non-blocking way if confirm is annoying, but for now strict confirm is okay.
                 // Note: If the user moves mouse during click, it might be treated as drag.
                 // We trust the click event here.
-                if (confirm('Remove photo from this page?')) {
+                if (confirm('להסיר את התמונה מהעמוד?')) {
                     const page = store.state.pages.find(p => p.id === store.state.activePageId);
                     if (page && page.photos) {
                         page.photos.splice(slotIndex, 1);
@@ -782,7 +813,11 @@ class App {
             if (target) {
                 const id = target.dataset.selectableId;
                 const type = target.dataset.selectableType;
-                store.state.selection = id;
+
+                // Only update if selection actually changed to avoid infinite/unnecessary loops
+                if (store.state.selection !== id) {
+                    store.state.selection = id;
+                }
 
                 // Show selection frame if text
                 if (type === 'text') {
@@ -795,14 +830,16 @@ class App {
                 }
             } else {
                 // Deselect if clicking background
-                store.state.selection = null;
+                if (store.state.selection !== null) {
+                    store.state.selection = null;
+                }
             }
         });
 
         // Double Click Handler
         canvas.addEventListener('dblclick', (e) => {
             // 1. Text Editing
-            const textTarget = e.target.closest('[data-selectable-type="text"]');
+            const textTarget = e.target.closest('[data-selectable-type="text"], [data-selectable-type="cover-text"]');
             if (textTarget) {
                 e.stopPropagation(); // Prevent other triggers
                 textTarget.contentEditable = 'true';
@@ -815,11 +852,31 @@ class App {
                 const saveHandler = () => {
                     const newContent = textTarget.textContent;
                     // Update State
-                    const page = store.state.pages.find(p => p.id === store.state.activePageId);
-                    if (page) {
-                        if (!page.textContent) page.textContent = {};
-                        page.textContent[id] = newContent;
-                        store.notify('pages', store.state.pages);
+                    if (store.state.viewMode === 'cover') {
+                        if (!store.state.cover.textContent) store.state.cover.textContent = {};
+                        store.state.cover.textContent[id] = newContent;
+                        // For backwards compatibility:
+                        if (id === 'cover-title' || id === 'title') store.state.cover.title = newContent;
+                        if (id === 'cover-subtitle' || id === 'subtitle' || id === 'date') store.state.cover.subtitle = newContent;
+                        if (id === 'cover-spine' || id === 'spine') store.state.cover.spineText = newContent;
+
+                        // Advanced Template Support: specifically for groomName/brideName fields
+                        if (id === 'groomName' || id === 'brideName') {
+                            const g = store.state.cover.textContent['groomName'] || '';
+                            const b = store.state.cover.textContent['brideName'] || '';
+                            store.state.cover.title = b ? `${g} & ${b}` : g;
+                        }
+
+                        store.pushState('Edit Cover Text');
+                        store.notify('cover', store.state.cover);
+                    } else {
+                        const page = store.state.pages.find(p => p.id === store.state.activePageId);
+                        if (page) {
+                            if (!page.textContent) page.textContent = {};
+                            page.textContent[id] = newContent;
+                            store.pushState('Edit Page Text');
+                            store.notify('pages', store.state.pages);
+                        }
                     }
                     textTarget.contentEditable = 'false';
                     textTarget.style.cursor = 'grab';
@@ -844,116 +901,130 @@ class App {
         });
 
         // ----------------------------------------------------
-        // Text Drag & Drop (Mouse Interactions)
+        // Text Drag & Drop (Mouse Interactions) FIXED
         // ----------------------------------------------------
         let isDraggingText = false;
         let dragTargetId = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
         let initialMouseX = 0;
         let initialMouseY = 0;
+        let activeTargetEl = null;
+
         const DRAG_THRESHOLD = 5; // px
 
         canvas.addEventListener('mousedown', (e) => {
-            // Priority: Check if clicking a control button first!
             if (e.target.closest('.btn-remove-slot-photo') || e.target.closest('.delete-btn')) {
-                return; // Let standard click handler flow
+                return;
             }
 
-            const target = e.target.closest('[data-selectable-type="text"]');
+            const target = e.target.closest('[data-selectable-type="text"], [data-selectable-type="cover-text"], [data-selectable-type="cover-photo"]');
             if (target) {
-                // Prepare for drag, but don't commit yet
+                activeTargetEl = target;
                 initialMouseX = e.clientX;
                 initialMouseY = e.clientY;
-
-                isDraggingText = false; // Wait for move
+                isDraggingText = false;
                 dragTargetId = target.dataset.selectableId;
 
-                // Calculate offset
-                const rect = target.getBoundingClientRect();
-                dragOffsetX = e.clientX - rect.left;
-                dragOffsetY = e.clientY - rect.top;
+                const relativeContainer = target.closest('.cover-section') || target.closest('.album-page') || target.closest('.shoso-page') || canvas.querySelector('.album-page');
+                const containerRect = relativeContainer ? relativeContainer.getBoundingClientRect() : canvas.getBoundingClientRect();
 
-                // Set selection immediately for visual feedback? 
-                // Creating selection state on mousedown is fine.
+                const scaleX = relativeContainer ? containerRect.width / relativeContainer.offsetWidth : 1;
+                const scaleY = relativeContainer ? containerRect.height / relativeContainer.offsetHeight : 1;
+
+                target.dragScaleX = scaleX;
+                target.dragScaleY = scaleY;
+
+                const style = window.getComputedStyle(target);
+                const styleLeft = style.left;
+                const styleTop = style.top;
+
+                if (styleLeft === 'auto' || styleTop === 'auto') {
+                    target.initialLeft = target.offsetLeft;
+                    target.initialTop = target.offsetTop;
+                    target.style.position = 'absolute';
+                    target.style.left = `${target.initialLeft}px`;
+                    target.style.top = `${target.initialTop}px`;
+                } else {
+                    target.initialLeft = parseFloat(styleLeft);
+                    target.initialTop = parseFloat(styleTop);
+                }
+
                 store.state.selection = dragTargetId;
-                // e.stopPropagation(); // Don't stop propagation yet, might need to dblclick?
-                // Actually, if we stop propagation, dblclick still fires on element.
             }
         });
 
         window.addEventListener('mousemove', (e) => {
-            if (!dragTargetId) return;
+            if (!dragTargetId || !activeTargetEl) return;
 
-            // Check Threshold if not yet dragging
             if (!isDraggingText) {
                 const dist = Math.sqrt(Math.pow(e.clientX - initialMouseX, 2) + Math.pow(e.clientY - initialMouseY, 2));
-                if (dist < DRAG_THRESHOLD) return; // Ignore small movements
-                isDraggingText = true; // Activate drag
+                if (dist < DRAG_THRESHOLD) return;
+                isDraggingText = true;
             }
 
-            const targetEl = document.querySelector(`[data-selectable-id="${dragTargetId}"]`);
-            if (!targetEl) return;
+            const scaleX = activeTargetEl.dragScaleX || 1;
+            const scaleY = activeTargetEl.dragScaleY || 1;
 
-            // Get the album page element (parent container for text elements)
-            const albumPage = targetEl.closest('.album-page') || targetEl.closest('.shoso-page') || canvas.querySelector('.album-page');
-            const containerRect = albumPage ? albumPage.getBoundingClientRect() : canvas.getBoundingClientRect();
+            const deltaX = (e.clientX - initialMouseX) / scaleX;
+            const deltaY = (e.clientY - initialMouseY) / scaleY;
 
-            // Calculate new X, Y relative to the album page (not canvas)
-            let newX = e.clientX - containerRect.left - dragOffsetX;
-            let newY = e.clientY - containerRect.top - dragOffsetY;
-
-            // Visual Update (Direct DOM for Performance)
-            targetEl.style.left = `${newX}px`; // Temporary px value overriding %
-            targetEl.style.top = `${newY}px`;
-
-            // We don't commit to state yet to avoid excessive re-renders
+            activeTargetEl.style.left = `${activeTargetEl.initialLeft + deltaX}px`;
+            activeTargetEl.style.top = `${activeTargetEl.initialTop + deltaY}px`;
         });
 
         window.addEventListener('mouseup', (e) => {
-            if (isDraggingText && dragTargetId) {
-                const targetEl = document.querySelector(`[data-selectable-id="${dragTargetId}"]`);
-                if (targetEl) {
-                    // Get the album page element (parent container for text elements)
-                    // Text is positioned relative to .album-page, not #canvas-container
-                    const albumPage = targetEl.closest('.album-page') || targetEl.closest('.shoso-page') || canvas.querySelector('.album-page');
-                    const containerRect = albumPage ? albumPage.getBoundingClientRect() : canvas.getBoundingClientRect();
+            if (isDraggingText && dragTargetId && activeTargetEl) {
+                const targetEl = activeTargetEl;
+                const relativeContainer = targetEl.closest('.cover-section') || targetEl.closest('.album-page') || targetEl.closest('.shoso-page') || canvas.querySelector('.album-page');
 
-                    // Calculate position relative to the album page, not canvas container
-                    const rect = targetEl.getBoundingClientRect();
-                    const relativeX = (rect.left - containerRect.left) / containerRect.width * 100;
-                    const relativeY = (rect.top - containerRect.top) / containerRect.height * 100;
+                const styleLeft = parseFloat(targetEl.style.left) || targetEl.offsetLeft;
+                const styleTop = parseFloat(targetEl.style.top) || targetEl.offsetTop;
+                const unscaledWidth = targetEl.offsetWidth;
+                const unscaledHeight = targetEl.offsetHeight;
 
-                    // Update State
-                    const page = store.state.pages.find(p => p.id === store.state.activePageId);
-                    if (page) {
-                        // Check if this is a template-based page
-                        // Fix for dragging text on templates: rely on templateId, not just textContent existence
-                        // Exclude ad-hoc layouts generated by layout engine (layout-*)
-                        if (page.templateId && !page.templateId.startsWith('layout-')) {
-                            // Template page: store custom positions separately
-                            if (!page.textPositions) {
-                                page.textPositions = {};
-                            }
-                            page.textPositions[dragTargetId] = {
-                                x: relativeX + '%',
-                                y: relativeY + '%'
-                            };
+                const containerWidth = relativeContainer ? relativeContainer.offsetWidth : canvas.clientWidth;
+                const containerHeight = relativeContainer ? relativeContainer.offsetHeight : canvas.clientHeight;
+
+                const relativeX = (styleLeft / containerWidth) * 100;
+                const relativeY = (styleTop / containerHeight) * 100;
+                const relativeW = (unscaledWidth / containerWidth) * 100;
+                const relativeH = (unscaledHeight / containerHeight) * 100;
+
+                let targetContainer;
+                if (store.state.viewMode === 'cover') {
+                    targetContainer = store.state.cover;
+                } else {
+                    targetContainer = store.state.pages.find(p => p.id === store.state.activePageId);
+                }
+
+                if (targetContainer) {
+                    if (store.state.viewMode === 'cover' || (targetContainer.templateId && !targetContainer.templateId.startsWith('layout-'))) {
+                        store.pushState('Move Element');
+                        if (!targetContainer.textPositions) targetContainer.textPositions = {};
+                        targetContainer.textPositions[dragTargetId] = {
+                            x: relativeX + '%',
+                            y: relativeY + '%',
+                            width: relativeW + '%',
+                            height: relativeH + '%'
+                        };
+                        if (store.state.viewMode === 'cover') {
+                            store.notify('cover', store.state.cover);
+                        } else {
                             store.notify('pages', store.state.pages);
-                        } else if (page.elements) {
-                            // Default page system
-                            const el = page.elements.find(el => el.id === dragTargetId);
-                            if (el) {
-                                el.x = relativeX;
-                                el.y = relativeY;
-                                store.notify('pages', store.state.pages);
-                            }
+                        }
+                    } else if (targetContainer.elements) {
+                        const el = targetContainer.elements.find(el => el.id === dragTargetId);
+                        if (el) {
+                            store.pushState('Move Element');
+                            el.x = relativeX;
+                            el.y = relativeY;
+                            store.notify('pages', store.state.pages);
                         }
                     }
                 }
             }
             isDraggingText = false;
             dragTargetId = null;
+            activeTargetEl = null;
         });
 
         // ----------------------------------------------------
@@ -993,7 +1064,7 @@ class App {
                 );
             }).catch(err => {
                 console.error('[App] Failed to load album preview:', err);
-                alert('Failed to open preview. Please try again.');
+                alert('פתיחת התצוגה המקדימה נכשלה. אנא נסה שוב.');
             });
         });
 
@@ -1087,7 +1158,7 @@ class App {
             btnMagicCreate.addEventListener('click', async () => {
                 const photos = store.state.assets.photos;
                 if (!photos || photos.length < 4) {
-                    alert("Please import at least 4 photos first (use the '+' button in Photos tab).");
+                    alert("אנא הוסף לפחות 4 תמונות קודם (השתמש בכפתור ה-'+' בלשונית התמונות).");
                     return;
                 }
 
@@ -1095,7 +1166,7 @@ class App {
                     window.magicLauncher.open(photos);
                 } else {
                     console.error("MagicLauncher module not loaded");
-                    alert("Magic Create is initializing... please try again in a moment.");
+                    alert("Magic Create בעבודה... אנא נסה שוב בעוד רגע.");
                 }
             });
         }
@@ -1281,6 +1352,12 @@ class App {
             });
         }
 
+        // --- NEW PROJECT BUTTON HANDLER ---
+        const btnNew = document.getElementById('btn-new-project');
+        if (btnNew) {
+            btnNew.addEventListener('click', () => this.startNewProject(true));
+        }
+
         const btnGoogle = document.getElementById('btn-upload-google');
         if (btnGoogle) {
             btnGoogle.addEventListener('click', async () => {
@@ -1322,9 +1399,9 @@ class App {
                     console.error("Google Photos Error:", e);
                     const msg = e.message || e.toString();
                     if (msg.includes('User not logged in')) {
-                        alert("Please Log In first (Top Right Button) to use Google Photos.");
+                        alert("אנא התחבר קודם (כפתור בצד ימין למעלה) כדי להשתמש ב-Google Photos.");
                     } else {
-                        alert("Error: " + msg);
+                        alert("שגיאה: " + msg);
                     }
                 }
             });
@@ -1468,25 +1545,17 @@ class App {
         }
 
 
-        // DEFAULT LOGIC (Fallback or Non-Template)
-        if (!page.templateId) {
-            const newLayout = layoutEngine.generateLayout(page.photos);
-            console.log('[App] Generated Layout:', newLayout);
-            page.layout = newLayout;
+        // FALLBACK LOGIC (No Template or Remix Failed)
+        // If the Template manager didn't generate a 'newPage', we MUST dynamically calculate a new layout
+        // using the fallback layoutEngine, otherwise the new photo will be invisible.
+        newLayout = layoutEngine.generateLayout(page.photos);
+        console.log('[App] Generated Layout fallback:', newLayout);
+        page.layout = newLayout;
 
-            // Replace the page in the store array
-            const newPages = [...state.pages];
-            newPages[pageIndex] = page;
-            store.state.pages = newPages; // Triggers UI update
-        } else {
-            // Template exists but no layout found.
-            // We updated page.photos, so the photo is "there" but not in a slot.
-            // The renderer will just ignore it (or show empty slots if we reduced count?).
-            // We need to trigger update.
-            const newPages = [...state.pages];
-            newPages[pageIndex] = page;
-            store.state.pages = newPages;
-        }
+        // Replace the page in the store array
+        const newPages = [...state.pages];
+        newPages[pageIndex] = page;
+        store.state.pages = newPages; // Triggers UI update
     }
 
     addTextToPage(styleId) {
@@ -1625,6 +1694,12 @@ class App {
             if (oldPhotoIdx !== -1 && newPhotoAsset) {
                 page.photos[oldPhotoIdx] = newPhotoAsset;
 
+                // CRITICAL: Ensure slot's photoId is updated so RenderEngine sees the new photo
+                if (page.layout && page.layout.slots) {
+                    const targetSlot = page.layout.slots.find(s => s.photoId === targetId);
+                    if (targetSlot) targetSlot.photoId = newPhotoId;
+                }
+
                 const newPages = [...state.pages];
                 newPages[pageIndex] = page;
                 store.state.pages = newPages;
@@ -1675,14 +1750,19 @@ class App {
         const newPhotoAsset = state.assets.photos.find(p => p.id === newPhotoId);
         if (!newPhotoAsset) return;
 
-        // For template pages, add photo at the specific index
-        if (page.templateId && page.photos && Array.isArray(page.photos)) {
+        // Add photo at the specific index for ANY page (template or standard)
+        if (page.photos && Array.isArray(page.photos)) {
             page.photos[slotIndex] = newPhotoAsset;
+
+            // CRITICAL: If the layout has explicit slots, update the photoId directly!
+            if (page.layout && page.layout.slots && page.layout.slots[slotIndex]) {
+                page.layout.slots[slotIndex].photoId = newPhotoId;
+            }
 
             const newPages = [...state.pages];
             newPages[pageIndex] = page;
             store.state.pages = newPages;
-            console.log('[App] Added photo to slot', slotIndex);
+            console.log('[App] Added photo to empty slot', slotIndex);
         }
     }
 
@@ -1691,7 +1771,7 @@ class App {
      * @param {boolean} confirm - Whether to ask for confirmation
      */
     startNewProject(confirm = true) {
-        if (confirm && !window.confirm("Are you sure you want to start a new project? This will clear your current album AND remove all imported photos.")) {
+        if (confirm && !window.confirm("האם אתה בטוח שברצונך להתחיל פרויקט חדש? פעולה זו תנקה את האלבום הנוכחי ותסיר את כל התמונות שיובאו.")) {
             return;
         }
 
@@ -1720,6 +1800,12 @@ class App {
             if (btn) btn.innerHTML = '<i class="fa-solid fa-file-circle-plus"></i> New';
             // Force sidebar refresh specifically for photos
             this.renderAssetSidebar();
+
+            // Clear TemplateSidebar state to prevent ghost styles
+            if (this.templateSidebar && this.templateSidebar.manager) {
+                this.templateSidebar.manager.currentTemplateId = null;
+                this.templateSidebar.manager.config = null;
+            }
         }, 500);
     }
 
@@ -1729,14 +1815,35 @@ class App {
         const panel = document.getElementById('properties-panel');
 
         // Prevent re-rendering if user is actively typing in a field in this panel
-        // This stops the "focus loss" bug on every keystroke
-        if (panel && panel.contains(document.activeElement) &&
-            ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
-            return;
+        // This stops the "focus loss" bug on every keystroke. 
+        // We use activeElement checks robustly
+        if (panel && panel.contains(document.activeElement)) {
+            const activeTag = document.activeElement.tagName;
+            const activeType = document.activeElement.type;
+
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) {
+
+                // Allow ranges (sliders) to still let props update if needed, but text inputs block it
+                if (activeType === 'text' || activeTag === 'TEXTAREA' || activeType === 'color') {
+                    return;
+                }
+            }
         }
 
         if (state.viewMode === 'cover') {
-            this.renderCoverProperties(panel, state.cover);
+            if (state.selection) {
+                const targetEl = document.querySelector(`[data-selectable-id="${state.selection}"]`);
+                if (targetEl && (targetEl.dataset.selectableType === 'cover-text' || targetEl.dataset.selectableType === 'text')) {
+                    this.renderCoverTextProperties(panel, state.cover, state.selection);
+                } else if (targetEl && targetEl.dataset.selectableType === 'cover-photo') {
+                    // Photo properties for cover
+                    panel.innerHTML = `<div class="panel-header"><h3>תמונת כריכה</h3></div><p>נבחרה תמונה. לחץ עליה פעמיים כדי להזיז, או גרור תמונה חדשה.</p>`;
+                } else {
+                    this.renderCoverProperties(panel, state.cover);
+                }
+            } else {
+                this.renderCoverProperties(panel, state.cover);
+            }
             return;
         }
 
@@ -1744,7 +1851,7 @@ class App {
 
         const page = state.pages.find(p => p.id === state.activePageId);
         if (!page) {
-            panel.innerHTML = '<div class="empty-state">No Page Selected</div>';
+            panel.innerHTML = '<div class="empty-state">לא נבחר עמוד</div>';
             return;
         }
 
@@ -1775,13 +1882,13 @@ class App {
         if (photoSlot) {
             panel.innerHTML = `
                 <div class="panel-header">
-                    <h3>Photo Properties</h3>
+                    <h3>מאפייני תמונה</h3>
                 </div>
                 <div style="padding:15px;">
-                    <p>Photo ID: ${selectionId.substring(0, 8)}...</p>
+                    <p>מזהה תמונה: ${selectionId.substring(0, 8)}...</p>
                     
                     <button id="btn-magic-edit" class="btn-primary" style="width:100%; margin-top:10px; background: linear-gradient(90deg, #a855f7, #ec4899);">
-                        <i class="fa-solid fa-wand-magic"></i> Magic Edit (AI)
+                        <i class="fa-solid fa-wand-magic"></i> עריכת קסם (AI)
                     </button>
                 </div>
             `;
@@ -1790,20 +1897,20 @@ class App {
             const btn = document.getElementById('btn-magic-edit');
             if (btn) {
                 btn.onclick = async () => {
-                    const prompt = window.prompt("✨ Magic Edit: What should I change?");
+                    const prompt = window.prompt("✨ עריכת קסם: מה לשנות?");
                     if (!prompt) return;
 
                     const asset = state.assets.photos.find(p => p.id === selectionId);
                     if (!asset) return;
 
-                    alert("Magic Edit is generating... please wait!");
+                    alert("עריכת קסם יוצרת... אנא המתן!");
                     try {
                         const newUrl = await geminiService.editImage(asset.url, prompt);
                         store.pushState('Magic Edit');
                         asset.url = newUrl;
                         store.notify('assets', state.assets);
                     } catch (e) {
-                        alert("Edit failed: " + e.message);
+                        alert("העריכה נכשלה: " + e.message);
                     }
                 };
             }
@@ -1817,15 +1924,15 @@ class App {
             if (isTemplate) {
                 panel.innerHTML = `
                     <div class="panel-header">
-                        <h3>Text Properties</h3>
+                        <h3>מאפייני טקסט</h3>
                     </div>
-                    <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="padding:15px; display:flex; flex-direction:column; gap:10px; text-align: right;">
                         <div>
-                            <label>Content</label>
-                            <textarea id="prop-text-content" rows="5" style="width:100%; border-radius:4px; padding:5px; font-family: inherit;">${textElement.content || ''}</textarea>
+                            <label>תוכן</label>
+                            <textarea id="prop-text-content" rows="5" style="width:100%; border-radius:4px; padding:5px; font-family: inherit; text-align: right;" dir="rtl">${textElement.content || ''}</textarea>
                         </div>
                         <div style="color: #888; font-size: 12px;">
-                            <i class="fa-solid fa-info-circle"></i> Font styling is controlled by the template design
+                            <i class="fa-solid fa-info-circle"></i> סגנון הגופן נקבע על ידי עיצוב התבנית
                         </div>
                     </div>
                 `;
@@ -1834,34 +1941,41 @@ class App {
                 const txtContent = document.getElementById('prop-text-content');
                 txtContent.addEventListener('input', (e) => {
                     page.textContent[selectionId] = e.target.value;
-                    store.notify('pages', store.state.pages); // Live preview
+
+                    // PERFORMANCE FIX: Do not call store.notify('pages', store.state.pages) here!
+                    // It causes the entire canvas and DOM to rebuild on every keystroke.
+                    // Instead, look for the element in the DOM and manually update its textContent visually
+                    const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"]`);
+                    if (visualEl) {
+                        visualEl.textContent = e.target.value;
+                    }
                 });
             } else {
                 // Default page system - full controls
                 panel.innerHTML = `
                     <div class="panel-header">
-                        <h3>Text Properties</h3>
+                        <h3>מאפייני טקסט</h3>
                     </div>
-                    <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="padding:15px; display:flex; flex-direction:column; gap:10px; text-align: right;">
                         <div>
-                            <label>Content</label>
-                            <textarea id="prop-text-content" rows="3" style="width:100%; border-radius:4px; padding:5px;">${textElement.content}</textarea>
+                            <label>תוכן</label>
+                            <textarea id="prop-text-content" rows="3" style="width:100%; border-radius:4px; padding:5px; text-align: right;" dir="rtl">${textElement.content}</textarea>
                         </div>
 
                         <div>
-                            <label>Font Size</label>
+                            <label>גודל גופן</label>
                             <input type="range" id="prop-text-size" min="10" max="100" value="${textElement.fontSize || 24}">
                             <span id="prop-text-size-val">${textElement.fontSize || 24}px</span>
                         </div>
 
                         <div>
-                            <label>Color</label>
+                            <label>צבע</label>
                             <div style="display:flex; align-items:center;">
                                 <input type="color" id="prop-text-color" value="${textElement.color || '#000000'}">
                             </div>
                         </div>
                          <div>
-                            <label>Font Family</label>
+                            <label>משפחת גופנים</label>
                             <select id="prop-text-font" style="width:100%; padding:5px;">
                                 <option value="sans-serif">Sans Serif</option>
                                 <option value="serif">Serif</option>
@@ -1872,7 +1986,7 @@ class App {
                         </div>
 
                        <button class="btn-secondary btn-sm" id="btn-delete-text" style="color:red; border-color:red; margin-top:10px;">
-                            <i class="fa-solid fa-trash"></i> Delete Text
+                            <i class="fa-solid fa-trash"></i> מחק טקסט
                        </button>
                     </div>
                 `;
@@ -1881,7 +1995,11 @@ class App {
                 const txtContent = document.getElementById('prop-text-content');
                 txtContent.addEventListener('input', (e) => {
                     textElement.content = e.target.value;
-                    store.notify('pages', store.state.pages); // Live preview
+
+                    const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"]`);
+                    if (visualEl) {
+                        visualEl.textContent = e.target.value;
+                    }
                 });
 
                 const txtSize = document.getElementById('prop-text-size');
@@ -1889,7 +2007,10 @@ class App {
                 txtSize.addEventListener('input', (e) => {
                     textElement.fontSize = parseInt(e.target.value);
                     txtSizeVal.textContent = e.target.value + 'px';
-                    store.notify('pages', store.state.pages);
+                    const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"]`);
+                    if (visualEl) {
+                        visualEl.style.fontSize = e.target.value + 'px';
+                    }
                 });
 
                 const txtColor = document.getElementById('prop-text-color');
@@ -1906,7 +2027,7 @@ class App {
                 });
 
                 document.getElementById('btn-delete-text').addEventListener('click', () => {
-                    if (confirm("Delete this text?")) {
+                    if (confirm("למחוק את הטקסט הזה?")) {
                         store.pushState('Delete Text');
                         page.elements = page.elements.filter(el => el.id !== selectionId);
                         store.state.selection = null;
@@ -1965,7 +2086,7 @@ class App {
                     await authService.signInWithGoogle();
                 } catch (e) {
                     console.error(e);
-                    alert("Login failed. See console.");
+                    alert("התחברות נכשלה. ראה פרטים במסוף.");
                 }
             };
             authBtn.style.border = 'none';
@@ -1974,29 +2095,29 @@ class App {
     renderPageProperties(container, page) {
         container.innerHTML = `
             <div class="panel-header">
-                <h3>Page Settings</h3>
+                <h3>הגדרות עמוד</h3>
             </div>
             
             <div style="padding: 20px;">
                 <!-- Layout -->
                 <div class="prop-group">
-                    <label>Layout</label>
+                    <label>פריסה</label>
                     <div class="layout-selector">
-                        <button class="layout-btn" title="Single / Focus"><i class="fa-regular fa-square"></i></button>
-                        <button class="layout-btn" title="Two / Split"><i class="fa-solid fa-table-columns"></i></button>
-                        <button class="layout-btn" title="Grid / Remix"><i class="fa-solid fa-border-all"></i></button>
+                        <button class="layout-btn" title="יחיד / פוקוס"><i class="fa-regular fa-square"></i></button>
+                        <button class="layout-btn" title="כפול / מפוצל"><i class="fa-solid fa-table-columns"></i></button>
+                        <button class="layout-btn" title="גריד / מעורב"><i class="fa-solid fa-border-all"></i></button>
                     </div>
                 </div>
 
                 <!-- Slide (Spacing/Padding) -->
                 <div class="prop-group">
-                    <label>Slide (Spacing)</label>
+                    <label>רווח פנימי (שוליים)</label>
                     <input type="range" id="prop-page-spacing" min="0" max="40" value="${page.spacing || 0}">
                 </div>
 
                 <!-- Color -->
                 <div class="prop-group">
-                    <label>Color</label>
+                    <label>צבע רקע</label>
                     <div class="color-picker-wrapper">
                         <input type="color" id="prop-page-color" class="color-input-hidden" value="${(page.background && typeof page.background === 'string' && page.background.startsWith('#')) ? page.background : (page.background && page.background.color ? page.background.color : '#ffffff')}">
                         <div class="color-icon"><i class="fa-solid fa-eye-dropper"></i></div>
@@ -2109,19 +2230,19 @@ class App {
         if (selection === 'cover-photo' || selection === 'cover-back-photo') {
             container.innerHTML = `
                 <div class="panel-header">
-                    <button class="btn-secondary btn-sm" id="btn-back-cover-props"><i class="fa-solid fa-arrow-left"></i> Cover Settings</button>
-                    <h3>${selection === 'cover-photo' ? 'Front Photo' : 'Back Photo'}</h3>
+                    <button class="btn-secondary btn-sm" id="btn-back-cover-props"><i class="fa-solid fa-arrow-left"></i> הגדרות כריכה</button>
+                    <h3>${selection === 'cover-photo' ? 'תמונה קדמית' : 'תמונה אחורית'}</h3>
                 </div>
              `;
 
             const photoId = selection === 'cover-photo' ? cover.frontPhotoId : cover.backPhotoId;
 
             if (!photoId) {
-                container.innerHTML += `<div class="empty-state">No photo set</div>`;
+                container.innerHTML += `<div class="empty-state">לא נבחרה תמונה</div>`;
             } else {
                 const actionsGroup = document.createElement('div');
                 actionsGroup.className = 'prop-group';
-                actionsGroup.innerHTML = `<button class="btn-secondary full-width text-danger" id="btn-remove-cover-photo">Remove Photo</button>`;
+                actionsGroup.innerHTML = `<button class="btn-secondary full-width text-danger" id="btn-remove-cover-photo">הסר תמונה</button>`;
                 container.appendChild(actionsGroup);
 
                 container.querySelector('#btn-remove-cover-photo').addEventListener('click', () => {
@@ -2140,24 +2261,24 @@ class App {
             return;
         }
 
-        container.innerHTML = `<h3>Cover Settings</h3>`;
+        container.innerHTML = `<h3>הגדרות כריכה</h3>`;
 
         // Title
         const titleGroup = document.createElement('div');
         titleGroup.className = 'prop-group';
-        titleGroup.innerHTML = `<label>Title</label><input type="text" id="prop-cover-title" value="${cover.title || ''}" placeholder="${templateDefaults.title}">`;
+        titleGroup.innerHTML = `<label>כותרת</label><input type="text" id="prop-cover-title" value="${cover.title || ''}" placeholder="${templateDefaults.title}" style="text-align: right;" dir="rtl">`;
         container.appendChild(titleGroup);
 
         // Subtitle
         const subGroup = document.createElement('div');
         subGroup.className = 'prop-group';
-        subGroup.innerHTML = `<label>Subtitle</label><input type="text" id="prop-cover-sub" value="${cover.subtitle || ''}" placeholder="${templateDefaults.subtitle}">`;
+        subGroup.innerHTML = `<label>תת-כותרת</label><input type="text" id="prop-cover-sub" value="${cover.subtitle || ''}" placeholder="${templateDefaults.subtitle}" style="text-align: right;" dir="rtl">`;
         container.appendChild(subGroup);
 
         // Spine Text
         const spineGroup = document.createElement('div');
         spineGroup.className = 'prop-group';
-        spineGroup.innerHTML = `<label>Spine Text</label><input type="text" id="prop-cover-spine" value="${cover.spineText || ''}" placeholder="${cover.title || templateDefaults.spineText}">`;
+        spineGroup.innerHTML = `<label>טקסט שדרה</label><input type="text" id="prop-cover-spine" value="${cover.spineText || ''}" placeholder="${cover.title || templateDefaults.spineText}" style="text-align: right;" dir="rtl">`;
         container.appendChild(spineGroup);
 
         // Layout - with all 7 options
@@ -2169,7 +2290,7 @@ class App {
         const layoutGroup = document.createElement('div');
         layoutGroup.className = 'prop-group';
         layoutGroup.innerHTML = `
-            <label>Layout</label>
+            <label>פריסה</label>
             <select id="prop-cover-layout" class="full-width">
                 ${layoutOptions}
             </select>
@@ -2187,7 +2308,7 @@ class App {
         const titleFontGroup = document.createElement('div');
         titleFontGroup.className = 'prop-group';
         titleFontGroup.innerHTML = `
-            <label>Title Font</label>
+            <label>גופן כותרת</label>
             <select id="prop-cover-title-font" class="full-width">
                 ${titleFontOptions}
             </select>
@@ -2205,7 +2326,7 @@ class App {
         const bodyFontGroup = document.createElement('div');
         bodyFontGroup.className = 'prop-group';
         bodyFontGroup.innerHTML = `
-            <label>Subtitle Font</label>
+            <label>גופן תת-כותרת</label>
             <select id="prop-cover-body-font" class="full-width">
                 ${bodyFontOptions}
             </select>
@@ -2216,10 +2337,10 @@ class App {
         const colorGroup = document.createElement('div');
         colorGroup.className = 'prop-group';
         colorGroup.innerHTML = `
-            <label>Background Color</label>
+            <label>צבע רקע</label>
             <div style="display:flex; gap:10px;">
                 <input type="color" id="prop-cover-color" value="${cover.color || templateDefaults.bgColor}" class="full-width" style="height:40px;">
-                <button class="btn-secondary" id="btn-reset-theme" title="Reset to Template Defaults"><i class="fa-solid fa-rotate-left"></i></button>
+                <button class="btn-secondary" id="btn-reset-theme" title="אפס לברירת מחדל"><i class="fa-solid fa-rotate-left"></i></button>
             </div>
         `;
         container.appendChild(colorGroup);
@@ -2228,20 +2349,73 @@ class App {
         const textColorGroup = document.createElement('div');
         textColorGroup.className = 'prop-group';
         textColorGroup.innerHTML = `
-            <label>Text Color</label>
+            <label>צבע טקסט</label>
             <input type="color" id="prop-cover-text-color" value="${cover.textColor || templateDefaults.textColor}" class="full-width" style="height:40px;">
         `;
         container.appendChild(textColorGroup);
 
         // Event Bindings
         container.querySelector('#prop-cover-title').addEventListener('input', (e) => {
-            store.state.cover = { ...store.state.cover, title: e.target.value };
+            const val = e.target.value;
+            store.state.cover = { ...store.state.cover, title: val };
+            if (!store.state.cover.textContent) store.state.cover.textContent = {};
+            store.state.cover.textContent['title'] = val;
+
+            // Advanced Template Support: specifically for groomName/brideName fields
+            let parts = [val, ''];
+            if (val.includes('&')) parts = val.split('&');
+            else if (val.includes(' ו')) parts = val.split(' ו');
+            else if (val.includes('ו-')) parts = val.split('ו-');
+
+            store.state.cover.textContent['groomName'] = parts[0].trim();
+            store.state.cover.textContent['brideName'] = parts[1] ? parts[1].trim() : '';
+
+            // Map to dynamic template title elements
+            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
+                this.templateSidebar.manager.config.pageLayouts.forEach(layout => {
+                    if (layout.textElements) {
+                        layout.textElements.forEach(te => {
+                            if (te.type === 'title' || te.type === 'locationTitle' || te.elementId === 'destination') {
+                                store.state.cover.textContent[te.elementId] = val;
+                            }
+                        });
+                    }
+                });
+            }
+
+            store.notify('cover', store.state.cover);
         });
         container.querySelector('#prop-cover-sub').addEventListener('input', (e) => {
-            store.state.cover = { ...store.state.cover, subtitle: e.target.value };
+            const val = e.target.value;
+            store.state.cover = { ...store.state.cover, subtitle: val };
+            if (!store.state.cover.textContent) store.state.cover.textContent = {};
+            store.state.cover.textContent['date'] = val;
+            store.state.cover.textContent['subtitle'] = val;
+
+            // Map to dynamic template subtitle elements
+            if (this.templateSidebar && this.templateSidebar.manager && this.templateSidebar.manager.config) {
+                this.templateSidebar.manager.config.pageLayouts.forEach(layout => {
+                    if (layout.textElements) {
+                        layout.textElements.forEach(te => {
+                            if (te.type === 'subtitle' || te.type === 'date' || te.type === 'body') {
+                                // Only override if it acts as a short subtitle/description on cover layouts
+                                if (layout.pageType === 'cover' || layout.pageType === 'intro') {
+                                    store.state.cover.textContent[te.elementId] = val;
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            store.notify('cover', store.state.cover);
         });
         container.querySelector('#prop-cover-spine').addEventListener('input', (e) => {
-            store.state.cover = { ...store.state.cover, spineText: e.target.value };
+            const val = e.target.value;
+            store.state.cover = { ...store.state.cover, spineText: val };
+            if (!store.state.cover.textContent) store.state.cover.textContent = {};
+            store.state.cover.textContent['spine'] = val;
+            store.notify('cover', store.state.cover);
         });
         container.querySelector('#prop-cover-layout').addEventListener('change', (e) => {
             store.state.cover = { ...store.state.cover, layout: e.target.value };
@@ -2290,6 +2464,7 @@ class App {
                 bodyFont: defaults.bodyFont,
                 layout: defaults.layout,
                 theme: defaults.bgColor,
+                textPositions: null,
                 _userCustomColor: false,
                 _userCustomTextColor: false,
                 _userCustomTitleFont: false,
@@ -2304,19 +2479,19 @@ class App {
 
         // Title
         const h3 = document.createElement('h3');
-        h3.textContent = 'Text Properties';
+        h3.textContent = 'מאפייני טקסט';
         container.appendChild(h3);
 
         // Content Input
         const inputGroup = document.createElement('div');
         inputGroup.className = 'prop-group';
-        inputGroup.innerHTML = `<label>Content</label><textarea id="prop-text-content" rows="3">${textEl.content}</textarea>`;
+        inputGroup.innerHTML = `<label>תוכן</label><textarea id="prop-text-content" rows="3" style="text-align: right;" dir="rtl">${textEl.content}</textarea>`;
         container.appendChild(inputGroup);
 
         // Size Slider
         const sizeGroup = document.createElement('div');
         sizeGroup.className = 'prop-group';
-        sizeGroup.innerHTML = `<label>Size: ${textEl.fontSize}px</label><input type="range" id="prop-text-size" min="12" max="120" value="${textEl.fontSize}">`;
+        sizeGroup.innerHTML = `<label>גודל: ${textEl.fontSize}px</label><input type="range" id="prop-text-size" min="12" max="120" value="${textEl.fontSize}">`;
         container.appendChild(sizeGroup);
 
         // Bindings
@@ -2338,20 +2513,20 @@ class App {
         const slot = page.layout.slots.find(s => s.photoId === photoId);
         if (!slot) return;
 
-        container.innerHTML = `<h3>Photo Properties</h3>`;
+        container.innerHTML = `<h3>מאפייני תמונה</h3>`;
 
         // 1. Filter
         const filterGroup = document.createElement('div');
         filterGroup.className = 'prop-group';
         const currentFilter = slot.filter || 'none';
         filterGroup.innerHTML = `
-            <label>Filter</label>
+            <label>פילטר</label>
             <select id="prop-filter" class="full-width">
-                <option value="none" ${currentFilter === 'none' ? 'selected' : ''}>None</option>
-                <option value="grayscale(100%)" ${currentFilter.includes('grayscale') ? 'selected' : ''}>B&W</option>
-                <option value="sepia(100%)" ${currentFilter.includes('sepia') ? 'selected' : ''}>Sepia</option>
-                <option value="saturate(200%)" ${currentFilter.includes('saturate') ? 'selected' : ''}>Vivid</option>
-                <option value="contrast(150%) brightness(90%) sepia(20%)" ${currentFilter.includes('contrast') ? 'selected' : ''}>Dramatic</option>
+                <option value="none" ${currentFilter === 'none' ? 'selected' : ''}>ללא</option>
+                <option value="grayscale(100%)" ${currentFilter.includes('grayscale') ? 'selected' : ''}>שחור לבן</option>
+                <option value="sepia(100%)" ${currentFilter.includes('sepia') ? 'selected' : ''}>ספיה</option>
+                <option value="saturate(200%)" ${currentFilter.includes('saturate') ? 'selected' : ''}>חי (Vivid)</option>
+                <option value="contrast(150%) brightness(90%) sepia(20%)" ${currentFilter.includes('contrast') ? 'selected' : ''}>דרמטי</option>
             </select>
         `;
         container.appendChild(filterGroup);
@@ -2365,55 +2540,12 @@ class App {
         const adjGroup = document.createElement('div');
         adjGroup.className = 'prop-group';
         adjGroup.innerHTML = `
-            <label>Brightness: <span id="val-bright">${brightness}</span>%</label>
+            <label>בהירות: <span id="val-bright">${brightness}</span>%</label>
             <input type="range" id="prop-brightness" min="0" max="200" value="${brightness}">
-            <label>Contrast: <span id="val-bontrast">${contrast}</span>%</label>
+            <label>ניגודיות: <span id="val-bontrast">${contrast}</span>%</label>
             <input type="range" id="prop-contrast" min="0" max="200" value="${contrast}">
         `;
         container.appendChild(adjGroup);
-
-        // 3. Frame
-        const frameGroup = document.createElement('div');
-        frameGroup.className = 'prop-group';
-        const currentFrame = slot.frameId || '';
-        // Build options from window.IMAGE_FRAMES
-        let frameOpts = '<option value="">None</option>';
-        if (window.IMAGE_FRAMES) {
-            window.IMAGE_FRAMES.forEach(f => {
-                frameOpts += `<option value="${f.id}" ${currentFrame === f.id ? 'selected' : ''}>${f.name}</option>`;
-            });
-        }
-        frameGroup.innerHTML = `<label>Frame</label><select id="prop-frame" class="full-width">${frameOpts}</select>`;
-        container.appendChild(frameGroup);
-
-        // Actions
-        const actionsGroup = document.createElement('div');
-        actionsGroup.className = 'prop-group';
-        actionsGroup.innerHTML = `<button class="btn-secondary full-width text-danger" id="btn-remove-photo">Remove Photo</button>`;
-        container.appendChild(actionsGroup);
-
-        // Bind Events
-        container.querySelector('#prop-filter').addEventListener('change', (e) => {
-            // If they pick a preset, it overrides manual sliders usually, or composes.
-            // For MVP, simplistic toggling.
-            slot.filter = e.target.value;
-            // Also reset sliders if "None" to avoid confusion? No, let them stack.
-            this.applyPhotoStyles(slot);
-            store.notify('pages', store.state.pages);
-        });
-
-        const updateAdj = () => {
-            const b = container.querySelector('#prop-brightness').value;
-            const c = container.querySelector('#prop-contrast').value;
-            slot.brightness = b;
-            slot.contrast = c;
-            container.querySelector('#val-bright').textContent = b;
-            container.querySelector('#val-bontrast').textContent = c;
-            this.applyPhotoStyles(slot);
-            store.notify('pages', store.state.pages);
-        };
-        container.querySelector('#prop-brightness').addEventListener('input', updateAdj);
-        container.querySelector('#prop-contrast').addEventListener('input', updateAdj);
 
         container.querySelector('#prop-frame').addEventListener('change', (e) => {
             slot.frameId = e.target.value;
@@ -2421,7 +2553,7 @@ class App {
         });
 
         container.querySelector('#btn-remove-photo').addEventListener('click', () => {
-            if (confirm('Remove this photo?')) {
+            if (confirm('להסיר את התמונה הזו?')) {
                 // Remove from page.photos and re-layout
                 const pIdx = page.photos.findIndex(p => p.id === photoId);
                 if (pIdx > -1) {
@@ -2429,6 +2561,73 @@ class App {
                     page.layout = layoutEngine.generateLayout(page.photos);
                     store.state.selection = null;
                     store.notify('pages', store.state.pages);
+                }
+            }
+        });
+    }
+
+    renderCoverTextProperties(panel, cover, selectionId) {
+        // Find text content
+        const content = cover.textContent ? cover.textContent[selectionId] : '';
+        // Find custom font size multiplier
+        const sizeMultiplier = cover.textStyles?.[selectionId]?.size || 100;
+
+        panel.innerHTML = `
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>עריכת טקסט</h3>
+                <button class="btn-secondary btn-sm" id="btn-back-to-cover" style="padding:4px 8px;" title="חזרה להגדרות כריכה"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div style="padding:15px; display:flex; flex-direction:column; gap:15px; text-align: right;">
+                <div>
+                    <label>תוכן</label>
+                    <textarea id="prop-inline-text" rows="3" class="full-width" dir="rtl" style="margin-top:5px; border-radius:4px; padding:5px;">${content || ''}</textarea>
+                </div>
+                <div>
+                    <label>קנה מידה (%)</label>
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:5px;">
+                        <input type="range" id="prop-inline-size" min="30" max="300" value="${sizeMultiplier}" style="flex:1;">
+                        <span id="val-inline-size" style="width:40px; text-align:left;">${sizeMultiplier}%</span>
+                    </div>
+                    <div style="color: #888; font-size: 11px; margin-top: 5px;">
+                        השתמש במחוון כדי לשנות את הגודל ביחס לגודל המקורי בתבנית.
+                    </div>
+                </div>
+            </div>
+        `;
+
+        panel.querySelector('#btn-back-to-cover').addEventListener('click', () => {
+            store.state.selection = null;
+        });
+
+        panel.querySelector('#prop-inline-text').addEventListener('input', (e) => {
+            if (!store.state.cover.textContent) store.state.cover.textContent = {};
+            store.state.cover.textContent[selectionId] = e.target.value;
+
+            // MANUAL UPDATE TO AVOID FULL RERENDER ON TYPING
+            const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"]`);
+            if (visualEl) {
+                // If it's a cover template element, often it just holds text nodes
+                visualEl.textContent = e.target.value;
+            }
+        });
+
+        panel.querySelector('#prop-inline-size').addEventListener('input', (e) => {
+            const val = e.target.value;
+            panel.querySelector('#val-inline-size').textContent = val + '%';
+            if (!store.state.cover.textStyles) store.state.cover.textStyles = {};
+            if (!store.state.cover.textStyles[selectionId]) store.state.cover.textStyles[selectionId] = {};
+            store.state.cover.textStyles[selectionId].size = val;
+
+            // MANUAL UPDATE TO AVOID FULL SCALE RERENDER LOOP
+            const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"]`);
+            if (visualEl) {
+                const scaleVal = val / 100;
+                // Preserve trailing transforms like translate but inject scale safely
+                if (visualEl.style.transform && visualEl.style.transform.includes('translate')) {
+                    visualEl.style.transform = `translate(-50%, -50%) scale(${scaleVal})`;
+                } else {
+                    visualEl.style.transform = `scale(${scaleVal})`;
+                    visualEl.style.transformOrigin = 'center center';
                 }
             }
         });
@@ -2495,13 +2694,29 @@ class App {
                         console.log("[App] Sign-in successful:", user.uid);
                     } catch (loginErr) {
                         console.error("[App] Login failed:", loginErr);
-                        alert("Please sign in to access Google Photos.");
+                        alert("אנא התחבר כדי להשתמש ב-Google Photos.");
                         return;
                     }
                 }
 
+                btnGoogle.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מתחבר ל-Google Photos...';
+                btnGoogle.disabled = true;
+
                 // New Backend Session Flow
-                const photos = await googlePhotosService.openPicker();
+                let photos = [];
+                try {
+                    photos = await googlePhotosService.openPicker();
+                } finally {
+                    btnGoogle.innerHTML = '<i class="fa-brands fa-google"></i> Connect Google Photos';
+                    btnGoogle.disabled = false;
+                }
+
+                if (!photos || photos.length === 0) {
+                    if (confirm("לא נבחרו תמונות מ-Google Photos.\nהאם תרצה לנסות שוב? (במידה ולא, תוכל להעלות מהמחשב בלחצן ההעלאה הרגיל)")) {
+                        btnGoogle.click();
+                    }
+                    return;
+                }
 
                 // --- CLEAN ALBUM LOGIC ---
                 // If there are existing photos, ask user if they want to Replace or Append
@@ -2541,7 +2756,7 @@ class App {
                 // Show completion
                 console.log("Photos successfully imported.");
                 // Use a toast or non-blocking notification if possible, otherwise simple alert
-                alert(`Successfully imported ${photos.length} photos. Drag them onto your pages to begin.`);
+                alert(`יובאו בהצלחה ${photos.length} תמונות. גרור אותן לעמודים כדי להתחיל.`);
 
                 // --- BATCH VISION PROCESSING (BACKGROUND) ---
                 photoPositionService.batchAnalyzePhotos(photos).then(focalDict => {
@@ -2560,16 +2775,12 @@ class App {
 
             } catch (err) {
                 console.error(err);
-                alert('Google Photos Error: ' + err);
+                alert('שגיאת Google Photos: ' + err);
             }
         });
         photoGrid.appendChild(btnGoogle);
 
-        // --- NEW PROJECT BUTTON HANDLER ---
-        const btnNew = document.getElementById('btn-new-project');
-        if (btnNew) {
-            btnNew.addEventListener('click', () => this.startNewProject(true));
-        }
+        // (New Project handler moved to setupEventListeners to prevent duplicate bindings)
 
         console.log(`[App] Rendering ${store.state.assets.photos.length} photos.`);
         if (store.state.assets.photos.length > 0) {

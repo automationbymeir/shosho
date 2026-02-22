@@ -656,14 +656,27 @@ export class AlbumPreview {
         });
 
         // Navigation buttons
-        document.getElementById('flip-prev').addEventListener('click', () => this.prevPage());
-        document.getElementById('flip-next').addEventListener('click', () => this.nextPage());
+        const isLTR = () => {
+            const container = document.getElementById('canvas-container');
+            return container ? container.classList.contains('force-ltr') : false;
+        };
+
+        document.getElementById('flip-prev').addEventListener('click', () => {
+            isLTR() ? this.prevPage() : this.nextPage();
+        });
+        document.getElementById('flip-next').addEventListener('click', () => {
+            isLTR() ? this.nextPage() : this.prevPage();
+        });
 
         // Keyboard navigation
         this.keyHandler = (e) => {
             if (!this.isOpen) return;
-            if (e.key === 'ArrowLeft') this.prevPage();
-            if (e.key === 'ArrowRight') this.nextPage();
+            if (e.key === 'ArrowLeft') {
+                isLTR() ? this.prevPage() : this.nextPage();
+            }
+            if (e.key === 'ArrowRight') {
+                isLTR() ? this.nextPage() : this.prevPage();
+            }
             if (e.key === 'Escape') this.close();
         };
         document.addEventListener('keydown', this.keyHandler);

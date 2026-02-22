@@ -57,7 +57,7 @@ export class TemplateSidebar {
         const photos = this.app.state?.assets?.photos || [];
 
         if (photos.length === 0) {
-            alert("Please add photos to the 'Photos' tab first!");
+            alert("אנא הוסף קודם תמונות ללשונית ה'תמונות'!");
             return;
         }
 
@@ -121,7 +121,7 @@ export class TemplateSidebar {
         } catch (e) {
             console.error("Failed to apply template", e);
             if (progress) progress.remove();
-            alert("Error loading template: " + e.message);
+            alert("שגיאה בטעינת התבנית: " + e.message);
         }
     }
 }
