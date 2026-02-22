@@ -711,13 +711,14 @@ class App {
                 // If only selection changed, we don't need to rebuild the timeline
                 if (prop === 'activePageId' || prop === 'viewMode') {
                     this.updateTimelineActiveState(state);
-                    if (prop === 'viewMode') this.updatePropertiesPanel(state);
                 } else if (prop !== 'selection') {
                     this.updateTimeline(state.pages, state.activePageId);
                 }
 
-                // Update properties panel for all these changes
-                this.updatePropertiesPanel(state);
+                // Update properties panel ONLY if selection or view context changes to prevent focus loss during typing
+                if (prop === 'selection' || prop === 'viewMode' || prop === 'activePageId') {
+                    this.updatePropertiesPanel(state);
+                }
             }
 
             // Attach/Update Moveable after the DOM has been fully re-rendered
@@ -970,141 +971,9 @@ class App {
         });
 
         // ----------------------------------------------------
-        // Text Drag & Drop (Mouse Interactions) FIXED
+        // Legacy Text Drag & Drop removed in favor of Moveable.js
         // ----------------------------------------------------
-        let isDraggingText = false;
-        let dragTargetId = null;
-        let initialMouseX = 0;
-        let initialMouseY = 0;
-        let activeTargetEl = null;
 
-        const DRAG_THRESHOLD = 5; // px
-
-        canvas.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.btn-remove-slot-photo') || e.target.closest('.delete-btn')) {
-                return;
-            }
-
-            const target = e.target.closest('[data-selectable-type="text"], [data-selectable-type="cover-text"], [data-selectable-type="cover-photo"]');
-            if (target) {
-                activeTargetEl = target;
-                initialMouseX = e.clientX;
-                initialMouseY = e.clientY;
-                isDraggingText = false;
-                dragTargetId = target.dataset.selectableId;
-
-                const relativeContainer = target.closest('.cover-section') || target.closest('.album-page') || target.closest('.shoso-page') || canvas.querySelector('.album-page');
-                const containerRect = relativeContainer ? relativeContainer.getBoundingClientRect() : canvas.getBoundingClientRect();
-
-                const scaleX = relativeContainer ? containerRect.width / relativeContainer.offsetWidth : 1;
-                const scaleY = relativeContainer ? containerRect.height / relativeContainer.offsetHeight : 1;
-
-                target.dragScaleX = scaleX;
-                target.dragScaleY = scaleY;
-
-                const style = window.getComputedStyle(target);
-                const styleLeft = style.left;
-                const styleTop = style.top;
-
-                if (styleLeft === 'auto' || styleTop === 'auto') {
-                    target.initialLeft = target.offsetLeft;
-                    target.initialTop = target.offsetTop;
-                    target.style.position = 'absolute';
-                    target.style.left = `${target.initialLeft}px`;
-                    target.style.top = `${target.initialTop}px`;
-                } else {
-                    target.initialLeft = parseFloat(styleLeft);
-                    target.initialTop = parseFloat(styleTop);
-                }
-
-                store.state.selection = dragTargetId;
-            }
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!dragTargetId || !activeTargetEl) return;
-
-            if (!isDraggingText) {
-                const dist = Math.sqrt(Math.pow(e.clientX - initialMouseX, 2) + Math.pow(e.clientY - initialMouseY, 2));
-                if (dist < DRAG_THRESHOLD) return;
-                isDraggingText = true;
-            }
-
-            const scaleX = activeTargetEl.dragScaleX || 1;
-            const scaleY = activeTargetEl.dragScaleY || 1;
-
-            const deltaX = (e.clientX - initialMouseX) / scaleX;
-            const deltaY = (e.clientY - initialMouseY) / scaleY;
-
-            activeTargetEl.style.left = `${activeTargetEl.initialLeft + deltaX}px`;
-            activeTargetEl.style.top = `${activeTargetEl.initialTop + deltaY}px`;
-        });
-
-        window.addEventListener('mouseup', (e) => {
-            if (isDraggingText && dragTargetId && activeTargetEl) {
-                const targetEl = activeTargetEl;
-                const relativeContainer = targetEl.closest('.cover-section') || targetEl.closest('.album-page') || targetEl.closest('.shoso-page') || canvas.querySelector('.album-page');
-
-                const styleLeft = parseFloat(targetEl.style.left) || targetEl.offsetLeft;
-                const styleTop = parseFloat(targetEl.style.top) || targetEl.offsetTop;
-
-                // FIXED: Use getBoundingClientRect divided by scale instead of offsetWidth/Height
-                // because offsetWidth is unreliable when the element itself is scaled.
-                const scaleX = targetEl.dragScaleX || 1;
-                const scaleY = targetEl.dragScaleY || 1;
-                const rect = targetEl.getBoundingClientRect();
-                const unscaledWidth = rect.width / scaleX;
-                const unscaledHeight = rect.height / scaleY;
-
-                const containerWidth = relativeContainer ? relativeContainer.offsetWidth : canvas.clientWidth;
-                const containerHeight = relativeContainer ? relativeContainer.offsetHeight : canvas.clientHeight;
-
-                const relativeX = (styleLeft / containerWidth) * 100;
-                const relativeY = (styleTop / containerHeight) * 100;
-                const relativeW = (unscaledWidth / containerWidth) * 100;
-                const relativeH = (unscaledHeight / containerHeight) * 100;
-
-                let targetContainer;
-                if (store.state.viewMode === 'cover') {
-                    targetContainer = store.state.cover;
-                } else {
-                    targetContainer = store.state.pages.find(p => p.id === store.state.activePageId);
-                }
-
-                if (targetContainer) {
-                    if (store.state.viewMode === 'cover' || (targetContainer.templateId && !targetContainer.templateId.startsWith('layout-'))) {
-                        store.pushState('Move Element');
-                        if (!targetContainer.textPositions) targetContainer.textPositions = {};
-
-                        // Sanity Check: Ensure valid numbers so it doesn't get stuck in a bad state
-                        if (!isNaN(relativeX) && !isNaN(relativeY)) {
-                            targetContainer.textPositions[dragTargetId] = {
-                                x: relativeX + '%',
-                                y: relativeY + '%',
-                                width: (isNaN(relativeW) || relativeW === 0) ? 'auto' : relativeW + '%',
-                                height: (isNaN(relativeH) || relativeH === 0) ? 'auto' : relativeH + '%'
-                            };
-                        }
-                        if (store.state.viewMode === 'cover') {
-                            store.notify('cover', store.state.cover);
-                        } else {
-                            store.notify('pages', store.state.pages);
-                        }
-                    } else if (targetContainer.elements) {
-                        const el = targetContainer.elements.find(el => el.id === dragTargetId);
-                        if (el) {
-                            store.pushState('Move Element');
-                            el.x = relativeX;
-                            el.y = relativeY;
-                            store.notify('pages', store.state.pages);
-                        }
-                    }
-                }
-            }
-            isDraggingText = false;
-            dragTargetId = null;
-            activeTargetEl = null;
-        });
 
         // ----------------------------------------------------
         // Toolbar Actions
@@ -2456,12 +2325,23 @@ class App {
                         layout.textElements.forEach(te => {
                             if (te.type === 'title' || te.type === 'locationTitle' || te.elementId === 'destination') {
                                 store.state.cover.textContent[te.elementId] = val;
+                                // Apply atomic update to mapped elements
+                                document.querySelectorAll(`[data-selectable-id="${te.elementId}"]`).forEach(el => {
+                                    if (el) el.textContent = val;
+                                });
                             }
                         });
                     }
                 });
             }
 
+            // Atomic DOM update for common direct template selectors
+            document.querySelectorAll('[data-selectable-id="title"], [data-selectable-id="cover-title"]').forEach(el => {
+                if (el) el.textContent = val;
+            });
+        });
+
+        container.querySelector('#prop-cover-title').addEventListener('change', (e) => {
             store.notify('cover', store.state.cover);
         });
         container.querySelector('#prop-cover-sub').addEventListener('input', (e) => {
@@ -2480,6 +2360,10 @@ class App {
                                 // Only override if it acts as a short subtitle/description on cover layouts
                                 if (layout.pageType === 'cover' || layout.pageType === 'intro') {
                                     store.state.cover.textContent[te.elementId] = val;
+                                    // Apply atomic update to mapped elements
+                                    document.querySelectorAll(`[data-selectable-id="${te.elementId}"]`).forEach(el => {
+                                        if (el) el.textContent = val;
+                                    });
                                 }
                             }
                         });
@@ -2487,6 +2371,13 @@ class App {
                 });
             }
 
+            // Atomic DOM update for common direct template selectors
+            document.querySelectorAll('[data-selectable-id="subtitle"], [data-selectable-id="cover-subtitle"], [data-selectable-id="date"]').forEach(el => {
+                if (el) el.textContent = val;
+            });
+        });
+
+        container.querySelector('#prop-cover-sub').addEventListener('change', (e) => {
             store.notify('cover', store.state.cover);
         });
         container.querySelector('#prop-cover-spine').addEventListener('input', (e) => {
@@ -2494,6 +2385,14 @@ class App {
             store.state.cover = { ...store.state.cover, spineText: val };
             if (!store.state.cover.textContent) store.state.cover.textContent = {};
             store.state.cover.textContent['spine'] = val;
+
+            // Atomic update
+            document.querySelectorAll('[data-selectable-id="spine"], [data-selectable-id="cover-spine"]').forEach(el => {
+                if (el) el.textContent = val;
+            });
+        });
+
+        container.querySelector('#prop-cover-spine').addEventListener('change', (e) => {
             store.notify('cover', store.state.cover);
         });
         container.querySelector('#prop-cover-layout').addEventListener('change', (e) => {
@@ -2576,13 +2475,24 @@ class App {
         // Bindings
         container.querySelector('#prop-text-content').addEventListener('input', (e) => {
             textEl.content = e.target.value;
-            store.notify('pages', store.state.pages); // Live update
+            const visualEl = document.querySelector(`[data-selectable-id="${textEl.id}"]`);
+            if (visualEl) visualEl.textContent = e.target.value;
+        });
+        container.querySelector('#prop-text-content').addEventListener('change', (e) => {
+            store.notify('pages', store.state.pages);
         });
 
         container.querySelector('#prop-text-size').addEventListener('input', (e) => {
             const val = parseInt(e.target.value);
             textEl.fontSize = val;
             sizeGroup.querySelector('label').textContent = `Size: ${val}px`;
+            const visualEl = document.querySelector(`[data-selectable-id="${textEl.id}"]`);
+            if (visualEl) {
+                visualEl.style.fontSize = val + 'px';
+                if (window.app && window.app.moveableInstance) window.app.moveableInstance.updateRect();
+            }
+        });
+        container.querySelector('#prop-text-size').addEventListener('change', (e) => {
             store.notify('pages', store.state.pages);
         });
     }
@@ -2687,7 +2597,14 @@ class App {
             if (visualEl) {
                 // If it's a cover template element, often it just holds text nodes
                 visualEl.textContent = e.target.value;
+                if (window.app && window.app.moveableInstance) window.app.moveableInstance.updateRect();
             }
+
+            // Sync state after typing pauses
+            clearTimeout(window._coverTextDebounce);
+            window._coverTextDebounce = setTimeout(() => {
+                store.notify('cover', store.state.cover);
+            }, 800);
         });
 
         panel.querySelector('#prop-inline-size').addEventListener('input', (e) => {
@@ -2708,7 +2625,14 @@ class App {
                     visualEl.style.transform = `scale(${scaleVal})`;
                     visualEl.style.transformOrigin = 'center center';
                 }
+                if (window.app && window.app.moveableInstance) window.app.moveableInstance.updateRect();
             }
+
+            // Sync state after slider pauses
+            clearTimeout(window._coverSizeDebounce);
+            window._coverSizeDebounce = setTimeout(() => {
+                store.notify('cover', store.state.cover);
+            }, 500);
         });
     }
 

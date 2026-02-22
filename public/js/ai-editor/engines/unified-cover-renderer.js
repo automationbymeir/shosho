@@ -633,7 +633,7 @@ export class UnifiedCoverRenderer {
                 // Content priority: manual textContent > existing override > placeholder > default
                 let content = textSpec.content || textSpec.placeholder || '';
 
-                if (cover.textContent && cover.textContent[textSpec.elementId]) {
+                if (cover.textContent && cover.textContent[textSpec.elementId] !== undefined) {
                     content = cover.textContent[textSpec.elementId];
                 } else {
                     // Pre-population logic if not manually edited yet:
