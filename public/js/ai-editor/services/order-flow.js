@@ -276,9 +276,11 @@ export const orderFlow = {
                     printcolor: "color",
                     sheettype: paperType,
                     laminationtype: lamination,
-                    finishtype: "hard", // Hardcover
-                    width: 200, // 20x20cm approx
-                    height: 200
+                    finishtype: "soft", // Bookpod API requires 'soft'
+                    width: 20.0, // Requires CM (10.50-22.00)
+                    height: 20.0, // Requires CM (14.80-29.70)
+                    readingdirection: "right", // API expects 'right' or 'left'
+                    bleed: true // Required
                 }
             };
         };
