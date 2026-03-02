@@ -306,7 +306,13 @@ export const persistenceService = {
         }
 
         // 2. Default Behavior: Find Most Recent Local Project
-        const allLocal = await localGetAll();
+        let allLocal;
+        try {
+            allLocal = await localGetAll();
+        } catch (e) {
+            console.error('[Persistence] Failed to read from IndexedDB (data may be too large):', e);
+            allLocal = null;
+        }
         if (allLocal && allLocal.length > 0) {
             allLocal.sort((a, b) => b.lastModified - a.lastModified);
             const recent = allLocal[0];

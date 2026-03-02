@@ -226,12 +226,23 @@ class App {
                         }
                     }
                     if (restoreLoadingModal) restoreLoadingModal.style.display = 'flex';
-                    savedData = await persistenceService.loadProject(user?.uid || null, this.urlProjectId);
+                    try {
+                        savedData = await persistenceService.loadProject(user?.uid || null, this.urlProjectId);
+                    } catch (e) {
+                        console.error('[App] Failed to load shared project (IndexedDB/network error):', e);
+                        savedData = null;
+                    }
 
                     // Clear the URL to avoid re-joining on reload
                     window.history.replaceState({}, document.title, window.location.pathname);
                 } else {
-                    savedData = await persistenceService.loadProject(user?.uid || null);
+                    try {
+                        savedData = await persistenceService.loadProject(user?.uid || null);
+                    } catch (e) {
+                        console.error('[App] Failed to load project from IndexedDB:', e);
+                        console.warn('[App] Starting fresh due to storage error. Your project data may be too large for this browser.');
+                        savedData = null;
+                    }
                 }
 
                 if (savedData) {
@@ -456,7 +467,11 @@ class App {
 
     renderActivePage() {
         const p = store.state.pages.find(pg => pg.id === store.state.activePageId);
-        if (!p) return;
+        console.log('[renderActivePage] activePageId:', store.state.activePageId?.substring(0, 12), 'found:', !!p, 'totalPages:', store.state.pages.length);
+        if (!p) {
+            console.warn('[renderActivePage] Page NOT FOUND! Page IDs:', store.state.pages.map(pg => pg.id?.substring(0, 12)));
+            return;
+        }
 
         // Check for Specialized Renderer
         // We need access to the Template Config for the renderer. 
@@ -4349,7 +4364,11 @@ class App {
             el.appendChild(label);
 
             el.onclick = () => {
-                if (store.state.activePageId === page.id && store.state.viewMode === 'pages') return;
+                console.log('[TIMELINE CLICK] Page clicked:', page.id?.substring(0, 12), 'viewMode:', store.state.viewMode, 'activePageId:', store.state.activePageId?.substring(0, 12));
+                if (store.state.activePageId === page.id && store.state.viewMode === 'pages') {
+                    console.log('[TIMELINE CLICK] EARLY RETURN: same page already active');
+                    return;
+                }
 
                 // ── ROBUST PAGE SWITCH ──
                 // 1. Lock out any pending/future subscriber RAF renders
@@ -4365,8 +4384,15 @@ class App {
                 this._rafPending = false;
                 this._pendingUpdates = new Set();
 
-                // 4. Render the page (renderPage already clears the container)
+                // 4. Render the page
+                console.log('[TIMELINE CLICK] About to render. Looking for page:', store.state.activePageId?.substring(0, 12), 'in', store.state.pages.length, 'pages');
+                const foundPage = store.state.pages.find(p => p.id === store.state.activePageId);
+                console.log('[TIMELINE CLICK] Page found:', !!foundPage, foundPage ? { id: foundPage.id?.substring(0, 12), layout: typeof foundPage.layout, hasSlots: !!(foundPage.layout?.slots) } : 'NOT FOUND');
+
                 this.renderActivePage();
+
+                const cc = document.getElementById('canvas-container');
+                console.log('[TIMELINE CLICK] After render. Container children:', cc?.children.length, 'First child:', cc?.firstElementChild?.className?.substring(0, 40));
 
                 // 5. Sync all UI panels
                 this.updateTimelineActiveState(store.state);
