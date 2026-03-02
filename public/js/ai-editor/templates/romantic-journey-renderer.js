@@ -164,7 +164,9 @@ export class RomanticJourneyRenderer {
     renderTextElement(container, textEl, content, customPos = null) {
         const element = document.createElement('div');
         element.className = `text-element text-${textEl.type}`;
-        element.dataset.id = textEl.elementId; // For potential editing interactions
+        // FIX: Use data-selectable-id and data-selectable-type for selection/editing
+        element.dataset.selectableId = textEl.elementId;
+        element.dataset.selectableType = 'text';
 
         const fontConfig = this.designSystem.typography[textEl.style.font] || this.designSystem.typography.sans;
         const color = this.resolveColor(textEl.style.color);
@@ -217,6 +219,9 @@ export class RomanticJourneyRenderer {
         if (parentEl.type === 'card') {
             const card = document.createElement('div');
             card.className = 'title-card';
+            // FIX: Add selectable attributes for the card container
+            card.dataset.selectableId = parentEl.elementId || 'title-card';
+            card.dataset.selectableType = 'text';
 
             const bg = this.resolveColor(parentEl.background);
 
@@ -246,6 +251,9 @@ export class RomanticJourneyRenderer {
             parentEl.children.forEach(child => {
                 const content = textContent[child.elementId] || child.placeholder;
                 const childEl = document.createElement('div');
+                // FIX: Add selectable attributes for child text elements
+                childEl.dataset.selectableId = child.elementId;
+                childEl.dataset.selectableType = 'text';
                 const fontConfig = this.designSystem.typography[child.style.font];
                 const color = this.resolveColor(child.style.color);
                 const fontFamily = fontConfig.family ? `'${fontConfig.family}', ${fontConfig.fallback}` : 'sans-serif';
