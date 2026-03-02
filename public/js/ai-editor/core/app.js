@@ -324,6 +324,18 @@ class App {
                         return;
                     }
 
+                    // DEFENSIVE: Ensure all pages have IDs before restoring state.
+                    // Older Magic Create versions didn't generate page IDs, causing
+                    // navigation failures (timeline clicks set activePageId to undefined).
+                    if (savedData.pages && Array.isArray(savedData.pages)) {
+                        savedData.pages.forEach(p => {
+                            if (!p.id) {
+                                p.id = crypto.randomUUID();
+                                console.warn('[App] Auto-assigned missing page ID:', p.id);
+                            }
+                        });
+                    }
+
                     // Restore key state properties
                     Object.assign(store.state, {
                         ...savedData,
@@ -1456,7 +1468,8 @@ class App {
                             updates.has('viewMode') || updates.has('history_restore');
 
                         // Canvas render — skip for selection-only changes and coverPosition (text drag)
-                        if (needsCanvasRender && !this._magicCreateRendering) {
+                        // Also skip if a manual render lock is active (prevents timeline click overwrite)
+                        if (needsCanvasRender && !this._magicCreateRendering && !this._manualRenderLock) {
                             // PERFORMANCE: Skip re-render if active page content hasn't changed
                             let skipRender = false;
                             if (updates.size === 1 && updates.has('pages') && state.viewMode !== 'cover') {
@@ -1489,12 +1502,15 @@ class App {
                             }
                         }
 
-                        // Timeline — only rebuild when structure changes
-                        if (updates.has('activePageId') || updates.has('viewMode')) {
-                            this.updateTimelineActiveState(state);
-                        } else if (updates.has('pages') || updates.has('theme') || updates.has('history_restore')) {
+                        // Timeline — rebuild on structure changes, update highlight on selection changes
+                        // IMPORTANT: These are NOT mutually exclusive! A project restore triggers
+                        // both 'pages' and 'viewMode' in the same batch, so we must handle both.
+                        if (updates.has('pages') || updates.has('theme') || updates.has('history_restore')) {
                             this.updateTimeline(state.pages, state.activePageId);
                             this.updateActiveThumbnailOnly();
+                        }
+                        if (updates.has('activePageId') || updates.has('viewMode')) {
+                            this.updateTimelineActiveState(state);
                         }
 
                         // Properties panel — only when selection or view switches
@@ -4236,13 +4252,26 @@ class App {
             coverEl.onclick = () => {
                 if (store.state.viewMode === 'cover') return;
 
+                // Set a render lock to prevent subscriber RAF from overwriting
+                this._manualRenderLock = true;
+
                 store._isBatchUpdating = true;
                 store.state.viewMode = 'cover';
                 store.state.activePageId = null;
                 store._isBatchUpdating = false;
 
-                store.notify('viewMode', 'cover');
+                // Cancel any pending RAF render
+                this._rafPending = false;
+                this._pendingUpdates = new Set();
+
+                this.renderCoverWithTemplate();
+                this.updateTimelineActiveState(store.state);
                 this.updatePropertiesPanel(store.state);
+
+                // Release render lock after this frame cycle
+                requestAnimationFrame(() => {
+                    this._manualRenderLock = false;
+                });
             };
 
             tl.appendChild(coverEl);
@@ -4322,14 +4351,20 @@ class App {
             el.onclick = () => {
                 if (store.state.activePageId === page.id && store.state.viewMode === 'pages') return;
 
+                // Set a render lock to prevent subscriber RAF from overwriting this manual render
+                this._manualRenderLock = true;
+
                 // Stop double triggering proxy by batching state changes
                 store._isBatchUpdating = true;
                 store.state.activePageId = page.id;
                 store.state.viewMode = 'pages';
                 store._isBatchUpdating = false;
 
+                // Cancel any pending RAF render (prevents stale cover render from overwriting)
+                this._rafPending = false;
+                this._pendingUpdates = new Set();
+
                 // Use template-aware renderActivePage for consistent rendering
-                // This ensures the same renderer is used as the main editor
                 this.renderActivePage();
 
                 // Update timeline highlight
@@ -4338,6 +4373,11 @@ class App {
                 this.updatePropertiesPanel(store.state);
                 // Update moveable
                 this.updateMoveable(store.state);
+
+                // Release render lock after this frame cycle
+                requestAnimationFrame(() => {
+                    this._manualRenderLock = false;
+                });
             };
 
             tl.appendChild(el);

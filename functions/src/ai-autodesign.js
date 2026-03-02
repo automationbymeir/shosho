@@ -193,6 +193,9 @@ async function generateAutoDesignPlan(photos, opts = {}) {
   const seed = String(opts.seed || Date.now());
   const userRequest = String(opts.userRequest || "").trim();
 
+  // Dynamic backgrounds from frontend (if provided)
+  const frontendBackgrounds = Array.isArray(opts.availableBackgrounds) ? opts.availableBackgrounds : null;
+
   if (!Array.isArray(photos) || photos.length === 0) {
     return {success: false, error: "No photos provided"};
   }
@@ -243,8 +246,9 @@ async function generateAutoDesignPlan(photos, opts = {}) {
     "imgframe-oval-laurel",
   ];
 
-  // Full background texture catalog with mood hints for AI selection
-  const allowedBackgroundTextures = [
+  // Full background texture catalog — use frontend-provided list when available
+  // This ensures newly added backgrounds are automatically available to Magic Create
+  const defaultBackgroundTextures = [
     {id: "classic", mood: "clean minimal whitespace geometric"},
     {id: "botanical", mood: "warm natural green botanical vintage"},
     {id: "noir-film", mood: "cinematic dark filmstrip noir"},
@@ -290,6 +294,10 @@ async function generateAutoDesignPlan(photos, opts = {}) {
     {id: "retro-waves", mood: "retro vintage waves purple pink"},
     {id: "golden-ratio", mood: "golden elegant spiral mathematical luxury"},
   ];
+  // Use frontend-provided backgrounds if available, otherwise use defaults
+  const allowedBackgroundTextures = frontendBackgrounds && frontendBackgrounds.length > 0 ?
+    frontendBackgrounds.map((b) => ({id: String(b.id), mood: String(b.mood || b.tags || b.id)})) :
+    defaultBackgroundTextures;
   const bgIdList = allowedBackgroundTextures.map((b) => b.id);
 
   // Element categories with mood descriptions for AI selection
@@ -304,6 +312,7 @@ async function generateAutoDesignPlan(photos, opts = {}) {
     {category: "animals", mood: "animal pet dog cat wild paws"},
     {category: "music", mood: "music song party note instrument concert"},
     {category: "shapes", mood: "geometric frame design decoration ornament"},
+    {category: "flags", mood: "country flag national travel destination israel usa france italy japan germany spain uk brazil india"},
   ];
 
   const allowedPageFrames = [
@@ -354,7 +363,9 @@ async function generateAutoDesignPlan(photos, opts = {}) {
 Goal: Create ONE coherent design system and a full album layout plan from the given photos.
 The result must feel curated, consistent, and beautiful — not just random colors.
 
-${userRequest ? `CRITICAL DIRECTIVE FROM CLIENT: "${userRequest}" \nYou MUST analyze this request and explicitly select backgroundTextureId, elementCategories, pageFrameId, photoFrameId, text styles, and templateId that BEST MATCH the mood, theme, and subjects of this request. Do not default to random.` : `Every run should vary (use the provided seed to introduce variation).`}
+${userRequest ? `CRITICAL DIRECTIVE FROM CLIENT: "${userRequest}" \nYou MUST analyze this request and explicitly select backgroundTextureId, elementCategories, pageFrameId, photoFrameId, text styles, and templateId that BEST MATCH the mood, theme, and subjects of this request. Do not default to random.
+
+COUNTRY FLAG DETECTION: If the prompt mentions ANY country name (in Hebrew or English), you MUST include "flags" in the elementCategories for the cover page AND 2-3 interior pages. Country names include but are not limited to: ישראל/Israel, ארצות הברית/USA, צרפת/France, איטליה/Italy, יפן/Japan, גרמניה/Germany, ספרד/Spain, בריטניה/UK, ברזיל/Brazil, הודו/India, תאילנד/Thailand, יוון/Greece, טורקיה/Turkey, etc.` : `Every run should vary (use the provided seed to introduce variation).`}
 
 Language: ${isHe ? "Hebrew (he)" : "English (en)"}.
 ${isHe ? "CRITICAL: ALL text content (cover title, cover subtitle, back cover text, photo captions, and text block content) MUST be written in Hebrew. Do NOT use any English text in the output." : ""}

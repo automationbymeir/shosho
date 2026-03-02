@@ -51,6 +51,7 @@ app.post("/create", async (req, res) => {
       lang: (options && options.lang) ? options.lang : "en",
       userRequest: prompt || "", // Pass actual prompt
       seed: prompt || Date.now().toString(),
+      availableBackgrounds: (options && options.availableBackgrounds) ? options.availableBackgrounds : null,
     };
 
     // Use existing AI Auto Design logic

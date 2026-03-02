@@ -127,11 +127,19 @@ class MagicCreateV4 {
         console.log('[MagicCreate v4] Creating with', approvedPhotos.length, 'approved photos');
 
         try {
+            // Store prompt for flag matching in element resolution
+            window._magicPrompt = prompt;
             // Detect Hebrew in the prompt
             const hebrewRegex = /[\u0590-\u05FF]/;
             const isHebrew = hebrewRegex.test(prompt);
             window._magicIsHebrew = isHebrew;
             console.log(`[MagicCreate v4] Language detection: ${isHebrew ? 'Hebrew' : 'English'}`);
+
+            // PERFORMANCE: Collect available backgrounds from frontend gallery
+            // so the AI knows exactly what backgrounds exist
+            const availableBackgrounds = (window.BACKGROUND_TEXTURES || [])
+                .filter(bg => !bg.id.startsWith('frame-') && !bg.id.startsWith('img-'))
+                .map(bg => ({ id: bg.id, mood: bg.tags || bg.name || bg.id }));
 
             const response = await fetch(`${this.baseUrl}/magic/create`, {
                 method: 'POST',
@@ -140,26 +148,21 @@ class MagicCreateV4 {
                     user_id: options.userId || 'web_user',
                     prompt: prompt,
                     options: {
-                        lang: isHebrew ? 'he' : 'en'
+                        lang: isHebrew ? 'he' : 'en',
+                        availableBackgrounds: availableBackgrounds
                     },
                     photos: approvedPhotos.map((p, i) => {
-                        // CRITICAL FIX: STRIP ALL IMAGE DATA.
-                        // The backend 'create' endpoint (aiAutoDesign) ONLY uses metadata.
-                        // It does NOT need the image content.
-
                         return {
                             id: p.id,
-                            // Send NO image data to save bandwidth and avoid string length errors
                             url: null,
                             thumbnailUrl: null,
                             rawBaseUrl: null,
-
                             name: p.name,
                             width: p.width,
                             height: p.height,
                             date: p.date,
                             location: p.location,
-                            index: i // Ensure strictly sequential index for AI context
+                            index: i
                         };
                     }),
                     max_pages: options.maxPages || 20,
@@ -201,31 +204,72 @@ class MagicCreateV4 {
 
                     // 2. ELEMENTS: Resolve AI-selected elementCategories to actual SVG elements
                     if (page.elementCategories && page.elementCategories.length > 0 && window.ELEMENTS_LIBRARY) {
-                        const matchedElements = window.ELEMENTS_LIBRARY.filter(e =>
-                            page.elementCategories.includes(e.category)
-                        );
+                        // Separate flags from other categories for smart matching
+                        const hasFlags = page.elementCategories.includes('flags');
+                        const otherCategories = page.elementCategories.filter(c => c !== 'flags');
 
-                        if (matchedElements.length > 0) {
-                            if (!page.elements) page.elements = [];
-                            // Add 1 element from the AI-selected categories
-                            const randomEl = matchedElements[Math.floor(Math.random() * matchedElements.length)];
-                            const positions = [
-                                { x: 5, y: 5 },    // top-left
-                                { x: 80, y: 5 },   // top-right
-                                { x: 5, y: 80 },   // bottom-left
-                                { x: 80, y: 80 },  // bottom-right
-                            ];
-                            const pos = positions[idx % positions.length];
-                            page.elements.push({
-                                id: 'elem_auto_' + Date.now() + '_' + idx,
-                                type: 'element',
-                                url: randomEl.url,
-                                x: pos.x,
-                                y: pos.y,
-                                pixelWidth: '80px',
-                                pixelHeight: '80px',
-                                zIndex: 15
-                            });
+                        if (!page.elements) page.elements = [];
+                        const positions = [
+                            { x: 5, y: 5 },    // top-left
+                            { x: 80, y: 5 },   // top-right
+                            { x: 5, y: 80 },   // bottom-left
+                            { x: 80, y: 80 },  // bottom-right
+                        ];
+
+                        // Add regular (non-flag) element
+                        if (otherCategories.length > 0) {
+                            const matchedElements = window.ELEMENTS_LIBRARY.filter(e =>
+                                otherCategories.includes(e.category)
+                            );
+                            if (matchedElements.length > 0) {
+                                const randomEl = matchedElements[Math.floor(Math.random() * matchedElements.length)];
+                                const pos = positions[idx % positions.length];
+                                page.elements.push({
+                                    id: 'elem_auto_' + Date.now() + '_' + idx,
+                                    type: 'element',
+                                    url: randomEl.url,
+                                    x: pos.x,
+                                    y: pos.y,
+                                    pixelWidth: '80px',
+                                    pixelHeight: '80px',
+                                    zIndex: 15
+                                });
+                            }
+                        }
+
+                        // Add flag element — smart match to country in prompt
+                        if (hasFlags) {
+                            const allFlags = window.ELEMENTS_LIBRARY.filter(e => e.category === 'flags');
+                            let flagEl = null;
+
+                            // Try to find specific country flag from title/prompt
+                            const searchText = (result.cover?.title || '') + ' ' + (result.cover?.subtitle || '') + ' ' + (window._magicPrompt || '');
+                            for (const flag of allFlags) {
+                                const names = [flag.countryNameEn?.toLowerCase(), flag.countryNameHe].filter(Boolean);
+                                if (names.some(name => searchText.toLowerCase().includes(name.toLowerCase()))) {
+                                    flagEl = flag;
+                                    break;
+                                }
+                            }
+
+                            // Fallback: random flag
+                            if (!flagEl && allFlags.length > 0) {
+                                flagEl = allFlags[Math.floor(Math.random() * allFlags.length)];
+                            }
+
+                            if (flagEl) {
+                                const flagPos = positions[(idx + 1) % positions.length]; // Offset from regular element
+                                page.elements.push({
+                                    id: 'flag_auto_' + Date.now() + '_' + idx,
+                                    type: 'element',
+                                    url: flagEl.url,
+                                    x: flagPos.x,
+                                    y: flagPos.y,
+                                    pixelWidth: '100px',
+                                    pixelHeight: '67px', // 3:2 flag aspect ratio
+                                    zIndex: 16
+                                });
+                            }
                         }
                     }
                 });
@@ -376,6 +420,12 @@ class MagicCreateV4 {
             const contentPages = [];
 
             result.pages.forEach(page => {
+                // CRITICAL: Ensure every page has a unique ID.
+                // The AI backend does NOT generate page IDs, so without this,
+                // pages would have id=undefined, making them un-selectable in the timeline.
+                if (!page.id) {
+                    page.id = crypto.randomUUID();
+                }
                 // Identify cover: templateId is 'cover' OR id starts with 'page_cover_'
                 const isCover = page.templateId === 'cover' || (page.id && page.id.startsWith('page_cover_'));
                 // Identify back cover
