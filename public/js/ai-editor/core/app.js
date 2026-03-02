@@ -1526,7 +1526,8 @@ class App {
             if (!data) return;
 
             const item = JSON.parse(data);
-            const targetSlotEl = e.target.closest('.photo-slot') || e.target.closest('.cover-photo-area') || e.target.closest('.back-cover');
+            // FIX: Include .front-cover in closest() so dropping anywhere on front cover works
+            const targetSlotEl = e.target.closest('.photo-slot') || e.target.closest('.cover-photo-area') || e.target.closest('.front-cover') || e.target.closest('.back-cover');
 
             // Handle Photo Swapping (Slot to Slot)
             if (item.type === 'slot-swap' && targetSlotEl && targetSlotEl.classList.contains('photo-slot')) {
@@ -1546,7 +1547,8 @@ class App {
                         if (!store.state.cover) store.state.cover = {};
                         store.state.cover.backPhotoId = item.id;
                         store.notify('cover', store.state.cover);
-                    } else if (targetSlotEl.classList.contains('cover-photo-area')) {
+                    } else if (targetSlotEl.classList.contains('cover-photo-area') || targetSlotEl.classList.contains('front-cover')) {
+                        // FIX: Both .cover-photo-area and .front-cover target the front cover
                         store.pushState('Add Photo to Front Cover');
                         if (!store.state.cover) store.state.cover = {};
                         store.state.cover.frontPhotoId = item.id;
