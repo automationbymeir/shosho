@@ -1,6 +1,8 @@
 /**
  * Main Application Logic for AI Editor
  */
+// PERFORMANCE: Import logger FIRST — silences console.log/warn in production
+import './logger.js';
 import { store } from './state.js';
 import { layoutEngine } from '../engines/layout-engine.js';
 import { RenderEngine } from '../engines/render-engine.js';
@@ -1455,10 +1457,35 @@ class App {
 
                         // Canvas render — skip for selection-only changes and coverPosition (text drag)
                         if (needsCanvasRender && !this._magicCreateRendering) {
-                            if (state.viewMode === 'cover') {
-                                this.renderCoverWithTemplate();
+                            // PERFORMANCE: Skip re-render if active page content hasn't changed
+                            let skipRender = false;
+                            if (updates.size === 1 && updates.has('pages') && state.viewMode !== 'cover') {
+                                const activePage = state.pages.find(p => p.id === state.activePageId);
+                                if (activePage) {
+                                    try {
+                                        const fingerprint = JSON.stringify({
+                                            id: activePage.id,
+                                            photos: activePage.photos,
+                                            textContent: activePage.textContent,
+                                            textPositions: activePage.textPositions,
+                                            background: activePage.background
+                                        });
+                                        if (this._lastPageFingerprint === fingerprint) {
+                                            skipRender = true;
+                                        }
+                                        this._lastPageFingerprint = fingerprint;
+                                    } catch (e) { /* ignore fingerprint errors */ }
+                                }
                             } else {
-                                this.renderActivePage();
+                                this._lastPageFingerprint = null; // Reset on non-pages update
+                            }
+
+                            if (!skipRender) {
+                                if (state.viewMode === 'cover') {
+                                    this.renderCoverWithTemplate();
+                                } else {
+                                    this.renderActivePage();
+                                }
                             }
                         }
 
@@ -3717,224 +3744,239 @@ class App {
     }
 
     renderAssetSidebar() {
-        console.log("[App] Rendering Asset Sidebar...");
         const photoGrid = document.getElementById('photo-library');
-        if (!photoGrid) {
-            console.error("Element #photo-library not found!");
-            return;
-        }
-        photoGrid.innerHTML = '';
+        if (!photoGrid) return;
 
-        // -- Google Photos Integration --
-        const btnGoogle = document.createElement('button');
-        btnGoogle.className = 'btn-google-photos';
-        btnGoogle.innerHTML = '<i class="fa-brands fa-google"></i> Connect Google Photos';
-        btnGoogle.style.width = '100%';
-        btnGoogle.style.height = 'auto'; // Fix: Prevent stretching
-        btnGoogle.style.alignSelf = 'start'; // Fix: Prevent grid row stretching
-        btnGoogle.style.gridColumn = '1 / -1'; // Span full width
-        btnGoogle.style.padding = '12px';
-        btnGoogle.style.marginBottom = '10px';
-        btnGoogle.style.backgroundColor = '#4285F4';
-        btnGoogle.style.color = 'white';
-        btnGoogle.style.border = 'none';
-        btnGoogle.style.borderRadius = '4px';
-        btnGoogle.style.fontWeight = '500';
-        btnGoogle.style.display = 'flex';
-        btnGoogle.style.alignItems = 'center';
-        btnGoogle.style.justifyContent = 'center';
-        btnGoogle.style.gap = '8px';
-        btnGoogle.style.cursor = 'pointer';
+        // PERFORMANCE: Create Google Photos button ONCE, persist across renders
+        if (!this._googlePhotosBtnCreated) {
+            this._googlePhotosBtnCreated = true;
+            const btnGoogle = document.createElement('button');
+            btnGoogle.className = 'btn-google-photos';
+            btnGoogle.id = 'btn-google-photos-persistent';
+            btnGoogle.innerHTML = '<i class="fa-brands fa-google"></i> Connect Google Photos';
+            btnGoogle.style.cssText = 'width:100%;height:auto;align-self:start;grid-column:1/-1;padding:12px;margin-bottom:10px;background-color:#4285F4;color:white;border:none;border-radius:4px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;';
 
-        btnGoogle.addEventListener('click', async () => {
-            try {
-                // Ensure user is logged in (handling Emulator/Prod switch invalidating session)
-                let user = authService.getCurrentUser();
-                if (!user) {
-                    console.log("[App] User not logged in. Prompting sign-in...");
+            btnGoogle.addEventListener('click', async () => {
+                try {
+                    let user = authService.getCurrentUser();
+                    if (!user) {
+                        try {
+                            user = await authService.signInWithGoogle();
+                        } catch (loginErr) {
+                            console.error("[App] Login failed:", loginErr);
+                            alert("אנא התחבר כדי להשתמש ב-Google Photos.");
+                            return;
+                        }
+                    }
+
+                    btnGoogle.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מתחבר ל-Google Photos...';
+                    btnGoogle.disabled = true;
+
+                    let photos = [];
                     try {
-                        user = await authService.signInWithGoogle();
-                        console.log("[App] Sign-in successful:", user.uid);
-                    } catch (loginErr) {
-                        console.error("[App] Login failed:", loginErr);
-                        alert("אנא התחבר כדי להשתמש ב-Google Photos.");
+                        photos = await googlePhotosService.openPicker();
+                    } finally {
+                        btnGoogle.innerHTML = '<i class="fa-brands fa-google"></i> Connect Google Photos';
+                        btnGoogle.disabled = false;
+                    }
+
+                    if (!photos || photos.length === 0) {
+                        if (confirm("לא נבחרו תמונות מ-Google Photos.\nהאם תרצה לנסות שוב? (במידה ולא, תוכל להעלות מהמחשב בלחצן ההעלאה הרגיל)")) {
+                            btnGoogle.click();
+                        }
                         return;
                     }
-                }
 
-                btnGoogle.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מתחבר ל-Google Photos...';
-                btnGoogle.disabled = true;
-
-                // New Backend Session Flow
-                let photos = [];
-                try {
-                    photos = await googlePhotosService.openPicker();
-                } finally {
-                    btnGoogle.innerHTML = '<i class="fa-brands fa-google"></i> Connect Google Photos';
-                    btnGoogle.disabled = false;
-                }
-
-                if (!photos || photos.length === 0) {
-                    if (confirm("לא נבחרו תמונות מ-Google Photos.\nהאם תרצה לנסות שוב? (במידה ולא, תוכל להעלות מהמחשב בלחצן ההעלאה הרגיל)")) {
-                        btnGoogle.click();
+                    if (store.state.assets.photos.length > 0 && photos.length > 0) {
+                        if (window.confirm("You already have photos in your library.\n\nClick OK to REPLACE them with the new selection.\nClick Cancel to APPEND (keep existing).")) {
+                            store.state.assets.photos = [];
+                        }
                     }
-                    return;
-                }
 
-                // --- CLEAN ALBUM LOGIC ---
-                // If there are existing photos, ask user if they want to Replace or Append
-                if (store.state.assets.photos.length > 0 && photos.length > 0) {
-                    if (window.confirm("You already have photos in your library.\n\nClick OK to REPLACE them with the new selection.\nClick Cancel to APPEND (keep existing).")) {
-                        store.state.assets.photos = []; // clear first
-                        console.log("[App] User chose to REPLACE library.");
-                    } else {
-                        console.log("[App] User chose to APPEND to library.");
+                    const hasLegacyDefault = store.state.pages.some(p => p.templateId === 'family-roots-v1');
+                    if (hasLegacyDefault) {
+                        this.startNewProject(false);
                     }
-                }
 
-                // If the current project contains the "Family Roots" default template (which the user dislikes as default), 
-                // and we are just importing photos, likely we want to start fresh.
-                // We'll detect if the pages are using this template ID.
-                const hasLegacyDefault = store.state.pages.some(p => p.templateId === 'family-roots-v1');
-                if (hasLegacyDefault) {
-                    console.log("[App] Detected legacy default template. Clearing for fresh start as requested.");
-                    this.startNewProject(false); // false = no confirmation needed (auto-clean)
-                }
+                    store.state.assets.photos = [...store.state.assets.photos, ...photos];
 
-                store.state.assets.photos = [...store.state.assets.photos, ...photos];
-
-                if (window.app) {
-                    window.app._animateNextRender = true; // Trigger solitaire dealing animation
-                    window.app.renderAssetSidebar();
-                    store.notify('assets', store.state.assets);
-                    // Force refresh active page in case we just cleared it
-                    if (hasLegacyDefault || store.state.pages.length === 0) {
-                        if (store.state.pages.length === 0) store.addPage();
-                        window.app.renderActivePage();
-                        window.app.updateTimeline(store.state.pages, store.state.activePageId);
+                    if (window.app) {
+                        window.app._animateNextRender = true;
+                        window.app.renderAssetSidebar();
+                        store.notify('assets', store.state.assets);
+                        if (hasLegacyDefault || store.state.pages.length === 0) {
+                            if (store.state.pages.length === 0) store.addPage();
+                            window.app.renderActivePage();
+                            window.app.updateTimeline(store.state.pages, store.state.activePageId);
+                        }
                     }
-                } else {
-                    console.error("Window.app not found for re-render");
-                }
 
-                // Show completion
-                console.log("Photos successfully imported.");
-                // Use a toast or non-blocking notification if possible, otherwise simple alert
-                alert(`יובאו בהצלחה ${photos.length} תמונות. גרור אותן לעמודים כדי להתחיל.`);
+                    alert(`יובאו בהצלחה ${photos.length} תמונות. גרור אותן לעמודים כדי להתחיל.`);
 
-                // --- BATCH VISION PROCESSING (BACKGROUND) ---
-                photoPositionService.batchAnalyzePhotos(photos).then(focalDict => {
-                    let updated = false;
-                    store.state.assets.photos.forEach(p => {
-                        if (focalDict[p.id]) {
-                            p.visionFocalPoint = focalDict[p.id];
-                            updated = true;
+                    // Background vision processing
+                    photoPositionService.batchAnalyzePhotos(photos).then(focalDict => {
+                        let updated = false;
+                        store.state.assets.photos.forEach(p => {
+                            if (focalDict[p.id]) {
+                                p.visionFocalPoint = focalDict[p.id];
+                                updated = true;
+                            }
+                        });
+                        if (updated && window.app) {
+                            store.notify('pages', store.state.pages);
                         }
                     });
-                    if (updated && window.app) {
-                        console.log("[App] Background Vision Batch Completed. Refreshing UI.");
-                        store.notify('pages', store.state.pages);
-                    }
-                });
 
-            } catch (err) {
-                console.error(err);
-                alert('שגיאת Google Photos: ' + err);
-            }
-        });
-        photoGrid.appendChild(btnGoogle);
-
-        // (New Project handler moved to setupEventListeners to prevent duplicate bindings)
-
-        console.log(`[App] Rendering ${store.state.assets.photos.length} photos.`);
-        if (store.state.assets.photos.length > 0) {
-            console.log("First Photo Debug:", JSON.stringify(store.state.assets.photos[0], null, 2));
-        }
-        if (store.state.assets.photos.length > 0) {
-            console.log("SAMPLE PHOTO:", store.state.assets.photos[0]);
-        }
-
-        // Solitaire dealing animation: animated = true when photos were just loaded
-        const shouldAnimate = this._animateNextRender === true;
-        if (shouldAnimate) this._animateNextRender = false;
-
-        store.state.assets.photos.forEach((photo, index) => {
-            const el = document.createElement('div');
-            el.className = 'asset-item';
-            el.draggable = true;
-            el.style.position = 'relative';
-
-            // Solitaire dealing: stagger each card's animation
-            if (shouldAnimate) {
-                el.classList.add('dealing');
-                el.style.setProperty('--deal-index', index);
-                // Remove 'dealing' class after animation completes to restore hover
-                const animDuration = 450 + (index * 60) + 50; // animation + delay + buffer
-                setTimeout(() => el.classList.remove('dealing'), animDuration);
-            }
-
-            el.innerHTML = `
-                <img src="${photo.thumbnailUrl || photo.url}" draggable="false" style="width:100%; height:100%; object-fit:cover;">
-                <button class="btn-delete-asset" title="Remove Photo" style="position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,0.6); color:white; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; line-height:1;">×</button>
-            `;
-
-            el.addEventListener('mouseenter', () => el.querySelector('.btn-delete-asset').style.display = 'flex');
-            el.addEventListener('mouseleave', () => el.querySelector('.btn-delete-asset').style.display = 'none');
-
-            el.querySelector('.btn-delete-asset').addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (confirm('Remove this photo?')) {
-                    const idx = store.state.assets.photos.findIndex(p => p.id === photo.id);
-                    if (idx > -1) {
-                        store.state.assets.photos.splice(idx, 1);
-                        this.renderAssetSidebar();
-                        store.notify('assets', store.state.assets); // Update persistence
-                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('שגיאת Google Photos: ' + err);
                 }
             });
+            this._persistedGoogleBtn = btnGoogle;
+        }
 
-            el.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('application/json', JSON.stringify({ type: 'photo', id: photo.id }));
-                e.dataTransfer.effectAllowed = 'copy';
-            });
+        // Clear only photo items, re-use Google button
+        photoGrid.innerHTML = '';
+        photoGrid.appendChild(this._persistedGoogleBtn);
 
-            // Hover Preview
-            el.addEventListener('mouseenter', (e) => {
-                const tooltip = document.getElementById('photo-preview-tooltip');
-                if (tooltip) {
-                    // Use thumbnail to avoid 403
-                    const src = photo.thumbnailUrl || photo.url;
-                    tooltip.innerHTML = `<img src="${src}" style="max-width:400px; max-height:400px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); display:block; background:#fff;">`;
+        // PERFORMANCE: Event delegation — 2 listeners on grid instead of 5 per photo
+        if (!this._photoGridDelegated) {
+            this._photoGridDelegated = true;
+            const tooltip = document.getElementById('photo-preview-tooltip');
+
+            // Delegate mouseenter/leave for delete button & preview tooltip
+            photoGrid.addEventListener('mouseover', (e) => {
+                const item = e.target.closest('.asset-item');
+                if (!item) return;
+                const delBtn = item.querySelector('.btn-delete-asset');
+                if (delBtn) delBtn.style.display = 'flex';
+                // Show preview tooltip
+                if (tooltip && item.dataset.photoSrc) {
+                    tooltip.innerHTML = `<img src="${item.dataset.photoSrc}" style="max-width:400px;max-height:400px;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.5);display:block;background:#fff;">`;
                     tooltip.style.display = 'block';
                     tooltip.style.top = (e.clientY + 10) + 'px';
                     tooltip.style.left = (e.clientX + 20) + 'px';
                 }
             });
-            el.addEventListener('mousemove', (e) => {
-                const tooltip = document.getElementById('photo-preview-tooltip');
+
+            photoGrid.addEventListener('mouseout', (e) => {
+                const item = e.target.closest('.asset-item');
+                if (!item) return;
+                // Only hide if we're actually leaving the item (not entering a child)
+                if (!item.contains(e.relatedTarget)) {
+                    const delBtn = item.querySelector('.btn-delete-asset');
+                    if (delBtn) delBtn.style.display = 'none';
+                    if (tooltip) tooltip.style.display = 'none';
+                }
+            });
+
+            photoGrid.addEventListener('mousemove', (e) => {
                 if (tooltip && tooltip.style.display === 'block') {
-                    // Update position
                     let top = e.clientY + 10;
                     let left = e.clientX + 20;
-
-                    // Simple boundary check to prevent going off screen right/bottom
-                    if (left + 400 > window.innerWidth) {
-                        left = e.clientX - 420; // Flip to left
-                    }
-                    if (top + 400 > window.innerHeight) {
-                        top = window.innerHeight - 420; // Cap bottom
-                    }
-
+                    if (left + 400 > window.innerWidth) left = e.clientX - 420;
+                    if (top + 400 > window.innerHeight) top = window.innerHeight - 420;
                     tooltip.style.top = top + 'px';
                     tooltip.style.left = left + 'px';
                 }
             });
-            el.addEventListener('mouseleave', () => {
-                const tooltip = document.getElementById('photo-preview-tooltip');
-                if (tooltip) tooltip.style.display = 'none';
+
+            // Delegate delete button click
+            photoGrid.addEventListener('click', (e) => {
+                const delBtn = e.target.closest('.btn-delete-asset');
+                if (!delBtn) return;
+                e.stopPropagation();
+                const item = delBtn.closest('.asset-item');
+                const photoId = item?.dataset.photoId;
+                if (photoId && confirm('Remove this photo?')) {
+                    const idx = store.state.assets.photos.findIndex(p => p.id === photoId);
+                    if (idx > -1) {
+                        store.state.assets.photos.splice(idx, 1);
+                        this.renderAssetSidebar();
+                        store.notify('assets', store.state.assets);
+                    }
+                }
             });
-            photoGrid.appendChild(el);
-        });
+
+            // Delegate dragstart
+            photoGrid.addEventListener('dragstart', (e) => {
+                const item = e.target.closest('.asset-item');
+                if (!item) return;
+                const photoId = item.dataset.photoId;
+                if (photoId) {
+                    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'photo', id: photoId }));
+                    e.dataTransfer.effectAllowed = 'copy';
+                }
+            });
+        }
+
+        // PERFORMANCE: Build all photo elements in a DocumentFragment (single DOM insert)
+        const shouldAnimate = this._animateNextRender === true;
+        if (shouldAnimate) this._animateNextRender = false;
+
+        const fragment = document.createDocumentFragment();
+        const photos = store.state.assets.photos;
+
+        // PERFORMANCE: Lazy image loading via IntersectionObserver
+        if (!this._photoImageObserver) {
+            this._photoImageObserver = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        const src = img.dataset.lazySrc;
+                        if (src) {
+                            img.src = src;
+                            img.removeAttribute('data-lazy-src');
+                        }
+                        this._photoImageObserver.unobserve(img);
+                    }
+                }
+            }, { rootMargin: '100px' });
+        }
+
+        for (let index = 0; index < photos.length; index++) {
+            const photo = photos[index];
+            const el = document.createElement('div');
+            el.className = 'asset-item';
+            el.draggable = true;
+            el.style.position = 'relative';
+            el.dataset.photoId = photo.id;
+            el.dataset.photoSrc = photo.thumbnailUrl || photo.url;
+
+            // Solitaire dealing animation
+            if (shouldAnimate) {
+                el.classList.add('dealing');
+                el.style.setProperty('--deal-index', index);
+                const animDuration = 450 + (index * 60) + 50;
+                setTimeout(() => el.classList.remove('dealing'), animDuration);
+            }
+
+            // PERFORMANCE: Use lazy loading for images
+            const img = document.createElement('img');
+            img.draggable = false;
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            // Load first 20 eagerly (visible), rest lazily
+            if (index < 20) {
+                img.src = photo.thumbnailUrl || photo.url;
+            } else {
+                img.dataset.lazySrc = photo.thumbnailUrl || photo.url;
+                img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><rect fill="%23333" width="90" height="90"/></svg>';
+                this._photoImageObserver.observe(img);
+            }
+            el.appendChild(img);
+
+            // Delete button (lightweight, no inline styles — handled by event delegation)
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn-delete-asset';
+            delBtn.title = 'Remove Photo';
+            delBtn.textContent = '×';
+            delBtn.style.cssText = 'position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:14px;line-height:1;';
+            el.appendChild(delBtn);
+
+            fragment.appendChild(el);
+        }
+
+        photoGrid.appendChild(fragment);
 
         // Designs
         const designList = document.getElementById('design-library');

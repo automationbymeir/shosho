@@ -18,30 +18,10 @@ class EditorStore {
 
         this.state = new Proxy(initialState, {
             get: (target, property) => {
-                const val = target[property];
-                // AUTO-HEAL: If pages were reverted to default but _magicPages exists, restore
-                if (property === 'pages' && window._magicPages && window._magicPages.length > 1) {
-                    if (!val || val.length <= 1) {
-                        console.warn('[Store GET] pages appears reset to default! Restoring from _magicPages (' + window._magicPages.length + ' pages)');
-                        target.pages = window._magicPages;
-                        return window._magicPages;
-                    }
-                    // Check if the sole page is a UUID (default) vs magic page_xxx
-                    if (val.length === 1 && val[0]?.id && !val[0].id.startsWith('page_')) {
-                        console.warn('[Store GET] pages has single default UUID page! Restoring from _magicPages');
-                        target.pages = window._magicPages;
-                        return window._magicPages;
-                    }
-                }
-                // AUTO-HEAL cover
-                if (property === 'cover' && window._magicCover && window._magicCover.background) {
-                    if (val && val.theme === 'classic' && val.background === undefined && window._magicCover.theme !== 'classic') {
-                        console.warn('[Store GET] cover appears reset! Restoring from _magicCover');
-                        target.cover = { ...window._magicCover };
-                        return target.cover;
-                    }
-                }
-                return val;
+                // PERFORMANCE: Removed auto-heal checks from getter.
+                // These were running on EVERY property access (thousands per frame).
+                // Auto-heal is now in notify() which runs far less often.
+                return target[property];
             },
             set: (target, property, value) => {
                 target[property] = value;
@@ -110,42 +90,38 @@ class EditorStore {
 
     // History Management
     pushState(actionName = 'Unknown Action') {
+        // PERFORMANCE: Debounce rapid pushState calls for the same action
+        // (e.g., dragging creates dozens of pushState('Move Element') calls)
+        const now = Date.now();
+        if (this._lastPushAction === actionName && now - (this._lastPushTime || 0) < 300) {
+            // Coalesce rapid same-action pushes — skip the clone
+            return;
+        }
+        this._lastPushAction = actionName;
+        this._lastPushTime = now;
+
         // Remove any future history if we're in the middle of the stack
         if (this.historyIndex < this.history.length - 1) {
             this.history = this.history.slice(0, this.historyIndex + 1);
         }
 
-        // Create a deep snapshot of the current state components that need history
-        // Use structuredClone for deep copy to handle complex objects better than JSON methods, 
-        // though JSON is usually fine unless there are circular refs. 
-        // The error 'Invalid string length' usually suggests VERY large data (base64 images?) rather than circular refs.
-        // If assets contains base64 images, this will explode memory.
-        // We should NOT store assets in history if they are large.
-        // Assets are usually references (URLs). If 'photos' contains raw base64, that's the issue.
-        // Let's exclude assets from history for now to fix the crash, or only store refs.
-        // Assuming assets are global and don't change *that* often (or if they do, we accept no undo for asset LIBRARY changes).
-        // Undo is mostly for Page Layouts / content.
-
         let snapshot;
         try {
-            // Use structuredClone to bypass V8 JSON.stringify 512MB string length limits with high-res base64 arrays
+            // PERFORMANCE: Use structuredClone (fastest) with JSON fallback
             const cloneObject = (obj) => {
-                if (typeof structuredClone === 'function') {
-                    try { return structuredClone(obj); } catch (e) { }
-                }
+                try { return structuredClone(obj); } catch (e) { }
                 return JSON.parse(JSON.stringify(obj));
             };
 
-            const rawSnapshot = {
+            snapshot = {
                 pages: cloneObject(this.state.pages || []),
                 cover: cloneObject(this.state.cover || {}),
                 theme: this.state.theme
             };
 
-            // PERFORMANCE: Strip large base64 data URLs from history to save memory
-            // Keep only URL references — base64 images can be 5-20MB each
-            if (rawSnapshot.pages) {
-                for (const page of rawSnapshot.pages) {
+            // Strip large base64 data URLs from history
+            if (snapshot.pages) {
+                for (const page of snapshot.pages) {
                     if (page.photos && Array.isArray(page.photos)) {
                         for (const photo of page.photos) {
                             if (photo && photo.url && photo.url.startsWith('data:')) {
@@ -155,15 +131,13 @@ class EditorStore {
                     }
                 }
             }
-            snapshot = rawSnapshot;
         } catch (e) {
-            console.warn("[Store] Failed to push state to history (State too large?):", e);
-            return; // Exit gracefully instead of crashing
+            return; // Exit gracefully
         }
 
         this.history.push({
             name: actionName,
-            timestamp: Date.now(),
+            timestamp: now,
             snapshot: snapshot
         });
 
@@ -173,8 +147,6 @@ class EditorStore {
         } else {
             this.historyIndex++;
         }
-
-        console.log(`[Store] Pushed state: ${actionName}. History size: ${this.history.length}`);
     }
 
     undo() {
@@ -234,6 +206,21 @@ class EditorStore {
     }
 
     notify(property, value) {
+        // AUTO-HEAL: Check on notify (infrequent) instead of every getter access
+        if (property === 'pages' && window._magicPages && window._magicPages.length > 1) {
+            const pages = this._target.pages;
+            if (!pages || pages.length <= 1) {
+                this._target.pages = window._magicPages;
+            } else if (pages.length === 1 && pages[0]?.id && !pages[0].id.startsWith('page_')) {
+                this._target.pages = window._magicPages;
+            }
+        }
+        if (property === 'cover' && window._magicCover && window._magicCover.background) {
+            const cover = this._target.cover;
+            if (cover && cover.theme === 'classic' && cover.background === undefined && window._magicCover.theme !== 'classic') {
+                this._target.cover = { ...window._magicCover };
+            }
+        }
         this.listeners.forEach(listener => listener(this.state, property, value));
     }
 
