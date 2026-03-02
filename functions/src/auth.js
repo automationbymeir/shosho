@@ -1,4 +1,14 @@
-const {google} = require("googleapis");
+let googleModule;
+/**
+ * Lazy load googleapis for faster deploy time
+ * @return {Object} Google APIs module
+ */
+function getGoogle() {
+  if (!googleModule) {
+    googleModule = require("googleapis").google;
+  }
+  return googleModule;
+}
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
 const {FieldValue} = require("firebase-admin/firestore");
@@ -119,7 +129,7 @@ async function getOAuth2Client(userId) {
     console.error("Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env vars");
     return null;
   }
-  const oauth2Client = new google.auth.OAuth2(
+  const oauth2Client = new (getGoogle().auth.OAuth2)(
       clientId,
       clientSecret,
       redirectUri,
@@ -176,7 +186,7 @@ async function getAuthorizationUrl(userId) {
       error: "Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in Functions runtime",
     };
   }
-  const oauth2Client = new google.auth.OAuth2(
+  const oauth2Client = new (getGoogle().auth.OAuth2)(
       clientId,
       clientSecret,
       redirectUri,
@@ -232,7 +242,7 @@ async function handleCallback(query) {
         message: "Server OAuth config missing (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).",
       };
     }
-    const oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new (getGoogle().auth.OAuth2)(
         clientId,
         clientSecret,
         redirectUri,

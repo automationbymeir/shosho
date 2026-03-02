@@ -425,8 +425,37 @@ export class PDFExport {
                     const w = (parseFloat(sW) / 100) * width;
                     const h = (parseFloat(sH) / 100) * height;
 
+                    // Apply shape clipping mask
+                    const photoShape = slot.shape || page.imageShape || 'rect';
+                    const needsClip = photoShape !== 'rect';
+                    if (needsClip) {
+                        this.doc.saveGraphicsState();
+                        if (photoShape === 'circle') {
+                            const radius = Math.min(w, h) / 2;
+                            const cx = x + w / 2;
+                            const cy = y + h / 2;
+                            this.doc.circle(cx, cy, radius);
+                            this.doc.clip();
+                        } else if (photoShape === 'oval') {
+                            const rx = w / 2;
+                            const ry = h * 0.45;
+                            const cx = x + w / 2;
+                            const cy = y + h / 2;
+                            this.doc.ellipse(cx, cy, rx, ry);
+                            this.doc.clip();
+                        } else if (photoShape === 'rounded') {
+                            const r = 12; // rounded corner radius in pt
+                            this.doc.roundedRect(x, y, w, h, r, r);
+                            this.doc.clip();
+                        }
+                    }
+
                     // Draw the photo with template styling
                     await this.drawImage(photo.assetId || photo.id || photo, x, y, w, h, assets, slot);
+
+                    if (needsClip) {
+                        this.doc.restoreGraphicsState();
+                    }
 
                     // Draw image frame overlay if specified
                     const frameId = slot.frameId || page.imageFrameId;
@@ -465,10 +494,15 @@ export class PDFExport {
                 null;
 
         if (textElements) {
-            console.log(`PDF: Processing ${textElements.length} text elements...`);
+            console.log(`PDF: Processing ${textElements.length} text/visual elements...`);
             // If hydrating, we need to merge with page.textContent
             // page.textContent is { elementId: "Actual Text" }
-            textElements.forEach(textDef => {
+            for (const textDef of textElements) {
+                if (textDef.type === 'element') {
+                    await this.drawVisualElement(textDef, width, height);
+                    continue;
+                }
+
                 // Merge content
                 let contentToRender = textDef.content || textDef.placeholder;
                 if (page.textContent && page.textContent[textDef.elementId]) {
@@ -560,7 +594,7 @@ export class PDFExport {
                         console.error("PDF: Fallback failed too", e2);
                     }
                 }
-            });
+            }
         } else {
             console.log("PDF: No text elements defined.");
         }
@@ -621,6 +655,63 @@ export class PDFExport {
                 this.doc.line(x - r, y, x, y - r);
             }
         });
+    }
+
+    async drawVisualElement(el, pageWidth, pageHeight) {
+        if (!el.url) return;
+        try {
+            const x = (parseFloat(el.x) / 100) * pageWidth;
+            const y = (parseFloat(el.y) / 100) * pageHeight;
+            // Map pixel sizes assuming 100vw = 800px standard editor view width
+            const w = ((parseFloat(el.pixelWidth) || 100) / 800) * pageWidth;
+            const h = ((parseFloat(el.pixelHeight) || 100) / 600) * pageHeight;
+
+            let filterStr = '';
+            if (el.filterHue) filterStr += `hue-rotate(${el.filterHue}deg) `;
+            if (el.filterBrightness && el.filterBrightness !== 100) filterStr += `brightness(${el.filterBrightness}%) `;
+            if (el.filterShadow) filterStr += `drop-shadow(4px 8px 12px ${el.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
+            filterStr = filterStr.trim();
+
+            const imgData = await new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    // Use higher resolution for crisp pdf elements
+                    canvas.width = (img.width || w) * 2;
+                    canvas.height = (img.height || h) * 2;
+                    const ctx = canvas.getContext('2d');
+                    ctx.scale(2, 2);
+                    if (filterStr) {
+                        ctx.filter = filterStr;
+                    }
+                    ctx.drawImage(img, 0, 0, img.width || w, img.height || h);
+                    // Use PNG to preserve element transparency!
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.onerror = () => reject(new Error('Visual Element load failed'));
+                img.src = el.url;
+            });
+
+            // Retain scale from Moveable if possible (simplified approach ignores rotation for now to avoid transform logic complexity in basic jsPDF)
+            let scaleMultiplier = 1;
+            if (el.transform && el.transform.includes('scale')) {
+                const match = el.transform.match(/scale\(([^)]+)\)/);
+                if (match && match[1]) {
+                    scaleMultiplier = parseFloat(match[1]);
+                }
+            }
+
+            const ew = w * scaleMultiplier;
+            const eh = h * scaleMultiplier;
+            // Center the image around coordinate if scaled
+            const eX = x - (ew - w) / 2;
+            const eY = y - (eh - h) / 2;
+
+            this.doc.addImage(imgData, 'PNG', eX, eY, ew, eh, undefined, 'FAST');
+        } catch (e) {
+            console.warn("PDF: Failed to draw visual element", el.url, e);
+        }
     }
 
     // --- Helpers ---
@@ -966,21 +1057,20 @@ export class PDFExport {
 
                     // FIXED: Prioritize High Res!
                     // Old: let src = photo.thumbnailUrl || photo.url || photo.baseUrl;
-                    let src = photo.highResUrl || photo.rawBaseUrl || photo.url || photo.thumbnailUrl;
+                    // PDF Resolution Priority: prefer rawBaseUrl > url > thumbnailUrl
+                    let src = photo.rawBaseUrl || photo.url || photo.highResUrl || photo.thumbnailUrl;
 
                     if (typeof photo === 'string') src = photo;
 
-                    // Upgrade Quality Params
+                    // Upgrade Quality Params for Unsplash
                     if (src && src.includes('unsplash.com') && src.includes('&w=')) {
-                        src = src.replace(/&w=\d+/, '&w=2048');
+                        src = src.replace(/&w=\d+/, '&w=3000');
                     }
-                    // Google Photos params - Use original full resolution for PDF export
-                    if (src && photo.source === 'google-photos') {
-                        if (src.includes('=w') || src.includes('=h') || src.includes('=s')) {
-                            src = src.split('=')[0] + '=d';
-                        } else {
-                            src = `${src}=d`;
-                        }
+                    // Google Photos params - Use high-res (=w2048-h2048) for reliable access
+                    // NOTE: =d (original download) often triggers 403; =w2048-h2048 is safer and print-quality
+                    if (src && (photo.source === 'google-photos' || (src && src.includes('googleusercontent.com')))) {
+                        const baseUrl = src.includes('=') ? src.split('=')[0] : src;
+                        src = baseUrl + '=w2048-h2048';
                     }
 
                     if (src && src.startsWith('data:')) {
@@ -1230,40 +1320,82 @@ export class PDFExport {
     }
 
     async loadImage(url) {
-        // Check cache if implemented, or just load
-        // Returns object with base64 data and original dimensions
-        return new Promise((resolve, reject) => {
+        // Print-quality image loader.
+        // Upscales to minimum 2048px on longest side for crisp PDF output.
+        const MIN_PRINT_DIM = 2048;
+
+        const tryLoad = (targetUrl) => new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = 'Anonymous';
             img.onload = () => {
+                // Calculate scale to ensure minimum print resolution
+                const naturalW = img.width;
+                const naturalH = img.height;
+                const maxDim = Math.max(naturalW, naturalH);
+                const scale = maxDim < MIN_PRINT_DIM ? (MIN_PRINT_DIM / maxDim) : 1;
+
+                const canvasW = Math.round(naturalW * scale);
+                const canvasH = Math.round(naturalH * scale);
+
                 const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
+                canvas.width = canvasW;
+                canvas.height = canvasH;
                 const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
+                // Enable high-quality image scaling
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, canvasW, canvasH);
                 try {
-                    // Use 95% quality for print-ready PDFs
-                    // This prevents visible compression artifacts in printed books
-                    const data = canvas.toDataURL('image/jpeg', 0.95);
+                    // Use 98% JPEG quality for print-ready PDFs
+                    const data = canvas.toDataURL('image/jpeg', 0.98);
+                    if (scale > 1) {
+                        console.log(`[PDF] Image upscaled: ${naturalW}x${naturalH} → ${canvasW}x${canvasH} (${scale.toFixed(2)}x)`);
+                    }
                     resolve({
                         data: data,
-                        width: img.width,
-                        height: img.height
+                        width: canvasW,
+                        height: canvasH
                     });
                 } catch (e) {
                     reject(e);
                 }
             };
-            img.onerror = () => reject(new Error('Image load failed'));
-            img.src = url;
+            img.onerror = () => reject(new Error(`Image load failed: ${targetUrl?.substring(0, 50)}`));
+            img.src = targetUrl;
         });
+
+        try {
+            return await tryLoad(url);
+        } catch (e) {
+            // Retry with fallback URL strategies
+            console.warn(`[PDF] Primary load failed, trying fallbacks...`, e.message);
+
+            // If Google Photos URL, try with different size params
+            if (url && url.includes('googleusercontent.com')) {
+                const baseUrl = url.includes('=') ? url.split('=')[0] : url;
+                const fallbacks = [
+                    baseUrl + '=w1600-h1600',
+                    baseUrl + '=w1200-h1200',
+                    baseUrl + '=s1200',
+                ];
+                for (const fallbackUrl of fallbacks) {
+                    try {
+                        console.log(`[PDF] Trying fallback: ${fallbackUrl.substring(0, 60)}...`);
+                        return await tryLoad(fallbackUrl);
+                    } catch (e2) {
+                        continue;
+                    }
+                }
+            }
+            throw e;
+        }
     }
 
     /**
-     * Calculate dimensions for "cover" mode - fill the slot while maintaining aspect ratio
-     * Image is scaled to cover the entire slot area, then centered (with cropping at edges)
-     * @returns {Object} { x, y, width, height } - position and size for the image
-     */
+    * Calculate dimensions for "cover" mode - fill the slot while maintaining aspect ratio
+    * Image is scaled to cover the entire slot area, then centered (with cropping at edges)
+    * @returns {Object} { x, y, width, height } - position and size for the image
+    */
     calculateCoverDimensions(slotX, slotY, slotW, slotH, imgW, imgH) {
         const slotRatio = slotW / slotH;
         const imgRatio = imgW / imgH;

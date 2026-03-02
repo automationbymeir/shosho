@@ -176,7 +176,7 @@ export class RomanticJourneyRenderer {
       position: absolute;
       left: ${customPos && customPos.x !== undefined ? customPos.x : textEl.position.x};
       top: ${customPos && customPos.y !== undefined ? customPos.y : textEl.position.y};
-      ${textEl.size ? `width: ${textEl.size.width};` : ''}
+      ${textEl.size ? `width: ${textEl.size.width};` : 'max-width: 90%;'}
       font-family: ${fontFamily};
       font-size: ${textEl.style.size};
       font-weight: ${textEl.style.weight || 400};
@@ -185,7 +185,11 @@ export class RomanticJourneyRenderer {
       ${textEl.style.lineHeight ? `line-height: ${textEl.style.lineHeight};` : ''}
       ${textEl.style.letterSpacing ? `letter-spacing: ${textEl.style.letterSpacing};` : ''}
       transform: translateX(${textEl.style.align === 'center' ? '-50%' : '0'});
-      white-space: pre-wrap; /* Preserve newlines */
+      white-space: pre-wrap;
+      overflow: hidden;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      box-sizing: border-box;
     `;
 
         // Handle multiline content if passed as raw string with \n

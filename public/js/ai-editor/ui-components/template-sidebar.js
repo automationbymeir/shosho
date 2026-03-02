@@ -38,8 +38,8 @@ export class TemplateSidebar {
         card.onclick = () => this.handleTemplateSelect(template.id);
 
         card.innerHTML = `
-            <div class="template-preview" style="background-color: #f0f0f0; height: 120px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                ${template.thumbnail ? `<img src="${template.thumbnail}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 2rem;">✨</span>'}
+            <div class="template-preview" style="background-color: transparent; height: 120px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                ${template.thumbnail ? `<img src="${template.thumbnail}" style="width:100%; height:100%; object-fit:contain;">` : '<span style="font-size: 2rem;">✨</span>'}
             </div>
             <div class="template-info" style="padding: 10px;">
                 <h4 style="margin: 0 0 5px 0;">${template.name}</h4>
@@ -86,6 +86,11 @@ export class TemplateSidebar {
 
         try {
             await this.manager.loadTemplate(templateId);
+
+            // CRITICAL: Clear Magic Create backups so AUTO-HEAL doesn't restore stale data
+            // when switching from Magic Create to a readymade template
+            window._magicPages = null;
+            window._magicCover = null;
 
             const coverPhotos = {
                 front: photos[0],

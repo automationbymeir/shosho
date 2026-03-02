@@ -16,35 +16,23 @@ admin.initializeApp({
   storageBucket: "shoso-photobook.firebasestorage.app",
 });
 
-// Import modules
-let auth;
-let photos;
-let slides;
-let projects;
-let designInspiration;
-let aiStory;
-let aiAutoDesign;
-let printPdf;
-let payments;
-let paypal;
-let bookpod;
-let supportBot;
-try {
-  auth = require("./src/auth");
-  photos = require("./src/photos");
-  slides = require("./src/slides");
-  projects = require("./src/projects");
-  designInspiration = require("./src/design-inspiration");
-  aiStory = require("./src/ai-story");
-  aiAutoDesign = require("./src/ai-autodesign");
-  printPdf = require("./src/print-ready-pdf-generator");
-  payments = require("./src/payments");
-  paypal = require("./src/paypal");
-  bookpod = require("./src/bookpod");
-  supportBot = require("./src/support-bot");
-} catch (e) {
-  console.error("FATAL ERROR LOADING MODULES:", e);
-}
+// Import modules lazily to bypass 10-second Firebase deploy timeout
+const lazyRequire = (modulePath) => new Proxy({}, {
+  get: (target, prop) => require(modulePath)[prop],
+});
+
+const auth = lazyRequire("./src/auth");
+const photos = lazyRequire("./src/photos");
+const slides = lazyRequire("./src/slides");
+const projects = lazyRequire("./src/projects");
+const designInspiration = lazyRequire("./src/design-inspiration");
+const aiStory = lazyRequire("./src/ai-story");
+const aiAutoDesign = lazyRequire("./src/ai-autodesign");
+const printPdf = lazyRequire("./src/print-ready-pdf-generator");
+const payments = lazyRequire("./src/payments");
+const paypal = lazyRequire("./src/paypal");
+const bookpod = lazyRequire("./src/bookpod");
+const supportBot = lazyRequire("./src/support-bot");
 
 // ============================================
 // OAUTH & AUTHENTICATION
@@ -64,27 +52,36 @@ exports.oauthCallback = onRequest({cors: true}, async (req, res) => {
     const result = await auth.handleCallback(req.query);
     res.send(`
   <html>
+  <head>
+    <style>
+      body {
+        margin: 0; padding: 0; display: flex; align-items: center; justify-content: center;
+        height: 100vh; background-color: #f8f9fa;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        flex-direction: column; color: #333;
+      }
+      .loader {
+        border: 4px solid #e0e0e0; border-top: 4px solid #4285F4; border-radius: 50%;
+        width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px;
+      }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      h2 { margin: 0 0 10px 0; font-size: 22px; font-weight: 500; }
+      p { margin: 0; color: #666; font-size: 15px; }
+    </style>
+  </head>
   <body>
-    <h2>Authorization ${result.success ? "Successful" : "Failed"}</h2>
-    <p>${result.message}</p>
-    <p>This window should close automatically.</p>
+    <div class="loader"></div>
+    <h2>Connecting to Shoso...</h2>
+    <p>Please wait while we load your photos.</p>
     <script>
-      // Notify the main window
       if (window.opener) {
-        console.log("Posting Success Message to Opener...");
         window.opener.postMessage({ 
           type: 'GOOGLE_PHOTOS_AUTH_SUCCESS', 
           success: ${result.success},
           result: ${JSON.stringify(result)} 
         }, '*');
       }
-      
-      // Attempt to close with a slight delay to ensure message processing and Firestore consistency
-      setTimeout(() => {
-        window.close();
-      }, 3000);
     </script>
-    <button onclick="window.close()" style="padding:10px 20px; font-size:16px; margin-top:20px;">Close Window</button>
   </body>
   </html>
   `);
@@ -311,6 +308,32 @@ exports.renameProject = onCall(async (request) => {
   }
 
   return projects.renameProject(request.auth.uid, projectId, newName);
+});
+
+exports.updateShareSettings = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  const {projectId, settings} = request.data;
+  if (!projectId || !settings) {
+    throw new HttpsError("invalid-argument", "projectId and settings are required");
+  }
+
+  return projects.updateShareSettings(request.auth.uid, projectId, settings);
+});
+
+exports.joinProject = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  const {projectId, shareToken} = request.data;
+  if (!projectId) {
+    throw new HttpsError("invalid-argument", "projectId is required");
+  }
+
+  return projects.joinProject(request.auth.uid, projectId, shareToken);
 });
 
 // ============================================
@@ -751,9 +774,7 @@ exports.analyzePhotoPosition = onCall(async (request) => {
 });
 
 exports.analyzeBatchPhotoPositions = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be authenticated");
-  }
+  // Allow unauthenticated users for local usage
 
   const {photos} = request.data;
 

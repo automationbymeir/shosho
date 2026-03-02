@@ -235,11 +235,6 @@ export const persistenceService = {
     async loadProject(userId, projectId = null) {
         // 1. If explicit ID requested, try local first
         if (projectId) {
-            const localProj = await localGet(projectId);
-            if (localProj && localProj.state) {
-                this.currentProjectId = projectId;
-                return localProj.state;
-            }
             // If explicit ID not found locally, try cloud (needs userId)
             if (userId) {
                 try {
@@ -248,12 +243,25 @@ export const persistenceService = {
                     const result = await loadFn({ projectId });
                     if (result.data && result.data.success) {
                         this.currentProjectId = projectId;
-                        // Save local mirror
-                        await localSave({ id: projectId, title: result.data.data.cover?.title, lastModified: Date.now(), state: result.data.data });
+                        this.currentRole = result.data.metadata?.role || "owner";
+                        this.currentShareSettings = result.data.metadata?.shareSettings || null;
+                        this.currentOwner = result.data.metadata?.owner || null;
+
+                        // Save local mirror only if they are an editor
+                        if (this.currentRole !== "viewer") {
+                            await localSave({ id: projectId, title: result.data.data.cover?.title, lastModified: Date.now(), state: result.data.data });
+                        }
                         return result.data.data;
                     }
                 } catch (e) { console.error("Cloud load failed", e); }
             }
+            // Fallback to local if cloud fails or no user
+            const localProj = await localGet(projectId);
+            if (localProj && localProj.state) {
+                this.currentProjectId = projectId;
+                return localProj.state;
+            }
+
             return null;
         }
 
@@ -264,6 +272,7 @@ export const persistenceService = {
             const recent = allLocal[0];
             console.log('[Persistence] Auto-loading most recent LOCAL project:', recent.id);
             this.currentProjectId = recent.id;
+            this.currentRole = recent.role || "owner";
             return recent.state;
         }
 
@@ -317,8 +326,46 @@ export const persistenceService = {
 
         if (this.currentProjectId === projectId) {
             this.currentProjectId = null;
+            this.currentRole = null;
+            this.currentShareSettings = null;
         }
         return true;
+    },
+
+    /**
+     * Update share settings for a project
+     */
+    async updateShareSettings(projectId, settings) {
+        if (!authService.auth.currentUser) throw new Error("Must be logged in to update share settings");
+        try {
+            const functions = authService.getFunctions();
+            const updateFn = functions.httpsCallable('updateShareSettings');
+            const result = await updateFn({ projectId, settings });
+            if (result.data?.success) {
+                this.currentShareSettings = result.data.shareSettings;
+                return result.data;
+            }
+            throw new Error(result.data?.error || "Failed");
+        } catch (e) {
+            console.error("Cloud share update failed:", e);
+            throw e;
+        }
+    },
+
+    /**
+     * Join a project via link
+     */
+    async joinProject(projectId, shareToken) {
+        if (!authService.auth.currentUser) throw new Error("Must be logged in to join");
+        try {
+            const functions = authService.getFunctions();
+            const joinFn = functions.httpsCallable('joinProject');
+            const result = await joinFn({ projectId, shareToken });
+            return result.data;
+        } catch (e) {
+            console.error("Cloud join failed:", e);
+            throw e;
+        }
     },
 
     // Simple debounce helper
@@ -332,5 +379,48 @@ export const persistenceService = {
             clearTimeout(timeout);
             timeout = setTimeout(later, wait);
         };
+    },
+
+    presenceUnsubscribe: null,
+    presenceInterval: null,
+
+    startPresence(projectId, user, callback) {
+        if (!user || !projectId) return;
+        this.stopPresence();
+        const db = authService.getDB();
+        const presenceRef = db.collection('projects').doc(projectId).collection('presence');
+        const userRef = presenceRef.doc(user.uid);
+
+        const updatePresence = () => {
+            userRef.set({
+                uid: user.uid,
+                displayName: user.displayName || 'Anonymous',
+                photoURL: user.photoURL || null,
+                lastActive: Date.now()
+            }, { merge: true }).catch(e => console.error("Presence update failed", e));
+        };
+        updatePresence();
+        this.presenceInterval = setInterval(updatePresence, 30000);
+
+        window.addEventListener('beforeunload', () => {
+            userRef.delete().catch(() => { });
+        });
+
+        this.presenceUnsubscribe = presenceRef.onSnapshot(snapshot => {
+            const now = Date.now();
+            const activeUsers = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.lastActive && (now - data.lastActive) < 90000) {
+                    activeUsers.push(data);
+                }
+            });
+            if (callback) callback(activeUsers);
+        });
+    },
+
+    stopPresence() {
+        if (this.presenceInterval) clearInterval(this.presenceInterval);
+        if (this.presenceUnsubscribe) this.presenceUnsubscribe();
     }
 };

@@ -45,6 +45,7 @@ class GooglePhotosService {
                     // Hide loader temporarily for popup? Or keep logic simple.
                     // Popup is separate window.
 
+                    let activeAuthPopup = null;
                     await new Promise((resolveAuth, rejectAuth) => {
                         const width = 600;
                         const height = 700;
@@ -63,6 +64,8 @@ class GooglePhotosService {
                             return rejectAuth(new Error('Popup blocked.'));
                         }
 
+                        activeAuthPopup = authPopup;
+
                         // METHOD 1: Listen for direct postMessage (Optimization)
                         const messageHandler = (event) => {
                             if (event.data && event.data.type === 'GOOGLE_PHOTOS_AUTH_SUCCESS') {
@@ -71,6 +74,7 @@ class GooglePhotosService {
                                     console.log("[GooglePhotos] Auth success signal via postMessage");
                                     resolveAuth();
                                 } else {
+                                    authPopup.close();
                                     rejectAuth(new Error('Auth failed: ' + event.data.result?.message));
                                 }
                             }
@@ -129,7 +133,7 @@ class GooglePhotosService {
                     return resolve([]); // Cancelled
                 }
 
-                // 3. Open Popup
+                // 3. Open Popup (or Reuse existing Auth Popup to bypass blockers!)
                 if (progressFill) progressFill.style.width = '50%';
 
                 const width = 800;
@@ -137,11 +141,22 @@ class GooglePhotosService {
                 const left = (window.screen.width - width) / 2;
                 const top = (window.screen.height - height) / 2;
 
-                const popup = window.open(
-                    pickerUri,
-                    'Google Photos Picker',
-                    `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=yes`
-                );
+                let popup = null;
+                // If we have an existing open auth popup, reuse it to avoid popup blockers wiping out the user gesture
+                if (result.data.status === 'AUTH_REQUIRED' || document.activeElement) {
+                    // Try to reuse or open cleanly
+                }
+
+                if (typeof activeAuthPopup !== 'undefined' && activeAuthPopup && !activeAuthPopup.closed) {
+                    popup = activeAuthPopup;
+                    popup.location.href = pickerUri;
+                } else {
+                    popup = window.open(
+                        pickerUri,
+                        'Google Photos Picker',
+                        `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=yes`
+                    );
+                }
 
                 if (!popup) {
                     if (loader) loader.classList.remove('active');

@@ -270,13 +270,16 @@ async function detectStoryWithAI(photos) {
   console.log(`Analyzing ${photos.length} photos with AI...`);
 
   // Extract metadata for AI analysis
-  const photoMetadata = photos.map((photo, index) => ({
-    index,
-    date: extractDate(photo),
-    location: photo.location || null,
-    filename: photo.filename || photo.name || null,
-    hasGPS: !!(photo.gpsData || photo.latitude),
-  }));
+  const photoMetadata = photos.map((photo, index) => {
+    const obj = {index};
+    const d = extractDate(photo);
+    if (d) obj.date = d;
+    if (photo.location) obj.location = photo.location;
+    if (photo.filename || photo.name) obj.filename = photo.filename || photo.name;
+    const hasGps = !!(photo.gpsData || photo.latitude);
+    if (hasGps) obj.hasGPS = true;
+    return obj;
+  });
 
   // Check if we have enough metadata for AI analysis
   const hasUsefulMetadata = photoMetadata.some((p) => p.date || p.location);

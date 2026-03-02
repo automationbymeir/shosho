@@ -1,4 +1,4 @@
-const {google} = require("googleapis");
+
 const fetch = require("node-fetch");
 const auth = require("./auth");
 const pdfGenerator = require("./pdf-generator");
@@ -676,11 +676,11 @@ async function createContentSlide(slides, drive, presentationId, page, pageNum, 
 
       // Final bounds verification - abort if invalid
       if (offsetX < minX || offsetY < minY || offsetX + finalWidth > maxX ||
-          offsetY + finalHeight > maxY) {
+        offsetY + finalHeight > maxY) {
         console.error(`Photo ${i}: Would exceed page bounds, skipping`);
         console.error(
             `  Calculated: (${offsetX.toFixed(2)}, ${offsetY.toFixed(2)}) ` +
-            `size ${finalWidth.toFixed(2)}x${finalHeight.toFixed(2)}`,
+          `size ${finalWidth.toFixed(2)}x${finalHeight.toFixed(2)}`,
         );
         console.error(`  Bounds: X[${minX}, ${maxX}], Y[${minY}, ${maxY}]`);
         continue;
@@ -824,6 +824,7 @@ async function exportAsPdf(userId, presentationId) {
     throw new Error("User not authorized");
   }
 
+  const {google} = require("googleapis");
   const drive = google.drive({version: "v3", auth: oauth2Client});
 
   const downloadUrl = await exportPresentationAsPdf(drive, presentationId, "Photo Book");

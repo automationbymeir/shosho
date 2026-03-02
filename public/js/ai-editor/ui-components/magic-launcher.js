@@ -47,7 +47,7 @@ class MagicLauncher {
                             <span>דוגמאות:</span>
                             <button onclick="document.getElementById('magic-prompt-input').value='שקיעה רומנטית בחוף'">חוף ים</button>
                             <button onclick="document.getElementById('magic-prompt-input').value='אדריכלות מודרנית ומינימליסטית'">מודרני</button>
-                            <button onclick="document.getElementById('magic-prompt-input').value='היסטוריה משפחתית בסגנון וינטג\''">וינטג'</button>
+                            <button onclick="document.getElementById('magic-prompt-input').value='היסטוריה משפחתית בסגנון וינטג'">וינטג'</button>
                         </div>
                     </div>
 
@@ -222,37 +222,22 @@ class MagicLauncher {
                 ? store.state.assets.photos
                 : this.selectedPhotos;
 
+            // Close launcher immediately so V4 UI can take over and NOT be obscured by z-index
+            this.close();
+
             const album = await magicCreate.run(
                 prompt,
                 photosToUse,
                 {
-                    maxPages: 10,
+                    maxPages: 50,
                     photosPerPage: 3,
                     includeAiBackgrounds: true,
                     includeDecorativeText: true
                 }
             );
 
-            // V4 Handles its own progress via the instance methods which inject DOM
-            // But we have our own UI here in the launcher.
-            // Actually, V4 has its own UI for "Review Dialog".
-            // The "Progress" part in V4 is also injecting DOM elements (`mc4-progress`).
-            // So we might get double progress bars if we don't adjust.
-            // Let's hide the launcher's progress since V4 handles it.
-
-            this.close(); // Close launcher immediately so V4 UI can take over
-
             updateLog("Album generation complete!");
 
-            // V4 loads content itself. We just exit.
-
-            /*
-            // Wait a moment then close and load
-            setTimeout(() => {
-                this.close();
-                this.loadAlbumIntoEditor(album);
-            }, 1000);
-            */
 
         } catch (e) {
             console.error(e);
@@ -261,87 +246,7 @@ class MagicLauncher {
         }
     }
 
-    loadAlbumIntoEditor(album) {
-        console.log("Loading Album (V3):", album);
 
-        // 1. Reset Pages for new book
-        store.state.pages = [];
-        store.state.activePageId = null;
-
-        // 2. Load Cover Info is handled inside pages, but we can extract title from TextElements of cover page?
-        // Or if 'theme' has name.
-        if (album.theme) {
-            console.log("Applied Theme:", album.theme.theme_name);
-        }
-
-        // 3. Process Pages
-        const newPages = [];
-        const newAssetMap = new Map(); // Track new assets (backgrounds)
-
-        album.pages.forEach(p => {
-            // Handle Background
-            let bgVal = p.background;
-            // If object, keep as object (RenderEngine V3 handles it)
-            // If generated AI image URL, we might want to cache it in assets?
-            if (bgVal && bgVal.ai_image_url) {
-                // Push to assets.backgrounds
-                const bgId = `bg_${crypto.randomUUID()}`;
-                // We don't necessarily need to replace the value in p.background if RenderEngine handles object
-                // But for sidebar visibility:
-                store.state.assets.backgrounds.push({
-                    id: bgId,
-                    url: bgVal.ai_image_url,
-                    type: 'background',
-                    name: 'AI Generated',
-                    source: 'magic-create-v3'
-                });
-            }
-
-            // Handle Photos (Re-hydration for Store)
-            // The Store expects `page.photos` array to match the slots for some logic (e.g. remixing)
-            const pagePhotos = [];
-            if (p.layout && p.layout.slots) {
-                p.layout.slots.forEach(slot => {
-                    if (slot.photoId) {
-                        const asset = store.state.assets.photos.find(ph => ph.id === slot.photoId);
-                        if (asset && !pagePhotos.includes(asset)) {
-                            pagePhotos.push(asset);
-                        }
-                    }
-                });
-            }
-
-            // Push page to state
-            newPages.push({
-                id: p.id,
-                templateId: p.type === 'cover' ? 'magic-cover-v3' : 'magic-page-v3',
-                background: p.background, // Pass full object
-                layout: p.layout,
-                photos: pagePhotos,
-                elements: p.elements || [],
-                decorations: p.decorations || []
-            });
-        });
-
-        // 4. Update Store
-        store.state.pages = newPages;
-        if (newPages.length > 0) {
-            store.state.activePageId = newPages[0].id;
-        }
-
-        // 5. Notify
-        store.notify('pages', store.state.pages);
-        store.notify('cover', store.state.cover); // Cover might be handled as Page[0] in this flow? 
-        // Note: New Design Engine treats cover as Page 0.
-        // If viewMode is 'cover', we might need to map Page[0] back to state.cover?
-        // For now, let's stick to pages view.
-        store.state.viewMode = 'pages';
-        store.notify('viewMode', 'pages');
-
-        store.notify('assets', store.state.assets);
-
-        alert("✨ אלבום נוצר באמצעות Magic Model V3!");
-    }
 }
 
 export const magicLauncher = new MagicLauncher();

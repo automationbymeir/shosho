@@ -90,25 +90,50 @@ app.post("/create", async (req, res) => {
 
     const adaptedPages = result.plan.pages.map((p) => {
       const layoutMetrics = LAYOUTS[p.layout] || LAYOUTS["single"];
+      const photoSlots = [];
+      const textElements = [];
+
+      p.slots.forEach((s) => {
+        if (s.type === "photo") {
+          const metrics = layoutMetrics[photoSlots.length] || layoutMetrics[0] || {x: 0, y: 0, width: 100, height: 100};
+          photoSlots.push({
+            ...s,
+            photoId: photos[s.photoIndex] ? photos[s.photoIndex].id : undefined,
+            x: metrics.x,
+            y: metrics.y,
+            width: metrics.width,
+            height: metrics.height,
+            shape: s.shape || "rect",
+          });
+        } else if (s.type === "text") {
+          textElements.push({
+            id: `text_${Math.random().toString(36).substr(2, 9)}`,
+            type: "text",
+            content: s.content,
+            styleId: s.styleId,
+            fontSize: s.fontSize,
+            x: 10,
+            y: 85, // Generic bottom position
+            width: 80,
+            transform: `rotate(${s.rotation || 0}deg)`,
+            zIndex: 10,
+          });
+        }
+      });
+
       return {
         id: `page_${Math.random().toString(36).substr(2, 9)}`,
         templateId: "magic-page-v4",
         layout: {
-          id: p.layout, // "two-horizontal"
-          slots: p.slots.map((s, idx) => {
-            const metrics = layoutMetrics[idx] || layoutMetrics[0];
-            return {
-              ...s,
-              photoId: s.type === "photo" ? photos[s.photoIndex]?.id : undefined,
-              x: metrics.x,
-              y: metrics.y,
-              width: metrics.width,
-              height: metrics.height,
-            };
-          }),
+          id: p.layout,
+          slots: photoSlots,
         },
-        background: p.backgroundTextureId ? {textureId: p.backgroundTextureId} : undefined,
-        decorations: [], // Add empty decorations for now
+        elements: textElements,
+        background: p.backgroundTextureId || undefined,
+        backgroundTextureId: p.backgroundTextureId || undefined,
+        elementCategories: p.elementCategories || [],
+        fontId: p.fontId || undefined,
+        decorations: [],
       };
     });
 
@@ -117,35 +142,37 @@ app.post("/create", async (req, res) => {
     const coverPage = {
       id: "page_cover_" + Math.random().toString(36).substr(2, 9),
       templateId: "cover",
-      layout: {
-        id: "cover-layout", // dummy
-        slots: [{
-          type: "photo",
-          photoId: photos[result.plan.cover.photoIndex]?.id,
-          shape: result.plan.cover.photoShape,
-          frameId: result.plan.cover.photoFrameId,
-        }, {
-          type: "text",
-          content: result.plan.cover.title,
-          role: "title",
-        }, {
-          type: "text",
-          content: result.plan.cover.subtitle,
-          role: "subtitle",
-        }],
-      },
-      background: result.plan.cover.backgroundTextureId ? {
-        textureId: result.plan.cover.backgroundTextureId,
-      } : undefined,
+      layout: result.plan.cover.photoShape === "rect" ? "full-bleed" : "standard",
+      title: result.plan.cover.title || "My Photo Book",
+      subtitle: result.plan.cover.subtitle || "",
+      spineText: result.plan.cover.title || "My Photo Book",
+      frontPhotoId: photos[result.plan.cover.photoIndex] ? photos[result.plan.cover.photoIndex].id : null,
+      backPhotoId: null,
+      theme: result.plan.cover.backgroundTextureId || result.plan.templateId || "classic",
+      textColor: "#000000",
+      background: result.plan.cover.backgroundTextureId || "classic",
     };
 
-    // Prepend cover to pages
+    // Build back cover from AI plan
+    const backCoverPage = {
+      id: "page_backcover_" + Math.random().toString(36).substr(2, 9),
+      templateId: "back-cover",
+      title: result.plan.backCover?.text || "Thank you for viewing",
+      subtitle: result.plan.backCover?.subtitle || "",
+      background: result.plan.backCover?.backgroundTextureId || result.plan.cover.backgroundTextureId || "classic",
+    };
+
+    // Prepend cover and append back cover to pages
     adaptedPages.unshift(coverPage);
+    adaptedPages.push(backCoverPage);
 
     res.json({
       pages: adaptedPages,
+      cover: result.plan.cover,
+      backCover: result.plan.backCover,
       theme: {
         id: result.plan.templateId,
+        coverId: result.plan.cover.backgroundTextureId,
       },
     });
   } catch (error) {

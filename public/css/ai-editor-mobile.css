@@ -287,6 +287,9 @@
         border-radius: 10px;
         font-size: 0.9rem;
         padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .btn-pill {
@@ -342,8 +345,8 @@
     }
 
     /* Page Rendering - Scale to Fit */
-    .shoso-page,
-    .album-page {
+    #canvas-viewport .shoso-page,
+    #canvas-viewport .album-page {
         width: 100% !important;
         height: auto !important;
         aspect-ratio: 4/3;
@@ -634,8 +637,8 @@
         height: 85%;
     }
 
-    .shoso-page,
-    .album-page {
+    #canvas-viewport .shoso-page,
+    #canvas-viewport .album-page {
         width: auto !important;
         height: auto !important;
         max-width: 100%;
@@ -714,8 +717,8 @@
         padding: 8px;
     }
 
-    .shoso-page,
-    .album-page {
+    #canvas-viewport .shoso-page,
+    #canvas-viewport .album-page {
         max-height: calc(100vh - 80px);
     }
 
@@ -781,8 +784,8 @@
 
     /* Prevent text selection during drag */
     .asset-item,
-    .shoso-page,
-    .album-page {
+    #canvas-viewport .shoso-page,
+    #canvas-viewport .album-page {
         -webkit-user-select: none;
         user-select: none;
     }

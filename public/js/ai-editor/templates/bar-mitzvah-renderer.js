@@ -182,6 +182,11 @@ class BarMitzvahRenderer {
             z-index: 10;
             cursor: grab;
             direction: rtl;
+            overflow: hidden;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            max-width: 90%;
+            box-sizing: border-box;
         `;
 
         const alignCSS = this.alignmentRenderer.getAlignmentCSS(textEl);

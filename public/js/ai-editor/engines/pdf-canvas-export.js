@@ -12,6 +12,7 @@ import { RomanticJourneyRenderer } from '../templates/romantic-journey-renderer.
 import { TravelJourneyRenderer } from '../templates/travel-journey-renderer.js';
 import { FamilyRootsRenderer } from '../templates/family-roots-renderer.js';
 import { BarMitzvahRenderer } from '../templates/bar-mitzvah-renderer.js';
+import { WeddingPrestigeRenderer } from '../templates/wedding-prestige-renderer.js';
 import { RenderEngine } from './render-engine.js';
 import { UnifiedCoverRenderer } from './unified-cover-renderer.js';
 
@@ -158,8 +159,7 @@ export class PDFCanvasExport {
         const renderer = this.getRenderer(page.templateId);
 
         if (!renderer) {
-            console.warn('[PDFCanvas] No renderer found for template:', page.templateId);
-            return null;
+            console.log('[PDFCanvas] No template renderer for:', page.templateId, '— will use RenderEngine fallback');
         }
 
         // Render the page to DOM
@@ -167,22 +167,110 @@ export class PDFCanvasExport {
 
         if (page.templateId && this.templateConfig?.pageLayouts) {
             // Template-based rendering
-            const layout = this.templateConfig.pageLayouts.find(l => l.layoutId === page.rawLayoutId);
+            const layoutId = page.rawLayoutId || page.layout?.id || page.layoutId;
+            const layout = this.templateConfig.pageLayouts.find(l => l.layoutId === layoutId);
 
             if (layout && renderer.renderPage) {
+                // Rebuild accurate photos array from slots to prevent 'undefined' photo crashes and ensure layout sorting
+                let photosArray = [];
+                if (layout.photoSlots && page.layout && page.layout.slots) {
+                    layout.photoSlots.forEach((slotDef, i) => {
+                        const pageSlot = page.layout.slots.find(s => s.slotId === slotDef.slotId || (s.id && s.id.includes(slotDef.slotId))) || page.layout.slots[i];
+                        if (pageSlot && pageSlot.photoId && assets && assets.photos) {
+                            const photoObj = assets.photos.find(p => p.id === pageSlot.photoId);
+                            photosArray.push(photoObj || null);
+                        } else {
+                            photosArray.push(null);
+                        }
+                    });
+                } else {
+                    photosArray = page.photos || page.elements?.filter(e => e.type === 'photo') || [];
+                }
+
                 pageElement = renderer.renderPage(
                     layout,
-                    page.photos || [],
+                    photosArray,
                     page.textContent || {},
-                    page.textPositions || {}
+                    page.textPositions || {},
+                    page
                 );
+
+                // Apply custom text styles/scales universally exactly like app.js
+                if (page.textStyles) {
+                    Object.entries(page.textStyles).forEach(([elementId, styles]) => {
+                        const targetEl = pageElement.querySelector(`[data-selectable-id="${elementId}"]`);
+                        if (targetEl && styles.size) {
+                            const val = styles.size / 100;
+                            if (targetEl.style.transform && targetEl.style.transform !== 'none') {
+                                targetEl.style.transform += ` scale(${val})`;
+                            } else {
+                                targetEl.style.transform = `scale(${val})`;
+                                targetEl.style.transformOrigin = 'center center';
+                            }
+                        }
+                    });
+                }
+
+                // INJECT CROP STYLES AND FIX HTML2CANVAS COMPATIBILITY
+                if (page.layout && page.layout.slots) {
+                    page.layout.slots.forEach((slot, index) => {
+                        const slotContainers = pageElement.querySelectorAll('.photo-slot');
+                        const slotContainer = pageElement.querySelector(`.photo-slot[data-selectable-id="${slot.photoId}"]`) || slotContainers[index];
+                        if (slotContainer) {
+                            const img = slotContainer.querySelector('img');
+                            if (img && slot.photoId && assets && assets.photos) {
+                                const panX = slot.crop && slot.crop.panX !== undefined ? slot.crop.panX : 50;
+                                const panY = slot.crop && slot.crop.panY !== undefined ? slot.crop.panY : 50;
+                                const zoom = slot.crop && slot.crop.zoom ? slot.crop.zoom : 1;
+
+                                // HTML2Canvas does not support object-fit and object-position on <img> elements.
+                                // We MUST convert the <img> to a <div> with background-image to persist the edits in PDF.
+                                const src = img.src;
+                                const div = document.createElement('div');
+                                div.style.width = '100%';
+                                div.style.height = '100%';
+                                div.style.backgroundImage = `url("${src}")`;
+                                div.style.backgroundSize = 'cover';
+                                div.style.backgroundPosition = `${panX}% ${panY}%`;
+                                div.style.backgroundRepeat = 'no-repeat';
+                                div.style.transform = `scale(${zoom})`;
+                                div.style.transformOrigin = 'center center';
+
+                                // Copy over filters
+                                if (img.style.filter) {
+                                    div.style.filter = img.style.filter;
+                                }
+
+                                img.parentNode.replaceChild(div, img);
+                            }
+                        }
+                    });
+                }
             }
         }
 
         if (!pageElement) {
-            // Fallback: Create a basic page representation
-            pageElement = document.createElement('div');
-            pageElement.innerHTML = '<div style="padding: 20px;">Page render failed</div>';
+            // Fallback: Use RenderEngine directly for Magic Create and other non-template pages
+            console.log('[PDFCanvas] Using RenderEngine fallback for page:', page.templateId || 'unknown');
+            const fallbackRenderer = new RenderEngine(null);
+            const tempContainer = document.createElement('div');
+            tempContainer.style.width = `${width}px`;
+            tempContainer.style.height = `${height}px`;
+            tempContainer.style.position = 'relative';
+            tempContainer.style.overflow = 'hidden';
+
+            // Use the fallback assets or the passed assets
+            const effectiveAssets = assets || window._magicAssets || { photos: [] };
+            fallbackRenderer.renderPageToContainer(page, effectiveAssets, tempContainer);
+
+            // The renderPageToContainer creates a child .shoso-page element
+            pageElement = tempContainer.firstChild || tempContainer;
+
+            if (!pageElement || pageElement === tempContainer) {
+                // Last resort fallback
+                pageElement = document.createElement('div');
+                pageElement.innerHTML = '<div style="padding: 20px;">Page render failed</div>';
+            }
         }
 
         // Apply exact dimensions
@@ -198,6 +286,28 @@ export class PDFCanvasExport {
         console.log('[PDFCanvas] Waiting for images to load...');
         await this.waitForImages(pageElement);
         await this.waitForBackgroundImages(pageElement);
+
+        // CRITICAL: Convert all img elements in photo-slots to background-image divs
+        // html2canvas does NOT support object-fit/object-position on <img> elements
+        const photoSlots = pageElement.querySelectorAll('.photo-slot');
+        photoSlots.forEach(slot => {
+            const img = slot.querySelector('img');
+            if (img && img.src) {
+                const div = document.createElement('div');
+                div.style.width = '100%';
+                div.style.height = '100%';
+                div.style.backgroundImage = `url("${img.src}")`;
+                div.style.backgroundSize = 'cover';
+                div.style.backgroundPosition = img.style.objectPosition || '50% 50%';
+                div.style.backgroundRepeat = 'no-repeat';
+                if (img.style.filter) div.style.filter = img.style.filter;
+                if (img.style.transform) {
+                    div.style.transform = img.style.transform;
+                    div.style.transformOrigin = img.style.transformOrigin || 'center center';
+                }
+                img.parentNode.replaceChild(div, img);
+            }
+        });
 
         // Small delay for fonts to render
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -234,247 +344,87 @@ export class PDFCanvasExport {
     }
 
     /**
-     * Render front cover page to canvas - FULL PAGE PHOTO with text overlay
+     * Render the entire cover spread (Back, Spine, Front) exactly as seen in editor.
      */
-    async renderFrontCoverToCanvas(cover, assets) {
+    async renderCoverSpreadToCanvas(cover, assets) {
         const width = this.templateConfig?.designSystem?.canvas?.width || 800;
         const height = this.templateConfig?.designSystem?.canvas?.height || 600;
 
-        const container = this.createOffscreenContainer(width, height);
+        // Spread includes Back Cover (flex: 1), Spine (40px approx), Front Cover (flex: 1)
+        const spineWidth = 40;
+        const spreadWidth = (width * 2) + spineWidth;
 
-        console.log(`[PDFCanvas] Rendering front cover with frontPhotoId: ${cover.frontPhotoId}`);
+        const container = this.createOffscreenContainer(spreadWidth, height);
+        console.log(`[PDFCanvas] Rendering Unified Cover Spread as ${spreadWidth}x${height}`);
 
-        // Create a full-page front cover element
-        const frontCoverEl = document.createElement('div');
-        frontCoverEl.style.cssText = `
-            width: ${width}px;
-            height: ${height}px;
-            position: relative;
-            overflow: hidden;
-            background-color: ${cover.color || '#ffffff'};
-        `;
+        const wrapper = UnifiedCoverRenderer.render({
+            cover,
+            assets,
+            templateConfig: this.templateConfig,
+            container: null,
+            interactive: false
+        });
 
-        // Add front photo if exists - FULL BLEED
-        if (cover.frontPhotoId && assets?.photos) {
-            const photo = assets.photos.find(p => p.id === cover.frontPhotoId);
-            if (photo) {
-                const img = document.createElement('img');
-                img.src = photo.highResUrl || photo.url || photo.thumbnailUrl;
-                img.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    object-position: center;
-                `;
-                frontCoverEl.appendChild(img);
-                console.log(`[PDFCanvas] Front cover photo loaded: ${photo.id}`);
-            }
-        }
-
-        // Add text overlay if title/subtitle exist
-        if (cover.title || cover.subtitle) {
-            const textOverlay = document.createElement('div');
-            textOverlay.style.cssText = `
-                position: absolute;
-                bottom: 10%;
-                left: 50%;
-                transform: translateX(-50%);
-                text-align: center;
-                color: ${cover.textColor || '#ffffff'};
-                text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-                z-index: 10;
-            `;
-
-            if (cover.title) {
-                const titleEl = document.createElement('h1');
-                titleEl.textContent = cover.title;
-                titleEl.style.cssText = `
-                    font-size: 48px;
-                    font-weight: bold;
-                    margin: 0 0 10px 0;
-                    font-family: ${this.templateConfig?.designSystem?.typography?.heading?.family || 'serif'};
-                `;
-                textOverlay.appendChild(titleEl);
-            }
-
-            if (cover.subtitle) {
-                const subtitleEl = document.createElement('h2');
-                subtitleEl.textContent = cover.subtitle;
-                subtitleEl.style.cssText = `
-                    font-size: 24px;
-                    font-weight: normal;
-                    margin: 0;
-                    font-family: ${this.templateConfig?.designSystem?.typography?.body?.family || 'sans-serif'};
-                `;
-                textOverlay.appendChild(subtitleEl);
-            }
-
-            frontCoverEl.appendChild(textOverlay);
-        }
-
-        container.appendChild(frontCoverEl);
+        // Ensure dimensions match for the spread
+        wrapper.style.width = `${spreadWidth}px`;
+        wrapper.style.height = `${height}px`;
+        container.appendChild(wrapper);
 
         // Wait for resources
-        await this.waitForImages(frontCoverEl);
-        await this.waitForBackgroundImages(frontCoverEl);
-        await new Promise(resolve => setTimeout(resolve, 200)); // Extra time for high-res
+        await this.waitForImages(wrapper);
+        await this.waitForBackgroundImages(wrapper);
+        await new Promise(resolve => setTimeout(resolve, 300)); // Extra time for fonts and high-res
 
-        // Capture at high resolution
         try {
-            const canvas = await window.html2canvas(frontCoverEl, {
-                width: width,
-                height: height,
-                scale: 2, // 2x for high quality
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                logging: false
-            });
-            return canvas;
-        } catch (error) {
-            console.error('[PDFCanvas] Front cover capture error:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Render spine page to canvas
-     */
-    async renderSpineToCanvas(cover, assets) {
-        const width = this.templateConfig?.designSystem?.canvas?.width || 800;
-        const height = this.templateConfig?.designSystem?.canvas?.height || 600;
-
-        const container = this.createOffscreenContainer(width, height);
-
-        console.log(`[PDFCanvas] Rendering spine page`);
-
-        // Create spine element
-        const spineEl = document.createElement('div');
-        spineEl.style.cssText = `
-            width: ${width}px;
-            height: ${height}px;
-            position: relative;
-            overflow: hidden;
-            background-color: ${cover.color || '#1a1a1a'};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        `;
-
-        // Add spine text rotated vertically
-        const textContainer = document.createElement('div');
-        textContainer.style.cssText = `
-            transform: rotate(90deg);
-            white-space: nowrap;
-            color: ${cover.textColor || '#ffffff'};
-            text-align: center;
-        `;
-
-        if (cover.title) {
-            const titleEl = document.createElement('span');
-            titleEl.textContent = cover.title;
-            titleEl.style.cssText = `
-                font-size: 36px;
-                font-weight: bold;
-                font-family: ${this.templateConfig?.designSystem?.typography?.heading?.family || 'serif'};
-            `;
-            textContainer.appendChild(titleEl);
-        }
-
-        if (cover.subtitle) {
-            const subtitleEl = document.createElement('span');
-            subtitleEl.textContent = ' • ' + cover.subtitle;
-            subtitleEl.style.cssText = `
-                font-size: 24px;
-                font-weight: normal;
-                font-family: ${this.templateConfig?.designSystem?.typography?.body?.family || 'sans-serif'};
-                margin-left: 20px;
-            `;
-            textContainer.appendChild(subtitleEl);
-        }
-
-        spineEl.appendChild(textContainer);
-        container.appendChild(spineEl);
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Capture
-        try {
-            const canvas = await window.html2canvas(spineEl, {
-                width: width,
+            const spreadCanvas = await window.html2canvas(wrapper, {
+                width: spreadWidth,
                 height: height,
                 scale: 2,
                 useCORS: true,
                 allowTaint: true,
-                backgroundColor: cover.color || '#1a1a1a',
-                logging: false
-            });
-            return canvas;
-        } catch (error) {
-            console.error('[PDFCanvas] Spine capture error:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Render back cover page to canvas - FULL PAGE PHOTO
-     */
-    async renderBackCoverToCanvas(cover, assets) {
-        const width = this.templateConfig?.designSystem?.canvas?.width || 800;
-        const height = this.templateConfig?.designSystem?.canvas?.height || 600;
-
-        const container = this.createOffscreenContainer(width, height);
-
-        console.log(`[PDFCanvas] Rendering back cover with backPhotoId: ${cover.backPhotoId}`);
-
-        // Create a simple full-page back cover element
-        const backCoverEl = document.createElement('div');
-        backCoverEl.style.cssText = `
-            width: ${width}px;
-            height: ${height}px;
-            position: relative;
-            overflow: hidden;
-            background-color: ${cover.color || '#ffffff'};
-        `;
-
-        // Add back photo if exists - FULL BLEED
-        if (cover.backPhotoId && assets?.photos) {
-            const photo = assets.photos.find(p => p.id === cover.backPhotoId);
-            if (photo) {
-                const img = document.createElement('img');
-                img.src = photo.highResUrl || photo.url || photo.thumbnailUrl;
-                img.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    object-position: center;
-                `;
-                backCoverEl.appendChild(img);
-                console.log(`[PDFCanvas] Back cover photo loaded: ${photo.id}`);
-            }
-        }
-
-        container.appendChild(backCoverEl);
-
-        // Wait for resources
-        await this.waitForImages(backCoverEl);
-        await this.waitForBackgroundImages(backCoverEl);
-        await new Promise(resolve => setTimeout(resolve, 200)); // Extra time for high-res
-
-        // Capture at high resolution
-        try {
-            const canvas = await window.html2canvas(backCoverEl, {
-                width: width,
-                height: height,
-                scale: 2, // 2x for high quality
-                useCORS: true,
-                allowTaint: true,
                 backgroundColor: '#ffffff',
                 logging: false
             });
-            return canvas;
+
+            // html2canvas uses scale: 2, so all canvas pixel values are doubled
+            const scale = 2;
+
+            // 1. Front Canvas (Right side of the spread)
+            const frontCanvas = document.createElement('canvas');
+            frontCanvas.width = width * scale;
+            frontCanvas.height = height * scale;
+            const fCtx = frontCanvas.getContext('2d');
+            fCtx.drawImage(
+                spreadCanvas,
+                (width + spineWidth) * scale, 0, width * scale, height * scale, // Source
+                0, 0, width * scale, height * scale // Destination
+            );
+
+            // 2. Spine Canvas (Center of the spread)
+            const spineCanvas = document.createElement('canvas');
+            spineCanvas.width = spineWidth * scale;
+            spineCanvas.height = height * scale;
+            const sCtx = spineCanvas.getContext('2d');
+            sCtx.drawImage(
+                spreadCanvas,
+                width * scale, 0, spineWidth * scale, height * scale, // Source
+                0, 0, spineWidth * scale, height * scale // Destination
+            );
+
+            // 3. Back Canvas (Left side of the spread)
+            const backCanvas = document.createElement('canvas');
+            backCanvas.width = width * scale;
+            backCanvas.height = height * scale;
+            const bCtx = backCanvas.getContext('2d');
+            bCtx.drawImage(
+                spreadCanvas,
+                0, 0, width * scale, height * scale, // Source
+                0, 0, width * scale, height * scale // Destination
+            );
+
+            return { frontCanvas, spineCanvas, backCanvas };
         } catch (error) {
-            console.error('[PDFCanvas] Back cover capture error:', error);
+            console.error('[PDFCanvas] Cover Spread capture error:', error);
             return null;
         }
     }
@@ -531,65 +481,68 @@ export class PDFCanvasExport {
 
             console.log(`[PDFCanvas] Total pages: ${pages.length}, Content pages (excluding covers): ${contentPages.length}`);
 
-            // Calculate total items for progress (front cover + content pages + spine + back cover)
-            const hasFrontCover = cover && (cover.frontPhotoId || cover.title);
-            const hasBackCover = cover && cover.backPhotoId;
-            const hasSpine = cover && (cover.title || cover.subtitle);
-            const totalItems = (hasFrontCover ? 1 : 0) + contentPages.length + (hasSpine ? 1 : 0) + (hasBackCover ? 1 : 0);
+            // Determine if cover spread is needed
+            const hasCover = cover && (cover.frontPhotoId || cover.title || cover.templateId || cover.layout);
+            // If hasCover, we're adding 3 pages (Front, Back, Spine)
+            const totalItems = (hasCover ? 3 : 0) + contentPages.length; // front + back + spine
 
             let pageIndex = 0;
+            let backImageData = null;
+            let spineImageData = null;
 
-            // 1. Render Front Cover (Page 1)
-            if (hasFrontCover) {
-                this.showProgress('Rendering front cover...', pageIndex, totalItems);
-                const frontCoverCanvas = await this.renderFrontCoverToCanvas(cover, assets);
-                if (frontCoverCanvas) {
-                    const imgData = frontCoverCanvas.toDataURL('image/jpeg', 0.95); // Increased quality to 95%
-                    doc.addImage(imgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
-                    console.log('[PDFCanvas] Front cover added to PDF');
+            // 1. Render Cover Spread & Print Front Cover (Page 1)
+            if (hasCover) {
+                this.showProgress('Rendering Cover Spread...', pageIndex, totalItems);
+                const coverCanvases = await this.renderCoverSpreadToCanvas(cover, assets);
+                if (coverCanvases) {
+                    const frontImgData = coverCanvases.frontCanvas.toDataURL('image/jpeg', 0.95);
+                    doc.addImage(frontImgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
+                    console.log('[PDFCanvas] Front Cover added to PDF');
+
+                    backImageData = coverCanvases.backCanvas.toDataURL('image/jpeg', 0.95);
+                    spineImageData = coverCanvases.spineCanvas.toDataURL('image/jpeg', 0.95);
                 }
                 pageIndex++;
             }
 
-            // 2. Render Content Pages (excluding cover pages)
+            // 2. Render Content Pages
             for (let i = 0; i < contentPages.length; i++) {
                 this.showProgress(`Rendering page ${i + 1}...`, pageIndex + i, totalItems);
 
-                // Add new page (first page after cover, or first page if no cover)
                 if (pageIndex > 0 || i > 0) {
                     doc.addPage([ptWidth, ptHeight]);
                 }
 
                 const pageCanvas = await this.renderPageToCanvas(contentPages[i], assets);
                 if (pageCanvas) {
-                    const imgData = pageCanvas.toDataURL('image/jpeg', 0.95); // Increased quality to 95%
+                    const imgData = pageCanvas.toDataURL('image/jpeg', 0.95);
                     doc.addImage(imgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
                     console.log(`[PDFCanvas] Page ${i + 1} added to PDF`);
                 }
             }
 
-            // 3. Render Spine Page (if title exists)
-            if (hasSpine) {
-                this.showProgress('Rendering spine...', totalItems - (hasBackCover ? 2 : 1), totalItems);
-                doc.addPage([ptWidth, ptHeight]);
-                const spineCanvas = await this.renderSpineToCanvas(cover, assets);
-                if (spineCanvas) {
-                    const imgData = spineCanvas.toDataURL('image/jpeg', 0.95);
-                    doc.addImage(imgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
-                    console.log('[PDFCanvas] Spine added to PDF');
+            // 3. Render Back Cover (Last Content-Sized Page)
+            if (backImageData) {
+                this.showProgress('Rendering Back Cover...', totalItems - 2, totalItems);
+                if (pageIndex > 0 || contentPages.length > 0) {
+                    doc.addPage([ptWidth, ptHeight]);
                 }
+                doc.addImage(backImageData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
+                console.log('[PDFCanvas] Back Cover added to PDF');
             }
 
-            // 4. Render Back Cover (Last Page)
-            if (hasBackCover) {
-                this.showProgress('Rendering back cover...', totalItems - 1, totalItems);
+            // 4. Render Spine as full-width page (centered) for print
+            if (spineImageData) {
+                this.showProgress('Rendering Spine...', totalItems - 1, totalItems);
                 doc.addPage([ptWidth, ptHeight]);
-                const backCoverCanvas = await this.renderBackCoverToCanvas(cover, assets);
-                if (backCoverCanvas) {
-                    const imgData = backCoverCanvas.toDataURL('image/jpeg', 0.95); // Increased quality to 95%
-                    doc.addImage(imgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
-                    console.log('[PDFCanvas] Back cover added to PDF');
-                }
+                // Center the narrow spine on a full-size page
+                const spinePtWidth = 40 * 0.75;
+                const spineX = (ptWidth - spinePtWidth) / 2;
+                // Draw a background matching the cover
+                doc.setFillColor(240, 240, 240);
+                doc.rect(0, 0, ptWidth, ptHeight, 'F');
+                doc.addImage(spineImageData, 'JPEG', spineX, 0, spinePtWidth, ptHeight, undefined, 'FAST');
+                console.log('[PDFCanvas] Spine added to PDF (centered on full page)');
             }
 
             // Hide progress

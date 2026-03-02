@@ -19,7 +19,7 @@ const path = require("path");
 const fetch = require("node-fetch");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
-const {google} = require("googleapis");
+
 const auth = require("./auth");
 
 // ============================================
@@ -119,7 +119,7 @@ async function uploadPdfToStorage(userId, filename, pdfBuffer) {
 async function uploadPdfToDrive(userId, filename, pdfBuffer) {
   const oauth2Client = await auth.getOAuth2Client(userId);
   if (!oauth2Client) throw new Error("User not authorized");
-
+  const {google} = require("googleapis");
   const drive = google.drive({version: "v3", auth: oauth2Client});
 
   const fileMetadata = {

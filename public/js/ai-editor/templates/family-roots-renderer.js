@@ -154,6 +154,11 @@ class FamilyRootsRenderer {
       color: ${color};
       z-index: 10;
       cursor: grab;
+      overflow: hidden;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      max-width: 90%;
+      box-sizing: border-box;
     `;
 
         // Apply alignment

@@ -223,6 +223,10 @@ export class PhotographyPortfolioRenderer {
             cursor: pointer; /* Indication of interaction */
             z-index: 100; /* Ensure above photos */
             pointer-events: auto;
+            overflow: hidden;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            box-sizing: border-box;
         `;
 
         // Transform Logic for Centering

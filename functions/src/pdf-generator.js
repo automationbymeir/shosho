@@ -1,6 +1,6 @@
 const PDFDocument = require("pdfkit");
 const path = require("path");
-const {google} = require("googleapis");
+
 const fetch = require("node-fetch");
 const auth = require("./auth");
 
@@ -1011,7 +1011,7 @@ async function createCoverPage(doc, bookData, pageSize, accessToken) {
         if (upscale > 1.01) {
           throw new Error(
               `Cover photo resolution too low: need ~${requiredW}x${requiredH}px but got ` +
-              `${dimensions.width}x${dimensions.height}px (upscale x${upscale.toFixed(2)}).`,
+            `${dimensions.width}x${dimensions.height}px (upscale x${upscale.toFixed(2)}).`,
           );
         }
 
@@ -1192,8 +1192,8 @@ async function createContentPage(doc, page, pageSize, accessToken, pageNumber, b
       if (upscale > 1.01) {
         throw new Error(
             `Photo resolution too low for print: need ~${requiredW}x${requiredH}px but got ` +
-            `${dimensions.width}x${dimensions.height}px (upscale x${upscale.toFixed(2)}). ` +
-            `Choose a higher-res photo or reduce its size/layout.`,
+          `${dimensions.width}x${dimensions.height}px (upscale x${upscale.toFixed(2)}). ` +
+          `Choose a higher-res photo or reduce its size/layout.`,
         );
       }
 
@@ -1377,7 +1377,7 @@ async function generatePdfDirectly(userId, bookData) {
   if (!oauth2Client) {
     throw new Error("User not authorized");
   }
-
+  const {google} = require("googleapis");
   const drive = google.drive({version: "v3", auth: oauth2Client});
   const accessToken = oauth2Client.credentials.access_token;
 

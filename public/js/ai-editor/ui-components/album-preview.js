@@ -7,7 +7,7 @@
  */
 
 import { store } from '../core/state.js';
-import { pdfServerExport } from '../engines/pdf-server-export.js';
+import { pdfCanvasExport } from '../engines/pdf-canvas-export.js';
 import { RenderEngine } from '../engines/render-engine.js';
 
 // Template renderers for page preview
@@ -38,15 +38,43 @@ export class AlbumPreview {
      * Open preview mode
      */
     open(pages, cover, assets, templateConfig) {
-        this.pages = pages || [];
+        // Use window._magicPages as fallback if store pages are empty/default
+        let effectivePages = pages || [];
+        if (effectivePages.length <= 1 && window._magicPages && window._magicPages.length > 0) {
+            console.log('[Preview] Using _magicPages fallback:', window._magicPages.length, 'pages');
+            effectivePages = window._magicPages;
+        }
+        this.pages = effectivePages;
+
+        // Use window._magicAssets as fallback if assets are empty
+        let effectiveAssets = assets;
+        if ((!effectiveAssets?.photos || effectiveAssets.photos.length === 0) && window._magicAssets) {
+            console.log('[Preview] Using _magicAssets fallback:', window._magicAssets.photos?.length, 'photos');
+            effectiveAssets = window._magicAssets;
+        }
+
+        // Merge _magicCover fallback data into cover
+        if (window._magicCover && cover) {
+            if (!cover.background && window._magicCover.background) {
+                cover.background = window._magicCover.background;
+            }
+            if (cover.theme === 'classic' && window._magicCover.theme && window._magicCover.theme !== 'classic') {
+                cover.theme = window._magicCover.theme;
+            }
+            if (cover.title === 'My Photo Book' && window._magicCover.title) {
+                cover.title = window._magicCover.title;
+            }
+        }
         this.cover = cover;
-        this.assets = assets;
+        this.assets = effectiveAssets;
         this.templateConfig = templateConfig;
 
+        console.log('[Preview] Opening with', this.pages.length, 'pages. Cover bg:', this.cover?.background, 'theme:', this.cover?.theme);
+        console.log('[Preview] First page ID:', this.pages[0]?.id, 'templateId:', this.pages[0]?.templateId);
+        console.log('[Preview] Assets photos:', this.assets?.photos?.length);
+
         // Separate content pages (excluding cover) if needed
-        // Assuming 'pages' contains all mix, filtering might be needed if cover is separate
-        // For now, using logic that contentPages are the spreads
-        this.contentPages = this.pages.filter(p => p.type !== 'cover');
+        this.contentPages = this.pages.filter(p => p.templateId !== 'cover' && p.templateId !== 'back-cover');
 
         this.currentPageIndex = -1; // Start Closed
         this.isOpen = true;
@@ -764,22 +792,24 @@ export class AlbumPreview {
      * Navigate to previous page
      */
     prevPage() {
-        if (this.currentPageIndex > -1) {
-            const is3DView = document.getElementById('preview-3d')?.classList.contains('active');
+        const is3DView = document.getElementById('preview-3d')?.classList.contains('active');
 
-            if (is3DView && this.ultimateBook) {
+        if (is3DView && this.ultimateBook) {
+            // Let the 3D book handle its own boundaries
+            if (this.ultimateBook.isAnimating) return;
+            const flipped = this.ultimateBook.pages.filter(p => p.isFlipped);
+            if (flipped.length > 0) {
                 this.ultimateBook.prevPage();
-                this.currentPageIndex--;
-            } else {
-                const pageEl = document.getElementById('flipbook-page');
-                pageEl.classList.add('flipping-right');
-                setTimeout(() => {
-                    pageEl.classList.remove('flipping-right');
-                    this.currentPageIndex--;
-                    this.renderCurrentView();
-                    this.updateThumbnailSelection();
-                }, 300);
             }
+        } else if (this.currentPageIndex > -1) {
+            const pageEl = document.getElementById('flipbook-page');
+            pageEl.classList.add('flipping-right');
+            setTimeout(() => {
+                pageEl.classList.remove('flipping-right');
+                this.currentPageIndex--;
+                this.renderCurrentView();
+                this.updateThumbnailSelection();
+            }, 300);
         }
     }
 
@@ -787,16 +817,19 @@ export class AlbumPreview {
      * Navigate to next page
      */
     nextPage() {
-        const spreadCount = Math.ceil(this.contentPages.length / 2);
-        const maxIndex = spreadCount;
+        const is3DView = document.getElementById('preview-3d')?.classList.contains('active');
 
-        if (this.currentPageIndex < maxIndex) {
-            const is3DView = document.getElementById('preview-3d')?.classList.contains('active');
-
-            if (is3DView && this.ultimateBook) {
+        if (is3DView && this.ultimateBook) {
+            // Let the 3D book handle its own boundaries
+            if (this.ultimateBook.isAnimating) return;
+            const unflipped = this.ultimateBook.pages.filter(p => !p.isFlipped);
+            if (unflipped.length > 0) {
                 this.ultimateBook.nextPage();
-                this.currentPageIndex++;
-            } else {
+            }
+        } else {
+            const spreadCount = Math.ceil(this.contentPages.length / 2);
+            const maxIndex = spreadCount;
+            if (this.currentPageIndex < maxIndex) {
                 const pageEl = document.getElementById('flipbook-page');
                 pageEl.classList.add('flipping-left');
                 setTimeout(() => {
@@ -858,8 +891,21 @@ export class AlbumPreview {
         const spreadCount = Math.ceil(this.contentPages.length / 2);
         const maxIndex = spreadCount;
 
-        prevBtn.disabled = this.currentPageIndex <= -1;
-        nextBtn.disabled = this.currentPageIndex >= maxIndex;
+        // In RTL (Hebrew), arrows are swapped: left=next, right=prev
+        // So disabled states must also be swapped
+        const isAtStart = this.currentPageIndex <= -1;
+        const isAtEnd = this.currentPageIndex >= maxIndex;
+        const canvasContainer = document.getElementById('canvas-container');
+        const ltr = canvasContainer ? canvasContainer.classList.contains('force-ltr') : false;
+
+        if (ltr) {
+            prevBtn.disabled = isAtStart;
+            nextBtn.disabled = isAtEnd;
+        } else {
+            // RTL: left arrow (prevBtn) = nextPage, right arrow (nextBtn) = prevPage
+            prevBtn.disabled = isAtEnd;   // left arrow disabled at end
+            nextBtn.disabled = isAtStart; // right arrow disabled at start
+        }
 
         // 1. FRONT COVER 
         if (this.currentPageIndex === -1) {
@@ -1014,10 +1060,27 @@ export class AlbumPreview {
                     console.log('[Preview] Shimmed dynamic layout for template renderer.');
                 }
 
-                // 3. Render
+                // 3. Rebuild accurate photos array from slots to prevent 'undefined' photo crashes
+                let photosArray = [];
+                if (layoutDef.photoSlots && page.layout && page.layout.slots) {
+                    layoutDef.photoSlots.forEach((slotDef, i) => {
+                        const pageSlot = page.layout.slots.find(s => s.slotId === slotDef.slotId || (s.id && s.id.includes(slotDef.slotId))) || page.layout.slots[i];
+                        if (pageSlot && pageSlot.photoId && this.assets && this.assets.photos) {
+                            const photoObj = this.assets.photos.find(p => p.id === pageSlot.photoId);
+                            photosArray.push(photoObj || null);
+                        } else {
+                            photosArray.push(null);
+                        }
+                    });
+                } else {
+                    // Fallback to minimal array if not layout based
+                    photosArray = page.photos || [];
+                }
+
+                // 4. Render
                 const pageEl = renderer.renderPage(
                     layoutDef || {},
-                    page.photos || [],
+                    photosArray,
                     page.textContent || {},
                     page.textPositions || {}
                 );
@@ -1027,6 +1090,28 @@ export class AlbumPreview {
                     pageEl.style.width = '100%';
                     pageEl.style.height = '100%';
                     container.appendChild(pageEl);
+
+                    // INJECT CROP STYLES FOR PREVIEW MATCH
+                    if (page.layout && page.layout.slots) {
+                        page.layout.slots.forEach((slot, index) => {
+                            const slotContainers = pageEl.querySelectorAll('.photo-slot');
+                            const slotContainer = pageEl.querySelector(`.photo-slot[data-selectable-id="${slot.photoId}"]`) || slotContainers[index];
+                            if (slotContainer) {
+                                const img = slotContainer.querySelector('img');
+                                if (img && slot.crop && slot.photoId && this.assets && this.assets.photos) {
+                                    const asset = this.assets.photos.find(a => a.id === slot.photoId);
+                                    if (asset) {
+                                        const panX = slot.crop.panX !== undefined ? slot.crop.panX : 50;
+                                        const panY = slot.crop.panY !== undefined ? slot.crop.panY : 50;
+                                        const zoom = slot.crop.zoom || 1;
+                                        img.style.objectPosition = `${panX}% ${panY}%`;
+                                        img.style.transform = `scale(${zoom})`;
+                                        img.style.transformOrigin = 'center center';
+                                    }
+                                }
+                            }
+                        });
+                    }
                 } else {
                     console.error('[Preview] Renderer returned null for page:', page);
                     container.innerHTML = '<div style="color:red;padding:20px;">Render Error</div>';
@@ -1667,10 +1752,10 @@ export class AlbumPreview {
         try {
             // Use the template config
             if (this.templateConfig) {
-                pdfServerExport.setTemplateConfig(this.templateConfig);
+                pdfCanvasExport.setTemplateConfig(this.templateConfig);
             }
 
-            await pdfServerExport.generatePDF(this.pages, this.cover, this.assets);
+            await pdfCanvasExport.generatePDF(this.pages, this.cover, this.assets);
 
         } catch (error) {
             console.error('PDF generation failed:', error);

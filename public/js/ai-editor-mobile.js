@@ -82,6 +82,9 @@
 
         // Handle drag handle tap to expand/collapse
         sidebar.addEventListener('click', (e) => {
+            // Ignore clicks on nav items to prevent immediate collapse after expanding
+            if (e.target.closest('.nav-item')) return;
+
             // Only toggle if clicking the drag handle (top area)
             const rect = sidebar.getBoundingClientRect();
             if (e.clientY < rect.top + 30) {

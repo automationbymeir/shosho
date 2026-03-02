@@ -5,7 +5,7 @@ const ALBUM_TEMPLATES = {
         id: 'romantic-journey-v1',
         name: 'Romantic Journey',
         description: 'Elegant couple & wedding album',
-        thumbnail: '/assets/templates/romantic-journey-thumb.jpg',
+        thumbnail: '/assets/templates/romantic-journey-3d.png',
         category: 'wedding',
         minPhotos: 20,
         configPath: '/templates/romantic-journey-template.json'
@@ -14,7 +14,7 @@ const ALBUM_TEMPLATES = {
         id: 'photography-portfolio-v1',
         name: 'Photography Portfolio',
         description: 'Professional studio & portfolio showcase',
-        thumbnail: '/assets/templates/photography-portfolio-thumb.jpg',
+        thumbnail: '/assets/templates/photography-portfolio-3d.png',
         category: 'portfolio',
         minPhotos: 15,
         configPath: '/templates/photography-portfolio-template.json'
@@ -23,7 +23,7 @@ const ALBUM_TEMPLATES = {
         id: 'travel-journey-v1',
         name: 'Travel Journey',
         description: 'Clean, elegant travel photo album',
-        thumbnail: '/assets/templates/travel-journey-thumb.jpg',
+        thumbnail: '/assets/templates/travel-journey-3d.png',
         category: 'travel',
         minPhotos: 15,
         configPath: '/templates/travel-journey-template.json'
@@ -32,7 +32,7 @@ const ALBUM_TEMPLATES = {
         id: 'family-roots-v1',
         name: 'Family Roots',
         description: 'A timeless album for family memories',
-        thumbnail: '/assets/templates/family-roots-thumb.jpg',
+        thumbnail: '/assets/templates/family-roots-3d.png',
         category: 'family',
         minPhotos: 10,
         configPath: '/templates/family-roots-template.json'
@@ -41,7 +41,7 @@ const ALBUM_TEMPLATES = {
         id: 'bar-mitzvah-v1',
         name: 'Bar Mitzvah (בר מצווה)',
         description: 'Elegant Hebrew design with RTL support',
-        thumbnail: 'assets/templates/bar-mitzvah-preview.png',
+        thumbnail: 'assets/templates/bar-mitzvah-3d.png',
         category: 'celebration',
         minPhotos: 20,
         configPath: '/templates/bar-mitzvah-template.json'
@@ -50,7 +50,7 @@ const ALBUM_TEMPLATES = {
         id: 'wedding-prestige-hebrew-v1',
         name: 'Nitzach - Eternity (Wedding)',
         description: 'Prestige editorial wedding album in Hebrew',
-        thumbnail: 'assets/templates/wedding-prestige-preview.png',
+        thumbnail: 'assets/templates/wedding-prestige-3d.png',
         category: 'wedding',
         minPhotos: 50,
         configPath: '/templates/wedding-prestige-template.json'
@@ -59,7 +59,7 @@ const ALBUM_TEMPLATES = {
         id: 'baby-first-year-hebrew-v1',
         name: "השנה הראשונה - Baby's First Year",
         description: 'Sweet and emotional template for baby\'s first year in Hebrew',
-        thumbnail: 'assets/templates/baby-first-year-preview.jpg',
+        thumbnail: 'assets/templates/baby-first-year-3d.png',
         category: 'baby',
         minPhotos: 30,
         configPath: '/templates/baby-first-year-template.json'
@@ -68,7 +68,7 @@ const ALBUM_TEMPLATES = {
         id: 'adventure-journal-v1',
         name: 'יומן הרפתקאות - Adventure Journal',
         description: 'תבנית נועזת וצבעונית לטיולים ומסעות.',
-        thumbnail: 'assets/templates/adventure-journal-preview.jpg',
+        thumbnail: 'assets/templates/adventure-journal-3d.png',
         category: 'travel',
         minPhotos: 30,
         configPath: '/templates/adventure-journal-template.json'

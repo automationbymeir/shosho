@@ -413,15 +413,173 @@ export class PhotoAssigner {
 
     generateDefaultText(layout) {
         const content = {};
+
+        // Track how many times each layout has been used
+        if (!this._layoutUsageCount) this._layoutUsageCount = {};
+        const layoutId = layout.layoutId;
+        this._layoutUsageCount[layoutId] = (this._layoutUsageCount[layoutId] || 0);
+        const usageIndex = this._layoutUsageCount[layoutId];
+        this._layoutUsageCount[layoutId]++;
+
         if (layout.textElements) {
             layout.textElements.forEach(te => {
-                content[te.elementId] = te.placeholder;
+                // Check if we have variant text for this element
+                const variants = this._getTextVariants(layoutId, te.elementId);
+                if (variants && variants.length > 0) {
+                    content[te.elementId] = variants[usageIndex % variants.length];
+                } else {
+                    content[te.elementId] = te.placeholder;
+                }
+
                 if (te.children) {
                     te.children.forEach(c => content[c.elementId] = c.placeholder);
                 }
             });
         }
         return content;
+    }
+
+    /**
+     * Get text variant pool for a specific layout + element combination.
+     * Returns null if no variants exist (falls back to placeholder).
+     */
+    _getTextVariants(layoutId, elementId) {
+        // Text variant pools for layouts that may be reused
+        const variantPools = {
+            // Bar Mitzvah variants
+            'hero-with-caption': {
+                'caption': [
+                    'הרגע שחיכינו לו',
+                    'יום של גאווה',
+                    'רגע של קדושה',
+                    'חגיגה של שמחה',
+                    'הדרך לבגרות',
+                    'רגעים מיוחדים',
+                    'ברגע הזה הכל השתנה',
+                    'עליית מדרגה'
+                ],
+                'subcaption': [
+                    'בית הכנסת',
+                    'עם המשפחה',
+                    'רגע של התרגשות',
+                    'חוויה בלתי נשכחת',
+                    'יום שלא נשכח',
+                    'זיכרונות לכל החיים',
+                    'תחילת דרך חדשה',
+                    'הרגע שלנו'
+                ]
+            },
+            'story-right-photo': {
+                'storyTitle': [
+                    'ההכנות לקראת היום הגדול',
+                    'הדרך עד לכאן',
+                    'מחשבות לפני העלייה',
+                    'רגעים של גיוס',
+                    'הסיפור שלנו'
+                ],
+                'storyText': [
+                    'חודשים של הכנה, לימוד הפרשה וההפטרה, בחירת הנושא לדרשה - כל אלה הובילו לרגע המיוחד הזה.\n\nצפינו לראות את הילד שלנו עולה לתורה, וליבנו מלא גאווה.',
+                    'מרגע שהתחלנו לתכנן, ידענו שזה יהיה יום מיוחד.\nכל פרט קטן תוכנן בקפידה, כל רגע נבחר בזהירות.',
+                    'הרגע הזה מסמל את המעבר מילדות לבגרות.\nתקופה חדשה מתחילה, מלאה באתגרים והזדמנויות.',
+                    'כל הדרך הביאה אותנו לרגע הזה.\nרגע של אושר, גאווה והתרגשות.',
+                    'הסיפור המשפחתי שלנו מקבל היום פרק חדש.\nפרק של אחריות, גאווה ושמחה.'
+                ]
+            },
+            'story-left-photo': {
+                'storyTitle': [
+                    'רגעים של שמחה',
+                    'ברגע הזה',
+                    'חגיגה אמיתית',
+                    'הזיכרונות היפים',
+                    'יום של אהבה'
+                ],
+                'storyText': [
+                    'החגיגה עם כל המשפחה והחברים הקרובים. רגעים של אושר טהור שנזכור לתמיד.',
+                    'כשכל אלה שאהבנו מתאספים יחד, הלב מתמלא בשמחה עצומה.',
+                    'הצחוקים, הריקודים, החיבוקים - כל רגע נחרט בזיכרון.',
+                    'היום הזה הוכיח שוב כמה משפחה זה הדבר הכי חשוב.',
+                    'רגעים כאלה לא קורים כל יום. שמחנו על כל שניה.'
+                ]
+            },
+            'grid-four-celebration': {
+                'pageTitle': [
+                    'רגעים מהחגיגה',
+                    'תמונות מהאירוע',
+                    'רגעים בלתי נשכחים',
+                    'מהרגעים היפים',
+                    'זיכרונות מתוקים'
+                ],
+                'caption1': [
+                    'עם סבא וסבתא',
+                    'רגע משפחתי',
+                    'חיוכים של אושר',
+                    'יחד'
+                ],
+                'caption2': [
+                    'החברים הכי טובים',
+                    'חברים לדרך',
+                    'צמד בלתי מנוצח',
+                    'רגע של חברות'
+                ],
+                'caption3': [
+                    'ריקודים',
+                    'על הרחבה',
+                    'שמחה אמיתית',
+                    'רגע של שמחה'
+                ],
+                'caption4': [
+                    'עוגת הבר מצווה',
+                    'המתוקים',
+                    'חגיגה של טעמים',
+                    'רגע מתוק'
+                ]
+            },
+            'grid-six': {
+                'pageTitle': [
+                    'עוד רגעים יפים',
+                    'גלריה',
+                    'רגעי שיא',
+                    'עוד מהחגיגה',
+                    'רגעים נבחרים'
+                ]
+            },
+            // Romantic Journey variants
+            'full-photo-quote': {
+                'quoteText': [
+                    'האהבה שלנו היא הסיפור הכי יפה',
+                    'כל רגע איתך הוא מתנה',
+                    'ביחד אנחנו יכולים הכל',
+                    'את/ה הבית שלי'
+                ]
+            },
+            // Wedding Prestige variants
+            'split-diagonal': {
+                'centerText': [
+                    'לנצח',
+                    'יחד',
+                    'אהבה',
+                    'רגע קסום'
+                ]
+            },
+            'filmstrip-moments': {
+                'title': [
+                    'רגעים מהערב',
+                    'הקסם של הלילה',
+                    'רגעים בלתי נשכחים',
+                    'מהחגיגה שלנו'
+                ],
+                'subtitle': [
+                    'כל רגע שווה זהב',
+                    'זיכרונות של אושר',
+                    'יום שלא נשכח',
+                    'חגיגה של אהבה'
+                ]
+            }
+        };
+
+        const pool = variantPools[layoutId];
+        if (!pool) return null;
+        return pool[elementId] || null;
     }
 
     // --- Travel Journey Strategy Methods ---

@@ -13,8 +13,36 @@ class EditorStore {
         this._isBatchUpdating = false;
 
         const initialState = this.getInitialState();
+        // Expose internal target for direct writes (bypasses Proxy)
+        this._target = initialState;
 
         this.state = new Proxy(initialState, {
+            get: (target, property) => {
+                const val = target[property];
+                // AUTO-HEAL: If pages were reverted to default but _magicPages exists, restore
+                if (property === 'pages' && window._magicPages && window._magicPages.length > 1) {
+                    if (!val || val.length <= 1) {
+                        console.warn('[Store GET] pages appears reset to default! Restoring from _magicPages (' + window._magicPages.length + ' pages)');
+                        target.pages = window._magicPages;
+                        return window._magicPages;
+                    }
+                    // Check if the sole page is a UUID (default) vs magic page_xxx
+                    if (val.length === 1 && val[0]?.id && !val[0].id.startsWith('page_')) {
+                        console.warn('[Store GET] pages has single default UUID page! Restoring from _magicPages');
+                        target.pages = window._magicPages;
+                        return window._magicPages;
+                    }
+                }
+                // AUTO-HEAL cover
+                if (property === 'cover' && window._magicCover && window._magicCover.background) {
+                    if (val && val.theme === 'classic' && val.background === undefined && window._magicCover.theme !== 'classic') {
+                        console.warn('[Store GET] cover appears reset! Restoring from _magicCover');
+                        target.cover = { ...window._magicCover };
+                        return target.cover;
+                    }
+                }
+                return val;
+            },
             set: (target, property, value) => {
                 target[property] = value;
                 if (!this._isBatchUpdating) {

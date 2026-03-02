@@ -46,7 +46,11 @@ export class UnifiedCoverRenderer {
         { id: 'rubik', family: "'Rubik', sans-serif", label: 'Rubik (רוביק)' },
         { id: 'varela', family: "'Varela Round', sans-serif", label: 'Varela Round (ורלה)' },
         { id: 'aleo', family: "'Aleo', serif", label: 'Aleo (אלאו)' },
-        { id: 'caveat', family: "'Caveat', cursive", label: 'Caveat (כתב יד)' }
+        { id: 'caveat', family: "'Caveat', cursive", label: 'Caveat (כתב יד)' },
+        { id: 'gveret-levin', family: "'Gveret Levin', cursive", label: 'Gveret Levin (גברת לוין)' },
+        { id: 'playpen-hebrew', family: "'Playpen Sans Hebrew', cursive", label: 'Playpen Sans Hebrew (פלייפן)' },
+        { id: 'amatic-sc', family: "'Amatic SC', cursive", label: 'Amatic SC (אמטיק)' },
+        { id: 'fredoka', family: "'Fredoka', sans-serif", label: 'Fredoka (פרדוקה)' }
     ];
 
     /**
@@ -122,6 +126,26 @@ export class UnifiedCoverRenderer {
             bodyFont: "'Montserrat', sans-serif",
             bgColor: '#ffffff',
             textColor: '#000000'
+        },
+        'cover': {
+            title: 'My Photo Book',
+            subtitle: new Date().getFullYear().toString(),
+            spineText: 'My Photo Book',
+            layout: 'standard',
+            titleFont: "'Playfair Display', serif",
+            bodyFont: "'Montserrat', sans-serif",
+            bgColor: '#f5f0eb',
+            textColor: '#333333'
+        },
+        'magic-page-v4': {
+            title: 'My Photo Book',
+            subtitle: new Date().getFullYear().toString(),
+            spineText: 'My Photo Book',
+            layout: 'standard',
+            titleFont: "'Playfair Display', serif",
+            bodyFont: "'Montserrat', sans-serif",
+            bgColor: '#f5f0eb',
+            textColor: '#333333'
         }
     };
 
@@ -145,6 +169,16 @@ export class UnifiedCoverRenderer {
      */
     static render(options) {
         const { cover, assets, templateConfig, container, interactive = false, thumbnail = false } = options;
+
+        // DEEP DIAGNOSTIC: What does the cover object actually look like?
+        console.log('[UnifiedCoverRenderer] render() ENTRY - cover received:', JSON.stringify({
+            background: cover?.background,
+            theme: cover?.theme,
+            title: cover?.title,
+            templateId: cover?.templateId,
+            id: cover?.id,
+            keys: cover ? Object.keys(cover) : 'null'
+        }));
 
         if (!cover) {
             const empty = document.createElement('div');
@@ -186,6 +220,25 @@ export class UnifiedCoverRenderer {
             ? cover.bodyFont
             : (typography.body?.family || defaults.bodyFont);
 
+        // Resolve background texture from cover.background (AI-set texture ID)
+        let bgTextureUrl = null;
+        // Check cover.background, cover.theme, then fallback to window._magicCover
+        const magicFallback = window._magicCover || {};
+        const bgId = typeof cover.background === 'string' ? cover.background
+            : (cover.background?.textureId || cover.theme ||
+                magicFallback.background || magicFallback.theme || null);
+        if (bgId && window.BACKGROUND_TEXTURES) {
+            const tex = window.BACKGROUND_TEXTURES.find(t => t.id === bgId);
+            if (tex && tex.url) {
+                bgTextureUrl = tex.url;
+                console.log('[UnifiedCoverRenderer] Resolved texture:', bgId, '→ URL length:', tex.url.length);
+            } else {
+                console.warn('[UnifiedCoverRenderer] Texture NOT FOUND for ID:', bgId, 'Available:', window.BACKGROUND_TEXTURES.length);
+            }
+        } else {
+            console.log('[UnifiedCoverRenderer] No background ID to resolve. cover.background:', cover.background, 'cover.theme:', cover.theme, 'magicFallback:', magicFallback.background);
+        }
+
         // Use cover values with template defaults as fallback
         const title = cover.title || defaults.title;
         const subtitle = cover.subtitle || defaults.subtitle;
@@ -221,18 +274,18 @@ export class UnifiedCoverRenderer {
         `;
 
         // 1. Back Cover
-        const backCover = this.createBackCover(cover, assets, { bgColor, textColor, interactive });
+        const backCover = this.createBackCover(cover, assets, { bgColor, textColor, interactive, bgTextureUrl });
         wrapper.appendChild(backCover);
 
         // 2. Spine
-        const spine = this.createSpine({ ...cover, spineText }, { bgColor, textColor, titleFont });
+        const spine = this.createSpine({ ...cover, spineText }, { bgColor, textColor, titleFont, bgTextureUrl });
         wrapper.appendChild(spine);
 
         // 3. Front Cover
         const frontCover = this.createFrontCover(
             { ...cover, title, subtitle, layout },
             assets,
-            { bgColor, textColor, titleFont, bodyFont, accentColor, interactive, layout }
+            { bgColor, textColor, titleFont, bodyFont, accentColor, interactive, layout, bgTextureUrl }
         );
         wrapper.appendChild(frontCover);
 
@@ -248,7 +301,7 @@ export class UnifiedCoverRenderer {
     /**
      * Create back cover element
      */
-    static createBackCover(cover, assets, { bgColor, textColor, interactive }) {
+    static createBackCover(cover, assets, { bgColor, textColor, interactive, bgTextureUrl }) {
         const backEl = document.createElement('div');
         backEl.className = 'cover-section back-cover';
         backEl.style.cssText = `
@@ -260,6 +313,12 @@ export class UnifiedCoverRenderer {
             border-radius: 2px 0 0 2px;
             overflow: hidden;
         `;
+        // Apply texture background if available
+        if (bgTextureUrl) {
+            backEl.style.backgroundImage = `url('${bgTextureUrl}')`;
+            backEl.style.backgroundSize = 'cover';
+            backEl.style.backgroundPosition = 'center';
+        }
 
         // Add photo if exists
         if (cover.backPhotoId && assets?.photos) {
@@ -267,23 +326,33 @@ export class UnifiedCoverRenderer {
             if (photo) {
                 const img = document.createElement('img');
                 img.src = photo.thumbnailUrl || photo.url;
-                img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                const backCrop = cover.backCrop || {};
+                const backPanX = backCrop.panX !== undefined ? backCrop.panX : 50;
+                const backPanY = backCrop.panY !== undefined ? backCrop.panY : 50;
+                img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:${backPanX}% ${backPanY}%;`;
                 img.onerror = () => { img.src = 'assets/placeholder-image.png'; };
                 backEl.appendChild(img);
             }
+        } else if (interactive) {
+            // Show empty placeholder for back cover
+            const placeholder = document.createElement('div');
+            placeholder.style.cssText = `
+                width: 100%; height: 100%;
+                display: flex; align-items: center; justify-content: center;
+                border: 2px dashed rgba(128,128,128,0.3);
+                color: rgba(128,128,128,0.5);
+                font-size: 13px;
+                direction: rtl;
+            `;
+            placeholder.textContent = 'גרור תמונה לכריכה האחורית';
+            backEl.appendChild(placeholder);
         }
 
         if (interactive) {
             backEl.dataset.selectableId = 'cover-back-photo';
             backEl.dataset.selectableType = 'cover-photo';
-
-            if (cover.textPositions && cover.textPositions['cover-back-photo']) {
-                backEl.style.position = 'absolute';
-                backEl.style.left = cover.textPositions['cover-back-photo'].x;
-                backEl.style.top = cover.textPositions['cover-back-photo'].y;
-                backEl.style.width = cover.textPositions['cover-back-photo'].width || '50%';
-                backEl.style.height = cover.textPositions['cover-back-photo'].height || '100%';
-            }
+            // IMPORTANT: Do NOT apply textPositions to structural cover sections.
+            // The back cover must stay in its flex position — it's not a draggable element.
         }
 
         return backEl;
@@ -292,7 +361,7 @@ export class UnifiedCoverRenderer {
     /**
      * Create spine element
      */
-    static createSpine(cover, { bgColor, textColor, titleFont }) {
+    static createSpine(cover, { bgColor, textColor, titleFont, bgTextureUrl }) {
         const spineEl = document.createElement('div');
         spineEl.className = 'cover-section spine';
         spineEl.style.cssText = `
@@ -304,9 +373,15 @@ export class UnifiedCoverRenderer {
             justify-content: center;
             box-shadow: inset 2px 0 5px rgba(0,0,0,0.2);
         `;
+        if (bgTextureUrl) {
+            spineEl.style.backgroundImage = `url('${bgTextureUrl}')`;
+            spineEl.style.backgroundSize = 'cover';
+            spineEl.style.backgroundPosition = 'center';
+        }
 
         const spineTextEl = document.createElement('div');
-        spineTextEl.textContent = cover.spineText || cover.title || '';
+        const spineContent = cover.spineText || cover.title || '';
+        spineTextEl.textContent = spineContent;
         spineTextEl.style.cssText = `
             writing-mode: vertical-rl;
             transform: rotate(180deg);
@@ -318,6 +393,11 @@ export class UnifiedCoverRenderer {
             text-overflow: ellipsis;
             max-height: 90%;
         `;
+        // Hebrew spine text: use Hebrew font
+        const _heRegex = /[\u0590-\u05FF]/;
+        if (_heRegex.test(spineContent)) {
+            spineTextEl.style.fontFamily = "'Fredoka', 'Heebo', sans-serif";
+        }
         spineEl.appendChild(spineTextEl);
 
         return spineEl;
@@ -327,7 +407,7 @@ export class UnifiedCoverRenderer {
      * Create front cover element
      */
     static createFrontCover(cover, assets, options) {
-        const { bgColor, textColor, titleFont, bodyFont, accentColor, interactive, layout } = options;
+        const { bgColor, textColor, titleFont, bodyFont, accentColor, interactive, layout, bgTextureUrl } = options;
 
         const frontEl = document.createElement('div');
         frontEl.className = 'cover-section front-cover';
@@ -342,6 +422,12 @@ export class UnifiedCoverRenderer {
             display: flex;
             flex-direction: column;
         `;
+        // Apply texture background if available
+        if (bgTextureUrl) {
+            frontEl.style.backgroundImage = `url('${bgTextureUrl}')`;
+            frontEl.style.backgroundSize = 'cover';
+            frontEl.style.backgroundPosition = 'center';
+        }
 
         // Handle different layouts
         switch (layout) {
@@ -402,7 +488,7 @@ export class UnifiedCoverRenderer {
         photoEl.style.cssText += 'position:absolute;inset:0;';
 
         const textArea = this.createTextArea(cover, { ...options, textColor: '#ffffff' });
-        textArea.style.cssText += 'position:absolute;bottom:10%;left:0;right:0;z-index:10;text-shadow:0 2px 4px rgba(0,0,0,0.7);';
+        textArea.style.cssText += 'position:absolute;bottom:10%;left:0;right:0;z-index:10;text-shadow:0 2px 4px rgba(0,0,0,0.7);padding:0 5%;box-sizing:border-box;';
         textArea.querySelectorAll('*').forEach(el => el.style.color = '#ffffff');
 
         frontEl.appendChild(photoEl);
@@ -479,14 +565,19 @@ export class UnifiedCoverRenderer {
         const { interactive } = options;
         frontEl.style.flexDirection = 'row';
 
+        // Detect Hebrew for correct alignment in split layout
+        const _heRegex = /[\u0590-\u05FF]/;
+        const isHebrew = _heRegex.test(cover.title || '') || _heRegex.test(cover.subtitle || '');
+        const splitAlign = isHebrew ? 'right' : 'left';
+
         const photoEl = this.createPhotoArea(cover, assets, { layout: 'split', interactive });
         photoEl.style.cssText += 'flex:1;height:100%;';
 
         const textContainer = document.createElement('div');
         textContainer.style.cssText = 'flex:1;display:flex;flex-direction:column;justify-content:center;padding:10%;';
 
-        const textArea = this.createTextArea(cover, { ...options, textAlign: 'left' });
-        textArea.style.textAlign = 'left';
+        const textArea = this.createTextArea(cover, { ...options, textAlign: splitAlign });
+        textArea.style.textAlign = splitAlign;
 
         textContainer.appendChild(textArea);
         frontEl.appendChild(photoEl);
@@ -528,12 +619,12 @@ export class UnifiedCoverRenderer {
             align-items: center;
             justify-content: center;
             height: 100%;
-            padding: 15%;
+            padding: 10%;
             box-sizing: border-box;
         `;
 
         const photoEl = this.createPhotoArea(cover, assets, { layout: 'elegant', interactive });
-        photoEl.style.cssText += 'width:60%;height:50%;margin-bottom:5%;';
+        photoEl.style.cssText += 'width:60%;max-height:40%;flex-shrink:0;margin-bottom:5%;';
 
         const textArea = this.createTextArea(cover, options);
 
@@ -661,8 +752,11 @@ export class UnifiedCoverRenderer {
                 // Font Family Resolution
                 let fontFamily = 'sans-serif';
                 if (style.font === 'hebrew') fontFamily = "'Frank Ruhl Libre', serif";
+                else if (style.font === 'script') fontFamily = "'Pinyon Script', 'Great Vibes', cursive";
                 else if (style.font === 'accent') fontFamily = "'Cinzel', serif";
                 else if (style.font === 'display') fontFamily = "'Cormorant Garamond', serif";
+                else if (style.font === 'serif') fontFamily = "'Cormorant Garamond', 'Playfair Display', serif";
+                else if (style.font === 'sans') fontFamily = "'Montserrat', 'Open Sans', sans-serif";
                 else if (style.font === 'body') fontFamily = "'Heebo', serif";
                 // If cover has a custom titleFont, apply it to the main template title fields:
                 if (options.titleFont && (textSpec.elementId === 'title' || textSpec.elementId === 'groomName' || textSpec.elementId === 'brideName')) {
@@ -687,13 +781,26 @@ export class UnifiedCoverRenderer {
                 // Fetch custom position if user dragged it
                 const customPos = (cover.textPositions && cover.textPositions[textSpec.elementId]) ? cover.textPositions[textSpec.elementId] : null;
 
+                // Calculate proper width and position
+                const elWidth = textSpec.size?.width || '100%';
+                // Cap large font sizes on cover to prevent overflow
+                let fontSize = style.size || '16px';
+                const fontSizePx = parseInt(fontSize);
+                if (fontSizePx > 48) {
+                    fontSize = '48px';
+                }
+
                 let cssString = `
                     position: absolute;
                     font-family: ${fontFamily};
-                    font-size: ${style.size || '16px'};
+                    font-size: ${fontSize};
                     font-weight: ${style.weight || 400};
                     color: ${color || 'white'};
                     z-index: 10;
+                    box-sizing: border-box;
+                    overflow: hidden;
+                    word-break: break-word;
+                    line-height: ${style.lineHeight || '1.3'};
                 `;
 
                 if (customPos && customPos.x) {
@@ -705,9 +812,13 @@ export class UnifiedCoverRenderer {
                     // If moving, we might need width for alignment properly, or keep it auto
                     if (customPos.width) cssString += `width: ${customPos.width};`;
                 } else {
+                    // Default x to 0 if not specified (common for centered cover titles)
+                    const posX = textSpec.position.x || '0%';
+                    const posY = textSpec.position.y || '0%';
                     cssString += `
-                        left: ${textSpec.position.x};
-                        top: ${textSpec.position.y};
+                        left: ${posX};
+                        top: ${posY};
+                        width: ${elWidth};
                         text-align: ${style.align || 'center'};
                         letter-spacing: ${style.letterSpacing || 'normal'};
                         ${textSpec.alignment?.method || ''}
@@ -715,6 +826,17 @@ export class UnifiedCoverRenderer {
                 }
 
                 el.style.cssText = cssString;
+
+                // Auto-detect Hebrew content and apply RTL + Hebrew font
+                const hebrewRegex = /[\u0590-\u05FF]/;
+                if (hebrewRegex.test(content)) {
+                    el.style.direction = 'rtl';
+                    el.style.unicodeBidi = 'plaintext';
+                    // Only override font if it's not already a Hebrew-supporting font
+                    if (!fontFamily.includes('Heebo') && !fontFamily.includes('Rubik') && !fontFamily.includes('Frank Ruhl')) {
+                        el.style.fontFamily = "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Heebo', sans-serif";
+                    }
+                }
 
                 // Apply custom text styles (size scale and alignment)
                 const customStyles = (cover.textStyles && cover.textStyles[textSpec.elementId]) || {};
@@ -777,9 +899,13 @@ export class UnifiedCoverRenderer {
     static createPhotoArea(cover, assets, { layout, interactive }) {
         const photoEl = document.createElement('div');
         photoEl.className = 'cover-photo-area';
+        // Apply saved crop position if available
+        const frontCrop = cover.frontCrop || {};
+        const bgPosX = frontCrop.panX !== undefined ? frontCrop.panX : 50;
+        const bgPosY = frontCrop.panY !== undefined ? frontCrop.panY : 50;
         photoEl.style.cssText = `
             background-size: cover;
-            background-position: center;
+            background-position: ${bgPosX}% ${bgPosY}%;
             background-repeat: no-repeat;
         `;
 
@@ -798,23 +924,16 @@ export class UnifiedCoverRenderer {
                 border: 2px dashed rgba(128,128,128,0.3);
                 color: rgba(128,128,128,0.5);
                 font-size: 14px;
+                direction: rtl;
             `;
-            photoEl.textContent = 'Drop Photo Here';
+            photoEl.textContent = 'גרור תמונה לכריכה הקדמית';
         }
 
         if (interactive) {
             photoEl.dataset.selectableId = 'cover-photo';
             photoEl.dataset.selectableType = 'cover-photo';
-
-            if (cover.textPositions && cover.textPositions['cover-photo']) {
-                photoEl.style.position = 'absolute';
-                photoEl.style.left = cover.textPositions['cover-photo'].x;
-                photoEl.style.top = cover.textPositions['cover-photo'].y;
-                if (cover.textPositions['cover-photo'].width) {
-                    photoEl.style.width = cover.textPositions['cover-photo'].width;
-                    photoEl.style.height = cover.textPositions['cover-photo'].height;
-                }
-            }
+            // IMPORTANT: Do NOT apply textPositions to the photo area.
+            // It's a structural layout element, not a draggable text.
         }
 
         return photoEl;
@@ -831,6 +950,9 @@ export class UnifiedCoverRenderer {
         textArea.style.cssText = `
             text-align: ${textAlign};
             width: 100%;
+            flex-shrink: 1;
+            min-height: 0;
+            overflow: hidden;
         `;
 
         // Title
@@ -839,10 +961,12 @@ export class UnifiedCoverRenderer {
         titleEl.style.cssText = `
             margin: 0;
             font-family: ${titleFont};
-            font-size: clamp(18px, 4vw, 36px);
+            font-size: 28px;
             font-weight: 600;
             color: ${textColor};
             line-height: 1.2;
+            word-break: break-word;
+            overflow-wrap: break-word;
         `;
         if (interactive) {
             titleEl.dataset.selectableId = 'cover-title';
@@ -852,7 +976,6 @@ export class UnifiedCoverRenderer {
                 titleEl.style.position = 'absolute';
                 titleEl.style.left = cover.textPositions['cover-title'].x;
                 titleEl.style.top = cover.textPositions['cover-title'].y;
-                titleEl.style.transform = 'translate(-50%, -50%)';
             }
         }
 
@@ -862,7 +985,7 @@ export class UnifiedCoverRenderer {
         subEl.style.cssText = `
             margin: 8px 0 0;
             font-family: ${bodyFont};
-            font-size: clamp(12px, 2vw, 18px);
+            font-size: 16px;
             font-weight: 400;
             color: ${textColor};
             opacity: 0.85;
@@ -875,7 +998,6 @@ export class UnifiedCoverRenderer {
                 subEl.style.position = 'absolute';
                 subEl.style.left = cover.textPositions['cover-subtitle'].x;
                 subEl.style.top = cover.textPositions['cover-subtitle'].y;
-                subEl.style.transform = 'translate(-50%, -50%)';
             }
         }
 
@@ -898,6 +1020,29 @@ export class UnifiedCoverRenderer {
         textArea.appendChild(titleEl);
         if (cover.subtitle) {
             textArea.appendChild(subEl);
+        }
+
+        // Auto-detect Hebrew in cover text and apply RTL + Hebrew fonts
+        // IMPORTANT: We preserve the layout's text-align (e.g. 'center' for elegant/minimal)
+        // and only add direction:rtl so text flows correctly without breaking centered layouts.
+        const hebrewRegex = /[\u0590-\u05FF]/;
+        const titleIsHebrew = hebrewRegex.test(cover.title || '');
+        const subtitleIsHebrew = hebrewRegex.test(cover.subtitle || '');
+        if (titleIsHebrew || subtitleIsHebrew) {
+            textArea.style.direction = 'rtl';
+            // Only set text-align to right if the layout didn't specify center
+            // (centered, elegant, minimal layouts use center; standard/split use left/right)
+            if (textAlign !== 'center') {
+                textArea.style.textAlign = 'right';
+            }
+            if (titleIsHebrew) {
+                titleEl.style.fontFamily = "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Heebo', sans-serif";
+                titleEl.style.direction = 'rtl';
+            }
+            if (subtitleIsHebrew) {
+                subEl.style.fontFamily = "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Heebo', sans-serif";
+                subEl.style.direction = 'rtl';
+            }
         }
 
         return textArea;
@@ -959,7 +1104,8 @@ export class UnifiedCoverRenderer {
 
         // Title
         const title = document.createElement('div');
-        title.textContent = cover.title || 'Cover';
+        const thumbTitle = cover.title || 'Cover';
+        title.textContent = thumbTitle;
         title.style.cssText = `
             font-family: ${titleFont};
             font-size: 8px;
@@ -970,6 +1116,12 @@ export class UnifiedCoverRenderer {
             text-overflow: ellipsis;
             max-width: 90%;
         `;
+        // Hebrew thumbnail title: apply RTL direction + Hebrew font
+        const _heRegex = /[\u0590-\u05FF]/;
+        if (_heRegex.test(thumbTitle)) {
+            title.style.direction = 'rtl';
+            title.style.fontFamily = "'Fredoka', 'Heebo', sans-serif";
+        }
         front.appendChild(title);
 
         thumb.appendChild(spine);

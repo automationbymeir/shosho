@@ -286,6 +286,10 @@ export class TravelJourneyRenderer {
       z-index: 10;
       cursor: pointer;
       pointer-events: auto;
+      overflow: hidden;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      box-sizing: border-box;
     `;
 
         // Transform handling

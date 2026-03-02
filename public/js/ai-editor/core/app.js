@@ -6,8 +6,7 @@ import { layoutEngine } from '../engines/layout-engine.js';
 import { RenderEngine } from '../engines/render-engine.js';
 import { pdfExport } from '../engines/pdf-export.js';
 import { pdfCanvasExport } from '../engines/pdf-canvas-export.js';
-import { pdfServerExport } from '../engines/pdf-server-export.js';
-import { googlePhotosService } from '../services/google-photos-service.js?v=forceNew6';
+import { googlePhotosService } from '../services/google-photos-service.js?v=googleFixBlackScreen';
 import { geminiService } from '../services/ai-service.js';
 import { aiDirector } from '../engines/ai-director.js';
 import { orderFlow } from '../services/order-flow.js?v=bookpod1';
@@ -71,7 +70,9 @@ class App {
         this.renderer = new RenderEngine('canvas-container');
         this.state = store.state; // Direct access ref
         this.moveableInstance = null; // Groundwork for Moveable integration
+        this.clipboard = null;
         this.bindEvents();
+        this.setupKeyboardShortcuts();
         this.createHoverTooltip();
         this.loadAssets();
 
@@ -91,6 +92,12 @@ class App {
                 return;
             }
 
+            // Prevent save if the user is a viewer
+            if (persistenceService.currentRole === "viewer") {
+                console.log("[App] Auto-save skipped: User is a restricted viewer.");
+                return;
+            }
+
             // We now pass userId if it exists, otherwise pass null to allow local-only save.
             persistenceService.saveProject(store.state.user?.uid || null, state);
         }, 3000);
@@ -99,83 +106,80 @@ class App {
         const urlParams = new URLSearchParams(window.location.search);
         this.isAutoStart = urlParams.get('autoStart') === 'true';
         this.targetTemplateId = urlParams.get('templateId');
+        this.urlProjectId = urlParams.get('projectId');
+        this.urlShareToken = urlParams.get('shareToken');
 
-        // --- IMMEDIATE AUTO-START MODAL ---
-        if (this.isAutoStart) {
-            const modal = document.getElementById('auto-start-upload-modal');
-            if (modal) {
-                modal.style.display = 'flex';
+        // --- UPLOAD MODAL EVENT BINDING ---
+        const autoUploadModal = document.getElementById('auto-start-upload-modal');
+        if (autoUploadModal) {
+            // Bind Events
+            const btnLocal = document.getElementById('btn-auto-upload-local');
+            const btnGoogle = document.getElementById('btn-auto-upload-google');
 
-                // Bind Events
-                const btnLocal = document.getElementById('btn-auto-upload-local');
-                const btnGoogle = document.getElementById('btn-auto-upload-google');
+            if (btnLocal) {
+                btnLocal.onclick = () => {
+                    const fileInput = document.getElementById('file-upload-input');
+                    if (fileInput) fileInput.click();
+                    autoUploadModal.style.display = 'none';
+                };
+            }
 
-                if (btnLocal) {
-                    btnLocal.onclick = () => {
-                        const fileInput = document.getElementById('file-upload-input');
-                        if (fileInput) fileInput.click();
-                        modal.style.display = 'none';
-                    };
-                }
+            if (btnGoogle) {
+                btnGoogle.onclick = async () => {
+                    this.magicCreateGenerationStarted = true; // Block auth observer from clobbering us
 
-                if (btnGoogle) {
-                    btnGoogle.onclick = async () => {
-                        this.magicCreateGenerationStarted = true; // Block auth observer from clobbering us
-
-                        // Check Auth State On Demand
-                        if (!store.state.user) {
-                            try {
-                                console.log("Login required for Google Photos...");
-                                await authService.signInWithGoogle();
-                                // We wait for the promise, but store.state.user is set in onAuthStateChanged
-                                // We might need to wait a tick or just proceed if signIn resolves with user
-                            } catch (e) {
-                                this.magicCreateGenerationStarted = false;
-                                console.error("Login failed", e);
-                                alert("ההתחברות נכשלה. אנא נסה שוב.");
-                                return;
-                            }
-                        }
-
-                        // Proceed to Picker
-                        // Proceed to Picker
-                        // Don't close modal yet - wait for success
+                    // Check Auth State On Demand
+                    if (!store.state.user) {
                         try {
-                            const photos = await googlePhotosService.openPicker();
-                            if (photos && photos.length > 0) {
-                                // Success - close modal
-                                modal.style.display = 'none';
-
-                                store.state.assets.photos = photos;
-                                store.notify('assets', store.state.assets);
-                                if (this.renderAssetSidebar) this.renderAssetSidebar();
-
-                                // AUTO-START WITH FALLBACK DEFAULT
-                                if (this.isAutoStart && this.templateSidebar) {
-                                    const templateToUse = this.targetTemplateId || 'family-roots-v1';
-                                    console.log(`[App] Auto-Start: Generating book from Google Photos using ${templateToUse}...`);
-                                    await this.templateSidebar.handleTemplateSelect(templateToUse);
-                                    this.disabledAutoStart = true;
-                                    this.isAutoStart = false;
-                                }
-                            } else {
-                                this.magicCreateGenerationStarted = false;
-                                // No photos selected (User cancelled or empty selection)
-                                console.log("[App] Google Photos Picker cancelled or empty.");
-                                alert("לא נבחרו תמונות. אנא בחר תמונות או העלה מהמחשב כדי להמשיך ביצירת הספר.");
-                                modal.style.display = 'flex'; // Ensure modal is visible for retry/alternate choice
-                            }
+                            console.log("Login required for Google Photos...");
+                            await authService.signInWithGoogle();
+                            // We wait for the promise, but store.state.user is set in onAuthStateChanged
+                            // We might need to wait a tick or just proceed if signIn resolves with user
                         } catch (e) {
                             this.magicCreateGenerationStarted = false;
-                            console.error("Google Photos Error:", e);
-                            const msg = e.message || "Unknown error";
-                            if (!msg.includes("popup_b_closed") && !msg.includes("cancel")) {
-                                alert("טעינת תמונות מ-Google נכשלה. אנא נסה שוב או העלה מהמחשב.");
-                            }
-                            modal.style.display = 'flex'; // Show again on error
+                            console.error("Login failed", e);
+                            alert("ההתחברות נכשלה. אנא נסה שוב.");
+                            return;
                         }
-                    };
-                }
+                    }
+
+                    // Proceed to Picker
+                    // Don't close modal yet - wait for success
+                    try {
+                        const photos = await googlePhotosService.openPicker();
+                        if (photos && photos.length > 0) {
+                            // Success - close modal
+                            autoUploadModal.style.display = 'none';
+
+                            store.state.assets.photos = photos;
+                            store.notify('assets', store.state.assets);
+                            if (this.renderAssetSidebar) this.renderAssetSidebar();
+
+                            // AUTO-START WITH FALLBACK DEFAULT
+                            if (this.isAutoStart && this.templateSidebar) {
+                                const templateToUse = this.targetTemplateId || 'family-roots-v1';
+                                console.log(`[App] Auto-Start: Generating book from Google Photos using ${templateToUse}...`);
+                                await this.templateSidebar.handleTemplateSelect(templateToUse);
+                                this.disabledAutoStart = true;
+                                this.isAutoStart = false;
+                            }
+                        } else {
+                            this.magicCreateGenerationStarted = false;
+                            // No photos selected (User cancelled or empty selection)
+                            console.log("[App] Google Photos Picker cancelled or empty.");
+                            alert("לא נבחרו תמונות. אנא בחר תמונות או העלה מהמחשב כדי להמשיך ביצירת הספר.");
+                            autoUploadModal.style.display = 'flex'; // Ensure modal is visible for retry/alternate choice
+                        }
+                    } catch (e) {
+                        this.magicCreateGenerationStarted = false;
+                        console.error("Google Photos Error:", e);
+                        const msg = e.message || "Unknown error";
+                        if (!msg.includes("popup_b_closed") && !msg.includes("cancel")) {
+                            alert("טעינת תמונות מ-Google נכשלה. אנא נסה שוב או העלה מהמחשב.");
+                        }
+                        autoUploadModal.style.display = 'flex'; // Show again on error
+                    }
+                };
             }
         }
 
@@ -191,8 +195,42 @@ class App {
 
             if (true) {
                 console.log("Auth State Changed, checking for projects. Logged in:", !!user);
+
+                // Modal handles initialized here
+                const restoreLoadingModal = document.getElementById('restore-loading-modal');
+                const welcomeUploadModal = document.getElementById('auto-start-upload-modal');
+
                 // Load saved project if exists (passing null userId will load from local DB)
-                let savedData = await persistenceService.loadProject(user?.uid || null);
+                let savedData = null;
+
+                if (this.urlProjectId) {
+                    if (!user) {
+                        // Force login for share links
+                        alert("אנא התחבר כדי לצפות או לערוך אלבום זה.");
+                        try {
+                            await authService.signInWithGoogle();
+                            return; // The auth observer will re-fire after login
+                        } catch (e) {
+                            console.error("Login required for shared album", e);
+                            window.location.search = ""; // clear URL and fallback
+                        }
+                    }
+                    if (this.urlShareToken && user) {
+                        try {
+                            await persistenceService.joinProject(this.urlProjectId, this.urlShareToken);
+                        } catch (e) {
+                            console.error("Failed to join project via share token:", e);
+                            alert("קישור השיתוף אינו חוקי או פג תוקף.");
+                        }
+                    }
+                    if (restoreLoadingModal) restoreLoadingModal.style.display = 'flex';
+                    savedData = await persistenceService.loadProject(user?.uid || null, this.urlProjectId);
+
+                    // Clear the URL to avoid re-joining on reload
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else {
+                    savedData = await persistenceService.loadProject(user?.uid || null);
+                }
 
                 if (savedData) {
                     console.log("Loading saved project...");
@@ -234,6 +272,8 @@ class App {
                 }
 
                 if (savedData) {
+                    if (restoreLoadingModal) restoreLoadingModal.style.display = 'flex';
+
                     // --- 3. PRESERVE ACTIVE PHOTOS & CLEAR STALE BLOBS ---
                     // Prevent Auth Observer from clobbering photos imported via AutoStart/Manual Upload before Auth resolves.
                     const activePhotos = [...(store.state.assets?.photos || [])];
@@ -242,7 +282,20 @@ class App {
                         // Keep valid URLs (Google Photos, Firebase Storage), discard stale blobs
                         // BUT: We now save blobs LOCALLY as Base64 in IndexedDB, so those are valid!
                         // Let's filter out 'blob:' if they don't work, but keep 'data:'
-                        const persistentPhotos = savedData.assets.photos.filter(p => p.url && !p.url.startsWith('blob:'));
+                        const persistentPhotos = savedData.assets.photos.filter(p => {
+                            const testUrl = p.url || p.baseUrl || p.rawBaseUrl;
+                            return testUrl && !testUrl.startsWith('blob:');
+                        });
+
+                        // Map baseUrl from Firestore back to url for UI
+                        persistentPhotos.forEach(p => {
+                            if (!p.url && p.baseUrl) {
+                                p.url = p.baseUrl;
+                                p.rawBaseUrl = p.baseUrl;
+                            } else if (!p.url && p.rawBaseUrl) {
+                                p.url = p.rawBaseUrl;
+                            }
+                        });
 
                         // Merge active photos from the current session (like fresh blobs before auth resolved)
                         const mergedPhotos = [...persistentPhotos];
@@ -256,6 +309,17 @@ class App {
                         savedData.assets.photos = mergedPhotos;
                     } else {
                         savedData.assets = { photos: activePhotos };
+                    }
+
+                    // RACE CONDITION GUARD: Check AGAIN before overwriting state.
+                    // The initial check at the top of onAuthStateChanged may have passed
+                    // before Magic Create started, but by the time we get here (after async
+                    // loadProject), Magic Create may have already finished and set the correct state.
+                    // We must NOT overwrite it.
+                    if (this.magicCreateGenerationStarted) {
+                        console.log("[App] Auth restore ABORTED: Magic Create completed while loading saved project.");
+                        if (restoreLoadingModal) restoreLoadingModal.style.display = 'none';
+                        return;
                     }
 
                     // Restore key state properties
@@ -289,15 +353,48 @@ class App {
                         }
                     }
 
-                    // Refresh current view
                     if (store.state.viewMode === 'cover') {
                         this.renderCoverWithTemplate();
                     } else {
                         this.renderActivePage();
                     }
 
-                    console.log(`[App] Project restored for ${user.displayName}`);
+                    console.log(`[App] Project restored for ${user ? (user.displayName || 'Unnamed User') : 'Local User'}`);
+                    if (restoreLoadingModal) restoreLoadingModal.style.display = 'none';
+
+                    // Handle Viewer Restrictions
+                    if (persistenceService.currentRole === "viewer") {
+                        this.applyViewerRestrictions();
+                    } else {
+                        this.removeViewerRestrictions();
+                    }
+
+                    // Start Presence Sync
+                    if (user && persistenceService.currentProjectId) {
+                        persistenceService.startPresence(persistenceService.currentProjectId, user, (activeUsers) => {
+                            const container = document.getElementById('online-users');
+                            if (!container) return;
+                            container.innerHTML = '';
+
+                            // Don't show myself if I'm the only one
+                            if (activeUsers.length <= 1) return;
+
+                            activeUsers.forEach(u => {
+                                if (u.uid === user.uid) return; // Skip self visually
+                                const div = document.createElement('div');
+                                div.className = 'online-avatar';
+                                div.title = u.displayName + ' עורך כעת';
+                                if (u.photoURL) {
+                                    div.style.backgroundImage = `url(${u.photoURL})`;
+                                } else {
+                                    div.textContent = u.displayName.charAt(0).toUpperCase();
+                                }
+                                container.appendChild(div);
+                            });
+                        });
+                    }
                 } else {
+                    if (restoreLoadingModal) restoreLoadingModal.style.display = 'none';
                     // Start Fresh (New User or Auto-Start Override)
                     this.templateSidebar = new TemplateSidebar('template-library', this);
                     this.templateSidebar.init();
@@ -317,6 +414,9 @@ class App {
                             }
                         }, 500);
                     }
+
+                    // Show Welcome Upload Popup conditionally (if we are starting fresh and NO project was loaded)
+                    if (welcomeUploadModal) welcomeUploadModal.style.display = 'flex';
                 }
             }
         });
@@ -395,9 +495,98 @@ class App {
                             });
                         }
 
+                        // INJECT CROP STYLES AND TOOLTIPS FOR TEMPLATE RENDERERS
+                        if (p.layout && p.layout.slots) {
+                            p.layout.slots.forEach((slot, index) => {
+                                const slotContainers = el.querySelectorAll('.photo-slot');
+                                const slotContainer = el.querySelector(`.photo-slot[data-selectable-id="${slot.photoId}"]`) || slotContainers[index];
+                                if (slotContainer) {
+                                    // Add hover hint to make it clear for the user
+                                    slotContainer.title = "Double-click or use Properties Panel to Pan/Zoom photo";
+                                    const img = slotContainer.querySelector('img');
+                                    if (img && slot.crop && slot.photoId) {
+                                        const panX = slot.crop.panX !== undefined ? slot.crop.panX : 50;
+                                        const panY = slot.crop.panY !== undefined ? slot.crop.panY : 50;
+                                        const zoom = slot.crop.zoom || 1;
+                                        img.style.objectPosition = `${panX}% ${panY}%`;
+                                        img.style.transform = `scale(${zoom})`;
+                                        img.style.transformOrigin = 'center center';
+                                    }
+                                }
+                            });
+                        }
+
+
+                        // INJECT USER ELEMENTS GLOBALLY FOR ALL SPECIALIZED TEMPLATES!
+                        if (p.elements) {
+                            p.elements.forEach(elem => {
+                                // SKIP native elements mapped by TemplateManager; specialized renderers handle them!
+                                if (elem.id && (elem.id.startsWith('text_') || elem.id.startsWith('dec_') || elem.id.startsWith('container_'))) return;
+
+                                const domEl = document.createElement('div');
+                                domEl.className = `page-element element-${elem.type}`;
+                                domEl.style.position = 'absolute';
+                                domEl.style.left = `${elem.x}%`;
+                                domEl.style.top = `${elem.y}%`;
+                                if (elem.zIndex !== undefined) domEl.style.zIndex = elem.zIndex;
+                                if (elem.transform) domEl.style.transform = elem.transform;
+                                domEl.dataset.selectableType = elem.type;
+                                domEl.dataset.selectableId = elem.id;
+
+                                if (elem.type === 'text') {
+                                    domEl.classList.add('text-element');
+                                    domEl.style.minWidth = '200px';
+                                    if (elem.pixelWidth) domEl.style.width = elem.pixelWidth;
+                                    if (elem.pixelHeight) domEl.style.height = elem.pixelHeight;
+                                    domEl.style.maxWidth = `${elem.width || 50}%`;
+
+                                    const styleDef = window.TEXT_STYLES?.find(s => s.id === elem.styleId);
+                                    if (styleDef && styleDef.style) Object.assign(domEl.style, styleDef.style);
+
+                                    if (elem.fontSize) domEl.style.fontSize = `${elem.fontSize}px`;
+                                    if (elem.color) domEl.style.color = elem.color;
+                                    if (elem.fontFamily) domEl.style.fontFamily = elem.fontFamily;
+                                    if (elem.textAlign) domEl.style.textAlign = elem.textAlign;
+                                    domEl.textContent = elem.content;
+                                } else if (elem.type === 'element') {
+                                    domEl.classList.add('visual-element');
+                                    domEl.style.width = elem.pixelWidth || '100px';
+                                    domEl.style.height = elem.pixelHeight || '100px';
+                                    const img = document.createElement('img');
+                                    img.src = elem.url;
+                                    img.style.width = '100%';
+                                    img.style.height = '100%';
+                                    img.style.objectFit = 'contain';
+                                    img.draggable = false;
+
+                                    let filterStr = '';
+                                    if (elem.filterHue) filterStr += `hue-rotate(${elem.filterHue}deg) `;
+                                    if (elem.filterBrightness && elem.filterBrightness !== 100) filterStr += `brightness(${elem.filterBrightness}%) `;
+                                    if (elem.filterShadow) filterStr += `drop-shadow(2px 4px 6px ${elem.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
+                                    if (filterStr) img.style.filter = filterStr.trim();
+
+                                    domEl.appendChild(img);
+                                }
+
+                                if (elem.id === store.state.selection) {
+                                    domEl.classList.add('selected');
+                                    domEl.style.border = '2px solid var(--color-primary, #6366f1)';
+                                }
+
+                                el.appendChild(domEl);
+                            });
+                        }
                         const container = document.getElementById('canvas-container');
                         container.innerHTML = '';
+                        // Ensure template pages have the required class and data attributes
+                        // for crop mode and other interactions to work
+                        el.classList.add('shoso-page');
+                        el.dataset.pageId = p.id;
                         container.appendChild(el);
+
+                        // Post-render: fix text overlaps (especially for Hebrew content)
+                        this.fixTextOverlaps(el);
+
                         return; // Successfully used custom renderer
                     }
                 }
@@ -406,6 +595,93 @@ class App {
 
         // Fallback to Default RenderEngine
         this.renderer.renderPage(p, store.state.assets, store.state.selection);
+    }
+
+    /**
+     * Post-render overlap fixer for text elements.
+     * Detects overlapping text elements and adjusts font sizes or positions.
+     * Particularly important for Hebrew/RTL text which tends to be longer than English.
+     */
+    fixTextOverlaps(pageEl) {
+        if (!pageEl) return;
+
+        const textElements = Array.from(pageEl.querySelectorAll('.text-element'));
+        if (textElements.length < 2) return;
+
+        // Get bounding info relative to the page container
+        const pageRect = pageEl.getBoundingClientRect();
+
+        // Build sorted list of text elements by their top position
+        const sorted = textElements.map(el => {
+            const rect = el.getBoundingClientRect();
+            return {
+                el,
+                top: rect.top - pageRect.top,
+                bottom: rect.bottom - pageRect.top,
+                left: rect.left - pageRect.left,
+                right: rect.right - pageRect.left,
+                height: rect.height,
+                fontSize: parseFloat(getComputedStyle(el).fontSize)
+            };
+        }).sort((a, b) => a.top - b.top);
+
+        // Check adjacent pairs for overlap
+        const MIN_GAP = 4; // Minimum pixels between elements
+        const MIN_FONT_RATIO = 0.6; // Don't shrink below 60% of original size
+
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const upper = sorted[i];
+            const lower = sorted[i + 1];
+
+            // Check if they overlap vertically and horizontally
+            const verticalOverlap = upper.bottom + MIN_GAP > lower.top;
+            const horizontalOverlap = !(upper.right < lower.left || upper.left > lower.right);
+
+            if (verticalOverlap && horizontalOverlap) {
+                const overlapAmount = upper.bottom + MIN_GAP - lower.top;
+
+                // Strategy 1: Try reducing upper element's font size
+                let newFontSize = upper.fontSize;
+                const minFontSize = upper.fontSize * MIN_FONT_RATIO;
+                let resolved = false;
+
+                while (newFontSize > minFontSize) {
+                    newFontSize -= 1;
+                    upper.el.style.fontSize = `${newFontSize}px`;
+
+                    // Recalculate bounds
+                    const newRect = upper.el.getBoundingClientRect();
+                    const newBottom = newRect.bottom - pageRect.top;
+
+                    if (newBottom + MIN_GAP <= lower.top) {
+                        resolved = true;
+                        upper.bottom = newBottom;
+                        break;
+                    }
+                }
+
+                // Strategy 2: If still overlapping, push lower element down
+                if (!resolved) {
+                    const stillOverlap = upper.el.getBoundingClientRect().bottom - pageRect.top + MIN_GAP - lower.top;
+                    if (stillOverlap > 0) {
+                        const currentTop = parseFloat(lower.el.style.top) || 0;
+                        const unit = (lower.el.style.top || '').includes('%') ? '%' : 'px';
+
+                        if (unit === '%') {
+                            const shiftPct = (stillOverlap / pageRect.height) * 100;
+                            lower.el.style.top = `${(currentTop + shiftPct).toFixed(1)}%`;
+                        } else {
+                            lower.el.style.top = `${currentTop + stillOverlap}px`;
+                        }
+
+                        // Update lower bounds for next iteration
+                        const updatedRect = lower.el.getBoundingClientRect();
+                        lower.top = updatedRect.top - pageRect.top;
+                        lower.bottom = updatedRect.bottom - pageRect.top;
+                    }
+                }
+            }
+        }
     }
 
     loadMockPhotos() {
@@ -437,6 +713,7 @@ class App {
 
         // store.state.assets.photos = mockPhotos; -- Removed
         this.renderAssetSidebar();
+        this.renderElementsLibrary();
 
         // Initialize with one page
         store.addPage();
@@ -444,6 +721,51 @@ class App {
         // Initialize Template Sidebar (New) - ensures it loads even without auth restore
         this.templateSidebar = new TemplateSidebar('template-library', this);
         this.templateSidebar.init();
+    }
+
+    renderElementsLibrary() {
+        const grid = document.getElementById('elements-library');
+        if (!grid) return;
+
+        const elements = window.ELEMENTS_LIBRARY || [];
+        grid.innerHTML = '';
+
+        elements.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'asset-item element-item';
+            el.draggable = true;
+            el.title = item.title || 'Element';
+            el.style.cursor = 'grab';
+            el.style.border = '1px solid rgba(255,255,255,0.1)';
+            el.style.borderRadius = '8px';
+            el.style.padding = '10px';
+            el.style.backgroundColor = 'rgba(0,0,0,0.2)';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.aspectRatio = '1/1';
+
+            const img = document.createElement('img');
+            img.src = item.url;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+            img.style.objectFit = 'contain';
+            img.draggable = false;
+
+            el.appendChild(img);
+
+            el.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('application/json', JSON.stringify({
+                    type: 'element',
+                    id: item.id,
+                    url: item.url
+                }));
+                el.style.opacity = '0.5';
+            });
+            el.addEventListener('dragend', () => { el.style.opacity = '1'; });
+
+            grid.appendChild(el);
+        });
     }
 
     renderAssetSidebar(limitOverride = null) {
@@ -567,6 +889,12 @@ class App {
      */
     renderCoverWithTemplate() {
         const cover = store.state.cover;
+        console.log('[renderCoverWithTemplate] cover from store:', JSON.stringify({
+            background: cover?.background,
+            theme: cover?.theme,
+            title: cover?.title,
+            id: cover?.id
+        }));
         const assets = store.state.assets;
         const container = this.renderer.container;
 
@@ -586,6 +914,13 @@ class App {
             }
         }
 
+        // Clean up any corrupted textPositions for structural elements
+        // These should NEVER have position overrides — they are flex children
+        if (cover && cover.textPositions) {
+            delete cover.textPositions['cover-photo'];
+            delete cover.textPositions['cover-back-photo'];
+        }
+
         // Use the UNIFIED cover renderer
         UnifiedCoverRenderer.render({
             cover,
@@ -595,6 +930,9 @@ class App {
             interactive: true,  // Enable drag/drop and selection
             thumbnail: false
         });
+
+        // Post-render: fix text overlaps on cover
+        this.fixTextOverlaps(container);
     }
 
     createHoverTooltip() {
@@ -634,6 +972,16 @@ class App {
             return;
         }
 
+        // Do not attach moveable to template layout slots or cover photo areas
+        const selectableType = targetEl.dataset.selectableType;
+        if (selectableType === 'photo' || selectableType === 'empty-slot' || selectableType === 'cover-photo') {
+            if (this.moveableInstance) {
+                this.moveableInstance.destroy();
+                this.moveableInstance = null;
+            }
+            return;
+        }
+
         // We have a selection and a DOM element
         if (this.moveableInstance) {
             this.moveableInstance.target = targetEl;
@@ -652,7 +1000,50 @@ class App {
             });
 
             // Groundwork for Moveable transformations mapped to inline styles
-            this.moveableInstance.on('drag', ({ target, transform }) => {
+            this.moveableInstance.on('drag', ({ target, transform, left, top }) => {
+                // Clamp drag within the cover/page container boundaries
+                const parent = target.closest('.cover-front, .cover-back, [class*="cover"]') || target.parentElement;
+                if (parent) {
+                    const parentRect = parent.getBoundingClientRect();
+                    const targetRect = target.getBoundingClientRect();
+                    const elW = targetRect.width;
+                    const elH = targetRect.height;
+
+                    // Parse the translate from the transform
+                    const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+                    if (match) {
+                        let tx = parseFloat(match[1]) || 0;
+                        let ty = parseFloat(match[2]) || 0;
+
+                        // Compute where the element would end up in parent coordinates
+                        const baseLeft = parseFloat(target.style.left) || 0;
+                        const baseTop = parseFloat(target.style.top) || 0;
+                        const isPercent = (target.style.left || '').includes('%');
+
+                        let absLeft, absTop;
+                        if (isPercent) {
+                            absLeft = (baseLeft / 100) * parentRect.width + tx;
+                            absTop = (baseTop / 100) * parentRect.height + ty;
+                        } else {
+                            absLeft = baseLeft + tx;
+                            absTop = baseTop + ty;
+                        }
+
+                        // Clamp: keep at least 20px of the element visible inside the container
+                        const margin = 20;
+                        const maxLeft = parentRect.width - margin;
+                        const maxTop = parentRect.height - margin;
+                        const minLeft = -(elW - margin);
+                        const minTop = -(elH - margin);
+
+                        if (absLeft < minLeft) tx += (minLeft - absLeft);
+                        if (absLeft > maxLeft) tx += (maxLeft - absLeft);
+                        if (absTop < minTop) ty += (minTop - absTop);
+                        if (absTop > maxTop) ty += (maxTop - absTop);
+
+                        transform = `translate(${tx}px, ${ty}px)`;
+                    }
+                }
                 target.style.transform = transform;
             }).on('resize', ({ target, width, height, drag }) => {
                 target.style.width = `${width}px`;
@@ -678,17 +1069,56 @@ class App {
         if (!id || !type) return;
 
         if (type === 'cover-text') {
+            // Only persist positions for text elements on the cover (title, subtitle)
+            // Do NOT persist for cover-photo or cover-back-photo — they are structural flex elements
+            // Convert Moveable's drag position into absolute textPositions
+            // and apply directly to the DOM element (no re-render needed)
+            if (!store.state.cover.textPositions) store.state.cover.textPositions = {};
             if (!store.state.cover.textStyles) store.state.cover.textStyles = {};
             if (!store.state.cover.textStyles[id]) store.state.cover.textStyles[id] = {};
 
-            // Save transformations
-            store.state.cover.textStyles[id].transform = target.style.transform;
+            // Get the parent cover container for percentage calculations
+            const coverContainer = target.closest('.cover-front, .cover-back, [class*="cover"]') || target.parentElement;
+            if (!coverContainer) return;
+            const containerRect = coverContainer.getBoundingClientRect();
+
+            // Use getBoundingClientRect to get the element's ACTUAL rendered position
+            // This correctly handles flexbox-positioned elements where CSS left/top are not set
+            const targetRect = target.getBoundingClientRect();
+
+            // Calculate position relative to parent container (as percentages)
+            const relativeLeft = targetRect.left - containerRect.left;
+            const relativeTop = targetRect.top - containerRect.top;
+
+            const newX = ((relativeLeft / containerRect.width) * 100).toFixed(1) + '%';
+            const newY = ((relativeTop / containerRect.height) * 100).toFixed(1) + '%';
+
+            // Clear the transform first, then set absolute positioning
+            target.style.transform = '';
+            target.style.position = 'absolute';
+            target.style.left = newX;
+            target.style.top = newY;
+
+            // Save to state silently (don't notify 'cover' to avoid full re-render)
+            store.state.cover.textPositions[id] = {
+                x: newX,
+                y: newY,
+                width: target.style.width || undefined,
+                height: target.style.height || undefined
+            };
+
+            console.log(`[App] Persisted cover ${type} position: ${id} → (${newX}, ${newY})`);
+
+            // Save width/height from resize
             store.state.cover.textStyles[id].width = target.style.width;
             store.state.cover.textStyles[id].height = target.style.height;
 
+            // Push undo state and trigger auto-save WITHOUT full cover re-render
             clearTimeout(window._moveableDebounce);
             window._moveableDebounce = setTimeout(() => {
-                store.notify('cover', store.state.cover);
+                store.pushState('Move Cover Element');
+                // Use 'coverPosition' instead of 'cover' to trigger auto-save only
+                store.notify('coverPosition', store.state.cover);
             }, 500);
         } else if (type === 'text' || type === 'shape') {
             const page = store.state.pages.find(p => p.id === store.state.activePageId);
@@ -708,6 +1138,267 @@ class App {
         }
     }
 
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in input/textarea
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+
+            const state = store.state;
+            const selectionId = state.selection;
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+            // Undo / Redo
+            if (cmdOrCtrl && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    store.redo();
+                } else {
+                    store.undo();
+                }
+                return;
+            }
+
+            // Copy
+            if (cmdOrCtrl && selectionId && e.key.toLowerCase() === 'c') {
+                this.handleCopy(selectionId);
+                return;
+            }
+
+            // Paste
+            if (cmdOrCtrl && e.key.toLowerCase() === 'v') {
+                this.handlePaste();
+                return;
+            }
+
+            // Delete / Backspace
+            if ((e.key === 'Backspace' || e.key === 'Delete') && selectionId) {
+                e.preventDefault();
+                this.handleDeleteSelection(selectionId);
+                return;
+            }
+
+            // Arrow Keys for moving
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectionId) {
+                e.preventDefault();
+                this.handleMoveSelection(selectionId, e.key, e.shiftKey ? 10 : 1);
+                return;
+            }
+        });
+    }
+
+    handleDeleteSelection(selectionId) {
+        const state = store.state;
+        let page = state.pages.find(p => p.id === state.activePageId);
+
+        if (!page && state.viewMode === 'cover') {
+            if (state.cover.frontPhotoId === selectionId) {
+                store.pushState('Delete Cover Photo');
+                state.cover.frontPhotoId = null;
+                store.notify('cover', state.cover);
+                store.state.selection = null;
+                store.notify('selection', null);
+            } else if (state.cover.backPhotoId === selectionId) {
+                store.pushState('Delete Cover Photo');
+                state.cover.backPhotoId = null;
+                store.notify('cover', state.cover);
+                store.state.selection = null;
+                store.notify('selection', null);
+            }
+            return;
+        }
+
+        if (!page) return;
+
+        // Custom injected elements
+        if (page.elements && page.elements.find(e => e.id === selectionId)) {
+            store.pushState('Delete Element');
+            page.elements = page.elements.filter(el => el.id !== selectionId);
+            store.state.selection = null;
+            store.notify('pages', store.state.pages);
+            store.notify('selection', null);
+            return;
+        }
+
+        // Native template photo slots vs Dynamic layout slots
+        if (page.photos && Array.isArray(page.photos) && page.photos.find(p => p && p.id === selectionId)) {
+            if (page.templateId) {
+                const photoIdx = page.photos.findIndex(p => p && p.id === selectionId);
+                if (photoIdx > -1) {
+                    store.pushState('Delete Photo');
+                    page.photos[photoIdx] = null;
+                    if (page.layout && page.layout.slots) {
+                        const slot = page.layout.slots.find(s => s.photoId === selectionId);
+                        if (slot) slot.photoId = null;
+                    }
+                    store.state.selection = null;
+                    store.notify('pages', store.state.pages);
+                    store.notify('selection', null);
+                    return;
+                }
+            } else {
+                store.pushState('Delete Photo');
+                const pIdx = page.photos.findIndex(p => p && p.id === selectionId);
+                if (pIdx > -1) {
+                    page.photos.splice(pIdx, 1);
+                    if (this.layoutEngine) {
+                        page.layout = this.layoutEngine.generateLayout(page.photos, page.layout ? page.layout.name : null);
+                    }
+                    store.state.selection = null;
+                    store.notify('pages', store.state.pages);
+                    store.notify('selection', null);
+                    return;
+                }
+            }
+        }
+    }
+
+    handleMoveSelection(selectionId, direction, amount) {
+        const state = store.state;
+        const page = state.pages.find(p => p.id === state.activePageId);
+        if (!page) return;
+
+        let moved = false;
+
+        // 1. Custom injected elements
+        const userEl = page.elements && page.elements.find(e => e.id === selectionId);
+        if (userEl) {
+            store.pushState('Move Element');
+            let amt = amount * 0.25;
+            if (direction === 'ArrowUp') userEl.y -= amt;
+            if (direction === 'ArrowDown') userEl.y += amt;
+            if (direction === 'ArrowLeft') userEl.x -= amt;
+            if (direction === 'ArrowRight') userEl.x += amt;
+            moved = true;
+        } else if (page.templateId) {
+            // 2. Template photo slot (PAN CROP)
+            const slot = page.layout && page.layout.slots ? page.layout.slots.find(s => s.photoId === selectionId) : null;
+            if (slot) {
+                store.pushState('Pan Template Image');
+                if (!slot.crop) {
+                    slot.crop = { panX: 50, panY: 50, zoom: 1 };
+                }
+                const panAmt = amount * 2; // percentages
+                if (direction === 'ArrowUp') slot.crop.panY = Math.max(0, (slot.crop.panY || 50) - panAmt);
+                if (direction === 'ArrowDown') slot.crop.panY = Math.min(100, (slot.crop.panY || 50) + panAmt);
+                if (direction === 'ArrowLeft') slot.crop.panX = Math.max(0, (slot.crop.panX || 50) - panAmt);
+                if (direction === 'ArrowRight') slot.crop.panX = Math.min(100, (slot.crop.panX || 50) + panAmt);
+
+                moved = true;
+            } else {
+                // 3. Template text element
+                if (!page.textPositions) page.textPositions = {};
+                let pos = page.textPositions[selectionId];
+                if (!pos) {
+                    const domEl = document.querySelector(`[data-selectable-id="${selectionId}"]`);
+                    if (domEl) {
+                        pos = {
+                            x: domEl.style.left || '0%',
+                            y: domEl.style.top || '0%'
+                        };
+                    } else {
+                        pos = { x: '0%', y: '0%' };
+                    }
+                } else {
+                    pos = { ...pos };
+                }
+
+                store.pushState('Move Template Text');
+                const moveVal = (valStr, dirAmount) => {
+                    let v = parseFloat(valStr) || 0;
+                    let unit = valStr.toString().replace(/[0-9.-]/g, '') || '%';
+                    return (v + dirAmount) + unit;
+                };
+
+                let unitX = pos.x.toString().replace(/[0-9.-]/g, '') || '%';
+                let unitY = pos.y.toString().replace(/[0-9.-]/g, '') || '%';
+                let amtX = (unitX === '%') ? amount * 0.2 : amount;
+                let amtY = (unitY === '%') ? amount * 0.2 : amount;
+
+                if (direction === 'ArrowUp') pos.y = moveVal(pos.y, -amtY);
+                if (direction === 'ArrowDown') pos.y = moveVal(pos.y, amtY);
+                if (direction === 'ArrowLeft') pos.x = moveVal(pos.x, -amtX);
+                if (direction === 'ArrowRight') pos.x = moveVal(pos.x, amtX);
+
+                page.textPositions[selectionId] = pos;
+                moved = true;
+            }
+        }
+
+        if (moved) {
+            store.notify('pages', state.pages);
+            if (this.moveableInstance) {
+                setTimeout(() => this.moveableInstance.updateRect(), 0);
+            }
+        }
+    }
+
+    handleCopy(selectionId) {
+        const state = store.state;
+        const page = state.pages.find(p => p.id === state.activePageId);
+        if (!page) return;
+
+        // User element
+        let el = page.elements && page.elements.find(e => e.id === selectionId);
+        if (el) {
+            this.clipboard = { type: 'element', data: JSON.parse(JSON.stringify(el)) };
+            console.log("[App] Copied user element", el.id);
+            return;
+        }
+
+        // Template text element
+        if (page.templateId) {
+            const content = page.textContent ? page.textContent[selectionId] : null;
+            if (content) {
+                this.clipboard = { type: 'text', data: { id: selectionId, content: content } };
+                console.log("[App] Copied template text", selectionId);
+            }
+        }
+    }
+
+    handlePaste() {
+        if (!this.clipboard) return;
+        const state = store.state;
+        const page = state.pages.find(p => p.id === state.activePageId);
+        if (!page) return;
+
+        store.pushState('Paste Component');
+
+        if (this.clipboard.type === 'element') {
+            const newEl = JSON.parse(JSON.stringify(this.clipboard.data));
+            newEl.id = 'elem_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            newEl.x += 2; // Offset slightly
+            newEl.y += 2;
+            if (!page.elements) page.elements = [];
+            page.elements.push(newEl);
+            store.state.selection = newEl.id; // Select new one
+            store.notify('pages', state.pages);
+            store.notify('selection', newEl.id);
+            console.log("[App] Pasted user element");
+        } else if (this.clipboard.type === 'text') {
+            // Can't paste a template predefined structure easily natively unless layout has room,
+            // so we inject it as a floating user element.
+            const newEl = {
+                id: 'text_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                type: 'text',
+                content: this.clipboard.data.content,
+                x: 40,
+                y: 40,
+                fontSize: 24,
+                color: '#000000',
+                width: 50
+            };
+            if (!page.elements) page.elements = [];
+            page.elements.push(newEl);
+            store.state.selection = newEl.id;
+            store.notify('pages', state.pages);
+            store.notify('selection', newEl.id);
+            console.log("[App] Pasted template text as free element");
+        }
+    }
+
     bindEvents() {
         // Profile Button
         const btnProfile = document.getElementById('btn-profile');
@@ -721,7 +1412,7 @@ class App {
         // Subscribe to state changes
         store.subscribe((state, prop, value) => {
             // TRIGGER AUTO-SAVE
-            if (['pages', 'cover', 'assets', 'theme', 'history_restore'].includes(prop)) {
+            if (['pages', 'cover', 'coverPosition', 'assets', 'theme', 'history_restore'].includes(prop)) {
                 if (this.saveDebounced) this.saveDebounced(state);
             }
 
@@ -733,7 +1424,8 @@ class App {
 
                 // PERFORMANCE OPTIMIZATION: Only rerender the main heavy canvas if the structure changed
                 // (pages, cover) or we switched views. Do NOT rerender canvas for just selection change.
-                if (prop !== 'selection') {
+                // ALSO: Suppress during Magic Create state setup (it does its own explicit render)
+                if (prop !== 'selection' && !this._magicCreateRendering) {
                     if (state.viewMode === 'cover') {
                         this.renderCoverWithTemplate();
                     } else {
@@ -847,6 +1539,14 @@ class App {
                 }
             } else if (item.type === 'text') {
                 this.addTextToPage(item.id);
+            } else if (item.type === 'element') {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const relativeX = (x / rect.width) * 100;
+                const relativeY = (y / rect.height) * 100;
+                store.pushState('Add Element');
+                this.addElementToPage(item.id, relativeX, relativeY);
             } else if (item.type === 'frame') {
                 const state = store.state;
                 const page = state.pages.find(p => p.id === state.activePageId);
@@ -927,6 +1627,7 @@ class App {
                 // Only update if selection actually changed to avoid infinite/unnecessary loops
                 if (store.state.selection !== id) {
                     store.state.selection = id;
+                    store.notify('selection', id);
                 }
 
                 // Show selection frame if text
@@ -942,6 +1643,7 @@ class App {
                 // Deselect if clicking background
                 if (store.state.selection !== null) {
                     store.state.selection = null;
+                    store.notify('selection', null);
                 }
             }
         });
@@ -996,17 +1698,41 @@ class App {
                 return;
             }
 
-            // 2. Photo Crop / Pan Mode
+            // 2. Photo Crop / Pan Mode (Album Pages)
             const photoSlot = e.target.closest('.photo-slot');
             if (photoSlot) {
                 e.stopPropagation();
-
-                // Only allow if photo exists in slot
-                // We can check if img exists
                 const img = photoSlot.querySelector('img');
                 if (img && img.src && !img.src.includes('placeholder')) {
                     this.enterCropMode(photoSlot);
                 }
+                return;
+            }
+
+            // 3. Cover Photo Crop / Pan Mode (Front & Back Cover)
+            const coverPhotoArea = e.target.closest('.cover-photo-area');
+            const backCoverArea = e.target.closest('.back-cover');
+            const coverTarget = coverPhotoArea || backCoverArea;
+            if (coverTarget) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                const isBack = !!backCoverArea && !coverPhotoArea;
+                const isFront = !!coverPhotoArea;
+
+                // Back cover: Check for <img> child (photo), ignore texture backgrounds
+                // Front cover: Check state for frontPhotoId, since background-image may be texture
+                let hasPhoto = false;
+                if (isBack) {
+                    hasPhoto = !!coverTarget.querySelector('img');
+                } else if (isFront) {
+                    hasPhoto = !!(store.state.cover && store.state.cover.frontPhotoId);
+                }
+
+                if (hasPhoto) {
+                    this.enterCoverCropMode(coverTarget, isFront ? 'front' : 'back');
+                }
+                return;
             }
         });
 
@@ -1110,11 +1836,11 @@ class App {
             const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
 
             if (templateConfig) {
-                pdfServerExport.setTemplateConfig(templateConfig);
+                pdfCanvasExport.setTemplateConfig(templateConfig);
             }
 
-            // Always use High-Res Server Export for final fidelity
-            await pdfServerExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
+            // Generate high quality PDF on the client using html2canvas to ensure EXACT visual mapping.
+            await pdfCanvasExport.generatePDF(store.state.pages, store.state.cover, store.state.assets);
 
             // Show Order Button
             document.getElementById('btn-order-print').style.display = 'inline-block';
@@ -1129,11 +1855,11 @@ class App {
             const templateConfig = hasTemplateConfig ? this.templateSidebar.manager.config : null;
 
             if (templateConfig) {
-                pdfServerExport.setTemplateConfig(templateConfig);
+                pdfCanvasExport.setTemplateConfig(templateConfig);
             }
 
-            // Generate Blob - use Server Export
-            const blob = await pdfServerExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
+            // Generate Client PDF arraybuffer/blob for printing using html2canvas
+            const blob = await pdfCanvasExport.generatePDF(store.state.pages, store.state.cover, store.state.assets, true);
 
             if (blob) {
                 orderFlow.startOrderFlow(blob);
@@ -1150,11 +1876,15 @@ class App {
                     return;
                 }
 
+                // CRITICAL: Block auth observer from overwriting Magic Create pages
+                this.magicCreateGenerationStarted = true;
+
                 if (window.magicLauncher) {
                     window.magicLauncher.open(photos);
                 } else {
                     console.error("MagicLauncher module not loaded");
                     alert("Magic Create בעבודה... אנא נסה שוב בעוד רגע.");
+                    this.magicCreateGenerationStarted = false;
                 }
             });
         }
@@ -1268,35 +1998,33 @@ class App {
         const btnNext = document.getElementById('btn-next-page');
 
         if (btnPrev && btnNext) {
-            btnPrev.addEventListener('click', () => {
+            const goToPrev = () => {
                 const state = store.state;
-                if (state.viewMode === 'cover') return; // Can't go back from cover (unless wrapping?)
+                if (state.viewMode === 'cover') return;
 
                 const currentIndex = state.pages.findIndex(p => p.id === state.activePageId);
                 if (currentIndex > 0) {
                     store.state.activePageId = state.pages[currentIndex - 1].id;
                     store.notify('activePageId', store.state.activePageId);
-                    this.renderActivePage(); // Trigger render
+                    this.renderActivePage();
                     this.updateTimeline(state.pages, store.state.activePageId);
                 } else {
-                    // Go to cover?
                     store.state.viewMode = 'cover';
                     store.notify('viewMode', 'cover');
                     this.renderCoverWithTemplate();
-                    this.updateTimeline(state.pages, null); // Highlight cover in timeline
+                    this.updateTimeline(state.pages, null);
                 }
-            });
+            };
 
-            btnNext.addEventListener('click', () => {
+            const goToNext = () => {
                 const state = store.state;
                 if (state.viewMode === 'cover') {
-                    // Go to first page
                     store.state.viewMode = 'pages';
                     store.notify('viewMode', 'pages');
                     if (state.pages.length > 0) {
-                        store.state.activePageId = state.pages[0].id; // Ensure active page is set
+                        store.state.activePageId = state.pages[0].id;
                         store.notify('activePageId', store.state.activePageId);
-                        this.renderActivePage(); // Trigger render
+                        this.renderActivePage();
                     }
                     this.updateTimeline(state.pages, store.state.activePageId);
                     return;
@@ -1306,9 +2034,22 @@ class App {
                 if (currentIndex < state.pages.length - 1) {
                     store.state.activePageId = state.pages[currentIndex + 1].id;
                     store.notify('activePageId', store.state.activePageId);
-                    this.renderActivePage(); // Trigger render
+                    this.renderActivePage();
                     this.updateTimeline(state.pages, store.state.activePageId);
                 }
+            };
+
+            // In RTL (Hebrew), left arrow = next, right arrow = prev
+            const isEditorLTR = () => {
+                const container = document.getElementById('canvas-container');
+                return container ? container.classList.contains('force-ltr') : false;
+            };
+
+            btnPrev.addEventListener('click', () => {
+                isEditorLTR() ? goToPrev() : goToNext();
+            });
+            btnNext.addEventListener('click', () => {
+                isEditorLTR() ? goToNext() : goToPrev();
             });
         }
 
@@ -1344,6 +2085,11 @@ class App {
         const btnNew = document.getElementById('btn-new-project');
         if (btnNew) {
             btnNew.addEventListener('click', () => this.startNewProject(true));
+        }
+
+        const btnShare = document.getElementById('btn-share-project');
+        if (btnShare) {
+            btnShare.addEventListener('click', () => this.openShareModal());
         }
 
         const btnGoogle = document.getElementById('btn-upload-google');
@@ -1403,8 +2149,20 @@ class App {
      * @returns {boolean} True if remix was successful
      */
     performTemplateRemix(page, tm) {
-        const currentLayoutId = page.layout ? page.layout.id : null;
-        const photoCount = page.photos ? page.photos.length : (page.layout?.slots ? page.layout.slots.length : 0);
+        // Use rawLayoutId as primary (template pages), fall back to layout.id (layout engine)
+        const currentLayoutId = page.rawLayoutId || (page.layout ? page.layout.id : null);
+
+        // Ensure page.photos is populated from slots if missing
+        if ((!page.photos || page.photos.length === 0) && page.layout && page.layout.slots) {
+            const assetPhotos = store.state.assets?.photos || [];
+            page.photos = page.layout.slots
+                .filter(s => s.photoId)
+                .map(s => assetPhotos.find(p => p.id === s.photoId))
+                .filter(p => p);
+            console.log('[App] Remix: Reconstructed page.photos from slots:', page.photos.length);
+        }
+
+        const photoCount = page.photos ? page.photos.length : (page.layout?.slots ? page.layout.slots.filter(s => s.photoId).length : 0);
 
         // 1. Get next layout ID
         const nextLayoutId = tm.getAlternativeLayoutId(currentLayoutId, photoCount);
@@ -1571,6 +2329,41 @@ class App {
 
         page.elements.push(newText);
         store.state.selection = newText.id;
+
+        // Update state
+        const newPages = [...state.pages];
+        newPages[pageIndex] = page;
+        store.state.pages = newPages;
+    }
+
+    addElementToPage(elementId, x = 50, y = 50) {
+        if (store.state.viewMode === 'cover') {
+            console.warn("[App] Adding elements directly to cover is unsupported via standard elements array, routing to first page or skipping.");
+            return;
+        }
+
+        const state = store.state;
+        const pageIndex = state.pages.findIndex(p => p.id === state.activePageId);
+        if (pageIndex === -1) return;
+        const page = { ...state.pages[pageIndex] };
+
+        const libraryItem = window.ELEMENTS_LIBRARY?.find(e => e.id === elementId);
+        if (!libraryItem) return;
+
+        if (!page.elements) page.elements = [];
+        const newElem = {
+            id: 'elem_' + Date.now() + Math.floor(Math.random() * 1000),
+            type: 'element',
+            url: libraryItem.url,
+            x: x - 10, // Center roughly
+            y: y - 10,
+            pixelWidth: '100px', // Default size for moveable
+            pixelHeight: '100px',
+            zIndex: 10
+        };
+        page.elements.push(newElem);
+
+        store.state.selection = newElem.id;
 
         // Update state
         const newPages = [...state.pages];
@@ -1750,6 +2543,7 @@ class App {
             const newPages = [...state.pages];
             newPages[pageIndex] = page;
             store.state.pages = newPages;
+            store.notify('pages', newPages);
             console.log('[App] Added photo to empty slot', slotIndex);
         }
     }
@@ -1906,6 +2700,109 @@ class App {
         }
 
         if (textElement) {
+            if (textElement.type === 'element') {
+                panel.innerHTML = `
+                    <div class="panel-header">
+                        <h3>מאפייני איור/אלמנט</h3>
+                    </div>
+                    <div style="padding:15px; display:flex; flex-direction:column; gap:10px; text-align: right;">
+                        
+                        <div>
+                            <label>שינוי גוון (Color Hue)</label>
+                            <input type="range" id="prop-el-hue" min="0" max="360" value="${textElement.filterHue || 0}">
+                            <span id="prop-el-hue-val" style="font-size: 12px; color: #888;">${textElement.filterHue || 0}°</span>
+                        </div>
+
+                        <div>
+                            <label>בהירות (Brightness)</label>
+                            <input type="range" id="prop-el-bright" min="0" max="200" value="${textElement.filterBrightness || 100}">
+                            <span id="prop-el-bright-val" style="font-size: 12px; color: #888;">${textElement.filterBrightness || 100}%</span>
+                        </div>
+
+                        <div style="display:flex; align-items:center; justify-content: space-between; margin-top: 10px;">
+                            <label>הצללה (Drop Shadow)</label>
+                            <input type="checkbox" id="prop-el-shadow" ${textElement.filterShadow ? 'checked' : ''}>
+                        </div>
+                        
+                        ${textElement.filterShadow ? `
+                        <div>
+                            <label>צבע הצללה</label>
+                            <div style="display:flex; align-items:center;">
+                                <input type="color" id="prop-el-shadow-color" value="${textElement.filterShadowColor || '#000000'}">
+                            </div>
+                        </div>` : ''}
+
+                       <button class="btn-secondary btn-sm" id="btn-delete-element" style="color:red; border-color:red; margin-top:20px;">
+                            <i class="fa-solid fa-trash"></i> מחק אלמנט
+                       </button>
+                    </div>
+                `;
+
+                // Bind Events
+                const hueSlider = document.getElementById('prop-el-hue');
+                const hueVal = document.getElementById('prop-el-hue-val');
+                hueSlider.addEventListener('input', (e) => {
+                    textElement.filterHue = parseInt(e.target.value);
+                    hueVal.textContent = textElement.filterHue + '°';
+                    const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"] img`);
+                    if (visualEl) {
+                        let filterStr = '';
+                        if (textElement.filterHue) filterStr += `hue-rotate(${textElement.filterHue}deg) `;
+                        if (textElement.filterBrightness && textElement.filterBrightness !== 100) filterStr += `brightness(${textElement.filterBrightness}%) `;
+                        if (textElement.filterShadow) filterStr += `drop-shadow(2px 4px 6px ${textElement.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
+                        visualEl.style.filter = filterStr.trim();
+                    }
+                });
+
+                const brightSlider = document.getElementById('prop-el-bright');
+                const brightVal = document.getElementById('prop-el-bright-val');
+                brightSlider.addEventListener('input', (e) => {
+                    textElement.filterBrightness = parseInt(e.target.value);
+                    brightVal.textContent = textElement.filterBrightness + '%';
+                    const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"] img`);
+                    if (visualEl) {
+                        let filterStr = '';
+                        if (textElement.filterHue) filterStr += `hue-rotate(${textElement.filterHue}deg) `;
+                        if (textElement.filterBrightness && textElement.filterBrightness !== 100) filterStr += `brightness(${textElement.filterBrightness}%) `;
+                        if (textElement.filterShadow) filterStr += `drop-shadow(2px 4px 6px ${textElement.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
+                        visualEl.style.filter = filterStr.trim();
+                    }
+                });
+
+                const shadowToggle = document.getElementById('prop-el-shadow');
+                shadowToggle.addEventListener('change', (e) => {
+                    textElement.filterShadow = e.target.checked;
+                    store.notify('pages', store.state.pages); // Force rerender to show color picker
+                });
+
+                const shadowColor = document.getElementById('prop-el-shadow-color');
+                if (shadowColor) {
+                    shadowColor.addEventListener('input', (e) => {
+                        textElement.filterShadowColor = e.target.value;
+                        const visualEl = document.querySelector(`[data-selectable-id="${selectionId}"] img`);
+                        if (visualEl) {
+                            let filterStr = '';
+                            if (textElement.filterHue) filterStr += `hue-rotate(${textElement.filterHue}deg) `;
+                            if (textElement.filterBrightness && textElement.filterBrightness !== 100) filterStr += `brightness(${textElement.filterBrightness}%) `;
+                            if (textElement.filterShadow) filterStr += `drop-shadow(2px 4px 6px ${textElement.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
+                            visualEl.style.filter = filterStr.trim();
+                        }
+                    });
+                }
+
+                document.getElementById('btn-delete-element').addEventListener('click', () => {
+                    if (confirm("למחוק את האלמנט הזה?")) {
+                        store.pushState('Delete Element');
+                        page.elements = page.elements.filter(el => el.id !== selectionId);
+                        store.state.selection = null;
+                        store.notify('pages', store.state.pages);
+                        store.notify('selection', null);
+                    }
+                });
+
+                return;
+            }
+
             // For template text, only show content editing (styling is from template)
             const isTemplate = textElement.isTemplate === true;
 
@@ -2153,6 +3050,15 @@ class App {
                 };
 
                 const tryTemplateAction = (manager) => {
+                    // Ensure page.photos is populated from slots
+                    if ((!page.photos || page.photos.length === 0) && page.layout && page.layout.slots) {
+                        const assetPhotos = store.state.assets?.photos || [];
+                        page.photos = page.layout.slots
+                            .filter(s => s.photoId)
+                            .map(s => assetPhotos.find(p => p.id === s.photoId))
+                            .filter(p => p);
+                    }
+
                     let targetLayoutId = null;
                     if (idx === 0) targetLayoutId = manager.getLayoutIdForCount(1);
                     if (idx === 1) targetLayoutId = manager.getLayoutIdForCount(2);
@@ -2384,6 +3290,7 @@ class App {
         container.querySelector('#prop-cover-title').addEventListener('change', (e) => {
             store.notify('cover', store.state.cover);
         });
+
         container.querySelector('#prop-cover-sub').addEventListener('input', (e) => {
             const val = e.target.value;
             store.state.cover = { ...store.state.cover, subtitle: val };
@@ -2420,6 +3327,7 @@ class App {
         container.querySelector('#prop-cover-sub').addEventListener('change', (e) => {
             store.notify('cover', store.state.cover);
         });
+
         container.querySelector('#prop-cover-spine').addEventListener('input', (e) => {
             const val = e.target.value;
             store.state.cover = { ...store.state.cover, spineText: val };
@@ -2587,20 +3495,47 @@ class App {
         container.appendChild(filterGroup);
 
         // 2. Adjustments (Brightness, Contrast)
-        // We'll store these as separate props nicely in a real app, but for now hack into style string or separate props
-        // Let's use specific props on the slot: brightness, contrast
         const brightness = slot.brightness || 100;
         const contrast = slot.contrast || 100;
+
+        // 3. Zoom & Pan (LinkedIn Style)
+        if (!slot.crop) slot.crop = { panX: 50, panY: 50, zoom: 1 };
+        const zoom = slot.crop.zoom || 1;
+        const panX = slot.crop.panX !== undefined ? slot.crop.panX : 50;
+        const panY = slot.crop.panY !== undefined ? slot.crop.panY : 50;
 
         const adjGroup = document.createElement('div');
         adjGroup.className = 'prop-group';
         adjGroup.innerHTML = `
+            <label>זום (תקריב): <span id="val-zoom">${Math.round(zoom * 100)}</span>%</label>
+            <input type="range" id="prop-zoom" min="100" max="300" value="${Math.round(zoom * 100)}">
+            <label>הזזה (X): <span id="val-panx">${Math.round(panX)}</span>%</label>
+            <input type="range" id="prop-panx" min="0" max="100" value="${panX}">
+            <label>הזזה (Y): <span id="val-pany">${Math.round(panY)}</span>%</label>
+            <input type="range" id="prop-pany" min="0" max="100" value="${panY}">
+            <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
             <label>בהירות: <span id="val-bright">${brightness}</span>%</label>
             <input type="range" id="prop-brightness" min="0" max="200" value="${brightness}">
             <label>ניגודיות: <span id="val-bontrast">${contrast}</span>%</label>
             <input type="range" id="prop-contrast" min="0" max="200" value="${contrast}">
         `;
         container.appendChild(adjGroup);
+
+        container.querySelector('#prop-zoom').addEventListener('input', (e) => {
+            container.querySelector('#val-zoom').textContent = e.target.value;
+            slot.crop.zoom = e.target.value / 100;
+            store.notify('pages', store.state.pages);
+        });
+        container.querySelector('#prop-panx').addEventListener('input', (e) => {
+            container.querySelector('#val-panx').textContent = e.target.value;
+            slot.crop.panX = parseFloat(e.target.value);
+            store.notify('pages', store.state.pages);
+        });
+        container.querySelector('#prop-pany').addEventListener('input', (e) => {
+            container.querySelector('#val-pany').textContent = e.target.value;
+            slot.crop.panY = parseFloat(e.target.value);
+            store.notify('pages', store.state.pages);
+        });
 
         container.querySelector('#prop-frame').addEventListener('change', (e) => {
             slot.frameId = e.target.value;
@@ -2955,11 +3890,11 @@ class App {
         if (designList) {
             designList.innerHTML = '';
             if (window.BACKGROUND_TEXTURES) {
-                window.BACKGROUND_TEXTURES.slice(0, 10).forEach(bg => {
+                window.BACKGROUND_TEXTURES.forEach(bg => {
                     const el = document.createElement('div');
                     el.className = 'asset-item';
-                    if (bg.url.startsWith('http') || bg.url.startsWith('assets')) {
-                        el.style.backgroundImage = `url(${bg.url})`;
+                    if (bg.url.startsWith('http') || bg.url.startsWith('assets') || bg.url.startsWith('data:')) {
+                        el.style.backgroundImage = `url("${bg.url}")`;
                     } else {
                         el.style.backgroundColor = bg.theme?.colors?.primary || '#333';
                     }
@@ -3102,7 +4037,8 @@ class App {
             rh = manager.config.designSystem.canvas.scaledHeight || manager.config.designSystem.canvas.height || rh;
         }
 
-        const THUMB_SIZE = 110;
+        const isMobileSize = window.innerWidth <= 768;
+        const THUMB_SIZE = isMobileSize ? 80 : 110;
 
         const calculateScale = (contentW, contentH, targetSize) => {
             const scaleX = targetSize / contentW;
@@ -3167,9 +4103,18 @@ class App {
                 preview.style.pointerEvents = 'none';
                 preview.style.background = '#fff';
 
+                // DEBUG: What cover does timeline lazy render see?
+                const coverForRender = store.state.cover;
+                console.log('[Timeline._lazyRender] Cover at render time:', JSON.stringify({
+                    background: coverForRender?.background,
+                    theme: coverForRender?.theme,
+                    title: coverForRender?.title,
+                    id: coverForRender?.id
+                }));
+
                 const templateConfig = manager?.config || null;
                 UnifiedCoverRenderer.render({
-                    cover: store.state.cover,
+                    cover: coverForRender,
                     assets: store.state.assets,
                     templateConfig,
                     container: preview,
@@ -3180,8 +4125,13 @@ class App {
             };
 
             coverEl.onclick = () => {
+                if (store.state.viewMode === 'cover') return;
+
+                store._isBatchUpdating = true;
                 store.state.viewMode = 'cover';
                 store.state.activePageId = null;
+                store._isBatchUpdating = false;
+
                 store.notify('viewMode', 'cover');
                 this.updatePropertiesPanel(store.state);
             };
@@ -3192,8 +4142,8 @@ class App {
 
         // 2. Interior Pages
         const contentPages = pages.filter(page => {
-            const layoutId = (page.rawLayoutId || page.layout?.id || page.layout?.layoutId || '').toLowerCase();
-            return !layoutId.includes('cover');
+            const isCover = page.templateId === 'cover' || (page.id && page.id.startsWith('page_cover_'));
+            return !isCover;
         });
 
         contentPages.forEach((page, idx) => {
@@ -3261,9 +4211,24 @@ class App {
             el.appendChild(label);
 
             el.onclick = () => {
+                if (store.state.activePageId === page.id && store.state.viewMode === 'pages') return;
+
+                // Stop double triggering proxy by batching state changes
+                store._isBatchUpdating = true;
                 store.state.activePageId = page.id;
                 store.state.viewMode = 'pages';
-                store.notify('activePageId', page.id);
+                store._isBatchUpdating = false;
+
+                // Use template-aware renderActivePage for consistent rendering
+                // This ensures the same renderer is used as the main editor
+                this.renderActivePage();
+
+                // Update timeline highlight
+                this.updateTimelineActiveState(store.state);
+                // Update properties panel  
+                this.updatePropertiesPanel(store.state);
+                // Update moveable
+                this.updateMoveable(store.state);
             };
 
             tl.appendChild(el);
@@ -3421,10 +4386,15 @@ class App {
 
     enterCropMode(slotEl) {
         if (!slotEl) return;
-        const pageId = slotEl.closest('.shoso-page').dataset.pageId;
-        const slotId = slotEl.dataset.selectableId; // photoId
+        const pageContainer = slotEl.closest('.shoso-page') || slotEl.closest('.album-page');
+        if (!pageContainer) {
+            console.log('[App] enterCropMode skipped: not on a page (likely cover)');
+            return;
+        }
+        const pageId = pageContainer.dataset.pageId;
+        const slotId = slotEl.dataset.selectableId;
 
-        // Set Manual Crop Flag to prevent smart crop overwrite
+        // Set Manual Crop Flag
         const page = store.state.pages.find(p => p.id === pageId);
         if (page) {
             const slot = page.layout.slots.find(s => s.photoId === slotId);
@@ -3432,205 +4402,617 @@ class App {
         }
 
         if (this.currentCropSession) {
-            // Commit previous
             this.commitCropMode();
         }
 
         console.log('[App] Entering crop mode for', slotId);
 
-        // Visual Feedback
-        // Add overlay and activate slot
+        // --- Visual Feedback ---
         document.querySelectorAll('.photo-slot').forEach(el => el.classList.remove('crop-active'));
         slotEl.classList.add('crop-active');
 
-        // Initialize Session
+        // Create instruction overlay
+        const instructionEl = document.createElement('div');
+        instructionEl.className = 'crop-instruction';
+        instructionEl.innerHTML = `
+            <i class="fas fa-arrows-alt" style="margin-left: 8px;"></i>
+            <span>גרור לשינוי מיקום התמונה</span>
+            <span style="margin: 0 6px; opacity: 0.6;">•</span>
+            <span>לחץ בחוץ לסיום</span>
+        `;
+        instructionEl.style.cssText = `
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(37, 99, 235, 0.95);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            z-index: 200;
+            pointer-events: none;
+            direction: rtl;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+            animation: cropInstructionPulse 2s ease-in-out infinite;
+        `;
+        slotEl.appendChild(instructionEl);
+
+        // Page dimming overlay
+        const dimOverlay = document.createElement('div');
+        dimOverlay.className = 'crop-dim-overlay';
+        dimOverlay.style.cssText = `
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); z-index: 90; pointer-events: none;
+        `;
+        pageContainer.appendChild(dimOverlay);
+        slotEl.style.zIndex = '100';
+
+        // Inject animation styles once
+        if (!document.getElementById('crop-mode-styles')) {
+            const styleEl = document.createElement('style');
+            styleEl.id = 'crop-mode-styles';
+            styleEl.textContent = `
+                @keyframes cropInstructionPulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
+                }
+                .photo-slot.crop-active {
+                    box-shadow: 0 0 0 3px #2563eb, 0 0 0 6px rgba(37, 99, 235, 0.3) !important;
+                    z-index: 100 !important;
+                    cursor: move !important;
+                }
+                .photo-slot.crop-active img {
+                    pointer-events: none;
+                    transition: object-position 0.05s ease-out;
+                }
+            `;
+            document.head.appendChild(styleEl);
+        }
+
+        // --- Get current pan values ---
+        const img = slotEl.querySelector('img');
+        let currentPanX = 50, currentPanY = 50, currentZoom = 1;
+        if (page) {
+            const slot = page.layout.slots.find(s => s.photoId === slotId);
+            if (slot && slot.crop) {
+                currentPanX = slot.crop.panX !== undefined ? slot.crop.panX : 50;
+                currentPanY = slot.crop.panY !== undefined ? slot.crop.panY : 50;
+                currentZoom = slot.crop.zoom || 1;
+            }
+        }
+
+        // --- Initialize Session ---
         this.currentCropSession = {
-            slotEl: slotEl,
-            pageId: pageId,
-            slotId: slotId,
-            initialCrop: null,
-            imgEl: slotEl.querySelector('img'),
-            scale: 1, // To be calculated
-            startX: 0,
-            startY: 0,
-            startLeftPct: 0,
-            startTopPct: 0,
-            hasModified: false
+            slotEl, pageId, slotId, imgEl: img,
+            instructionEl, dimOverlay,
+            panX: currentPanX, panY: currentPanY, zoom: currentZoom,
+            startX: 0, startY: 0,
+            startPanX: currentPanX, startPanY: currentPanY,
+            isDragging: false, hasModified: false
         };
 
-        // Attach Global Click to Dismiss (if clicking outside)
-        // Delayed to avoid immediate trigger
+        // Apply current state visually
+        if (img) {
+            img.style.objectPosition = `${currentPanX}% ${currentPanY}%`;
+            img.style.transform = `scale(${currentZoom})`;
+            img.style.transformOrigin = 'center center';
+        }
+
+        // --- Dismiss handler ---
         setTimeout(() => {
             const dismissHandler = (e) => {
-                if (!slotEl.contains(e.target) && this.currentCropSession) {
+                if (!slotEl.contains(e.target) && this.currentCropSession && !this.currentCropSession.isDragging) {
                     this.commitCropMode();
-                    document.removeEventListener('click', dismissHandler);
+                    document.removeEventListener('mousedown', dismissHandler);
+                    document.removeEventListener('touchstart', dismissHandler);
                 }
             };
             this.currentCropSession.dismissHandler = dismissHandler;
-            document.addEventListener('click', dismissHandler);
-        }, 100);
+            document.addEventListener('mousedown', dismissHandler);
+            document.addEventListener('touchstart', dismissHandler, { passive: true });
+        }, 200);
 
-        // Attach Mouse Handlers for Drag
+        // --- Attach drag handlers ---
         slotEl.addEventListener('mousedown', this.boundHandleCropDragStart);
+        slotEl.addEventListener('touchstart', this.boundHandleCropDragStart, { passive: false });
         slotEl.style.cursor = 'move';
-        // Disable swap drag
         slotEl.draggable = false;
-
-        // Ensure crop is initialized
-        this.initializeCropState(pageId, slotId, slotEl);
     }
 
     commitCropMode() {
         if (!this.currentCropSession) return;
-
-        const { slotEl, pageId, slotId, dismissHandler } = this.currentCropSession;
+        const { slotEl, pageId, slotId, dismissHandler, instructionEl, dimOverlay } = this.currentCropSession;
         console.log('[App] Committing crop mode for', slotId);
 
-        // Cleanup Visuals
+        // Cleanup visuals
         slotEl.classList.remove('crop-active');
         slotEl.style.cursor = '';
-        slotEl.draggable = true; // Re-enable swap
+        slotEl.draggable = true;
+        if (instructionEl && instructionEl.parentNode) instructionEl.remove();
+        if (dimOverlay && dimOverlay.parentNode) dimOverlay.remove();
 
-        // Remove Listeners
+        // Remove all listeners
         slotEl.removeEventListener('mousedown', this.boundHandleCropDragStart);
-        document.removeEventListener('click', dismissHandler);
+        slotEl.removeEventListener('touchstart', this.boundHandleCropDragStart);
+        if (dismissHandler) {
+            document.removeEventListener('mousedown', dismissHandler);
+            document.removeEventListener('touchstart', dismissHandler);
+        }
         window.removeEventListener('mousemove', this.boundHandleCropDragMove);
         window.removeEventListener('mouseup', this.boundHandleCropDragEnd);
+        window.removeEventListener('touchmove', this.boundHandleCropDragMove);
+        window.removeEventListener('touchend', this.boundHandleCropDragEnd);
 
-        // State is already updated during drag via notify?
-        if (store) store.notify('pages', store.state.pages);
-
+        // Persist final state
+        const page = store.state.pages.find(p => p.id === pageId);
+        if (page) {
+            const slot = page.layout.slots.find(s => s.photoId === slotId);
+            if (slot) {
+                if (!slot.crop) slot.crop = {};
+                slot.crop.panX = this.currentCropSession.panX;
+                slot.crop.panY = this.currentCropSession.panY;
+                slot.crop.zoom = this.currentCropSession.zoom;
+            }
+        }
+        store.notify('pages', store.state.pages);
         this.currentCropSession = null;
     }
 
     initializeCropState(pageId, slotId, slotEl) {
-        const page = store.state.pages.find(p => p.id === pageId);
-        if (!page) return;
-        const slot = page.layout.slots.find(s => s.photoId === slotId);
-        if (!slot) return;
-
-        const img = slotEl.querySelector('img');
-
-        // If no crop exists, create a default center crop based on CURRENT visualized ratio
-        if (!slot.crop) {
-            // We need photo dimensions.
-            const asset = store.state.assets.photos.find(p => p.id === slotId);
-            const pW = asset.width || (asset.ratio ? 1000 * asset.ratio : 1000);
-            const pH = asset.height || 1000;
-
-            // Slot aspect ratio (screen)
-            const sW = slotEl.clientWidth;
-            const sH = slotEl.clientHeight;
-            const sRatio = sW / sH;
-
-            // Calculate "Cover" rect in photo coordinates
-            // We want largest rect of sRatio fitting in pW/pH
-            let cropW, cropH;
-            const pRatio = pW / pH;
-
-            if (pRatio > sRatio) {
-                // Photo is wider than slot -> Fit Height
-                cropH = pH;
-                cropW = cropH * sRatio;
-            } else {
-                // Photo is taller -> Fit Width
-                cropW = pW;
-                cropH = cropW / sRatio;
-            }
-
-            slot.crop = {
-                x: (pW - cropW) / 2,
-                y: (pH - cropH) / 2,
-                width: cropW,
-                height: cropH
-            };
-
-            store.notify('pages', store.state.pages);
-        }
+        // No-op — initialization handled in enterCropMode
     }
 
-    // handlers
     handleCropDragStart(e) {
         if (!this.currentCropSession) return;
         e.stopPropagation();
         e.preventDefault();
 
-        const { slotEl, slotId, pageId } = this.currentCropSession;
+        const isTouch = e.type === 'touchstart';
+        const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+        const clientY = isTouch ? e.touches[0].clientY : e.clientY;
 
         if (!this.currentCropSession.hasModified) {
             store.pushState('Adjust Crop');
             this.currentCropSession.hasModified = true;
         }
 
-        // Retrieve current crop from STATE (it might have been initialized just now)
-        const page = store.state.pages.find(p => p.id === pageId);
-        const slot = page.layout.slots.find(s => s.photoId === slotId);
-
-        if (!slot.crop) return; // Should not happen if initialized
-
-        this.currentCropSession.initialCrop = { ...slot.crop };
-        this.currentCropSession.startX = e.clientX;
-        this.currentCropSession.startY = e.clientY;
-
-        // Calculate Scale: Image Pixels per Screen Pixel
-        this.currentCropSession.scaleX = slot.crop.width / slotEl.clientWidth;
-        this.currentCropSession.scaleY = slot.crop.height / slotEl.clientHeight;
+        this.currentCropSession.isDragging = true;
+        this.currentCropSession.startX = clientX;
+        this.currentCropSession.startY = clientY;
+        this.currentCropSession.startPanX = this.currentCropSession.panX;
+        this.currentCropSession.startPanY = this.currentCropSession.panY;
 
         window.addEventListener('mousemove', this.boundHandleCropDragMove);
         window.addEventListener('mouseup', this.boundHandleCropDragEnd);
+        window.addEventListener('touchmove', this.boundHandleCropDragMove, { passive: false });
+        window.addEventListener('touchend', this.boundHandleCropDragEnd);
     }
 
     handleCropDragMove(e) {
-        if (!this.currentCropSession) return;
+        if (!this.currentCropSession || !this.currentCropSession.isDragging) return;
         e.preventDefault();
 
-        const { startX, startY, initialCrop, scaleX, scaleY, pageId, slotId } = this.currentCropSession;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const isTouch = e.type === 'touchmove';
+        const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+        const clientY = isTouch ? e.touches[0].clientY : e.clientY;
 
-        // Calculate Delta in Image Pixels
-        // Screen Move Right (+dx) -> Camera Move Left -> Crop X decreases
-        // So we subtract dx * scale
-        const dCropX = -dx * scaleX;
-        const dCropY = -dy * scaleY;
+        const { startX, startY, startPanX, startPanY, slotEl, imgEl } = this.currentCropSession;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
 
-        let newX = initialCrop.x + dCropX;
-        let newY = initialCrop.y + dCropY;
+        // Convert pixel movement to percentage (dragging right = decrease panX to reveal left side)
+        const sensitivity = 100 / Math.max(slotEl.clientWidth, 1);
+        const sensitivityY = 100 / Math.max(slotEl.clientHeight, 1);
 
-        // Constraints
-        const page = store.state.pages.find(p => p.id === pageId);
-        const slot = page.layout.slots.find(s => s.photoId === slotId);
-        const asset = store.state.assets.photos.find(p => p.id === slotId);
+        let newPanX = Math.max(0, Math.min(100, startPanX - (dx * sensitivity)));
+        let newPanY = Math.max(0, Math.min(100, startPanY - (dy * sensitivityY)));
 
-        // Estimate asset size if missing
-        const pW = asset.width || (asset.ratio ? 1000 * asset.ratio : 1000);
-        const pH = asset.height || 1000;
+        this.currentCropSession.panX = newPanX;
+        this.currentCropSession.panY = newPanY;
 
-        // Clamp
-        const maxX = Math.max(0, pW - initialCrop.width);
-        const maxY = Math.max(0, pH - initialCrop.height);
-
-        newX = Math.max(0, Math.min(newX, maxX));
-        newY = Math.max(0, Math.min(newY, maxY));
-
-        // Update State Object Directly (RenderEngine reads this)
-        slot.crop.x = newX;
-        slot.crop.y = newY;
-
-        // Update DOM Directly for Performance (Mimic RenderEngine logic)
-        const img = this.currentCropSession.imgEl;
-        if (img) {
-            const offX = 100 * (newX / initialCrop.width);
-            const offY = 100 * (newY / initialCrop.height);
-            img.style.left = `-${offX}%`;
-            img.style.top = `-${offY}%`;
+        if (imgEl) {
+            imgEl.style.objectPosition = `${newPanX}% ${newPanY}%`;
         }
     }
 
     handleCropDragEnd(e) {
+        if (!this.currentCropSession) return;
+        this.currentCropSession.isDragging = false;
+
         window.removeEventListener('mousemove', this.boundHandleCropDragMove);
         window.removeEventListener('mouseup', this.boundHandleCropDragEnd);
+        window.removeEventListener('touchmove', this.boundHandleCropDragMove);
+        window.removeEventListener('touchend', this.boundHandleCropDragEnd);
+
+        // Persist to state
+        const { pageId, slotId, panX, panY, zoom } = this.currentCropSession;
+        const page = store.state.pages.find(p => p.id === pageId);
+        if (page) {
+            const slot = page.layout.slots.find(s => s.photoId === slotId);
+            if (slot) {
+                if (!slot.crop) slot.crop = {};
+                slot.crop.panX = panX;
+                slot.crop.panY = panY;
+                slot.crop.zoom = zoom;
+            }
+        }
+    }
+
+    // --- Cover Photo Crop / Pan Mode ---
+
+    enterCoverCropMode(targetEl, coverSide) {
+        if (!targetEl) return;
+
+        // Commit any existing crop session
+        if (this.currentCropSession) this.commitCropMode();
+        if (this.currentCoverCropSession) this.commitCoverCropMode();
+
+        console.log('[App] Entering cover crop mode for', coverSide);
+
+        // --- Visual Feedback ---
+        targetEl.classList.add('crop-active');
+
+        // Instruction tooltip
+        const instructionEl = document.createElement('div');
+        instructionEl.className = 'crop-instruction';
+        instructionEl.innerHTML = `
+            <i class="fas fa-arrows-alt" style="margin-left: 8px;"></i>
+            <span>גרור לשינוי מיקום התמונה</span>
+            <span style="margin: 0 6px; opacity: 0.6;">•</span>
+            <span>לחץ בחוץ לסיום</span>
+        `;
+        instructionEl.style.cssText = `
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(37, 99, 235, 0.95);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            z-index: 200;
+            pointer-events: none;
+            direction: rtl;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+            animation: cropInstructionPulse 2s ease-in-out infinite;
+        `;
+        targetEl.style.position = targetEl.style.position || 'relative';
+        targetEl.appendChild(instructionEl);
+
+        // Inject animation styles once
+        if (!document.getElementById('crop-mode-styles')) {
+            const styleEl = document.createElement('style');
+            styleEl.id = 'crop-mode-styles';
+            styleEl.textContent = `
+                @keyframes cropInstructionPulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
+                }
+                .photo-slot.crop-active, .cover-photo-area.crop-active, .back-cover.crop-active {
+                    box-shadow: 0 0 0 3px #2563eb, 0 0 0 6px rgba(37, 99, 235, 0.3) !important;
+                    z-index: 100 !important;
+                    cursor: move !important;
+                }
+                .photo-slot.crop-active img, .back-cover.crop-active img {
+                    pointer-events: none;
+                    transition: object-position 0.05s ease-out;
+                }
+            `;
+            document.head.appendChild(styleEl);
+        }
+
+        // Get current pan from state
+        const cover = store.state.cover || {};
+        const cropKey = coverSide === 'front' ? 'frontCrop' : 'backCrop';
+        const currentCrop = cover[cropKey] || {};
+        let currentPanX = currentCrop.panX !== undefined ? currentCrop.panX : 50;
+        let currentPanY = currentCrop.panY !== undefined ? currentCrop.panY : 50;
+
+        // Apply current position
+        if (coverSide === 'front') {
+            targetEl.style.backgroundPosition = `${currentPanX}% ${currentPanY}%`;
+        } else {
+            const img = targetEl.querySelector('img');
+            if (img) {
+                img.style.objectPosition = `${currentPanX}% ${currentPanY}%`;
+            }
+        }
+
+        this.currentCoverCropSession = {
+            targetEl, coverSide, instructionEl,
+            panX: currentPanX, panY: currentPanY,
+            startX: 0, startY: 0,
+            startPanX: currentPanX, startPanY: currentPanY,
+            isDragging: false, hasModified: false
+        };
+
+        // Drag start handler
+        const onDragStart = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const isTouch = e.type === 'touchstart';
+            const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+            const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+            if (!this.currentCoverCropSession.hasModified) {
+                store.pushState('Adjust Cover Crop');
+                this.currentCoverCropSession.hasModified = true;
+            }
+
+            this.currentCoverCropSession.isDragging = true;
+            this.currentCoverCropSession.startX = clientX;
+            this.currentCoverCropSession.startY = clientY;
+            this.currentCoverCropSession.startPanX = this.currentCoverCropSession.panX;
+            this.currentCoverCropSession.startPanY = this.currentCoverCropSession.panY;
+
+            window.addEventListener('mousemove', onDragMove);
+            window.addEventListener('mouseup', onDragEnd);
+            window.addEventListener('touchmove', onDragMove, { passive: false });
+            window.addEventListener('touchend', onDragEnd);
+        };
+
+        const onDragMove = (e) => {
+            if (!this.currentCoverCropSession || !this.currentCoverCropSession.isDragging) return;
+            e.preventDefault();
+            const isTouch = e.type === 'touchmove';
+            const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+            const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+            const { startX, startY, startPanX, startPanY, targetEl: el, coverSide: side } = this.currentCoverCropSession;
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+
+            const sensitivity = 100 / Math.max(el.clientWidth, 1);
+            const sensitivityY = 100 / Math.max(el.clientHeight, 1);
+
+            let newPanX = Math.max(0, Math.min(100, startPanX - (dx * sensitivity)));
+            let newPanY = Math.max(0, Math.min(100, startPanY - (dy * sensitivityY)));
+
+            this.currentCoverCropSession.panX = newPanX;
+            this.currentCoverCropSession.panY = newPanY;
+
+            if (side === 'front') {
+                el.style.backgroundPosition = `${newPanX}% ${newPanY}%`;
+            } else {
+                const img = el.querySelector('img');
+                if (img) img.style.objectPosition = `${newPanX}% ${newPanY}%`;
+            }
+        };
+
+        const onDragEnd = () => {
+            if (!this.currentCoverCropSession) return;
+            this.currentCoverCropSession.isDragging = false;
+            window.removeEventListener('mousemove', onDragMove);
+            window.removeEventListener('mouseup', onDragEnd);
+            window.removeEventListener('touchmove', onDragMove);
+            window.removeEventListener('touchend', onDragEnd);
+
+            // Persist to cover state
+            const { panX, panY, coverSide: side } = this.currentCoverCropSession;
+            if (!store.state.cover) store.state.cover = {};
+            const key = side === 'front' ? 'frontCrop' : 'backCrop';
+            store.state.cover[key] = { panX, panY };
+        };
+
+        // Store handlers for cleanup
+        this.currentCoverCropSession._onDragStart = onDragStart;
+        this.currentCoverCropSession._onDragMove = onDragMove;
+        this.currentCoverCropSession._onDragEnd = onDragEnd;
+
+        targetEl.addEventListener('mousedown', onDragStart);
+        targetEl.addEventListener('touchstart', onDragStart, { passive: false });
+        targetEl.style.cursor = 'move';
+
+        // Dismiss handler
+        setTimeout(() => {
+            const dismissHandler = (e) => {
+                if (!targetEl.contains(e.target) && this.currentCoverCropSession && !this.currentCoverCropSession.isDragging) {
+                    this.commitCoverCropMode();
+                    document.removeEventListener('mousedown', dismissHandler);
+                    document.removeEventListener('touchstart', dismissHandler);
+                }
+            };
+            this.currentCoverCropSession._dismissHandler = dismissHandler;
+            document.addEventListener('mousedown', dismissHandler);
+            document.addEventListener('touchstart', dismissHandler, { passive: true });
+        }, 200);
+    }
+
+    commitCoverCropMode() {
+        if (!this.currentCoverCropSession) return;
+        const { targetEl, coverSide, instructionEl, _onDragStart, _onDragMove, _onDragEnd, _dismissHandler, panX, panY } = this.currentCoverCropSession;
+        console.log('[App] Committing cover crop mode for', coverSide);
+
+        targetEl.classList.remove('crop-active');
+        targetEl.style.cursor = '';
+        if (instructionEl && instructionEl.parentNode) instructionEl.remove();
+
+        // Remove listeners
+        targetEl.removeEventListener('mousedown', _onDragStart);
+        targetEl.removeEventListener('touchstart', _onDragStart);
+        if (_dismissHandler) {
+            document.removeEventListener('mousedown', _dismissHandler);
+            document.removeEventListener('touchstart', _dismissHandler);
+        }
+        window.removeEventListener('mousemove', _onDragMove);
+        window.removeEventListener('mouseup', _onDragEnd);
+        window.removeEventListener('touchmove', _onDragMove);
+        window.removeEventListener('touchend', _onDragEnd);
+
+        // Persist final state
+        if (!store.state.cover) store.state.cover = {};
+        const key = coverSide === 'front' ? 'frontCrop' : 'backCrop';
+        store.state.cover[key] = { panX, panY };
+
+        // DON'T notify 'cover' — that would trigger full re-render!
+        // Just save quietly via the debounced save
+        if (this.saveDebounced) this.saveDebounced(store.state);
+
+        this.currentCoverCropSession = null;
+    }
+
+    applyViewerRestrictions() {
+        console.log("[App] Applying viewer restrictions (Read-Only Mode)");
+        // Hide standard editing toolbars/buttons
+        const hideIds = ['btn-undo', 'btn-redo', 'btn-remix-layout', 'btn-add-photos-sidebar'];
+        hideIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+
+        // Add a Read-Only badge to top toolbar
+        const toolbar = document.querySelector('.toolbar-group.center');
+        if (toolbar && !document.getElementById('badge-readonly')) {
+            const badge = document.createElement('span');
+            badge.id = 'badge-readonly';
+            badge.style.cssText = 'background: #fbbf24; color: #78350f; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85rem; margin-right: 15px; display: inline-flex; align-items: center; gap: 5px;';
+            badge.innerHTML = '<i class="fa-solid fa-eye"></i> צפייה בלבד';
+            toolbar.appendChild(badge);
+        }
+
+        // Disable moveable interactions
+        if (this.moveableInstance) {
+            this.moveableInstance.draggable = false;
+            this.moveableInstance.resizable = false;
+            this.moveableInstance.rotatable = false;
+        }
+
+        // Disable template/element drag interactions (we can use CSS locally or just rely on state)
+        document.getElementById('sidebar-left').style.pointerEvents = 'none';
+        document.getElementById('sidebar-left').style.opacity = '0.5';
+
+        // Disable save button or indicator
+        let statusEl = document.getElementById('save-status-indicator');
+        if (statusEl) statusEl.textContent = "מצב קריאה";
+    }
+
+    removeViewerRestrictions() {
+        // Remove Read-Only badge
+        const badge = document.getElementById('badge-readonly');
+        if (badge) badge.remove();
+
+        const showIds = ['btn-undo', 'btn-redo', 'btn-remix-layout', 'btn-add-photos-sidebar'];
+        showIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
+
+        document.getElementById('sidebar-left').style.pointerEvents = '';
+        document.getElementById('sidebar-left').style.opacity = '1';
+
+        if (this.moveableInstance) {
+            this.moveableInstance.draggable = true;
+            this.moveableInstance.resizable = true;
+            this.moveableInstance.rotatable = true;
+        }
+    }
+
+    openShareModal() {
+        if (!store.state.user) {
+            alert("עליך להתחבר כדי לשתף את האלבום.");
+            return;
+        }
+
+        if (!persistenceService.currentProjectId) {
+            alert("יש לשמור את הפרויקט לפני שיתופו. הוסף תמונות או דפים תחילה.");
+            return;
+        }
+
+        const modal = document.getElementById('share-modal');
+        const togglePublic = document.getElementById('share-toggle-public');
+        const panel = document.getElementById('share-settings-panel');
+        const roleSelect = document.getElementById('share-role-select');
+        const allowReshare = document.getElementById('share-allow-reshare');
+        const linkInput = document.getElementById('share-link-input');
+        const btnCopy = document.getElementById('btn-copy-share-link');
+        const btnSave = document.getElementById('btn-save-share-settings');
+        const notice = document.getElementById('share-not-saved-notice');
+
+        // Hide notice generally
+        notice.style.display = 'none';
+
+        // Check ownership
+        const isOwner = store.state.user.uid === (persistenceService.currentOwner || persistenceService.currentShareSettings?.owner);
+        const role = persistenceService.currentRole || "owner";
+        const shareSettings = persistenceService.currentShareSettings || {};
+
+        if (role !== "owner" && !(role === "editor" && shareSettings.allowEditorsToShare)) {
+            alert("אין לך הרשאה לשתף את האלבום הזה.");
+            return;
+        }
+
+        // Populate modal with current settings
+        togglePublic.checked = shareSettings.isPublic || false;
+        panel.style.display = togglePublic.checked ? 'block' : 'none';
+        roleSelect.value = shareSettings.publicRole || 'viewer';
+        allowReshare.checked = shareSettings.allowEditorsToShare || false;
+
+        // URL construction
+        const buildLink = (token) => {
+            const origin = window.location.origin;
+            const path = window.location.pathname;
+            return `${origin}${path}?projectId=${persistenceService.currentProjectId}&shareToken=${token || ''}`;
+        };
+
+        linkInput.value = buildLink(shareSettings.shareToken);
+
+        // Bind UI
+        togglePublic.onchange = (e) => {
+            panel.style.display = e.target.checked ? 'block' : 'none';
+        };
+
+        btnCopy.onclick = async () => {
+            if (!togglePublic.checked) {
+                togglePublic.checked = true;
+                panel.style.display = 'block';
+                await btnSave.onclick();
+            }
+
+            navigator.clipboard.writeText(linkInput.value).then(() => {
+                const icon = btnCopy.querySelector('i');
+                if (icon) {
+                    const prevClass = icon.className;
+                    icon.className = 'fa-solid fa-check';
+                    setTimeout(() => icon.className = prevClass, 2000);
+                }
+            });
+        };
+
+        btnSave.onclick = async () => {
+            btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+            btnSave.disabled = true;
+
+            try {
+                const newSettings = {
+                    isPublic: togglePublic.checked,
+                    publicRole: roleSelect.value,
+                    allowEditorsToShare: allowReshare.checked
+                };
+                const result = await persistenceService.updateShareSettings(persistenceService.currentProjectId, newSettings);
+
+                // Update local value with new token if generated
+                linkInput.value = buildLink(result.shareSettings.shareToken);
+
+                btnSave.innerHTML = '<i class="fa-solid fa-check"></i> נשמר!';
+                setTimeout(() => {
+                    btnSave.innerHTML = 'שמור הגדרות';
+                    btnSave.disabled = false;
+                }, 2000);
+            } catch (e) {
+                console.error("Failed to save share settings", e);
+                alert("שגיאה בשמירת הגדרות שיתוף: " + e.message);
+                btnSave.innerHTML = 'שמור הגדרות';
+                btnSave.disabled = false;
+            }
+        };
+
+        modal.style.display = 'flex';
     }
 }
 

@@ -162,9 +162,9 @@ function createBookComponents() {
 
     // -- Cover Material --
     const matCover = new THREE.MeshStandardMaterial({
-        color: 0x1a237e, // Deep Blue
-        roughness: 0.4,
-        metalness: 0.1
+        color: 0x0f0f13, // Almost Black to match sleek space/liquid abstract theme
+        roughness: 0.3,
+        metalness: 0.2
     });
 
     // -- Back Cover --
@@ -189,10 +189,10 @@ function createBookComponents() {
     frontCanvas.height = 1024;
     const ctx = frontCanvas.getContext('2d');
 
-    // Load Cover Background Image (Abstract Liquid Art)
+    // Load Cover Background Image (Unique Cinematic Abstract)
     const coverBgImg = new Image();
     coverBgImg.crossOrigin = 'anonymous';
-    coverBgImg.src = 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=1024&q=80';
+    coverBgImg.src = 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1024&q=80';
 
     // Load SVG Icon (Favicon with no backgorund)
     const iconImg = new Image();
@@ -213,8 +213,8 @@ function createBookComponents() {
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.fillRect(0, 0, width, height);
         } else {
-            // Fallback Blue Base
-            ctx.fillStyle = '#1a237e';
+            // Fallback Dark Base
+            ctx.fillStyle = '#0f0f13';
             ctx.fillRect(0, 0, width, height);
         }
 

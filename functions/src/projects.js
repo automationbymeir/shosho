@@ -1,4 +1,5 @@
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 
 /**
  * Clean data for Firestore - aggressively remove large data
@@ -134,14 +135,53 @@ async function saveProject(userId, projectData) {
     const projectId = cleanedData.id || `project_${Date.now()}`;
     const projectName = cleanedData.title || "Untitled Project";
 
+    // Set up default collaborative structure
     const projectDoc = {
       id: projectId,
       name: projectName,
       data: cleanedData,
-      userId: userId,
+      userId: userId, // primary owner
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       lastModified: admin.firestore.FieldValue.serverTimestamp(),
+      members: [userId],
+      roles: {[userId]: "owner"},
+      shareSettings: {
+        isPublic: false,
+        publicRole: "viewer",
+        allowEditorsToShare: false,
+        shareToken: null,
+      },
     };
+
+    // Check existing document to preserve roles and authorize edit
+    const existingDoc = await db.collection("projects").doc(projectId).get();
+    if (existingDoc.exists) {
+      const existingData = existingDoc.data();
+      const role = existingData.roles?.[userId];
+      const isPublic = existingData.shareSettings?.isPublic;
+      const publicRole = existingData.shareSettings?.publicRole;
+
+      const isOwner = existingData.userId === userId;
+      const isEditor = role === "owner" || role === "editor" || (isPublic && publicRole === "editor");
+
+      if (!isOwner && !isEditor) {
+        throw new Error("Unauthorized to save this project");
+      }
+
+      projectDoc.createdAt = existingData.createdAt || projectDoc.createdAt;
+      projectDoc.userId = existingData.userId || projectDoc.userId; // maintain original owner
+      projectDoc.members = existingData.members || [existingData.userId];
+      projectDoc.roles = existingData.roles || {[existingData.userId]: "owner"};
+      projectDoc.shareSettings = existingData.shareSettings || projectDoc.shareSettings;
+
+      // Ensure the saving user is in the members list if they edited via a public link (and keep their role as editor)
+      if (!isOwner && !projectDoc.members.includes(userId)) {
+        projectDoc.members.push(userId);
+        if (!projectDoc.roles[userId]) {
+          projectDoc.roles[userId] = "editor";
+        }
+      }
+    }
 
     // Check approximate size (Firestore limit is 1MB)
     const sizeEstimate = JSON.stringify(projectDoc).length;
@@ -204,17 +244,42 @@ async function loadProject(userId, projectId) {
 
     const project = projectDoc.data();
 
-    // Verify ownership
-    if (project.userId !== userId) {
+    // Verify ownership and robust member checking
+    const role = project.roles?.[userId];
+    const isPublic = project.shareSettings?.isPublic;
+    const isOwner = project.userId === userId;
+
+    if (!isOwner && !role && !isPublic) {
       return {
         success: false,
         error: "Unauthorized access to project",
       };
     }
 
+    const effectiveRole = isOwner ? "owner" : (role || (isPublic ? project.shareSettings.publicRole : "viewer"));
+
+    // Add user as a viewer to members if they accessed via public link
+    if (!isOwner && !role && isPublic && !project.members?.includes(userId)) {
+      await db.collection("projects").doc(projectId).update({
+        members: admin.firestore.FieldValue.arrayUnion(userId),
+        [`roles.${userId}`]: effectiveRole,
+      });
+      // In-memory update
+      if (!project.members) project.members = [];
+      project.members.push(userId);
+      if (!project.roles) project.roles = {};
+      project.roles[userId] = effectiveRole;
+    }
+
     return {
       success: true,
       data: project.data,
+      metadata: {
+        role: effectiveRole,
+        shareSettings: (isOwner || (effectiveRole === "editor" &&
+          project.shareSettings?.allowEditorsToShare)) ? project.shareSettings : null,
+        owner: project.userId,
+      },
     };
   } catch (error) {
     console.error("Error loading project:", error);
@@ -234,21 +299,27 @@ async function listProjects(userId) {
   try {
     const db = admin.firestore();
 
-    const snapshot = await db.collection("projects")
-        .where("userId", "==", userId)
-    // .orderBy("lastModified", "desc") // Removed to avoid composite index requirement
-        .get();
+    // We do two queries because some legacy projects might not have the 'members' array
+    const ownerSnapshot = await db.collection("projects").where("userId", "==", userId).get();
+    const memberSnapshot = await db.collection("projects").where("members", "array-contains", userId).get();
 
-    const projects = [];
-    snapshot.forEach((doc) => {
+    const projectsMap = new Map();
+
+    const processDoc = (doc) => {
       const data = doc.data();
-      projects.push({
+      projectsMap.set(data.id, {
         id: data.id,
         name: data.name,
         lastModified: data.lastModified ? data.lastModified.toDate() : new Date(),
         lastModifiedIso: data.lastModified?.toDate().toISOString() || new Date().toISOString(),
+        role: data.userId === userId ? "owner" : (data.roles?.[userId] || "editor"),
       });
-    });
+    };
+
+    ownerSnapshot.forEach(processDoc);
+    memberSnapshot.forEach(processDoc);
+
+    const projects = Array.from(projectsMap.values());
 
     // Sort in memory (newest first)
     projects.sort((a, b) => b.lastModified - a.lastModified);
@@ -258,6 +329,7 @@ async function listProjects(userId) {
       id: p.id,
       name: p.name,
       lastModified: p.lastModifiedIso,
+      role: p.role,
     }));
 
     return {
@@ -295,7 +367,7 @@ async function deleteProject(userId, projectId) {
   const project = projectDoc.data();
 
   // Verify ownership
-  if (project.userId !== userId) {
+  if (project.userId !== userId && project.roles?.[userId] !== "owner") {
     return {
       success: false,
       error: "Unauthorized access to project",
@@ -330,22 +402,110 @@ async function renameProject(userId, projectId, newName) {
 
   const project = projectDoc.data();
 
-  // Verify ownership
-  if (project.userId !== userId) {
+  // Verify ownership/editor role
+  const isOwner = project.userId === userId;
+  const isEditor = project.roles?.[userId] === "owner" || project.roles?.[userId] === "editor";
+  if (!isOwner && !isEditor) {
     return {
       success: false,
-      error: "Unauthorized access to project",
+      error: "Unauthorized access to project. Note: you need edit access to rename.",
     };
   }
 
   await db.collection("projects").doc(projectId).update({
-    name: newName,
-    lastModified: admin.firestore.FieldValue.serverTimestamp(),
+    "name": newName,
+    "data.id": projectId,
+    "data.title": newName,
+    "data.cover.title": newName,
+    "lastModified": admin.firestore.FieldValue.serverTimestamp(),
   });
 
   return {
     success: true,
   };
+}
+
+/**
+ * Update project share settings
+ * @param {string} userId - Caller ID
+ * @param {string} projectId - Project ID
+ * @param {Object} settings - Share settings
+ */
+async function updateShareSettings(userId, projectId, settings) {
+  try {
+    const db = admin.firestore();
+    const projectDoc = await db.collection("projects").doc(projectId).get();
+
+    if (!projectDoc.exists) throw new Error("Project not found");
+
+    const project = projectDoc.data();
+    const isOwner = project.userId === userId || project.roles?.[userId] === "owner";
+    const isEditor = project.roles?.[userId] === "editor";
+
+    if (!isOwner && !(isEditor && project.shareSettings?.allowEditorsToShare)) {
+      throw new Error("Unauthorized to change share settings");
+    }
+
+    const currentShareToken = project.shareSettings?.shareToken || crypto.randomUUID();
+
+    const newShareSettings = {
+      isPublic: Boolean(settings.isPublic),
+      publicRole: settings.publicRole === "editor" ? "editor" : "viewer",
+      allowEditorsToShare: Boolean(settings.allowEditorsToShare),
+      shareToken: currentShareToken,
+    };
+
+    await db.collection("projects").doc(projectId).update({
+      shareSettings: newShareSettings,
+      lastModified: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {success: true, shareSettings: newShareSettings, members: project.roles || {}};
+  } catch (error) {
+    console.error("Error updating share settings:", error);
+    return {success: false, error: error.message};
+  }
+}
+
+/**
+ * Join a project via share token
+ * @param {string} userId - User ID to add
+ * @param {string} projectId - Project ID
+ * @param {string} shareToken - Security token
+ */
+async function joinProject(userId, projectId, shareToken) {
+  try {
+    const db = admin.firestore();
+    const projectRef = db.collection("projects").doc(projectId);
+    const projectDoc = await projectRef.get();
+
+    if (!projectDoc.exists) throw new Error("Project not found");
+
+    const project = projectDoc.data();
+
+    // Validate token if project has one
+    if (project.shareSettings?.shareToken && project.shareSettings.shareToken !== shareToken) {
+      throw new Error("Invalid share token");
+    }
+
+    if (!project.shareSettings?.isPublic) {
+      throw new Error("This project is not public");
+    }
+
+    const role = project.shareSettings.publicRole || "viewer";
+
+    // Add user
+    await projectRef.update({
+      members: admin.firestore.FieldValue.arrayUnion(userId),
+      [`roles.${userId}`]: role,
+      lastModified: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {success: true, role};
+  } catch (error) {
+    console.error("Error joining project:", error);
+    return {success: false, error: error.message};
+  }
 }
 
 module.exports = {
@@ -354,4 +514,6 @@ module.exports = {
   listProjects,
   deleteProject,
   renameProject,
+  updateShareSettings,
+  joinProject,
 };

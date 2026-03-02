@@ -23,9 +23,9 @@ class MagicCreateV4 {
 
         try {
             // Step 1: Analyze photos for quality issues
-            this.showProgress('Analyzing photos...');
+            this.showProgress('analyzing');
             const analysis = await this.analyzePhotos(photos);
-            this.hideProgress();
+            // DO NOT hide progress here - keep it visible through the entire flow
 
             // Step 2: Show review dialog if trash found
             if (analysis.trash_photos && analysis.trash_photos.length > 0) {
@@ -127,12 +127,21 @@ class MagicCreateV4 {
         console.log('[MagicCreate v4] Creating with', approvedPhotos.length, 'approved photos');
 
         try {
+            // Detect Hebrew in the prompt
+            const hebrewRegex = /[\u0590-\u05FF]/;
+            const isHebrew = hebrewRegex.test(prompt);
+            window._magicIsHebrew = isHebrew;
+            console.log(`[MagicCreate v4] Language detection: ${isHebrew ? 'Hebrew' : 'English'}`);
+
             const response = await fetch(`${this.baseUrl}/magic/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: options.userId || 'web_user',
                     prompt: prompt,
+                    options: {
+                        lang: isHebrew ? 'he' : 'en'
+                    },
                     photos: approvedPhotos.map((p, i) => {
                         // CRITICAL FIX: STRIP ALL IMAGE DATA.
                         // The backend 'create' endpoint (aiAutoDesign) ONLY uses metadata.
@@ -159,19 +168,83 @@ class MagicCreateV4 {
                     include_decorative_text: options.includeDecorativeText !== false
                 })
             });
-
-            this.hideProgress();
+            // Only hide progress upon total completion or error (removed from here)
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || `Failed: ${response.status}`);
+                let errorDetails = `Failed: ${response.status} ${response.statusText}`;
+                try {
+                    const errorJson = await response.json();
+                    errorDetails = errorJson.detail || errorJson.error || errorDetails;
+                } catch (e) {
+                    console.warn('[MagicCreate v4] Non-JSON error response (possibly 504 timeout):', response.status);
+                }
+                throw new Error(errorDetails);
             }
 
             const result = await response.json();
+
+            // --- AI-DRIVEN BACKGROUND & ELEMENT APPLICATION ---
+            // The backend AI (Gemini/GPT) has already selected backgroundTextureId and
+            // elementCategories per page based on the user's free-text prompt.
+            // We just apply them here.
+            if (result.pages) {
+                result.pages.forEach((page, idx) => {
+                    // 1. BACKGROUNDS: Apply AI-selected background (fallback to safe default)
+                    if (!page.backgroundTextureId && !page.background) {
+                        // AI didn't provide a background — pick a safe default
+                        const safeDefaults = ['soft-sunset', 'paper-cream', 'mint-fresh', 'lavender-mist', 'pure-zen', 'watercolor-mesh'];
+                        page.background = safeDefaults[idx % safeDefaults.length];
+                    } else if (page.backgroundTextureId && !page.background) {
+                        // Map AI field to frontend field
+                        page.background = page.backgroundTextureId;
+                    }
+
+                    // 2. ELEMENTS: Resolve AI-selected elementCategories to actual SVG elements
+                    if (page.elementCategories && page.elementCategories.length > 0 && window.ELEMENTS_LIBRARY) {
+                        const matchedElements = window.ELEMENTS_LIBRARY.filter(e =>
+                            page.elementCategories.includes(e.category)
+                        );
+
+                        if (matchedElements.length > 0) {
+                            if (!page.elements) page.elements = [];
+                            // Add 1 element from the AI-selected categories
+                            const randomEl = matchedElements[Math.floor(Math.random() * matchedElements.length)];
+                            const positions = [
+                                { x: 5, y: 5 },    // top-left
+                                { x: 80, y: 5 },   // top-right
+                                { x: 5, y: 80 },   // bottom-left
+                                { x: 80, y: 80 },  // bottom-right
+                            ];
+                            const pos = positions[idx % positions.length];
+                            page.elements.push({
+                                id: 'elem_auto_' + Date.now() + '_' + idx,
+                                type: 'element',
+                                url: randomEl.url,
+                                x: pos.x,
+                                y: pos.y,
+                                pixelWidth: '80px',
+                                pixelHeight: '80px',
+                                zIndex: 15
+                            });
+                        }
+                    }
+                });
+
+                // Set cover background from AI theme
+                if (result.cover && result.cover.backgroundTextureId) {
+                    if (!result.theme) result.theme = {};
+                    result.theme.coverId = result.cover.backgroundTextureId;
+                }
+
+                console.log('[MagicCreate v4] AI-driven design applied. Backgrounds:',
+                    result.pages.map(p => p.background || p.backgroundTextureId).filter(Boolean));
+            }
             console.log('[MagicCreate v4] Created', result.pages?.length, 'pages');
 
             // Load into editor
-            this.loadIntoEditor(result);
+            this.loadIntoEditor(result, allPhotos);
+
+            this.hideProgress();
 
             return result;
 
@@ -281,7 +354,7 @@ class MagicCreateV4 {
     /**
      * Load result into editor
      */
-    loadIntoEditor(result) {
+    loadIntoEditor(result, allPhotos = []) {
         // Apply theme CSS variables
         if (result.theme?.colors) {
             const root = document.documentElement;
@@ -293,12 +366,20 @@ class MagicCreateV4 {
         // Load pages into store
         if (window.store && result.pages) {
 
+            // CRITICAL: Clear stale backups BEFORE setting new state
+            // This prevents AUTO-HEAL from restoring old data from a previous session
+            window._magicPages = null;
+            window._magicCover = null;
+
             let coverPage = null;
+            let backCoverPage = null;
             const contentPages = [];
 
             result.pages.forEach(page => {
                 // Identify cover: templateId is 'cover' OR id starts with 'page_cover_'
                 const isCover = page.templateId === 'cover' || (page.id && page.id.startsWith('page_cover_'));
+                // Identify back cover
+                const isBackCover = page.templateId === 'back-cover' || (page.id && page.id.startsWith('page_backcover_'));
 
                 // Hydrate page.photos from layout.slots if missing
                 if (!page.photos && page.layout && page.layout.slots) {
@@ -335,29 +416,173 @@ class MagicCreateV4 {
 
                 if (isCover && !coverPage) {
                     coverPage = page;
+                } else if (isBackCover && !backCoverPage) {
+                    backCoverPage = page;
                 } else {
                     contentPages.push(page);
                 }
             });
 
-            // Set Cover using direct assignment to trigger Proxy listeners
-            if (coverPage) {
-                console.log('[MagicCreate v4] identified cover:', coverPage.id);
-                // Ensure cover has expected structure
-                window.store.state.cover = coverPage;
+            // --- ROOT CAUSE FIX: SET STATE SILENTLY, RENDER EXPLICITLY ONCE ---
+            // We MUST keep batch mode ON and NOT call notify().
+            // WHY: notify('pages') triggers the subscriber in app.js (line 1219)
+            // which calls renderActivePage(). That subscriber fires BEFORE our
+            // explicit render below, causing a stale/old page to render.
+            // Instead: set all state silently, then render everything ourselves.
+
+            // CRITICAL: Block auth observer from overwriting our new pages
+            // The onAuthStateChanged callback can fire late and do Object.assign(store.state, oldSavedData)
+            if (window.app) {
+                window.app.magicCreateGenerationStarted = true;
+                // Suppress notification-triggered re-renders while we set state
+                window.app._magicCreateRendering = true;
             }
 
-            // Set content pages trigger Proxy listeners
-            window.store.state.pages = contentPages;
+            if (window.store) {
+                // NUCLEAR FIX: Write directly to the Proxy's internal target object.
+                // The Proxy SET somehow doesn't reliably persist. By writing to _target,
+                // we bypass the Proxy entirely and write to the actual JS object.
+                const target = window.store._target;
+                if (!target) {
+                    console.error('[MagicCreate v4] store._target not available! Falling back to Proxy.');
+                }
+                const t = target || window.store.state; // fallback to Proxy if _target missing
 
-            if (contentPages.length > 0) {
-                window.store.state.activePageId = contentPages[0].id;
+                // 1. Set pages
+                t.pages = contentPages;
+                console.log('[MagicCreate v4] Pages set (direct target):', contentPages.length, 'pages. First:', contentPages[0]?.id);
+
+                // 2. Set active page
+                if (contentPages.length > 0) {
+                    t.activePageId = contentPages[0].id;
+                }
+
+                // 3. Set view mode
+                t.viewMode = 'pages';
+
+                // 4. Set theme
+                if (result.theme) {
+                    t.theme = result.theme;
+                }
+
+                // 5. Set cover — modify EXISTING object in-place AND replace reference
+                if (coverPage) {
+                    console.log('[MagicCreate v4] Setting cover (direct target). background:', coverPage.background);
+                    const newCover = {
+                        ...(t.cover || {}),
+                        ...coverPage,
+                        background: coverPage.background || coverPage.theme || t.cover?.background,
+                        theme: coverPage.theme || coverPage.background || t.cover?.theme,
+                    };
+                    t.cover = newCover;
+                    console.log('[MagicCreate v4] Cover verify:', JSON.stringify({
+                        background: newCover.background,
+                        theme: newCover.theme,
+                        title: newCover.title,
+                        readback: window.store.state.cover?.background,
+                        targetReadback: t.cover?.background
+                    }));
+                }
+
+                // 6. Set back cover
+                if (backCoverPage) {
+                    console.log('[MagicCreate v4] Back cover set:', backCoverPage.id, 'bg:', backCoverPage.background);
+                    t.backCover = backCoverPage;
+                }
+
+                // 7. Store extra data
+                if (result.cover) t.coverData = result.cover;
+                if (result.backCover) t.backCoverData = result.backCover;
+
+                // 8. Store window-level backups for preview/PDF
+                window._magicCover = { ...t.cover };
+                window._magicPages = contentPages;
+                // NOTE: _magicAssets is set AFTER photo restoration below
+
+                // Verify everything persisted by reading BACK through the Proxy
+                console.log('[MagicCreate v4] STATE VERIFY (via Proxy):', JSON.stringify({
+                    pagesCount: window.store.state.pages?.length,
+                    firstPageId: window.store.state.pages?.[0]?.id,
+                    coverBg: window.store.state.cover?.background,
+                    activePageId: window.store.state.activePageId
+                }));
+                console.log('[MagicCreate v4] STATE VERIFY (via _target):', JSON.stringify({
+                    pagesCount: t.pages?.length,
+                    firstPageId: t.pages?.[0]?.id,
+                    coverBg: t.cover?.background,
+                    activePageId: t.activePageId
+                }));
             }
 
-            // Force Update View Mode if needed
-            if (window.store.state.viewMode !== 'pages') {
-                window.store.state.viewMode = 'pages';
+            // Re-enable renders
+            if (window.app) {
+                window.app._magicCreateRendering = false;
             }
+
+            // EXPLICIT SINGLE RENDER — the ONLY place where UI gets drawn
+            if (window.app) {
+                console.log('[MagicCreate v4] Explicitly forcing UI update. ActivePage:', window.store?.state?.activePageId);
+
+                // CRITICAL: Ensure photos are in store.state.assets
+                // The persistence restore may have cleared assets.photos. We must
+                // re-populate them from the allPhotos passed to createWithApprovedPhotos.
+                if (window.store && allPhotos && allPhotos.length > 0) {
+                    if (!window.store.state.assets) window.store.state.assets = { photos: [] };
+                    if (!window.store.state.assets.photos || window.store.state.assets.photos.length === 0) {
+                        console.log('[MagicCreate v4] Restoring', allPhotos.length, 'photos to store.state.assets');
+                        window.store.state.assets.photos = allPhotos;
+                    } else {
+                        // Merge: add any missing photos
+                        const existing = new Set(window.store.state.assets.photos.map(p => p.id));
+                        const missing = allPhotos.filter(p => !existing.has(p.id));
+                        if (missing.length > 0) {
+                            console.log('[MagicCreate v4] Adding', missing.length, 'missing photos to store.state.assets');
+                            window.store.state.assets.photos.push(...missing);
+                        }
+                    }
+                }
+
+                const currentAssets = window.store.state.assets || { photos: allPhotos || [] };
+                console.log('[MagicCreate v4] Assets available for render:', currentAssets.photos?.length, 'photos');
+
+                // NOW store _magicAssets backup AFTER photos are restored
+                window._magicAssets = { photos: [...(currentAssets.photos || [])] };
+
+                // 1. Rebuild timeline thumbnails
+                if (window.app.updateTimeline) {
+                    window.app.updateTimeline(contentPages, contentPages.length > 0 ? contentPages[0].id : null);
+                }
+                // 2. Render the FIRST content page DIRECTLY to canvas-container
+                // We bypass renderActivePage() because store.state.pages sometimes
+                // returns stale data due to auth observer/Proxy timing issues.
+                const firstPage = contentPages[0];
+                if (firstPage && window.app.renderer) {
+                    const canvas = document.getElementById('canvas-container');
+                    if (canvas) {
+                        console.log('[MagicCreate v4] Direct render of page', firstPage.id, 'to canvas-container');
+                        window.app.renderer.renderPageToContainer(
+                            firstPage,
+                            currentAssets,
+                            canvas,
+                            null
+                        );
+                    }
+                }
+                // 3. Trigger auto-save manually (since we skipped notify)
+                if (window.app.saveDebounced) {
+                    window.app.saveDebounced(window.store.state);
+                }
+
+                // 4. VERIFY cover state survived (debug)
+                const finalCover = window.store.state.cover;
+                console.log('[MagicCreate v4] POST-RENDER cover verification:', JSON.stringify({
+                    background: finalCover?.background,
+                    theme: finalCover?.theme,
+                    title: finalCover?.title
+                }));
+            }
+
+            console.log('[MagicCreate v4] UI Fully Rendered. Pages:', contentPages.length, 'Active:', window.store?.state?.activePageId);
         }
 
         // Show success message
@@ -380,29 +605,28 @@ class MagicCreateV4 {
         if (!progress) {
             progress = document.createElement('div');
             progress.className = 'mc4-progress';
+            progress.innerHTML = `
+                <div class="mc4-magic-scene">
+                    <div class="mc4-book">
+                        <div class="mc4-page mc4-page-1"></div>
+                        <div class="mc4-page mc4-page-2"></div>
+                        <div class="mc4-page mc4-page-3"></div>
+                    </div>
+                    <div class="mc4-wand"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                    <div class="mc4-sparkles">
+                        <span>✨</span><span>✨</span><span>✨</span>
+                    </div>
+                </div>
+                <div class="mc4-status">
+                    <h3>Magic Create</h3>
+                    <p id="mc4-dynamic-msg">Initializing...</p>
+                </div>
+            `;
             document.body.appendChild(progress);
         }
 
-        // Build initial HTML structure
-        progress.innerHTML = `
-            <div class="mc4-magic-scene">
-                <div class="mc4-book">
-                    <div class="mc4-page mc4-page-1"></div>
-                    <div class="mc4-page mc4-page-2"></div>
-                    <div class="mc4-page mc4-page-3"></div>
-                </div>
-                <div class="mc4-wand">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                </div>
-                <div class="mc4-sparkles">
-                    <span>✨</span><span>✨</span><span>✨</span>
-                </div>
-            </div>
-            <div class="mc4-status">
-                <h3>Creating Magic</h3>
-                <p id="mc4-dynamic-msg">Initializing...</p>
-            </div>
-        `;
+        // Remove fade out if it was previously hiding to prevent disappearing bug
+        progress.classList.remove('mc4-fade-out');
         progress.style.display = 'flex';
 
         // Set up real-time visible steps interval to reflect Vision processing

@@ -29,11 +29,13 @@ export class RenderEngine {
         pageEl.style.position = 'relative';
         pageEl.style.overflow = 'hidden';
 
+        console.log(`[RenderEngine] Rendering page ${page.id} to container ${container.id || 'preview'}. Layout:`, page.layout, 'Background:', page.background);
+
         // Apply Background based on Theme
         // Apply Background based on Theme or DesignedPage
         const theme = window.BACKGROUND_TEXTURES?.find(t => t.id === page.background);
         if (theme) {
-            if (theme.url.startsWith('http') || theme.url.startsWith('assets')) {
+            if (theme.url.startsWith('http') || theme.url.startsWith('assets') || theme.url.startsWith('data:')) {
                 pageEl.style.backgroundImage = `url('${theme.url}')`;
                 pageEl.style.backgroundSize = 'cover';
             } else {
@@ -46,7 +48,7 @@ export class RenderEngine {
             if (bg.textureId) {
                 const theme = window.BACKGROUND_TEXTURES?.find(t => t.id === bg.textureId);
                 if (theme) {
-                    if (theme.url.startsWith('http') || theme.url.startsWith('assets')) {
+                    if (theme.url.startsWith('http') || theme.url.startsWith('assets') || theme.url.startsWith('data:')) {
                         pageEl.style.backgroundImage = `url('${theme.url}')`;
                         pageEl.style.backgroundSize = 'cover';
                     } else {
@@ -95,6 +97,17 @@ export class RenderEngine {
                 slotEl.style.height = `${parseFloat(slot.height)}%`;
                 slotEl.style.overflow = 'hidden';
 
+                // Apply shape mask (clip-path)
+                const shape = slot.shape || page.imageShape || 'rect';
+                if (shape === 'circle') {
+                    slotEl.style.clipPath = 'circle(50% at 50% 50%)';
+                } else if (shape === 'oval') {
+                    slotEl.style.clipPath = 'ellipse(50% 45% at 50% 50%)';
+                } else if (shape === 'rounded') {
+                    slotEl.style.borderRadius = '16px';
+                }
+                // 'rect' = no clip-path needed
+
                 // Draggable for Swapping
                 slotEl.draggable = true;
 
@@ -120,17 +133,27 @@ export class RenderEngine {
 
                 // Add Photo
                 // Fallback for assetId (Legacy/Backend format mismatch)
-                const targetId = slot.photoId || slot.assetId;
+                const targetId = slot.photoId || slot.assetId || slot.id || (slot.photoIndex !== undefined ? `index_${slot.photoIndex}` : null);
                 slotEl.dataset.selectableId = targetId; // Required for drag-and-drop (frames/swaps)
 
-                const photo = assets.photos.find(p => p.id == targetId); // Relaxed matching
+                const photo = assets.photos.find(p => p.id == targetId || p.id === slot.photoId); // Relaxed matching
 
                 // DEBUG: Trace rendering
                 if (!photo) {
                     // Only warn if we actually have a targetId but can't find the photo
-                    if (targetId) {
-                        console.warn(`[RenderEngine] Photo NOT FOUND for slot. ID: ${targetId}. Available: ${assets.photos.length}`);
-                    }
+                    console.warn(`[RenderEngine] Photo NOT FOUND for slot. ID: ${targetId}. Available: ${assets.photos.length}`);
+
+                    const err = document.createElement('div');
+                    err.style.width = '100%';
+                    err.style.height = '100%';
+                    err.style.background = 'rgba(255, 0, 0, 0.5)';
+                    err.style.color = 'white';
+                    err.style.display = 'flex';
+                    err.style.alignItems = 'center';
+                    err.style.justifyContent = 'center';
+                    err.style.fontSize = '12px';
+                    err.innerHTML = `Missing Photo<br>${targetId || 'No ID'}`;
+                    slotEl.appendChild(err);
                 }
 
                 if (photo) {
@@ -140,8 +163,18 @@ export class RenderEngine {
                     // The Canvas ONLY needs thumbnails (low memory). High-res is only pulled by PDF export engine.
                     let src = photo.thumbnailUrl || photo.url || photo.rawBaseUrl;
 
+                    if (!src) {
+                        img.src = 'assets/placeholder-image.png';
+                        slotEl.style.border = '2px solid orange';
+                        console.warn(`[RenderEngine] Photo has no URLs:`, photo);
+                    }
+
                     img.style.width = '100%';
                     img.style.height = '100%';
+                    // Add skeleton shimmer for visual feedback while large un-cached images load
+                    img.style.background = '#e2e8f0';
+                    img.style.minHeight = '100px';
+                    img.onload = () => { img.style.background = 'transparent'; };
 
                     // --- VERY FAST SMART CROP (SYNCHRONOUS) ---
                     img.style.objectFit = 'cover';
@@ -178,11 +211,11 @@ export class RenderEngine {
                     if (photo.source === 'google-photos' || (src && src.includes('googleusercontent.com'))) {
                         // Google Photos allows direct rendering of standard URLs with `=w` params without hitting 403 on standard tags
                         // Apply reasonable generic limit `=w800` to Google Photos URLs if no equal sign is present to save memory.
-                        let targetParams = src;
-                        if (!targetParams.includes('=')) targetParams += '=w800';
-                        else if (targetParams.includes('=d')) targetParams = targetParams.replace('=d', '=w800'); // downgrade =d to =w800 on UI
+                        let targetParams = src || '';
+                        if (targetParams && !targetParams.includes('=')) targetParams += '=w800';
+                        else if (targetParams && targetParams.includes('=d')) targetParams = targetParams.replace('=d', '=w800'); // downgrade =d to =w800 on UI
 
-                        img.src = photo.thumbnailUrl || targetParams;
+                        img.src = photo.thumbnailUrl || targetParams || 'assets/placeholder-image.png';
 
                         // Fallback
                         img.onerror = () => {
@@ -362,7 +395,8 @@ export class RenderEngine {
         }
 
         // 4. Render Elements (Text, Shapes)
-        if (page.elements) {
+        if (page.elements && Array.isArray(page.elements)) {
+            console.log(`[RenderEngine] Rendering ${page.elements.length} elements for page ${page.id}`);
             page.elements.forEach(el => {
                 const domEl = document.createElement('div');
                 domEl.className = `page-element element-${el.type}`;
@@ -399,15 +433,62 @@ export class RenderEngine {
                     if (el.textAlign) domEl.style.textAlign = el.textAlign;
 
                     domEl.textContent = el.content;
+
+                    // Auto-detect Hebrew content and apply RTL + Hebrew font
+                    const hebrewRegex = /[\u0590-\u05FF]/;
+                    if (hebrewRegex.test(el.content)) {
+                        domEl.style.direction = 'rtl';
+                        domEl.style.textAlign = el.textAlign || 'right';
+                        domEl.style.unicodeBidi = 'plaintext';
+                        // Apply Hebrew font — use page.fontId for variety, fallback to Fredoka
+                        if (!el.fontFamily) {
+                            const FONT_MAP = {
+                                'fredoka': "'Fredoka', sans-serif",
+                                'heebo': "'Heebo', sans-serif",
+                                'amatic-sc': "'Amatic SC', cursive",
+                                'frank-ruhl-libre': "'Frank Ruhl Libre', serif",
+                                'varela-round': "'Varela Round', sans-serif",
+                                'rubik': "'Rubik', sans-serif",
+                                'playpen-sans-hebrew': "'Playpen Sans Hebrew', cursive",
+                            };
+                            const pageFontId = page.fontId;
+                            const fontFamily = (pageFontId && FONT_MAP[pageFontId]) ? FONT_MAP[pageFontId] : "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Amatic SC', 'Heebo', sans-serif";
+                            domEl.style.fontFamily = fontFamily;
+                        }
+                    }
                 }
 
-                // (Shapes/Containers simplified for brevity in this view, same logic as before)
                 else if (el.type === 'shape') {
                     domEl.classList.add('shape-element');
                     if (el.subtype) domEl.classList.add(el.subtype);
                     domEl.style.width = `${el.width}%`;
                     domEl.style.height = `${el.height}%`;
                     if (el.color) domEl.style.backgroundColor = el.color;
+                }
+
+                else if (el.type === 'element') {
+                    domEl.classList.add('visual-element');
+                    if (el.pixelWidth) domEl.style.width = el.pixelWidth;
+                    else domEl.style.width = '100px';
+
+                    if (el.pixelHeight) domEl.style.height = el.pixelHeight;
+                    else domEl.style.height = '100px';
+
+                    const img = document.createElement('img');
+                    img.src = el.url;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'contain';
+                    // We don't want the image itself to be draggable by the browser's default behavior, dragging should be handled by Moveable/App logic
+                    img.draggable = false;
+
+                    let filterStr = '';
+                    if (el.filterHue) filterStr += `hue-rotate(${el.filterHue}deg) `;
+                    if (el.filterBrightness && el.filterBrightness !== 100) filterStr += `brightness(${el.filterBrightness}%) `;
+                    if (el.filterShadow) filterStr += `drop-shadow(2px 4px 6px ${el.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
+                    if (filterStr) img.style.filter = filterStr.trim();
+
+                    domEl.appendChild(img);
                 }
 
                 if (el.id === selectionId) {
@@ -464,6 +545,7 @@ export class RenderEngine {
         }
 
         container.appendChild(pageEl);
+        console.log(`[RenderEngine] Finished rendering page ${page.id}. Child nodes: ${pageEl.childNodes.length}`);
     }
 
     /**
@@ -532,7 +614,7 @@ export class RenderEngine {
                 // Check global textures
                 const globalTheme = window.BACKGROUND_TEXTURES?.find(t => t.id === cover.theme);
                 if (globalTheme) {
-                    if (globalTheme.url.startsWith('http') || globalTheme.url.startsWith('assets')) {
+                    if (globalTheme.url.startsWith('http') || globalTheme.url.startsWith('assets') || globalTheme.url.startsWith('data:')) {
                         el.style.backgroundImage = `url('${globalTheme.url}')`;
                         el.style.backgroundSize = 'cover';
                     } else {
@@ -599,12 +681,18 @@ export class RenderEngine {
         spineEl.style.boxShadow = 'inset 2px 0 5px rgba(0,0,0,0.2)';
 
         const spineText = document.createElement('div');
-        spineText.textContent = cover.spineText || cover.title;
+        const spineContent = cover.spineText || cover.title;
+        spineText.textContent = spineContent;
         spineText.style.writingMode = 'vertical-rl';
         spineText.style.transform = 'rotate(180deg)';
         spineText.style.fontFamily = titleFont;
         spineText.style.fontSize = '14px';
         spineText.style.color = textColor;
+        // Hebrew spine text
+        const _heRegex = /[\u0590-\u05FF]/;
+        if (_heRegex.test(spineContent)) {
+            spineText.style.fontFamily = "'Fredoka', 'Heebo', sans-serif";
+        }
         spineEl.appendChild(spineText);
         wrapper.appendChild(spineEl);
 
@@ -651,6 +739,22 @@ export class RenderEngine {
         subEl.style.opacity = '0.85';
         subEl.dataset.selectableId = 'cover-subtitle';
         subEl.dataset.selectableType = 'cover-text';
+
+        // Auto-detect Hebrew and apply RTL + Hebrew fonts
+        const hebrewRegex = /[\u0590-\u05FF]/;
+        const titleIsHebrew = hebrewRegex.test(cover.title || '');
+        const subtitleIsHebrew = hebrewRegex.test(cover.subtitle || '');
+        if (titleIsHebrew || subtitleIsHebrew) {
+            titleGroup.style.direction = 'rtl';
+            if (titleIsHebrew) {
+                titleEl.style.fontFamily = "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Heebo', sans-serif";
+                titleEl.style.direction = 'rtl';
+            }
+            if (subtitleIsHebrew) {
+                subEl.style.fontFamily = "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Heebo', sans-serif";
+                subEl.style.direction = 'rtl';
+            }
+        }
 
         titleGroup.appendChild(titleEl);
         titleGroup.appendChild(subEl);
