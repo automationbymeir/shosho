@@ -422,16 +422,8 @@ class App {
         });
 
         // Setup Auto-Save on all changes
-        store.subscribe((state, prop, val) => {
-            // Don't save on ephemeral props if desired, but for now save everything
-            if (prop !== 'selection' && prop !== 'user') {
-                this.saveDebounced(state);
-
-                // Update Timeline Preview for Active Page dynamically
-                // ONLY update the active thumbnail, don't rebuild the entire timeline.
-                this.updateActiveThumbnailOnly();
-            }
-        });
+        // NOTE: Auto-save and timeline updates are handled by the main subscriber
+        // in setupEventListeners(). No duplicate subscriber here.
     }
 
     updateActiveThumbnailOnly() {
@@ -1001,8 +993,9 @@ class App {
 
             // Groundwork for Moveable transformations mapped to inline styles
             this.moveableInstance.on('drag', ({ target, transform, left, top }) => {
-                // Clamp drag within the cover/page container boundaries
-                const parent = target.closest('.cover-front, .cover-back, [class*="cover"]') || target.parentElement;
+                // Clamp drag within the cover/page SECTION boundaries
+                // IMPORTANT: Use .cover-section (front-cover/back-cover) not .cover-text-area!
+                const parent = target.closest('.cover-section.front-cover, .cover-section.back-cover, .album-page') || target.parentElement;
                 if (parent) {
                     const parentRect = parent.getBoundingClientRect();
                     const targetRect = target.getBoundingClientRect();
@@ -1077,10 +1070,12 @@ class App {
             if (!store.state.cover.textStyles) store.state.cover.textStyles = {};
             if (!store.state.cover.textStyles[id]) store.state.cover.textStyles[id] = {};
 
-            // Get the parent cover container for percentage calculations
-            const coverContainer = target.closest('.cover-front, .cover-back, [class*="cover"]') || target.parentElement;
-            if (!coverContainer) return;
-            const containerRect = coverContainer.getBoundingClientRect();
+            // Get the ACTUAL positioning context for this element.
+            // offsetParent returns the nearest positioned ancestor, which is where
+            // position:absolute will be calculated relative to.
+            const positioningContext = target.offsetParent || target.parentElement;
+            if (!positioningContext) return;
+            const containerRect = positioningContext.getBoundingClientRect();
 
             // Use getBoundingClientRect to get the element's ACTUAL rendered position
             // This correctly handles flexbox-positioned elements where CSS left/top are not set
@@ -1411,45 +1406,70 @@ class App {
 
         // Subscribe to state changes
         store.subscribe((state, prop, value) => {
-            // TRIGGER AUTO-SAVE
+            // === AUTO-SAVE (debounced) ===
             if (['pages', 'cover', 'coverPosition', 'assets', 'theme', 'history_restore'].includes(prop)) {
                 if (this.saveDebounced) this.saveDebounced(state);
             }
 
+            // === ASSET SIDEBAR (rate-limited) ===
             if (prop === 'assets') {
-                if (this.renderAssetSidebar) this.renderAssetSidebar();
+                if (!this._assetSidebarPending) {
+                    this._assetSidebarPending = true;
+                    requestAnimationFrame(() => {
+                        this._assetSidebarPending = false;
+                        if (this.renderAssetSidebar) this.renderAssetSidebar();
+                    });
+                }
             }
 
+            // === MAIN RENDER LOOP (batched via RAF) ===
             if (prop === 'activePageId' || prop === 'pages' || prop === 'selection' || prop === 'theme' || prop === 'viewMode' || prop === 'cover' || prop === 'history_restore') {
 
-                // PERFORMANCE OPTIMIZATION: Only rerender the main heavy canvas if the structure changed
-                // (pages, cover) or we switched views. Do NOT rerender canvas for just selection change.
-                // ALSO: Suppress during Magic Create state setup (it does its own explicit render)
-                if (prop !== 'selection' && !this._magicCreateRendering) {
-                    if (state.viewMode === 'cover') {
-                        this.renderCoverWithTemplate();
-                    } else {
-                        // IMPORTANT: Use renderActivePage() instead of renderer.renderPage()
-                        // This ensures template-specific renderers are used consistently
-                        this.renderActivePage();
-                    }
-                }
+                // Track what needs updating
+                if (!this._pendingUpdates) this._pendingUpdates = new Set();
+                this._pendingUpdates.add(prop);
 
-                // If only selection changed, we don't need to rebuild the timeline
-                if (prop === 'activePageId' || prop === 'viewMode') {
-                    this.updateTimelineActiveState(state);
-                } else if (prop !== 'selection') {
-                    this.updateTimeline(state.pages, state.activePageId);
-                }
+                // Batch render via requestAnimationFrame — prevents multiple renders per frame
+                if (!this._rafPending) {
+                    this._rafPending = true;
+                    requestAnimationFrame(() => {
+                        this._rafPending = false;
+                        const updates = this._pendingUpdates;
+                        this._pendingUpdates = new Set();
 
-                // Update properties panel ONLY if selection or view context changes to prevent focus loss during typing
-                if (prop === 'selection' || prop === 'viewMode' || prop === 'activePageId') {
-                    this.updatePropertiesPanel(state);
+                        const needsCanvasRender = updates.has('pages') || updates.has('cover') ||
+                            updates.has('activePageId') || updates.has('theme') ||
+                            updates.has('viewMode') || updates.has('history_restore');
+
+                        // Canvas render — skip for selection-only changes and coverPosition (text drag)
+                        if (needsCanvasRender && !this._magicCreateRendering) {
+                            if (state.viewMode === 'cover') {
+                                this.renderCoverWithTemplate();
+                            } else {
+                                this.renderActivePage();
+                            }
+                        }
+
+                        // Timeline — only rebuild when structure changes
+                        if (updates.has('activePageId') || updates.has('viewMode')) {
+                            this.updateTimelineActiveState(state);
+                        } else if (updates.has('pages') || updates.has('theme') || updates.has('history_restore')) {
+                            this.updateTimeline(state.pages, state.activePageId);
+                            this.updateActiveThumbnailOnly();
+                        }
+
+                        // Properties panel — only when selection or view switches
+                        if (updates.has('selection') || updates.has('viewMode') || updates.has('activePageId')) {
+                            this.updatePropertiesPanel(state);
+                        }
+
+                        // Moveable — only when selection-relevant changes occur
+                        if (updates.has('selection') || needsCanvasRender) {
+                            this.updateMoveable(state);
+                        }
+                    });
                 }
             }
-
-            // Attach/Update Moveable after the DOM has been fully re-rendered
-            this.updateMoveable(state);
         });
 
         // ... existing code ...

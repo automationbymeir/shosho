@@ -952,7 +952,8 @@ export class UnifiedCoverRenderer {
             width: 100%;
             flex-shrink: 1;
             min-height: 0;
-            overflow: hidden;
+            overflow: visible;
+            position: relative;
         `;
 
         // Title
