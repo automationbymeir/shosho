@@ -431,21 +431,35 @@ class MagicCreateV4 {
                 // Identify back cover
                 const isBackCover = page.templateId === 'back-cover' || (page.id && page.id.startsWith('page_backcover_'));
 
+                // Layout definitions for resolving string layouts from the AI backend
+                const LAYOUTS = {
+                    "single": [{ "x": 10, "y": 10, "width": 80, "height": 80 }],
+                    "two-vertical": [{ "x": 10, "y": 5, "width": 80, "height": 43 }, { "x": 10, "y": 52, "width": 80, "height": 43 }],
+                    "two-horizontal": [{ "x": 5, "y": 15, "width": 43, "height": 70 }, { "x": 52, "y": 15, "width": 43, "height": 70 }],
+                    "three-left": [{ "x": 5, "y": 5, "width": 55, "height": 90 }, { "x": 63, "y": 5, "width": 32, "height": 43 }, { "x": 63, "y": 52, "width": 32, "height": 43 }],
+                    "three-right": [{ "x": 10, "y": 5, "width": 80, "height": 50 }, { "x": 10, "y": 58, "width": 38, "height": 37 }, { "x": 52, "y": 58, "width": 38, "height": 37 }],
+                    "four-grid": [{ "x": 5, "y": 5, "width": 43, "height": 43 }, { "x": 52, "y": 5, "width": 43, "height": 43 }, { "x": 5, "y": 52, "width": 43, "height": 43 }, { "x": 52, "y": 52, "width": 43, "height": 43 }],
+                    "collage-5": [{ "x": 5, "y": 5, "width": 43, "height": 43 }, { "x": 52, "y": 5, "width": 43, "height": 43 }, { "x": 5, "y": 52, "width": 43, "height": 43 }, { "x": 52, "y": 52, "width": 20, "height": 20 }, { "x": 75, "y": 52, "width": 20, "height": 20 }],
+                    "collage-6": [{ "x": 5, "y": 5, "width": 30, "height": 40 }, { "x": 38, "y": 5, "width": 24, "height": 40 }, { "x": 65, "y": 5, "width": 30, "height": 40 }, { "x": 5, "y": 50, "width": 30, "height": 40 }, { "x": 38, "y": 50, "width": 24, "height": 40 }, { "x": 65, "y": 50, "width": 30, "height": 40 }]
+                };
+
+                // CRITICAL: Resolve string layout → object layout BEFORE trying to use slots
+                // The AI backend returns layout as a string ID (e.g., "four-grid")
+                // but the renderer expects an object with { id, slots }
+                if (typeof page.layout === 'string') {
+                    const layoutId = page.layout;
+                    const slotsTemplate = LAYOUTS[layoutId] || LAYOUTS["single"];
+                    page.layout = {
+                        id: layoutId,
+                        slots: slotsTemplate.map(s => ({ ...s })) // deep clone the slots
+                    };
+                    console.log(`[MagicCreate v4] Resolved layout string "${layoutId}" → ${page.layout.slots.length} slots`);
+                }
+
                 // Hydrate page.photos from layout.slots if missing
                 if (!page.photos && page.layout && page.layout.slots) {
                     const assetPhotos = window.store.state.assets.photos;
                     const pagePhotos = [];
-                    // Inject layout metrics if missing
-                    const LAYOUTS = {
-                        "single": [{ "x": 10, "y": 10, "width": 80, "height": 80 }],
-                        "two-vertical": [{ "x": 10, "y": 5, "width": 80, "height": 43 }, { "x": 10, "y": 52, "width": 80, "height": 43 }],
-                        "two-horizontal": [{ "x": 5, "y": 15, "width": 43, "height": 70 }, { "x": 52, "y": 15, "width": 43, "height": 70 }],
-                        "three-left": [{ "x": 5, "y": 5, "width": 55, "height": 90 }, { "x": 63, "y": 5, "width": 32, "height": 43 }, { "x": 63, "y": 52, "width": 32, "height": 43 }],
-                        "three-right": [{ "x": 10, "y": 5, "width": 80, "height": 50 }, { "x": 10, "y": 58, "width": 38, "height": 37 }, { "x": 52, "y": 58, "width": 38, "height": 37 }],
-                        "four-grid": [{ "x": 5, "y": 5, "width": 43, "height": 43 }, { "x": 52, "y": 5, "width": 43, "height": 43 }, { "x": 5, "y": 52, "width": 43, "height": 43 }, { "x": 52, "y": 52, "width": 43, "height": 43 }],
-                        "collage-5": [{ "x": 5, "y": 5, "width": 43, "height": 43 }, { "x": 52, "y": 5, "width": 43, "height": 43 }, { "x": 5, "y": 52, "width": 43, "height": 43 }, { "x": 52, "y": 52, "width": 20, "height": 20 }, { "x": 75, "y": 52, "width": 20, "height": 20 }],
-                        "collage-6": [{ "x": 5, "y": 5, "width": 30, "height": 40 }, { "x": 38, "y": 5, "width": 24, "height": 40 }, { "x": 65, "y": 5, "width": 30, "height": 40 }, { "x": 5, "y": 50, "width": 30, "height": 40 }, { "x": 38, "y": 50, "width": 24, "height": 40 }, { "x": 65, "y": 50, "width": 30, "height": 40 }]
-                    };
                     const layoutMetrics = LAYOUTS[page.layout.id] || LAYOUTS["single"];
 
                     page.layout.slots.forEach((slot, idx) => {

@@ -4263,8 +4263,6 @@ class App {
                 this._rafPending = false;
                 this._pendingUpdates = new Set();
 
-                const container = document.getElementById('canvas-container');
-                if (container) container.innerHTML = '';
                 this.renderCoverWithTemplate();
                 this.updateTimelineActiveState(store.state);
                 this.updatePropertiesPanel(store.state);
@@ -4367,9 +4365,7 @@ class App {
                 this._rafPending = false;
                 this._pendingUpdates = new Set();
 
-                // 4. DIRECTLY clear the canvas and render the page
-                const container = document.getElementById('canvas-container');
-                if (container) container.innerHTML = '';
+                // 4. Render the page (renderPage already clears the container)
                 this.renderActivePage();
 
                 // 5. Sync all UI panels

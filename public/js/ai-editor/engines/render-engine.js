@@ -81,7 +81,33 @@ export class RenderEngine {
             }
         }
 
-        // 2. Render Photo Slots
+        // 2. Resolve layout string → layout object (Magic Create sends layout as a string ID)
+        if (typeof page.layout === 'string') {
+            const LAYOUT_DEFINITIONS = {
+                "single": { id: "single", slots: [{ x: 10, y: 10, width: 80, height: 80 }] },
+                "two-vertical": { id: "two-vertical", slots: [{ x: 10, y: 5, width: 80, height: 43 }, { x: 10, y: 52, width: 80, height: 43 }] },
+                "two-horizontal": { id: "two-horizontal", slots: [{ x: 5, y: 15, width: 43, height: 70 }, { x: 52, y: 15, width: 43, height: 70 }] },
+                "three-left": { id: "three-left", slots: [{ x: 5, y: 5, width: 55, height: 90 }, { x: 63, y: 5, width: 32, height: 43 }, { x: 63, y: 52, width: 32, height: 43 }] },
+                "three-right": { id: "three-right", slots: [{ x: 10, y: 5, width: 80, height: 50 }, { x: 10, y: 58, width: 38, height: 37 }, { x: 52, y: 58, width: 38, height: 37 }] },
+                "four-grid": { id: "four-grid", slots: [{ x: 5, y: 5, width: 43, height: 43 }, { x: 52, y: 5, width: 43, height: 43 }, { x: 5, y: 52, width: 43, height: 43 }, { x: 52, y: 52, width: 43, height: 43 }] },
+                "collage-5": { id: "collage-5", slots: [{ x: 5, y: 5, width: 43, height: 43 }, { x: 52, y: 5, width: 43, height: 43 }, { x: 5, y: 52, width: 43, height: 43 }, { x: 52, y: 52, width: 20, height: 20 }, { x: 75, y: 52, width: 20, height: 20 }] },
+                "collage-6": { id: "collage-6", slots: [{ x: 5, y: 5, width: 30, height: 40 }, { x: 38, y: 5, width: 24, height: 40 }, { x: 65, y: 5, width: 30, height: 40 }, { x: 5, y: 50, width: 30, height: 40 }, { x: 38, y: 50, width: 24, height: 40 }, { x: 65, y: 50, width: 30, height: 40 }] }
+            };
+            const resolved = LAYOUT_DEFINITIONS[page.layout];
+            if (resolved) {
+                console.log(`[RenderEngine] Resolved layout string "${page.layout}" → object with ${resolved.slots.length} slots`);
+                page.layout = { ...resolved }; // Mutate page so future renders don't need resolution
+            } else {
+                console.warn(`[RenderEngine] Unknown layout string: "${page.layout}", falling back to single`);
+                page.layout = { ...LAYOUT_DEFINITIONS["single"] };
+            }
+        }
+        // Also ensure layout has slots array
+        if (page.layout && !page.layout.slots) {
+            page.layout.slots = [];
+        }
+
+        // 3. Render Photo Slots
         if (page.layout && page.layout.slots) {
             const pageWidth = container.clientWidth || 800; // Fallback for headless/hidden
             const pageHeight = container.clientHeight || 600;
