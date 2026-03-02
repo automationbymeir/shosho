@@ -220,18 +220,21 @@ export class PDFExport {
 
             // 2. Font & Text Color
             this.doc.setTextColor(cover.textColor || "#000000");
-            const fontName = this.mapFont(cover.theme);
-            this.doc.setFont(fontName, "bold");
 
             // 3. Layout Logic
             if (cover.layout === 'full-bleed') {
                 if (cover.frontPhotoId) {
                     await this.drawImage(cover.frontPhotoId, 0, 0, width, height, assets);
                 }
-                // Text Overlay
+                // Text Overlay - FIX: Pass content for Hebrew font detection
                 this.doc.setFontSize(24);
+                const titleFont = this.mapFont(cover.titleFont || cover.theme, null, cover.title);
+                this.doc.setFont(titleFont, "bold");
                 this.doc.text(this.processText(cover.title), width / 2, height - 30, { align: 'center' });
+
                 this.doc.setFontSize(14);
+                const subFont = this.mapFont(cover.subtitleFont || cover.theme, null, cover.subtitle);
+                this.doc.setFont(subFont, "normal");
                 this.doc.text(this.processText(cover.subtitle), width / 2, height - 20, { align: 'center' });
             } else {
                 // Standard
@@ -240,8 +243,13 @@ export class PDFExport {
                     await this.drawImage(cover.frontPhotoId, width * 0.1, height * 0.1, width * 0.8, height * 0.6, assets);
                 }
                 this.doc.setFontSize(24);
+                const titleFont = this.mapFont(cover.titleFont || cover.theme, null, cover.title);
+                this.doc.setFont(titleFont, "bold");
                 this.doc.text(this.processText(cover.title), width / 2, height - 80, { align: 'center' });
+
                 this.doc.setFontSize(14);
+                const subFont = this.mapFont(cover.subtitleFont || cover.theme, null, cover.subtitle);
+                this.doc.setFont(subFont, "normal");
                 this.doc.text(this.processText(cover.subtitle), width / 2, height - 60, { align: 'center' });
             }
         }
@@ -258,10 +266,8 @@ export class PDFExport {
 
         // 2. Render spine text vertically centered
         if (cover.title || cover.subtitle) {
-            // Set font and color
+            // Set text color
             this.doc.setTextColor(cover.textColor || "#FFFFFF");
-            const fontName = this.mapFont(cover.theme);
-            this.doc.setFont(fontName, "bold");
 
             // Calculate center of page
             const centerX = width / 2;
@@ -270,14 +276,14 @@ export class PDFExport {
             // Save graphics state
             this.doc.saveGraphicsState();
 
-            // Rotate text 90 degrees for spine
-            // Move to center, rotate, then draw text
-            const angle = 90;
-            this.doc.setFontSize(18);
-
             // For spine text, we rotate and position vertically
             // Title
             if (cover.title) {
+                this.doc.setFontSize(18);
+                // FIX: Pass actual text content to mapFont for correct Hebrew detection
+                const fontName = this.mapFont(cover.titleFont || cover.theme, null, cover.title);
+                this.doc.setFont(fontName, "bold");
+
                 const processedTitle = this.processText(cover.title);
                 // Position for vertical spine text
                 this.doc.text(processedTitle, centerX, centerY - 20, {
@@ -289,6 +295,10 @@ export class PDFExport {
             // Subtitle (if exists)
             if (cover.subtitle) {
                 this.doc.setFontSize(12);
+                // FIX: Pass actual text content to mapFont for correct Hebrew detection
+                const fontName = this.mapFont(cover.subtitleFont || cover.theme, null, cover.subtitle);
+                this.doc.setFont(fontName, "normal");
+
                 const processedSubtitle = this.processText(cover.subtitle);
                 this.doc.text(processedSubtitle, centerX, centerY + 40, {
                     align: 'center',
@@ -1525,12 +1535,15 @@ export class PDFExport {
                             // Register Alef as "Rubik" to satisfy existing mapFont logic without refactoring
                             this.doc.addFileToVFS('Alef-Regular.ttf', base64data);
                             this.doc.addFont('Alef-Regular.ttf', 'Rubik', 'normal');
+                            // Also register as bold - jsPDF needs explicit registration per style
+                            // Using same font file for bold since we only have regular weight
+                            this.doc.addFont('Alef-Regular.ttf', 'Rubik', 'bold');
 
                             // Verify Font Usability
                             console.log("PDF: Verifying Hebrew font...");
                             this.doc.setFont('Rubik', 'normal');
                             this.hebrewFontLoaded = true;
-                            console.log("PDF: Hebrew Font Loaded and Verified.");
+                            console.log("PDF: Hebrew Font Loaded and Verified (normal + bold).");
                             resolve();
                         } catch (e) {
                             console.error("PDF: Error registering or verifying font", e);
