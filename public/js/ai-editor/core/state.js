@@ -141,6 +141,20 @@ class EditorStore {
                 cover: cloneObject(this.state.cover || {}),
                 theme: this.state.theme
             };
+
+            // PERFORMANCE: Strip large base64 data URLs from history to save memory
+            // Keep only URL references — base64 images can be 5-20MB each
+            if (rawSnapshot.pages) {
+                for (const page of rawSnapshot.pages) {
+                    if (page.photos && Array.isArray(page.photos)) {
+                        for (const photo of page.photos) {
+                            if (photo && photo.url && photo.url.startsWith('data:')) {
+                                photo.url = photo.url.substring(0, 100) + '...[base64]';
+                            }
+                        }
+                    }
+                }
+            }
             snapshot = rawSnapshot;
         } catch (e) {
             console.warn("[Store] Failed to push state to history (State too large?):", e);

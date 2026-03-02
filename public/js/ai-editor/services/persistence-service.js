@@ -62,6 +62,9 @@ export const persistenceService = {
     // State
     currentProjectId: null,
     isSaving: false,
+    _lastSaveHash: null,
+    _convertedBlobs: new Map(), // Cache blob URL -> base64 conversions
+    _pendingSave: null,
 
     /**
      * Save the current project state.
@@ -69,9 +72,33 @@ export const persistenceService = {
      */
     async saveProject(userId, projectData, forceCloudSync = false) {
         if (this.isSaving) {
-            console.warn('[Persistence] Save skipped - already in progress.');
+            // Queue a retry instead of silently dropping the save
+            if (!this._pendingSave) {
+                this._pendingSave = setTimeout(() => {
+                    this._pendingSave = null;
+                    this.saveProject(userId, projectData, forceCloudSync);
+                }, 1000);
+            }
             return false;
         }
+
+        // PERFORMANCE: Quick dirty check — skip save if nothing meaningful changed
+        const quickHash = `${(projectData.pages || []).length}:${projectData.cover?.title}:${projectData.activePageId}:${(projectData.assets?.photos || []).length}:${projectData.cover?.layout}:${projectData.theme}`;
+        if (this._lastSaveHash === quickHash && !forceCloudSync) {
+            // Do a deeper check: compare page photo assignments
+            const pagePhotoHash = (projectData.pages || []).map(p =>
+                `${p.id}:${(p.photos || []).map(ph => ph?.id || '').join(',')}`
+            ).join('|');
+            const coverPhotoHash = `${projectData.cover?.frontPhotoId}:${projectData.cover?.backPhotoId}`;
+            const deepHash = `${quickHash}||${pagePhotoHash}||${coverPhotoHash}`;
+
+            if (this._lastDeepHash === deepHash) {
+                console.log('[Persistence] Save skipped — no changes detected.');
+                return false;
+            }
+            this._lastDeepHash = deepHash;
+        }
+        this._lastSaveHash = quickHash;
 
         this.isSaving = true;
 
@@ -99,17 +126,29 @@ export const persistenceService = {
 
             // Convert live active session Blob URLs to Base64 *before* saving locally 
             // because blob:// URLs die when the browser closes.
+            // PERFORMANCE: Use cached conversions to avoid re-fetching same blobs
             if (localDataToSave.state.assets && localDataToSave.state.assets.photos) {
+                let hadBlobConversions = false;
                 for (let photo of localDataToSave.state.assets.photos) {
                     if (photo.url && photo.url.startsWith('blob:')) {
+                        // Check cache first
+                        if (this._convertedBlobs.has(photo.url)) {
+                            photo.url = this._convertedBlobs.get(photo.url);
+                            hadBlobConversions = true;
+                            continue;
+                        }
                         try {
-                            const res = await fetch(photo.url);
+                            const blobUrl = photo.url;
+                            const res = await fetch(blobUrl);
                             const blob = await res.blob();
                             photo.url = await new Promise((resolve, _) => {
                                 const reader = new FileReader();
                                 reader.onloadend = () => resolve(reader.result);
                                 reader.readAsDataURL(blob);
                             });
+                            // Cache the conversion
+                            this._convertedBlobs.set(blobUrl, photo.url);
+                            hadBlobConversions = true;
                         } catch (e) {
                             console.warn("Failed to convert blob to base64 for local save", e);
                         }
@@ -118,7 +157,8 @@ export const persistenceService = {
 
                 // CRITICAL FIX: The pages store photo objects which got deep cloned initially,
                 // so they still have old blob urls. Sync them with the newly converted assets.
-                if (localDataToSave.state.pages && Array.isArray(localDataToSave.state.pages)) {
+                // PERFORMANCE: Only run this when blobs were actually converted
+                if (hadBlobConversions && localDataToSave.state.pages && Array.isArray(localDataToSave.state.pages)) {
                     localDataToSave.state.pages.forEach(page => {
                         if (page.photos && Array.isArray(page.photos)) {
                             page.photos.forEach((pagePhoto, idx) => {

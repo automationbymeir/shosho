@@ -4025,6 +4025,12 @@ class App {
     updateTimelineActiveState(state) {
         const tl = document.getElementById('page-timeline');
         if (!tl) return;
+
+        const activeChanged = this._lastTimelineActiveId !== state.activePageId ||
+            this._lastTimelineViewMode !== state.viewMode;
+        this._lastTimelineActiveId = state.activePageId;
+        this._lastTimelineViewMode = state.viewMode;
+
         Array.from(tl.children).forEach(child => {
             if (child.dataset.isCover === 'true') {
                 if (state.viewMode === 'cover') child.classList.add('active');
@@ -4032,8 +4038,10 @@ class App {
             } else if (child.dataset.pageId) {
                 if (state.viewMode !== 'cover' && child.dataset.pageId === state.activePageId) {
                     child.classList.add('active');
-                    // Ensure it's scrolled into view smoothly
-                    child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    // Only scroll when the active page actually changed
+                    if (activeChanged) {
+                        child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
                 } else {
                     child.classList.remove('active');
                 }
@@ -4045,6 +4053,21 @@ class App {
     updateTimeline(pages, activeId) {
         const tl = document.getElementById('page-timeline');
         if (!tl) return;
+
+        // PERFORMANCE: Skip full rebuild if page structure hasn't changed
+        // Only rebuild when pages are added, removed, or reordered
+        const pageHash = (pages || []).map(p => p.id).join(',');
+        const coverHash = store.state.viewMode === 'cover' ? 'cover' : '';
+        const fullHash = `${coverHash}|${pageHash}`;
+
+        if (this._lastTimelineHash === fullHash) {
+            // Structure unchanged — just update active state and re-render active thumbnail
+            this.updateTimelineActiveState(store.state);
+            this.updateActiveThumbnailOnly();
+            return;
+        }
+        this._lastTimelineHash = fullHash;
+
         tl.innerHTML = '';
 
         // Determine Base Dimensions
@@ -4123,14 +4146,7 @@ class App {
                 preview.style.pointerEvents = 'none';
                 preview.style.background = '#fff';
 
-                // DEBUG: What cover does timeline lazy render see?
                 const coverForRender = store.state.cover;
-                console.log('[Timeline._lazyRender] Cover at render time:', JSON.stringify({
-                    background: coverForRender?.background,
-                    theme: coverForRender?.theme,
-                    title: coverForRender?.title,
-                    id: coverForRender?.id
-                }));
 
                 const templateConfig = manager?.config || null;
                 UnifiedCoverRenderer.render({
