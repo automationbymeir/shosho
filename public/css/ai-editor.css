@@ -142,12 +142,45 @@ body {
     border-radius: 8px;
     overflow: hidden;
     cursor: grab;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+        box-shadow 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     background-position: center;
     background-size: cover;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     position: relative;
     z-index: 1;
+}
+
+/* Solitaire card-dealing animation */
+.asset-item.dealing {
+    animation: solitaire-deal 0.45s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    animation-delay: calc(var(--deal-index, 0) * 60ms);
+    opacity: 0;
+    transform: translate(-80px, -60px) rotate(-15deg) scale(0.6);
+}
+
+@keyframes solitaire-deal {
+    0% {
+        opacity: 0;
+        transform: translate(-80px, -60px) rotate(-15deg) scale(0.6);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    60% {
+        opacity: 1;
+        transform: translate(4px, -4px) rotate(2deg) scale(1.04);
+        box-shadow: -4px 10px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    80% {
+        transform: translate(-2px, 2px) rotate(-1deg) scale(0.98);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translate(0, 0) rotate(0deg) scale(1);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
 }
 
 .asset-item:hover {

@@ -1986,6 +1986,7 @@ class App {
 
                     // Add to assets
                     store.state.assets.photos = [...store.state.assets.photos, ...newPhotos];
+                    this._animateNextRender = true; // Trigger solitaire dealing animation
                     this.renderAssetSidebar();
                     uploadModal.style.display = 'none';
 
@@ -3801,6 +3802,7 @@ class App {
                 store.state.assets.photos = [...store.state.assets.photos, ...photos];
 
                 if (window.app) {
+                    window.app._animateNextRender = true; // Trigger solitaire dealing animation
                     window.app.renderAssetSidebar();
                     store.notify('assets', store.state.assets);
                     // Force refresh active page in case we just cleared it
@@ -3849,11 +3851,26 @@ class App {
         if (store.state.assets.photos.length > 0) {
             console.log("SAMPLE PHOTO:", store.state.assets.photos[0]);
         }
-        store.state.assets.photos.forEach(photo => {
+
+        // Solitaire dealing animation: animated = true when photos were just loaded
+        const shouldAnimate = this._animateNextRender === true;
+        if (shouldAnimate) this._animateNextRender = false;
+
+        store.state.assets.photos.forEach((photo, index) => {
             const el = document.createElement('div');
             el.className = 'asset-item';
             el.draggable = true;
             el.style.position = 'relative';
+
+            // Solitaire dealing: stagger each card's animation
+            if (shouldAnimate) {
+                el.classList.add('dealing');
+                el.style.setProperty('--deal-index', index);
+                // Remove 'dealing' class after animation completes to restore hover
+                const animDuration = 450 + (index * 60) + 50; // animation + delay + buffer
+                setTimeout(() => el.classList.remove('dealing'), animDuration);
+            }
+
             el.innerHTML = `
                 <img src="${photo.thumbnailUrl || photo.url}" draggable="false" style="width:100%; height:100%; object-fit:cover;">
                 <button class="btn-delete-asset" title="Remove Photo" style="position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,0.6); color:white; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; line-height:1;">×</button>
