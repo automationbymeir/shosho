@@ -847,19 +847,28 @@ class App {
             newCover = input.cover || null;
         }
 
+        // FIX: Reset Magic Create rendering flag — if it's still true,
+        // the subscriber will block ALL canvas renders permanently
+        this._magicCreateRendering = false;
+
+        // FIX: Invalidate timeline hash so the timeline rebuilds with new pages
+        this._lastTimelineHash = null;
+
         if (newCover) {
             store.state.cover = newCover;
-            // Notify subscribers about cover update
-            // store.notify('cover', newCover);
+            // FIX: Notify subscribers about cover update (was commented out!)
+            store.notify('cover', newCover);
         }
 
         if (newPages && newPages.length > 0) {
             console.log(`[App] Applying template with ${newPages.length} pages`);
 
+            // FIX: Ensure viewMode is 'pages' (not 'cover') so active page renders
+            store.state.viewMode = 'pages';
             store.state.pages = newPages;
             store.state.activePageId = newPages[0].id;
 
-            // Notify subscribers
+            // Notify subscribers — these trigger RAF-batched timeline + canvas render
             store.notify('pages', store.state.pages);
             store.notify('activePageId', store.state.activePageId);
 
@@ -868,6 +877,9 @@ class App {
                 console.log("[App] Syncing PDF Template Config...");
                 pdfExport.setTemplateConfig(this.templateSidebar.manager.config);
             }
+
+            // FIX: Force explicit timeline rebuild (don't rely solely on RAF subscriber)
+            this.updateTimeline(newPages, newPages[0].id);
 
             // Force re-render of current view
             this.renderActivePage();
