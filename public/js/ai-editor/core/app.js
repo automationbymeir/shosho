@@ -4252,7 +4252,7 @@ class App {
             coverEl.onclick = () => {
                 if (store.state.viewMode === 'cover') return;
 
-                // Set a render lock to prevent subscriber RAF from overwriting
+                // ── ROBUST COVER SWITCH ──
                 this._manualRenderLock = true;
 
                 store._isBatchUpdating = true;
@@ -4260,17 +4260,19 @@ class App {
                 store.state.activePageId = null;
                 store._isBatchUpdating = false;
 
-                // Cancel any pending RAF render
                 this._rafPending = false;
                 this._pendingUpdates = new Set();
 
+                const container = document.getElementById('canvas-container');
+                if (container) container.innerHTML = '';
                 this.renderCoverWithTemplate();
                 this.updateTimelineActiveState(store.state);
                 this.updatePropertiesPanel(store.state);
 
-                // Release render lock after this frame cycle
                 requestAnimationFrame(() => {
-                    this._manualRenderLock = false;
+                    requestAnimationFrame(() => {
+                        this._manualRenderLock = false;
+                    });
                 });
             };
 
@@ -4351,32 +4353,35 @@ class App {
             el.onclick = () => {
                 if (store.state.activePageId === page.id && store.state.viewMode === 'pages') return;
 
-                // Set a render lock to prevent subscriber RAF from overwriting this manual render
+                // ── ROBUST PAGE SWITCH ──
+                // 1. Lock out any pending/future subscriber RAF renders
                 this._manualRenderLock = true;
 
-                // Stop double triggering proxy by batching state changes
+                // 2. Update state SILENTLY (no notifications, no subscriber RAF)
                 store._isBatchUpdating = true;
                 store.state.activePageId = page.id;
                 store.state.viewMode = 'pages';
                 store._isBatchUpdating = false;
 
-                // Cancel any pending RAF render (prevents stale cover render from overwriting)
+                // 3. Cancel any pending RAF renders
                 this._rafPending = false;
                 this._pendingUpdates = new Set();
 
-                // Use template-aware renderActivePage for consistent rendering
+                // 4. DIRECTLY clear the canvas and render the page
+                const container = document.getElementById('canvas-container');
+                if (container) container.innerHTML = '';
                 this.renderActivePage();
 
-                // Update timeline highlight
+                // 5. Sync all UI panels
                 this.updateTimelineActiveState(store.state);
-                // Update properties panel  
                 this.updatePropertiesPanel(store.state);
-                // Update moveable
                 this.updateMoveable(store.state);
 
-                // Release render lock after this frame cycle
+                // 6. Release render lock after 2 frame cycles (guards against delayed RAFs)
                 requestAnimationFrame(() => {
-                    this._manualRenderLock = false;
+                    requestAnimationFrame(() => {
+                        this._manualRenderLock = false;
+                    });
                 });
             };
 
