@@ -1,1905 +1,325 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photo Book Creator</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="alternate icon" href="/favicon.svg">
-
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-functions-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-storage-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics-compat.js"></script>
-
-  <!-- Google Fonts (includes Hebrew support) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&family=Heebo:wght@400;500;600;700;800&family=Alef:wght@400;700&family=Rubik:wght@400;500;600;700;800&family=Assistant:wght@400;500;600;700;800&family=Noto+Sans+Hebrew:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet">
-
-  <!-- Styles -->
-  <link rel="stylesheet" href="/css/styles.css?v=fix_buttons_v1">
-  <link rel="stylesheet" href="/css/modal.css?v=v2_gallery_header_wrap">
-  <!-- Enhanced 3D Book Styles -->
-  <link rel="stylesheet" href="/css/book-3d-enhanced.css">
-  <link rel="stylesheet" href="/css/book-loader.css">
-  <!-- Editorial Swiss Design System -->
-  <link rel="stylesheet" href="/css/editor-redesign.css?v=v46">
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>SHOSHO — Coming Soon | AI-Powered Photo Books</title>
+  <meta name="description"
+    content="SHOSHO is launching soon. AI-powered photo books — beautiful memories, printed perfectly in Jerusalem.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#6366f1",
+            "bg": "#0f172a",
+            "bg-light": "#1e293b",
+          },
+          fontFamily: {
+            "sans": ["Space Grotesk", "sans-serif"],
+          },
+        },
+      },
+    }
+  </script>
   <style>
-    /* CRITICAL LAYOUT FIX - CSS BACKUP */
-    .editor-view-rebuild,
-    .rebuild-main {
-      height: 100vh !important;
-      height: 100dvh !important;
-      min-height: 100% !important;
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: #0f172a;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    /* FIX: Cover Photo Rotation (allow corners outside frame) */
-    .book3d-cover-photo-container {
-      overflow: visible !important;
-      background: transparent !important;
+    /* Ambient glow behind the 3D book */
+    .book-glow {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 0;
     }
 
-    .book3d-cover-photo {
-      /* Ensure image itself doesn't have background */
-      background: transparent !important;
+    /* Glass effect for form */
+    .glass-form {
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Subtle animated gradient border on the badge */
+    .launch-badge {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    /* Pulsing dot animation */
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+      }
+    }
+
+    .pulse-dot {
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    /* Fade-in animation */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-in {
+      animation: fadeInUp 0.8s ease-out forwards;
+    }
+
+    .animate-delay-1 {
+      animation-delay: 0.2s;
+      opacity: 0;
+    }
+
+    .animate-delay-2 {
+      animation-delay: 0.4s;
+      opacity: 0;
+    }
+
+    .animate-delay-3 {
+      animation-delay: 0.6s;
+      opacity: 0;
+    }
+
+    .animate-delay-4 {
+      animation-delay: 0.8s;
+      opacity: 0;
+    }
+
+    /* Success message */
+    .success-msg {
+      display: none;
+      animation: fadeInUp 0.5s ease-out forwards;
+    }
+
+    .success-msg.show {
+      display: flex;
+    }
+
+    .email-form.hide {
+      display: none;
+    }
+
+    /* Social icon hover */
+    .social-icon {
+      transition: all 0.3s ease;
+    }
+
+    .social-icon:hover {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      transform: translateY(-2px);
     }
   </style>
-  <script>
-    // CRITICAL LAYOUT ENFORCER
-    (function () {
-      function forceLayout() {
-        const h = window.innerHeight;
-        const main = document.querySelector('.rebuild-main');
-        const view = document.querySelector('.editor-view-rebuild');
-        if (view) {
-          view.style.height = h + 'px';
-          view.style.width = window.innerWidth + 'px';
-          view.style.position = 'fixed';
-          view.style.inset = '0';
-          view.style.zIndex = '10000';
-        }
-        if (main) {
-          main.style.height = (h - 64) + 'px'; // - header
-          main.style.position = 'fixed';
-          main.style.top = '64px';
-          main.style.bottom = '0';
-          main.style.left = '0';
-          main.style.right = '0';
-        }
-      }
-      window.addEventListener('resize', forceLayout);
-      window.addEventListener('load', forceLayout);
-      // setInterval(forceLayout, 500); // Polling layout fix REMOVED (caused UI bounce)
-    })();
-  </script>
-
-  <!-- Mobile redirect (sends mobile devices to /mobile/*) -->
-  <script src="/js/mobile-redirect.js"></script>
-
-  <!-- Firebase Hosting auto-config (avoids hardcoding apiKey in repo) -->
-  <script src="/__/firebase/init.js"></script>
-
-  <!-- Templates Data -->
-  <script src="/data/templates.js?v=v3_he_gallery_labels"></script>
-  <script src="/data/backgrounds.js?v=v5_image_frames_more"></script>
-
-  <!-- PDF Generation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- Helper Scripts -->
-  <script src="/js/ai-editor/schemas/photo-analysis-schema.js" type="module"></script>
-  <script src="/js/ai-editor/schemas/album-schema.js" type="module"></script>
-  <script src="/js/ai-editor/schemas/page-schema.js" type="module"></script>
-  <script src="/js/ai-editor/services/ai-service.js" type="module"></script>
-  <script src="/js/ai-editor/engines/magic-create-v2.js" type="module"></script>
-  <script src="/js/ai-editor/ui-components/magic-launcher.js" type="module"></script>
 </head>
 
-<body>
-  <!-- Login Screen -->
-  <div id="loginScreen"
-    style="display: none; position: fixed; inset: 0; z-index: 9999; flex-direction: column; align-items: center; justify-content: center; background: var(--color-bg);">
-    <div style="text-align: center; max-width: 400px; padding: 2rem;">
-      <h1 style="font-family: var(--font-serif); color: var(--color-primary); margin-bottom: 1rem;">Photo Book Creator
-      </h1>
-      <p style="color: var(--color-text-light); margin-bottom: 2rem;">Create beautiful photo books from your Google
-        Photos</p>
-      <button onclick="signInWithGoogle()" class="btn btn-primary" style="width: 100%;">
-        Sign in with Google
-      </button>
-    </div>
-  </div>
+<body class="text-white antialiased">
 
-  <div id="app">
-    <!-- Template Gallery View (Initial View) -->
-    <div id="templateGalleryView" class="template-gallery-view">
-      <header class="gallery-header">
-        <div class="gallery-header-content">
-          <h1 class="gallery-title" data-i18n="gallery_title">Create Your Photo Book</h1>
-          <p class="gallery-subtitle" data-i18n="gallery_subtitle">Choose a template to begin</p>
+  <!-- Full-screen layout -->
+  <div class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="relative z-20 px-8 py-6">
+      <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div class="flex items-center gap-3 select-none">
+          <img src="logo-nobg.svg" alt="SHOSHO" class="w-9 h-9 drop-shadow-lg">
+          <span class="text-xl font-bold tracking-[0.25em] text-white">SHOSHO</span>
         </div>
-        <div class="gallery-header-actions">
-          <button class="btn btn-secondary" onclick="setUiLanguage('en')" data-i18n="lang_en">EN</button>
-          <button class="btn btn-secondary" onclick="setUiLanguage('he')" data-i18n="lang_he">עברית</button>
-          <button class="btn btn-secondary"
-            onclick="setUiDirection((document.documentElement.getAttribute('dir') || 'ltr') === 'rtl' ? 'ltr' : 'rtl')"
-            data-i18n="toggle_rtl">RTL</button>
-          <button class="btn btn-secondary" onclick="showLoadDialog()" data-i18n="load_project">Load Project</button>
-          <button class="btn btn-secondary" onclick="showProfileModal()" data-i18n="profile">Profile</button>
-        </div>
-      </header>
-
-      <div class="template-gallery-container">
-        <div class="template-gallery-grid" id="templateGalleryGrid">
-          <!-- Templates will be injected here -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Memory Director View -->
-    <div id="memoryDirectorView" class="memory-director-view" style="display: none;">
-
-      <!-- Story Detection Modal -->
-      <div id="storyDetectionModal" class="md-modal-overlay">
-        <div class="md-modal-card">
-          <div class="md-modal-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-              style="width:32px;height:32px;color:white">
-              <rect x="2" y="2" width="20" height="20" rx="2.18" />
-              <line x1="7" y1="2" x2="7" y2="22" />
-              <line x1="17" y1="2" x2="17" y2="22" />
-              <line x1="2" y1="12" x2="22" y2="12" />
-            </svg>
-          </div>
-          <h2>Story Detected</h2>
-          <p class="md-modal-subtitle">AI analyzed your photos and found a narrative</p>
-
-          <div class="md-detected-story">
-            <h3 id="mdStoryTitle">Your Photo Story</h3>
-            <div id="mdChaptersList"></div>
-          </div>
-
-          <div class="md-modal-actions">
-            <button class="btn btn-secondary"
-              onclick="document.getElementById('storyDetectionModal').classList.remove('active')">
-              Customize
-            </button>
-            <button class="btn btn-primary" onclick="acceptStoryStructure()">
-              Use This Story ✨
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Header -->
-      <header class="md-header">
-        <div class="md-header-left">
-          <button class="btn btn-secondary btn-small" onclick="exitMemoryDirector()">← Back</button>
-          <h1>Memory Director</h1>
-          <span class="md-project-badge">New Project</span>
-        </div>
-        <div class="md-header-right">
-          <button class="btn btn-secondary btn-small" onclick="startNewAlbum()">New album</button>
-          <button class="btn btn-secondary btn-small" onclick="saveMemoryDirectorProject()">Save</button>
-          <button class="btn btn-secondary btn-small" onclick="showLoadDialog()">Load</button>
-          <button class="btn btn-secondary btn-small" onclick="showProfileModal()">Profile</button>
-          <button class="btn btn-secondary btn-small" onclick="openCinematicPreview()">▶ Preview</button>
-          <button class="btn btn-primary" onclick="generateMDBook()">Generate Book</button>
-        </div>
-      </header>
-
-      <!-- Layout -->
-      <div class="md-layout">
-
-        <!-- Left Sidebar -->
-        <aside class="md-sidebar md-sidebar-left">
-          <h3 class="md-sidebar-title">Story Chapters</h3>
-          <p class="md-sidebar-subtitle">AI-detected from your photos</p>
-
-          <div id="mdChaptersContainer"></div>
-
-          <button class="md-btn-add" onclick="addMDChapter()">+ Add Chapter</button>
-
-          <div class="md-ai-panel">
-            <div class="md-ai-panel-header">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                style="width:18px;height:18px">
-                <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
-              </svg>
-              <span>AI Captions</span>
-            </div>
-            <p>Auto-generate captions from photo metadata</p>
-            <button class="btn btn-primary btn-small" onclick="generateMDCaptions()" style="width:100%">
-              Generate All Captions
-            </button>
-          </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="md-main">
-          <div id="mdChapterHeader"></div>
-          <div id="mdSpreadsContainer"></div>
-          <button class="md-btn-add" onclick="addMDSpread()">+ Add Spread</button>
-        </main>
-
-        <!-- Right Sidebar -->
-        <aside class="md-sidebar md-sidebar-right">
-          <h3 class="md-sidebar-title">Book Settings</h3>
-
-          <div class="setting-group">
-            <label>Format</label>
-            <select id="mdPageFormat" onchange="mdState.settings.pageFormat = this.value">
-              <option value="square-10x10">10&quot; × 10&quot; Square</option>
-              <option value="square-8x8">8&quot; × 8&quot; Square</option>
-              <option value="square-12x12">12&quot; × 12&quot; Square</option>
-              <option value="landscape-11x8.5">11&quot; × 8.5&quot; Landscape</option>
-              <option value="portrait-8.5x11">8.5&quot; × 11&quot; Portrait</option>
-            </select>
-          </div>
-
-          <div class="setting-group">
-            <label>Paper</label>
-            <div class="md-btn-group">
-              <button class="btn btn-small active" onclick="setMDPaperTexture('matte')">Matte</button>
-              <button class="btn btn-small" onclick="setMDPaperTexture('glossy')">Glossy</button>
-            </div>
-          </div>
-
-          <div class="md-info-panel">
-            <h4>Print Quality</h4>
-            <p>Photos should be at least <strong>3000×3000 pixels</strong> for best results at 10×10&quot;.</p>
-            <p>Most phone photos (12MP+) will work great!</p>
-          </div>
-        </aside>
-
-      </div>
-    </div>
-
-    <!-- ============================================ -->
-    <!-- EDITOR VIEW (Shoso Redesign v3.1) -->
-    <!-- Editorial Swiss Design System with SVG Icons -->
-    <!-- ============================================ -->
-    <div id="editorView" class="editor-view-rebuild" style="display: none;">
-
-      <!-- 1. Header Bar -->
-      <header class="rebuild-header">
-        <div class="header-left">
-          <button class="btn-back" onclick="showTemplateGallery()" title="Back to Gallery">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div class="header-title-block">
-            <div class="header-subtitle" id="selectedTemplateName">Classic Minimal</div>
-            <input type="text" id="bookTitle" class="header-title-input" value="My Photo Book"
-              placeholder="Untitled Book">
-          </div>
-        </div>
-        <div class="header-right">
-          <button class="btn-header btn-header-ghost" onclick="saveProject()">
-            <span class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-                <polyline points="17,21 17,13 7,13 7,21" />
-                <polyline points="7,3 7,8 15,8" />
-              </svg>
-            </span>
-            Save
-          </button>
-          <button class="btn-header btn-header-ghost" onclick="downloadPdfOnly()" title="Download PDF Preview">
-            <span class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path
-                  d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17" />
-              </svg>
-            </span>
-            <span data-i18n="preview_pdf">Preview PDF</span>
-          </button>
-          <button class="btn-header btn-header-ghost" onclick="showProfileModal()" title="User Profile">
-            <span class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </span>
-            Profile
-          </button>
-          <button class="btn-header btn-header-primary" id="sendToPrintBtn" onclick="showBookpodOrderModal()">
-            <span class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <polyline points="6,9 6,2 18,2 18,9" />
-                <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-            </span>
-            <span data-i18n="order_print">Order Print</span>
-          </button>
-        </div>
-      </header>
-
-      <!-- 2. Main Workspace -->
-      <div class="rebuild-main">
-
-        <!-- A. Navigation Rail -->
-        <aside class="rebuild-rail">
-          <button class="rail-btn active tab" data-tab="photos" onclick="switchTab('photos')">
-            <span class="icon icon-lg">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21,15 16,10 5,21" />
-              </svg>
-            </span>
-            <label>Photos</label>
-          </button>
-          <button class="rail-btn tab" data-tab="pages" onclick="switchTab('pages')">
-            <span class="icon icon-lg">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
-                <line x1="12" y1="18" x2="12" y2="18.01" />
-                <line x1="12" y1="6" x2="12" y2="14" />
-              </svg>
-            </span>
-            <label>Pages</label>
-          </button>
-          <button class="rail-btn tab" data-tab="design" onclick="switchTab('design')">
-            <span class="icon icon-lg">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="13.5" cy="6.5" r="2.5" />
-                <circle cx="17.5" cy="15.5" r="2.5" />
-                <circle cx="8.5" cy="15.5" r="2.5" />
-                <path d="M13.5 9v2.5l3 2.5" />
-                <path d="M13.5 11.5l-3 2.5" />
-              </svg>
-            </span>
-            <label>Design</label>
-          </button>
-          <div class="rail-spacer"></div>
-        </aside>
-
-        <!-- B. Sidebar Drawer -->
-        <aside class="rebuild-drawer is-open" id="sidebarDrawer">
-
-          <!-- PHOTOS TAB -->
-          <div class="drawer-content active" id="photos-tab">
-            <div class="drawer-header">
-              <h2 class="drawer-title">Photo Library</h2>
-            </div>
-            <div class="drawer-body">
-              <button id="pickerBtn" class="btn-photo-picker" onclick="loadPicker()">
-                <span class="icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                    <polyline points="17,8 12,3 7,8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </span>
-                Import from Cloud
-              </button>
-
-              <!-- Local Upload Button -->
-              <input type="file" id="localPhotoInput" multiple accept="image/*" style="display:none"
-                onchange="handleLocalFileUpload(event)">
-              <button id="localUploadBtn" class="btn-photo-picker" onclick="triggerLocalUpload()"
-                style="margin-top: 8px; background-color: var(--edo-text); color: white;">
-                <span class="icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                    <polyline points="17,8 12,3 7,8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </span>
-                Upload from Computer
-              </button>
-              <div id="picker-message" class="text-caption"></div>
-              <div class="photos-section-header">
-                <span class="photos-count">Selected (<span id="selectedCount">0</span>)</span>
-                <div class="photos-actions">
-                  <button class="btn-text" onclick="shuffleSelectedPhotos()">Shuffle</button>
-                  <button class="btn-text danger" onclick="clearSelectedPhotos()">Clear</button>
-                </div>
-              </div>
-              <div id="photo-library" class="photo-grid"></div>
-              <div id="selectedPhotosList" class="photo-grid" style="display:none"></div>
-            </div>
-          </div>
-
-          <!-- PAGES TAB (New) -->
-          <div class="drawer-content" id="pages-tab">
-            <div class="drawer-header">
-              <h2 class="drawer-title">Pages Overview</h2>
-            </div>
-            <div class="drawer-body">
-              <div class="design-section">
-                <div class="design-section-title">
-                  Page Thumbnails
-                </div>
-                <div id="pageThumbnails" class="pages-overview-grid"></div>
-              </div>
-              <div class="design-section" style="margin-top: 20px;">
-                <button class="btn btn-secondary" onclick="addPage()" style="width:100%">+ Add Empty Page</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- DESIGN TAB -->
-          <div class="drawer-content" id="design-tab">
-            <div class="drawer-header">
-              <h2 class="drawer-title">Design Tools</h2>
-            </div>
-            <div class="drawer-body">
-
-              <!-- Quick Actions -->
-              <div class="design-section">
-                <div class="design-section-title">
-                  <span class="icon icon-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2" />
-                    </svg>
-                  </span>
-                  Quick Actions
-                </div>
-                <div class="tool-grid">
-                  <button class="tool-btn" onclick="autoLayoutCurrentPage()">
-                    <span class="icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
-                        <path d="M5 19l1 3 3-1" />
-                        <path d="M19 5l-1-3-3 1" />
-                      </svg>
-                    </span>
-                    <span>Auto Layout</span>
-                  </button>
-
-                  <!-- MAGIC CREATE BUTTON -->
-                  <button class="tool-btn" onclick="magicLauncher.open(getSelectedPhotos())"
-                    style="background: linear-gradient(135deg, #fce7f3, #e0e7ff); border: 1px solid #c084fc;">
-                    <span class="icon" style="color: #9333ea;">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path
-                          d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                      </svg>
-                    </span>
-                    <span style="color: #7e22ce; font-weight: 600;">Magic Create v2</span>
-                  </button>
-
-                  <button class="tool-btn" onclick="shuffleSelectedPhotos()">
-                    <span class="icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <polyline points="16,3 21,3 21,8" />
-                        <line x1="4" y1="20" x2="21" y2="3" />
-                        <polyline points="21,16 21,21 16,21" />
-                        <line x1="15" y1="15" x2="21" y2="21" />
-                        <line x1="4" y1="4" x2="9" y2="9" />
-                      </svg>
-                    </span>
-                    <span>Shuffle</span>
-                  </button>
-                </div>
-                <!-- Apply Design Button (Moved from Properties) -->
-                <button class="btn btn-primary" onclick="applyDesignToPhoto()" style="width: 100%; margin-top: 12px;">
-                  <span class="icon">✓</span> Apply Design to Photo
-                </button>
-              </div>
-
-              <!-- Nana Banana AI Design -->
-              <div class="design-section"
-                style="background: linear-gradient(135deg, rgba(129, 140, 248, 0.1), rgba(56, 189, 248, 0.1)); border: 1px solid rgba(129, 140, 248, 0.3);">
-                <div class="design-section-title" style="color: #818cf8;">
-                  <span class="icon icon-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
-                      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                      <line x1="9" y1="9" x2="9.01" y2="9" />
-                      <line x1="15" y1="9" x2="15.01" y2="9" />
-                    </svg>
-                  </span>
-                  Nana Banana AI
-                </div>
-                <div class="control-group">
-                  <textarea id="aiPrompt" class="edo-textarea"
-                    placeholder="Describe how you want to redesign this photo..."
-                    style="min-height: 60px; margin-bottom: 8px; font-size: 13px; background: rgba(255,255,255,0.5); border: 1px solid rgba(129, 140, 248, 0.2); color: var(--edo-text);"></textarea>
-                  <button class="btn btn-primary" onclick="window.designEditor.generateAIImage()"
-                    style="width: 100%; background: linear-gradient(135deg, #818cf8, #4f46e5); border: none;">
-                    <span class="icon">✨</span> Design with AI
-                  </button>
-                </div>
-              </div>
-
-              <!-- Designs (Backgrounds) -->
-              <div class="design-section">
-                <div class="design-section-title">
-                  <span class="icon icon-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <path d="M3 15h18" />
-                    </svg>
-                  </span>
-                  Designs
-                </div>
-                <div id="design-library" class="photo-grid"></div>
-              </div>
-
-              <!-- Frames (NEW) -->
-              <div class="design-section">
-                <div class="design-section-title">
-                  <span class="icon icon-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="12" cy="12" r="5" />
-                    </svg>
-                  </span>
-                  Frames
-                </div>
-                <div id="frame-library" class="photo-grid" style="grid-template-columns: repeat(3, 1fr);"></div>
-              </div>
-
-              <!-- Text Styles -->
-              <div class="design-section">
-                <div class="design-section-title">
-                  <span class="icon icon-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <path d="M4 7V4h16v3" />
-                      <line x1="12" y1="4" x2="12" y2="20" />
-                    </svg>
-                  </span>
-                  Text Styles
-                </div>
-                <div id="text-library" class="photo-grid"></div>
-              </div>
-
-              <!-- Filters -->
-              <div class="design-section">
-                <div class="design-section-title">
-                  <span class="icon icon-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 2a10 10 0 0110 10" />
-                    </svg>
-                  </span>
-                  Photo Filters
-                </div>
-                <div class="filter-chips" id="filterControls">
-                  <button class="filter-chip active">None</button>
-                  <button class="filter-chip">B&W</button>
-                  <button class="filter-chip">Sepia</button>
-                  <button class="filter-chip">Vintage</button>
-                  <button class="filter-chip">Vivid</button>
-                  <button class="filter-chip">Muted</button>
-                </div>
-              </div>
-
-              <!-- Adjustments -->
-              <div class="design-section">
-                <div class="design-section-title">
-                  <span class="icon icon-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <line x1="4" y1="21" x2="4" y2="14" />
-                      <line x1="4" y1="10" x2="4" y2="3" />
-                      <line x1="12" y1="21" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12" y2="3" />
-                      <line x1="20" y1="21" x2="20" y2="16" />
-                      <line x1="20" y1="12" x2="20" y2="3" />
-                      <line x1="1" y1="14" x2="7" y2="14" />
-                      <line x1="9" y1="8" x2="15" y2="8" />
-                      <line x1="17" y1="16" x2="23" y2="16" />
-                    </svg>
-                  </span>
-                  Adjustments
-                </div>
-                <div class="slider-control">
-                  <div class="slider-header">
-                    <span class="slider-label">Brightness</span>
-                    <span class="slider-value" id="val-brightness">100%</span>
-                  </div>
-                  <input type="range" id="brightnessSlider" class="slider-track" min="0" max="200" value="100"
-                    oninput="updateAdjustmentLabel('brightness', this.value)">
-                </div>
-                <div class="slider-control" style="margin-top: 16px;">
-                  <div class="slider-header">
-                    <span class="slider-label">Contrast</span>
-                    <span class="slider-value" id="val-contrast">100%</span>
-                  </div>
-                  <input type="range" id="contrastSlider" class="slider-track" min="0" max="200" value="100"
-                    oninput="updateAdjustmentLabel('contrast', this.value)">
-                </div>
-                <div class="slider-control" style="margin-top: 16px;">
-                  <div class="slider-header">
-                    <span class="slider-label">Saturation</span>
-                    <span class="slider-value" id="val-saturation">100%</span>
-                  </div>
-                  <input type="range" id="saturationSlider" class="slider-track" min="0" max="200" value="100"
-                    oninput="updateAdjustmentLabel('saturation', this.value)">
-                </div>
-              </div>
-
-              <!-- Brush Tools (Hidden by Default) -->
-              <div id="brushControlsSection" style="display:none">
-                <div class="design-section">
-                  <div class="design-section-title">
-                    <span class="icon icon-sm">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 114.03 4.03l-8.06 8.08" />
-                        <path
-                          d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 00-3-3.02z" />
-                      </svg>
-                    </span>
-                    Brush Tools
-                  </div>
-                  <div id="brushControls"></div>
-                </div>
-              </div>
-
-              <!-- Canvas Preview -->
-              <div id="designCanvasContainer" class="canvas-preview">
-                <div class="canvas-preview-placeholder">
-                  <span class="icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <path d="M3 15l6-6 4 4 8-8" />
-                    </svg>
-                  </span>
-                  <span>Select a photo to edit</span>
-                </div>
-              </div>
-
-              <!-- Legacy Tool Controls Container -->
-              <div id="toolControls" class="col gap-3" style="display: none;"></div>
-
-            </div>
-          </div>
-        </aside>
-
-        <!-- C. Main Stage -->
-        <main class="rebuild-stage" style="position:relative;">
-
-          <!-- New Floating Design Button (User Request) -->
-          <button id="openDesignGalleryBtn" onclick="openBackgroundGallery()" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 50;
-                     background: linear-gradient(135deg, #6366f1, #a855f7); color: white;
-                     border: none; padding: 10px 24px; border-radius: 99px;
-                     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-                     display: flex; align-items: center; gap: 8px; font-weight: 600;
-                     transition: all 0.3s ease; cursor: pointer;">
-            <span class="icon">✨</span> <span data-i18n="open_design_gallery">Open Design Gallery</span>
-          </button>
-
-          <!-- 3D Book Container -->
-          <div id="pagePreview" class="book3d-container"></div>
-
-          <!-- Floating Toolbar -->
-          <div class="floating-toolbar">
-            <button class="btn-toolbar" onclick="goToCover()" data-i18n="cover">Cover</button>
-            <div class="toolbar-divider"></div>
-            <button class="nav-btn" title="Previous Page" data-i18n-title="prev_page" onclick="prevPage()">
-              <span class="icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="15,18 9,12 15,6" />
-                </svg>
-              </span>
-            </button>
-            <div class="page-indicator">
-              <span id="currentPageNum">1</span> <span>/ </span><span id="totalPages">10</span>
-            </div>
-            <button class="nav-btn" title="Next Page" data-i18n-title="next_page" onclick="nextPage()">
-              <span class="icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="9,18 15,12 9,6" />
-                </svg>
-              </span>
-            </button>
-            <div class="toolbar-divider"></div>
-            <button class="btn-toolbar" onclick="goToBackCover()" data-i18n="back_cover">Back</button>
-            <div class="toolbar-divider"></div>
-            <button class="btn-toolbar" onclick="addPage()">
-              <span class="icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </span>
-              <span data-i18n="add_page">Add Page</span>
-            </button>
-            <button class="btn-toolbar btn-toolbar-accent" id="autoLayout" onclick="autoLayoutCurrentPage()">
-              <span class="icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
-                </svg>
-              </span>
-              <span data-i18n="auto_layout">Auto Layout</span>
-            </button>
-          </div>
-        </main>
-
-        <!-- D. Properties Inspector -->
-        <aside class="rebuild-inspector" id="inspectorPanel">
-          <!-- Collapsed View (Vertical Strip) -->
-          <div class="inspector-collapsed-view" onclick="toggleInspector()">
-            <button class="inspector-toggle-btn" title="Expand Properties">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                <polyline points="15 18 9 12 15 6"></polyline>
-              </svg>
-            </button>
-            <div
-              style="writing-mode: vertical-rl; text-orientation: mixed; margin-top: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--edo-text-secondary);">
-              Properties</div>
-          </div>
-
-          <div class="inspector-header">
-            <h3 class="inspector-title">Properties</h3>
-            <button class="inspector-toggle-btn" onclick="toggleInspector()" title="Collapse Panel">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </button>
-          </div>
-          <div class="inspector-body">
-
-            <!-- Cover Settings -->
-            <div id="cover-settings-panel" class="editor-settings-panel" style="display:none;">
-              <div class="setting-group group-title">
-                <label class="setting-label">Book Title</label>
-                <div style="display:flex; gap:8px;">
-                  <input type="text" id="coverTitle" placeholder="Enter title..."
-                    data-i18n-placeholder="cover_title_placeholder" class="edo-input" style="flex:1;">
-                  <div class="color-picker-wrapper"
-                    style="width:36px; height:36px; padding:0; border-radius:4px; overflow:hidden; border:1px solid #ddd;">
-                    <input type="color" id="coverTitleColor" value="#ffffff" oninput="updateCoverPreview()"
-                      style="width:100%; height:100%; padding:0; border:none; background:none; cursor:pointer;">
-                  </div>
-                </div>
-              </div>
-              <div class="setting-group group-cover">
-                <label class="setting-label" data-i18n="cover_photo">Cover Photo</label>
-                <!-- Moved from legacy container to be visible and clickable -->
-                <div id="coverPhotoSlot" class="photo-slot-placeholder"
-                  style="width: 100%; height: 160px; background: rgba(0,0,0,0.05); border: 2px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; margin-bottom: 10px;">
-                  <span style="font-size: 13px; color: #666;" data-i18n="click_to_add_photo">Click to add photo</span>
-                </div>
-              </div>
-
-              <div class="setting-group group-subtitle" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="subtitle">Subtitle</label>
-                <div style="display:flex; gap:8px;">
-                  <input type="text" id="coverSubtitle" placeholder="Enter subtitle..."
-                    data-i18n-placeholder="cover_subtitle_placeholder" class="edo-input" style="flex:1;">
-                  <div class="color-picker-wrapper"
-                    style="width:36px; height:36px; padding:0; border-radius:4px; overflow:hidden; border:1px solid #ddd;">
-                    <input type="color" id="coverSubtitleColor" value="#ffffff" oninput="updateCoverPreview()"
-                      style="width:100%; height:100%; padding:0; border:none; background:none; cursor:pointer;">
-                  </div>
-                </div>
-              </div>
-              <div class="setting-group group-title-font" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="title_font">Title Font</label>
-                <select id="coverTitleFont" class="edo-select">
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lato">Lato</option>
-                  <option value="Open Sans">Open Sans</option>
-                  <option value="Inter">Inter</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Roboto">Roboto</option>
-                  <option value="Heebo">Heebo (Hebrew)</option>
-                  <option value="Alef">Alef (Hebrew)</option>
-                  <option value="Rubik">Rubik (Hebrew)</option>
-                  <option value="Assistant">Assistant (Hebrew)</option>
-                  <option value="Noto Sans Hebrew">Noto Sans Hebrew</option>
-                  <option value="Noto Serif Hebrew">Noto Serif Hebrew</option>
-                </select>
-              </div>
-              <div class="setting-group group-subtitle-font" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="subtitle_font">Subtitle Font</label>
-                <select id="coverSubtitleFont" class="edo-select">
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lato">Lato</option>
-                  <option value="Open Sans">Open Sans</option>
-                  <option value="Inter">Inter</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Roboto">Roboto</option>
-                  <option value="Heebo">Heebo (Hebrew)</option>
-                  <option value="Alef">Alef (Hebrew)</option>
-                  <option value="Rubik">Rubik (Hebrew)</option>
-                  <option value="Assistant">Assistant (Hebrew)</option>
-                  <option value="Noto Sans Hebrew">Noto Sans Hebrew</option>
-                  <option value="Noto Serif Hebrew">Noto Serif Hebrew</option>
-                </select>
-              </div>
-
-              <!-- NEW: Cover Layout Selector -->
-              <div class="sidebar-control-group setting-group group-layout flex-group" style="margin-top: 10px;">
-                <label class="setting-label" style="min-width: 80px;" data-i18n="layout">Layout</label>
-                <select class="form-select flex-expand" id="coverLayout" onchange="updateCoverPreview()">
-                  <option value="standard">Standard (Photo Top)</option>
-                  <option value="full-bleed">Full Bleed</option>
-                  <option value="photo-bottom">Photo Bottom</option>
-                </select>
-              </div>
-
-              <!-- NEW: Cover Customization (Size & Angle) -->
-              <div class="sidebar-control-group setting-group group-cover-custom flex-group"
-                style="align-items: center; margin-top: 10px;">
-                <label class="setting-label" style="min-width:80px;" data-i18n="size">Size</label>
-                <input type="range" id="coverPhotoSize" min="50" max="100" value="100" class="flex-expand"
-                  oninput="updateCoverCustomization()">
-                <span id="coverPhotoSizeVal" style="width:35px; text-align:right; font-size:12px;">100%</span>
-              </div>
-
-              <div class="sidebar-control-group setting-group group-cover-custom flex-group"
-                style="align-items: center; margin-top: 5px;">
-                <label class="setting-label" style="min-width:80px;" data-i18n="angle">Angle</label>
-                <input type="range" id="coverPhotoAngle" min="-45" max="45" value="0" class="flex-expand"
-                  oninput="updateCoverCustomization()">
-                <span id="coverPhotoAngleVal" style="width:35px; text-align:right; font-size:12px;">0°</span>
-              </div>
-
-              <!-- NEW: Global Corner Radius (Cover Proxy) -->
-              <div class="sidebar-control-group setting-group group-cover-custom flex-group"
-                style="align-items: center; margin-top: 5px;">
-                <label class="setting-label" style="min-width:80px;" data-i18n="corners">Corners</label>
-                <select id="globalCornerRadiusCover" class="form-select flex-expand"
-                  onchange="updateGlobalPhotoStyle('globalCornerRadiusCover')">
-                  <option value="0" data-i18n="corner_sharp_0">Sharp (0px)</option>
-                  <option value="8" data-i18n="corner_rounded_8">Rounded (8px)</option>
-                  <option value="16" data-i18n="corner_soft_16">Soft (16px)</option>
-                  <option value="24" data-i18n="corner_circular_24">Circular (24px)</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Page Settings -->
-            <div id="pages-settings-panel" class="editor-settings-panel" style="display:block;">
-
-              <!-- Left/Right Page Selection -->
-              <div id="pageSideSwitcher" class="setting-group group-page-side"
-                style="display:none; flex-direction:row; gap:5px; margin-bottom:15px; width:100%;">
-                <button id="btnSideLeft" class="btn btn-sm" style="flex:1;" onclick="switchPageSide('left')"><span
-                    data-i18n="left_page">Left Page</span></button>
-                <button id="btnSideRight" class="btn btn-sm" style="flex:1;" onclick="switchPageSide('right')"><span
-                    data-i18n="right_page">Right Page</span></button>
-              </div>
-
-              <div class="setting-group group-bg-color flex-group">
-                <label class="setting-label">Background Color</label>
-                <div class="color-picker-wrapper" id="pageBackgroundColorPickerWrapper" style="flex:1;">
-                  <input type="color" id="pageBgColor" value="#ffffff" oninput="updatePageBackground()">
-                </div>
-              </div>
-
-
-
-              <!-- Page Background Image -->
-              <div class="setting-group group-bg-image flex-group align-start" style="margin-top: 10px;">
-                <label class="setting-label" style="min-width: 80px; margin-top: 5px;">Background Image</label>
-                <div class="controls-expand" style="display: flex; gap: 8px; flex-direction: column;">
-                  <button class="btn btn-secondary btn-sm" onclick="triggerPageBackgroundImageUpload()"
-                    style="width:100%">
-                    Upload Image...
-                  </button>
-                  <input type="file" id="pageBgImageFile" accept="image/jpeg, image/png" style="display: none;"
-                    onchange="updatePageBackgroundImage(event)">
-                  <div id="pageBgImageStatus" style="font-size: 11px; color: #666; margin-top: 2px;">No image set</div>
-                  <button class="btn btn-ghost btn-xs" onclick="clearPageBackgroundImage()"
-                    style="align-self: flex-start; color: #dc3545;">
-                    Remove Image
-                  </button>
-                  <!-- Design Gallery Button -->
-                  <button class="btn btn-secondary btn-sm" onclick="openBackgroundGallery()"
-                    style="width:100%; margin-top: 5px;">
-                    <span class="icon icon-sm" style="margin-right:4px;">🎨</span> Design Gallery
-                  </button>
-                </div>
-              </div>
-              <div class="setting-group group-page-layout">
-                <label class="setting-label" data-i18n="page_layout">Page Layout</label>
-                <select id="pageLayout" class="edo-select" onchange="updatePageLayout(this.value)">
-                  <option value="single" data-i18n="layout_single_photo">Single Photo</option>
-                  <option value="two-horizontal" data-i18n="layout_two_horizontal">Two Horizontal</option>
-                  <option value="two-vertical" data-i18n="layout_two_vertical">Two Vertical</option>
-                  <option value="three-left" data-i18n="layout_three_left">Three (Large Left)</option>
-                  <option value="three-right" data-i18n="layout_three_right">Three (Large Right)</option>
-                  <option value="four-grid" data-i18n="layout_four_grid">Four Grid</option>
-                  <option value="collage-5" data-i18n="layout_collage_5">Collage (5 Photos)</option>
-                  <option value="collage-6" data-i18n="layout_collage_6">Collage (6 Photos)</option>
-                </select>
-              </div>
-
-              <div class="setting-group group-spacing">
-                <label class="setting-label" data-i18n="photo_spacing">Photo Spacing</label>
-                <div class="slider-control">
-                  <div class="slider-header">
-                    <span class="slider-label" data-i18n="gap">Gap</span>
-                    <span class="slider-value" id="pagePhotoSpacingVal">12px</span>
-                  </div>
-                  <input type="range" id="pagePhotoSpacing" class="slider-track" min="0" max="40" value="12"
-                    oninput="updatePagePhotoSpacing(this.value)">
-                </div>
-              </div>
-
-              <!-- NEW: Global Corner Radius (Page Settings) -->
-              <div class="setting-group group-corners" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="corner_style">Global Corners</label>
-                <div class="slider-control">
-                  <div class="slider-header">
-                    <span class="slider-label" data-i18n="radius">Radius</span>
-                  </div>
-                  <select id="globalCornerRadius" class="edo-select"
-                    onchange="updateGlobalPhotoStyle('globalCornerRadius')">
-                    <option value="0" data-i18n="corner_square_0">Square (0px)</option>
-                    <option value="4" data-i18n="corner_subtle_4">Subtle (4px)</option>
-                    <option value="8" data-i18n="corner_rounded_8">Rounded (8px)</option>
-                    <option value="12" data-i18n="corner_soft_12">Soft (12px)</option>
-                    <option value="16" data-i18n="corner_modern_16">Modern (16px)</option>
-                    <option value="24" data-i18n="corner_circular_24">Circular (24px)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Back Cover Settings -->
-            <div id="backcover-settings-panel" class="editor-settings-panel" style="display:none;">
-              <div class="setting-group">
-                <label class="setting-label" data-i18n="backcover_closing_text">Closing Text</label>
-                <textarea id="backCoverText" class="edo-textarea" rows="3"
-                  oninput="updateBackCoverPreview()">Thank you for viewing this photo book</textarea>
-              </div>
-
-              <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="backcover_subtitle_optional">Subtitle (optional)</label>
-                <input type="text" id="backCoverSubtitle" class="edo-input" placeholder="Add a subtitle..."
-                  oninput="updateBackCoverPreview()">
-              </div>
-
-              <div class="setting-group group-bg-color flex-group" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="background_color">Background Color</label>
-                <div class="color-input-pair" style="display:flex; gap:8px; flex:1;">
-                  <input type="color" id="backCoverBgColor" value="#1a1a2e" oninput="syncBackCoverBgColor()">
-                  <input type="text" id="backCoverBgColorText" class="edo-input" value="#1a1a2e"
-                    oninput="syncBackCoverBgColor()">
-                </div>
-              </div>
-
-              <!-- Back Cover Background Image -->
-              <div class="setting-group group-bg-image flex-group align-start" style="margin-top: 10px;">
-                <label class="setting-label" style="min-width: 80px; margin-top: 5px;"
-                  data-i18n="background_image">Background Image</label>
-                <div class="controls-expand" style="display: flex; gap: 8px; flex-direction: column;">
-                  <button class="btn btn-secondary btn-sm" onclick="triggerBackCoverBackgroundImageUpload()"
-                    style="width:100%">
-                    <span data-i18n="upload_image">Upload Image...</span>
-                  </button>
-                  <input type="file" id="backCoverBgImageFile" accept="image/jpeg, image/png" style="display: none;"
-                    onchange="updateBackCoverBackgroundImage(event)">
-                  <div id="backCoverBgImageStatus" style="font-size: 11px; color: #666; margin-top: 2px;"><span
-                      data-i18n="no_image_set">No image set</span>
-                  </div>
-                  <button class="btn btn-ghost btn-xs" onclick="clearBackCoverBackgroundImage()"
-                    style="align-self: flex-start; color: #dc3545;">
-                    <span data-i18n="remove_image">Remove Image</span>
-                  </button>
-                  <!-- Design Gallery Button -->
-                  <button class="btn btn-secondary btn-sm" onclick="openBackgroundGallery()"
-                    style="width:100%; margin-top: 5px;">
-                    <span class="icon icon-sm" style="margin-right:4px;">🎨</span> <span
-                      data-i18n="design_gallery">Design Gallery</span>
-                  </button>
-                </div>
-              </div>
-
-              <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="typography_style">Typography Style</label>
-                <select id="backCoverTextStyleSelect" class="edo-select" onchange="updateBackCoverPreview()">
-                  <option value="default">Default</option>
-                </select>
-              </div>
-
-              <div class="setting-group group-text-color flex-group" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="text_color">Text Color</label>
-                <div class="color-input-pair" style="display:flex; gap:8px; flex:1;">
-                  <input type="color" id="backCoverTextColor" value="#ffffff" oninput="syncBackCoverTextColor()">
-                  <input type="text" id="backCoverTextColorText" class="edo-input" value="#ffffff"
-                    oninput="syncBackCoverTextColor()">
-                </div>
-              </div>
-
-              <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="text_font">Text Font</label>
-                <select id="backCoverTextFont" class="edo-select" onchange="updateBackCoverPreview()">
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lato">Lato</option>
-                  <option value="Open Sans">Open Sans</option>
-                  <option value="Inter">Inter</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Roboto">Roboto</option>
-                  <option value="DM Serif Display">DM Serif Display</option>
-                  <option value="DM Sans">DM Sans</option>
-                  <option value="Heebo">Heebo (Hebrew)</option>
-                  <option value="Alef">Alef (Hebrew)</option>
-                  <option value="Rubik">Rubik (Hebrew)</option>
-                  <option value="Assistant">Assistant (Hebrew)</option>
-                  <option value="Noto Sans Hebrew">Noto Sans Hebrew</option>
-                  <option value="Noto Serif Hebrew">Noto Serif Hebrew</option>
-                </select>
-              </div>
-
-              <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="text_size">Text Size</label>
-                <div class="slider-control">
-                  <div class="slider-header">
-                    <span class="slider-label" data-i18n="size">Size</span>
-                    <span class="slider-value" id="backCoverTextSizeVal">18px</span>
-                  </div>
-                  <input type="range" id="backCoverTextSize" class="slider-track" min="10" max="48" value="18"
-                    oninput="updateBackCoverPreview()">
-                </div>
-              </div>
-
-              <div class="setting-group" style="margin-top: 10px;">
-                <label class="setting-label" data-i18n="subtitle_size">Subtitle Size</label>
-                <div class="slider-control">
-                  <div class="slider-header">
-                    <span class="slider-label" data-i18n="size">Size</span>
-                    <span class="slider-value" id="backCoverSubtitleSizeVal">12px</span>
-                  </div>
-                  <input type="range" id="backCoverSubtitleSize" class="slider-track" min="8" max="32" value="12"
-                    oninput="updateBackCoverPreview()">
-                </div>
-              </div>
-
-              <div class="setting-group" style="margin-top: 12px;">
-                <label class="setting-label" data-i18n="alignment">Alignment</label>
-                <div style="display:flex; gap:8px;">
-                  <button class="btn btn-secondary btn-sm btn-alignment active" data-alignment="left"
-                    onclick="setBackCoverAlign('left')" data-i18n="align_left">Left</button>
-                  <button class="btn btn-secondary btn-sm btn-alignment" data-alignment="center"
-                    onclick="setBackCoverAlign('center')" data-i18n="align_center">Center</button>
-                  <button class="btn btn-secondary btn-sm btn-alignment" data-alignment="right"
-                    onclick="setBackCoverAlign('right')" data-i18n="align_right">Right</button>
-                </div>
-              </div>
-
-              <div class="setting-group" style="margin-top: 12px;">
-                <label class="setting-label">Options</label>
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                  <label style="display:flex; align-items:center; gap:8px; font-size: 13px;">
-                    <input id="backCoverShowBorder" type="checkbox" checked onchange="updateBackCoverPreview()"> Border
-                  </label>
-                  <label style="display:flex; align-items:center; gap:8px; font-size: 13px;">
-                    <input id="backCoverShowLogo" type="checkbox" onchange="updateBackCoverPreview()"> Show logo
-                  </label>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </aside>
-
-      </div>
-
-      <!-- LEGACY SUPPORTS (HIDDEN: Only non-duplicated items remain) -->
-      <div id="legacy-containers" style="position: absolute; top: -9999px; visibility: hidden;">
-        <div id="pagePreview"></div>
-        <div class="book3d-cover-face">
-          <div class="back-cover-text" id="backCoverTextPreview">Thank you for viewing this photo book</div>
-        </div>
-        <div id="coverPreview">
-          <!-- coverPhotoSlot moved to inspector -->
-          <div id="coverTitlePreview"></div>
-          <div id="coverSubtitlePreview"></div>
-        </div>
-        <input id="backCoverTextColor" value="#ffffff">
-        <input id="backCoverTextSize" value="18">
-        <input id="backCoverTextFont" value="Inter">
-        <!-- Cover Title/Subtitle inputs moved to sidebar with same IDs -->
-        <input id="coverBgColor" value="#1a1a2e">
-        <input id="coverShowBorder" type="checkbox" checked>
-        <input id="pageBorderColor" value="#cccccc">
-        <input id="pageBorderWeight" value="1">
-        <input id="pageCaption" value="">
-        <input id="showPageNumber" type="checkbox" checked>
-
-      </div>
-    </div> <!-- Progress Modal (Global) -->
-    <div class="modal" id="progressModal">
-      <div class="modal-content modal-small">
-        <div class="progress-content">
-          <div class="spinner"></div>
-          <p id="progressText">Generating your photo book...</p>
-          <div class="book-loader-container">
-            <div class="book-loader">
-              <div class="page"></div>
-              <div class="page"></div>
-              <div class="page"></div>
-            </div>
-          </div>
-          <!-- Deprecated Progress Bar -->
-          <div class="progress-bar-container" style="display: none;">
-            <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
-          </div>
-          <p id="progressStatus" style="margin-top: 10px; font-size: 0.9rem; color: #666;"></p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Design Studio Modal (Large) -->
-    <div class="modal" id="designStudioModal">
-      <div class="modal-content"
-        style="max-width: 90vw; height: 90vh; max-height: 90vh; display: flex; flex-direction: column;">
-        <div class="modal-header">
-          <h3>Design Studio</h3>
-          <button class="close-btn"
-            onclick="document.getElementById('designStudioModal').classList.remove('active')">&times;</button>
-        </div>
-        <div class="modal-body" style="padding: 0; display: flex; flex: 1; overflow: hidden;">
-          <!-- Left: Canvas Area -->
-          <div
-            style="flex: 1; background: #0f1015; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
-            <div id="designStudioCanvasContainer"
-              style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-              <!-- Canvas injected here -->
-            </div>
-          </div>
-
-          <!-- Right: Tools Sidebar -->
-          <div
-            style="width: 320px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; overflow-y: auto;">
-            <div style="padding: 20px;">
-
-              <!-- Nana Banana AI Design -->
-              <div class="design-section"
-                style="background: linear-gradient(135deg, rgba(129, 140, 248, 0.1), rgba(56, 189, 248, 0.1)); border: 1px solid rgba(129, 140, 248, 0.3);">
-                <div class="design-section-title" style="color: #818cf8;">
-                  <span class="icon icon-sm">✨</span> Nana Banana AI
-                </div>
-                <div class="control-group">
-                  <textarea id="aiPrompt" class="edo-textarea"
-                    placeholder="Describe how you want to redesign this photo..."
-                    style="min-height: 60px; margin-bottom: 8px; font-size: 13px; background: rgba(255,255,255,0.1); border: 1px solid rgba(129, 140, 248, 0.2); color: white;"></textarea>
-                  <button class="btn btn-primary" onclick="window.designEditor.generateAIImage()"
-                    style="width: 100%; background: linear-gradient(135deg, #818cf8, #4f46e5); border: none;">
-                    Design with AI
-                  </button>
-                </div>
-              </div>
-
-              <!-- Filters -->
-              <div class="design-section">
-                <div class="design-section-title">Photo Filters</div>
-                <div class="filter-chips" id="designStudioFilterControls">
-                  <!-- Populated by JS -->
-                </div>
-              </div>
-
-              <!-- Adjustments -->
-              <div class="design-section">
-                <div class="design-section-title">Adjustments</div>
-                <div class="slider-control">
-                  <div class="slider-header">
-                    <span class="slider-label" style="color:#cbd5e1">Brightness</span>
-                    <span class="slider-value" id="val-brightness">100%</span>
-                  </div>
-                  <input type="range" id="brightnessSlider" class="slider-track" min="0" max="200" value="100"
-                    oninput="updateAdjustmentLabel('brightness', this.value)">
-                </div>
-                <div class="slider-control" style="margin-top: 16px;">
-                  <div class="slider-header">
-                    <span class="slider-label" style="color:#cbd5e1">Contrast</span>
-                    <span class="slider-value" id="val-contrast">100%</span>
-                  </div>
-                  <input type="range" id="contrastSlider" class="slider-track" min="0" max="200" value="100"
-                    oninput="updateAdjustmentLabel('contrast', this.value)">
-                </div>
-                <div class="slider-control" style="margin-top: 16px;">
-                  <div class="slider-header">
-                    <span class="slider-label" style="color:#cbd5e1">Saturation</span>
-                    <span class="slider-value" id="val-saturation">100%</span>
-                  </div>
-                  <input type="range" id="saturationSlider" class="slider-track" min="0" max="200" value="100"
-                    oninput="updateAdjustmentLabel('saturation', this.value)">
-                </div>
-              </div>
-
-              <!-- Image Frames (for page photos) -->
-              <div class="design-section" id="designStudioImageFramesSection">
-                <div class="design-section-title">Image Frames</div>
-                <div id="designStudioImageFrames"></div>
-              </div>
-
-              <!-- Tools Placeholders (Brush etc) -->
-              <div id="designStudioToolControls" class="col gap-3" style="margin-bottom: 20px;"></div>
-              <div id="brushControlsSection" style="display:none">
-                <div class="design-section">
-                  <div class="design-section-title">Brush Settings</div>
-                  <div id="designStudioBrushControls"></div>
-                </div>
-              </div>
-
-            </div>
-
-            <div style="margin-top: auto; padding: 20px; border-top: 1px solid #334155;">
-              <button class="btn btn-primary" onclick="applyDesignToPhoto()"
-                style="width: 100%; height: 48px; font-size: 16px;">
-                <span class="icon">✓</span> Apply Design
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Album Configuration Modal (shown only on "Generate Book") -->
-    <div class="modal" id="albumConfigModal">
-      <div class="modal-content modal-large">
-        <div class="modal-header">
-          <h3>Book settings</h3>
-          <button class="close-btn" onclick="closeAlbumConfigModal(false)">&times;</button>
-        </div>
-
-        <div class="profile-grid" style="margin-top: 10px;">
-          <div class="profile-card">
-            <div class="profile-section-header">
-              <h4>Album configuration</h4>
-            </div>
-            <div class="profile-form">
-              <div class="control-group">
-                <label>Book title</label>
-                <input id="acBookTitle" type="text" placeholder="My Photo Book" />
-              </div>
-
-              <div class="control-group">
-                <label>Format</label>
-                <select id="acPageFormat">
-                  <option value="square-8x8">8&quot; x 8&quot; Square</option>
-                  <option value="square-10x10">10&quot; x 10&quot; Square</option>
-                  <option value="square-12x12">12&quot; x 12&quot; Square</option>
-                  <option value="landscape-11x8.5">11&quot; x 8.5&quot; Landscape</option>
-                  <option value="landscape-13x10">13&quot; x 10&quot; Landscape</option>
-                  <option value="portrait-8.5x11">8.5&quot; x 11&quot; Portrait</option>
-                  <option value="portrait-10x13">10&quot; x 13&quot; Portrait</option>
-                </select>
-              </div>
-
-              <div class="control-group">
-                <label>Auto-layout</label>
-                <select id="acAutoLayout">
-                  <option value="random">Random Layouts</option>
-                  <option value="mixed">Mixed (Single &amp; Multi)</option>
-                  <option value="single">All Single Photos</option>
-                  <option value="two-horizontal">All Two Horizontal</option>
-                  <option value="four-grid">All Four Grid</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div class="profile-card">
-            <div class="profile-section-header">
-              <h4>Printing configuration (BookPod — prep)</h4>
-            </div>
-            <div class="profile-form">
-              <div class="control-group">
-                <label>Print color</label>
-                <select id="acBpPrintColor">
-                  <option value="color">Color</option>
-                  <option value="bw">Black &amp; White</option>
-                </select>
-              </div>
-
-              <div class="control-group">
-                <label>Sheet type</label>
-                <select id="acBpSheetType">
-                  <option value="white70">white70 (Wood-free White 70gsm)</option>
-                  <option value="white80" selected>white80 (Wood-free White 80gsm)</option>
-                  <option value="white90">white90 (Wood-free White 90gsm)</option>
-                  <option value="white110">white110 (Wood-free White 110gsm)</option>
-                  <option value="cream80">cream80 (Cream 80gsm)</option>
-                  <option value="cream110">cream110 (Cream 110gsm)</option>
-                  <option value="chromo115">chromo115 (Matte Chromo 115gsm)</option>
-                  <option value="chromo130">chromo130 (Matte Chromo 130gsm)</option>
-                  <option value="chromo170">chromo170 (Matte Chromo 170gsm)</option>
-                </select>
-              </div>
-
-              <div class="control-group">
-                <label>Lamination</label>
-                <select id="acBpLaminationType">
-                  <option value="none" selected>none</option>
-                  <option value="flat">flat</option>
-                  <option value="matt">matt</option>
-                </select>
-              </div>
-
-              <div class="control-group">
-                <label>Reading direction</label>
-                <select id="acBpReadingDirection">
-                  <option value="right" selected>Right-to-left</option>
-                  <option value="left">Left-to-right</option>
-                </select>
-              </div>
-
-              <div class="control-group">
-                <label>Bleed</label>
-                <label style="display:flex; gap: 10px; align-items:center; font-weight: 500;">
-                  <input id="acBpBleed" type="checkbox" />
-                  Include bleed
-                </label>
-              </div>
-
-              <div class="control-group">
-                <label>BookPod size (cm)</label>
-                <select id="acBpSizeCm">
-                  <option value="15x22" selected>15 × 22</option>
-                  <option value="14x21">14 × 21</option>
-                  <option value="17x24">17 × 24</option>
-                  <option value="21x29.7">21 × 29.7 (A4)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeAlbumConfigModal(false)">Cancel</button>
-          <button class="btn btn-primary" onclick="closeAlbumConfigModal(true)">Continue</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- BookPod Delivery Step (shown only on "Generate Book") -->
-    <div class="modal" id="bookpodDeliveryConfigModal">
-      <div class="modal-content modal-large">
-        <div class="modal-header">
-          <h3>Delivery (BookPod)</h3>
-          <button class="close-btn" onclick="closeBookpodDeliveryConfigModal('skip')">&times;</button>
-        </div>
-
-        <div style="padding: 0.75rem 0; color: var(--color-text-light); font-size: 0.95rem;">
-          Optional step: add delivery details now (including pickup points). You can also skip and generate the PDF.
-        </div>
-
-        <div class="profile-grid" style="margin-top: 10px;">
-          <div class="profile-card">
-            <div class="profile-section-header">
-              <h4>Shipping details</h4>
-              <button class="btn btn-small" onclick="acBpPrefillShippingFromProfile()">Prefill from Profile</button>
-            </div>
-
-            <div class="profile-form">
-              <div class="control-group">
-                <label>Shipping method</label>
-                <select id="acBpShipMethod" onchange="acBpOnShipMethodChanged()">
-                  <option value="2" selected>Home delivery</option>
-                  <option value="1">Pickup point delivery</option>
-                  <option value="3">Factory self-pickup</option>
-                </select>
-                <div id="acBpShipHint" style="margin-top: 6px; color: var(--color-text-light); font-size: 0.85rem;">
-                  If you choose pickup points, search and select a pickup location.
-                </div>
-              </div>
-
-              <div class="control-group">
-                <label>Full name</label>
-                <input id="acBpShipName" type="text" placeholder="Full name" />
-              </div>
-              <div class="control-group">
-                <label>Email</label>
-                <input id="acBpShipEmail" type="email" placeholder="Email" />
-              </div>
-              <div class="control-group">
-                <label>Phone</label>
-                <input id="acBpShipPhone" type="tel" placeholder="Phone" />
-              </div>
-
-              <div class="control-group">
-                <label>Country</label>
-                <input id="acBpShipCountry" type="text" placeholder="Country" value="Israel" />
-              </div>
-              <div class="control-group">
-                <label>City</label>
-                <input id="acBpShipCity" type="text" placeholder="City" />
-              </div>
-              <div class="control-group">
-                <label>Address line 1</label>
-                <input id="acBpShipAddress1" type="text" placeholder="Address line 1" />
-              </div>
-              <div class="control-group">
-                <label>Address line 2</label>
-                <input id="acBpShipAddress2" type="text" placeholder="Address line 2" />
-              </div>
-              <div class="control-group">
-                <label>Postal code</label>
-                <input id="acBpShipPostalCode" type="text" placeholder="Postal code" />
-              </div>
-
-              <div id="acBpPickupPointSection" style="display:none; margin-top: 8px;">
-                <div class="control-group">
-                  <label>Pickup point</label>
-                  <select id="acBpPickupPoint">
-                    <option value="">Search to load pickup points…</option>
-                  </select>
-                  <div id="acBpPickupStatus"
-                    style="margin-top: 6px; color: var(--color-text-light); font-size: 0.85rem;">
-                  </div>
-                </div>
-                <div class="control-group">
-                  <button class="btn btn-secondary" type="button" onclick="acBpSearchPickupPoints()">
-                    Find pickup points near this address
-                  </button>
-                </div>
-              </div>
-
-              <div class="control-group">
-                <label>Quantity</label>
-                <input id="acBpQuantity" type="number" min="1" value="1" />
-              </div>
-
-              <div class="control-group">
-                <label>Total price (for order)</label>
-                <input id="acBpTotalPrice" type="number" min="0" step="1" placeholder="e.g. 99" />
-                <div style="margin-top: 6px; color: var(--color-text-light); font-size: 0.85rem;">
-                  Used for creating the BookPod order. If empty, we’ll use a default estimate.
-                </div>
-              </div>
-
-              <div class="control-group">
-                <label>Invoice URL (for order)</label>
-                <input id="acBpInvoiceUrl" type="text" placeholder="Will default to the generated PDF link" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer" style="display:flex; gap: 10px; justify-content:flex-end;">
-          <button class="btn btn-secondary" onclick="closeBookpodDeliveryConfigModal('back')">Back</button>
-          <button class="btn btn-secondary" onclick="closeBookpodDeliveryConfigModal('skip')">Skip</button>
-          <button class="btn btn-primary" onclick="closeBookpodDeliveryConfigModal('continue')">Continue</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Result Modal (Global) -->
-    <div class="modal" id="resultModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Photo Book Created!</h3>
-          <button class="close-btn" onclick="closeResultModal()">&times;</button>
-        </div>
-        <div class="result-content">
-          <p>Your photo book is ready.</p>
-          <div class="result-actions">
-            <a id="viewPresentationLink" href="#" target="_blank" class="btn btn-primary">View</a>
-            <button class="btn btn-accent" onclick="exportToPdf()">Export as PDF</button>
-            <button id="sendToPrintBtnResult" class="btn btn-primary" style="display:none;"
-              onclick="sendToBookpodPrinting()">
-              Send to printing
-            </button>
-          </div>
-          <div id="pdfResult" style="display: none; margin-top: 1rem;">
-            <p>PDF exported successfully!</p>
-            <a id="downloadPdfLink" href="#" target="_blank" class="btn btn-secondary">Download PDF</a>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeResultModal()">Close</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Photo Picker Modal (Global) -->
-    <div class="modal" id="photoPickerModal">
-      <div class="modal-content modal-large">
-        <div class="modal-header">
-          <h3>Select a Photo</h3>
-          <div class="modal-header-actions">
-            <div class="zoom-control zoom-control-compact" title="Change thumbnail size">
-              <span class="zoom-icon" aria-hidden="true">🔍</span>
-              <input type="range" min="80" max="240" step="10" value="120" data-album-zoom-range
-                aria-label="Thumbnail size">
-            </div>
-            <button class="close-btn" onclick="closePhotoPicker()">&times;</button>
-          </div>
-        </div>
-        <div class="selected-photos-grid" id="photoPickerGrid"></div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closePhotoPicker()">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Selected Photos Modal (Global) -->
-    <div class="modal" id="selectedPhotosModal">
-      <div class="modal-content modal-large">
-        <div class="modal-header">
-          <h3>Selected Photos (<span id="selectedPhotosModalCount">0</span>)</h3>
-          <button class="close-btn" onclick="closeSelectedPhotosModal()">&times;</button>
-        </div>
-        <div class="selected-photos-modal-grid" id="selectedPhotosModalGrid"></div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeSelectedPhotosModal()">Close</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Page Template Picker Modal (Global) -->
-    <div class="modal" id="pageTemplateModal">
-      <div class="modal-content modal-large">
-        <div class="modal-header">
-          <h3>Choose a template for this page</h3>
-          <button class="close-btn" onclick="closePageTemplatePicker()">&times;</button>
-        </div>
-        <div id="pageTemplateGrid" class="page-template-grid"></div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closePageTemplatePicker()">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Load Project Modal (Global) -->
-    <div class="modal" id="loadProjectModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Load Project</h3>
-          <button class="close-btn" onclick="closeLoadModal()">&times;</button>
-        </div>
-        <div class="projects-list" id="projectsList">
-          <div class="loading">Loading projects...</div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeLoadModal()">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- BookPod Order Modal (Prep) -->
-    <div class="modal" id="bookpodOrderModal">
-      <div class="modal-content modal-large">
-        <div class="modal-header">
-          <h3>Order print (BookPod) — prep</h3>
-          <button class="close-btn" onclick="closeBookpodOrderModal()">&times;</button>
-        </div>
-
-        <div style="padding: 0.75rem 0; color: var(--color-text-light); font-size: 0.95rem;">
-          This UI shows the <strong>available shipping methods</strong> (from BookPod docs) and lets you review your
-          order.
-          Full checkout + live shipping prices are not enabled yet.
-        </div>
-
-        <div class="profile-grid" style="margin-top: 10px;">
-          <div class="profile-card">
-            <div class="profile-section-header">
-              <h4>Shipping details</h4>
-              <button class="btn btn-small" onclick="prefillBookpodShippingFromProfile()">Prefill from Profile</button>
-            </div>
-
-            <div class="profile-form">
-              <div class="control-group">
-                <label>Full name</label>
-                <input id="bpShipName" type="text" placeholder="Full name" />
-              </div>
-              <div class="control-group">
-                <label>Email</label>
-                <input id="bpShipEmail" type="email" placeholder="Email" />
-              </div>
-              <div class="control-group">
-                <label>Phone</label>
-                <input id="bpShipPhone" type="tel" placeholder="Phone" />
-              </div>
-              <div class="control-group">
-                <label>Country</label>
-                <input id="bpShipCountry" type="text" placeholder="Country" />
-              </div>
-              <div class="control-group">
-                <label>City</label>
-                <input id="bpShipCity" type="text" placeholder="City" />
-              </div>
-              <div class="control-group">
-                <label>Address line 1</label>
-                <input id="bpShipAddress1" type="text" placeholder="Address line 1" />
-              </div>
-              <div class="control-group">
-                <label>Address line 2</label>
-                <input id="bpShipAddress2" type="text" placeholder="Address line 2" />
-              </div>
-              <div class="control-group">
-                <label>Postal code</label>
-                <input id="bpShipPostalCode" type="text" placeholder="Postal code" />
-              </div>
-            </div>
-          </div>
-
-          <div class="profile-card">
-            <div class="profile-section-header">
-              <h4>Shipping method</h4>
-              <button class="btn btn-small" onclick="loadBookpodShippingOptions()">Refresh</button>
-            </div>
-
-            <div class="profile-form">
-              <div class="control-group">
-                <label>Shipping company</label>
-                <input id="bpShipCompany" type="text" value="HFD (companyId=6)" disabled />
-              </div>
-              <div class="control-group">
-                <label>Shipping method</label>
-                <select id="bpShipMethod">
-                  <option value="2" selected>Home delivery</option>
-                  <option value="1">Pickup point delivery</option>
-                  <option value="3">Factory self-pickup</option>
-                </select>
-                <div id="bpShipOptionsHint"
-                  style="margin-top: 6px; color: var(--color-text-light); font-size: 0.85rem;">
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Shipping Method</label>
-                <select id="bpShipMethod" class="form-control" onchange="toggleBookpodPickupUI(this.value)">
-                  <option value="2">Home delivery</option>
-                </select>
-              </div>
-
-              <!-- Pickup Point UI (Hidden by default) -->
-              <div id="bpPickupPointSection"
-                style="display:none; margin-top:10px; padding:10px; background:#f9f9f9; border:1px solid #eee;">
-                <label style="font-weight:600; color:#e63946;">Select Pickup Point *</label>
-                <select id="bpPickupPointSelect" class="form-control" style="font-family:monospace;">
-                  <option value="">-- Enter city above to load points --</option>
-                </select>
-                <div id="bpPickupStatus" style="font-size:0.8em; color:#666; margin-top:4px;"></div>
-                <button class="btn btn-small btn-secondary" style="margin-top:5px;" onclick="loadBookpodPickupPoints()">
-                  Sales Points Near Me
-                </button>
-              </div>
-
-              <div class="form-help" id="bpShipOptionsHint">Loading options...</div>
-            </div>
-
-            <div class="col-half">
-              <h4>Order Preview</h4>
-              <div id="bpOrderPreview"
-                style="background:#f5f5f5; padding:10px; border-radius:4px; font-family:monospace; white-space:pre-wrap;">
-                (Order details will appear here)
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-footer" style="display:flex; gap: 10px; justify-content:flex-end;">
-            <button class="btn btn-secondary" onclick="closeBookpodOrderModal()">Close</button>
-            <button class="btn btn-secondary" onclick="previewBookpodOrder()">Update Preview</button>
-            <button class="btn btn-primary" onclick="submitBookpodOrder()">
-              Create Order
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Profile Modal (Global) -->
-      <div class="modal" id="profileModal">
-        <div class="modal-content modal-large">
-          <div class="modal-header">
-            <h3>Profile</h3>
-            <button class="close-btn" onclick="closeProfileModal()">&times;</button>
-          </div>
-
-          <div class="profile-header">
-            <img id="profileAvatar" class="profile-avatar" alt="Profile" />
-            <div class="profile-identity">
-              <div id="profileName" class="profile-name"></div>
-              <div id="profileEmail" class="profile-email"></div>
-            </div>
-          </div>
-
-          <div class="profile-tabs">
-            <button class="profile-tab active" data-profiletab="albums" onclick="switchProfileTab('albums')">Saved
-              albums</button>
-            <button class="profile-tab" data-profiletab="payments" onclick="switchProfileTab('payments')">Payments
-              (prep)</button>
-          </div>
-
-          <div class="profile-tab-content active" id="profile-albums-tab">
-            <div class="profile-section-header">
-              <h4>Saved albums</h4>
-              <button class="btn btn-small" onclick="refreshProfileAlbums()">Refresh</button>
-            </div>
-            <div class="projects-list" id="profileAlbumsList">
-              <div class="loading">Loading albums...</div>
-            </div>
-          </div>
-
-          <div class="profile-tab-content" id="profile-payments-tab">
-            <div class="profile-grid">
-              <div class="profile-card">
-                <div class="profile-section-header">
-                  <h4>Personal details</h4>
-                  <button class="btn btn-small btn-primary" onclick="savePersonalDetails()">Save</button>
-                </div>
-                <div class="profile-form">
-                  <div class="control-group">
-                    <label>Full name</label>
-                    <input id="pdFullName" type="text" placeholder="Full name" />
-                  </div>
-                  <div class="control-group">
-                    <label>Email</label>
-                    <input id="pdEmail" type="email" placeholder="Email" />
-                  </div>
-                  <div class="control-group">
-                    <label>Phone</label>
-                    <input id="pdPhone" type="tel" placeholder="Phone" />
-                  </div>
-                  <div class="control-group">
-                    <label>Country</label>
-                    <input id="pdCountry" type="text" placeholder="Country" />
-                  </div>
-                  <div class="control-group">
-                    <label>City</label>
-                    <input id="pdCity" type="text" placeholder="City" />
-                  </div>
-                  <div class="control-group">
-                    <label>Address line 1</label>
-                    <input id="pdAddress1" type="text" placeholder="Address line 1" />
-                  </div>
-                  <div class="control-group">
-                    <label>Address line 2</label>
-                    <input id="pdAddress2" type="text" placeholder="Address line 2" />
-                  </div>
-                  <div class="control-group">
-                    <label>Postal code</label>
-                    <input id="pdPostalCode" type="text" placeholder="Postal code" />
-                  </div>
-                  <div class="control-group">
-                    <label>Company (optional)</label>
-                    <input id="pdCompany" type="text" placeholder="Company" />
-                  </div>
-                  <div class="control-group">
-                    <label>VAT number (optional)</label>
-                    <input id="pdVatNumber" type="text" placeholder="VAT number" />
-                  </div>
-                </div>
-              </div>
-
-              <div class="profile-card">
-                <div class="profile-section-header">
-                  <h4>Purchases</h4>
-                  <div class="profile-actions-inline">
-                    <button class="btn btn-small" onclick="refreshPurchases()">Refresh</button>
-                    <button class="btn btn-small btn-secondary" onclick="createTestPurchaseDraft()">Create test
-                      purchase</button>
-                  </div>
-                </div>
-                <div id="profilePurchasesList" class="profile-purchases-list">
-                  <div class="loading">Loading purchases...</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="signOut()">Sign out</button>
-            <button class="btn btn-secondary" onclick="closeProfileModal()">Close</button>
-          </div>
-        </div>
-      </div>
-
-
-
-    </div>
-  </div>
-
-  <!-- Data Scripts -->
-
-  <script src="data/textStyles.js?v=v2_he_gallery_labels"></script> <!-- NEW -->
-
-  <!-- Design Gallery Modal (Backgrounds, Frames, & Text) -->
-  <div id="backgroundGalleryModal" class="modal">
-    <div class="modal-content large-modal">
-      <div class="modal-header">
-        <h2>Design Gallery</h2>
-        <div class="gallery-tabs">
-          <button class="gallery-tab active" data-gallery-tab="textures" onclick="switchGalleryTab('textures')">Paper &
-            Textures</button>
-          <button class="gallery-tab" data-gallery-tab="frames" onclick="switchGalleryTab('frames')">Page
-            Frames</button>
-          <button class="gallery-tab" data-gallery-tab="imageFrames" onclick="switchGalleryTab('imageFrames')">Image
-            Frames</button>
-          <button class="gallery-tab" data-gallery-tab="typography"
-            onclick="switchGalleryTab('typography')">Typography</button> <!-- NEW -->
-        </div>
-
-        <!-- Search with AI Button (Restored) -->
-        <button id="searchDesignBtn" class="btn btn-primary btn-small" onclick="showInputforSearchDesign()">
-          <span class="icon">✨</span> Search with AI
-        </button>
-
-        <button class="close-btn" type="button" aria-label="Close Design Gallery"
-          onclick="closeBackgroundGallery()">&times;</button>
-      </div>
-
-      <!-- AI Search Input Container (Hidden by default) -->
-      <div id="aiSearchContainer"
-        style="display:none; padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee;">
-        <div style="display:flex; gap: 10px;">
-          <input type="text" id="aiDesignPrompt" class="edo-input"
-            placeholder="Describe a texture, frame, or text style... (e.g. 'vintage rose paper' or 'neon cyberpunk text')"
-            style="flex:1;">
-          <button class="btn btn-primary" onclick="searchDesignApi()">Generate</button>
-        </div>
-      </div>
-
-      <div class="modal-body">
-        <div id="backgroundGalleryGrid"
-          style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 20px;">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Design Inspiration Modal (Global) -->
-  <div class="modal" id="designInspirationModal">
-    <div class="modal-content modal-large">
-      <div class="modal-header">
-        <h3>🎨 Design Inspiration Results</h3>
-        <button class="close-btn" onclick="closeDesignInspirationModal()">&times;</button>
-      </div>
-      <div class="design-inspiration-content" id="designInspirationContent">
-        <div class="loading">Searching for design inspiration...</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeDesignInspirationModal()">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PDF Download Ready Modal -->
-  <div class="modal" id="pdfDownloadModal" style="z-index: 100000;">
-    <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;">
-      <div class="modal-header" style="border: none; padding-bottom: 0;">
-        <button class="close-btn"
-          onclick="document.getElementById('pdfDownloadModal').classList.remove('active')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
-        <h2>PDF Ready!</h2>
-        <p style="margin-bottom: 2rem; color: #666;">Your high-resolution PDF has been generated.</p>
-        <a id="btn-download-trigger" class="btn btn-primary btn-lg"
-          style="width: 100%; display: flex; justify-content: center; align-items: center; text-decoration: none; padding: 12px;">
-          Download PDF
+        <a href="coming-soon-he.html"
+          class="text-slate-500 hover:text-white transition-colors text-xs tracking-widest uppercase no-underline hidden md:block">
+          עברית →
         </a>
       </div>
-    </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex items-center relative z-10">
+      <div class="max-w-7xl mx-auto w-full px-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+
+        <!-- Left: 3D Book -->
+        <div class="relative w-full h-[400px] md:h-[500px] lg:h-[600px] order-2 lg:order-1">
+          <div class="book-glow"></div>
+          <div id="hero-canvas-container" class="absolute inset-0 w-full h-full z-10"></div>
+        </div>
+
+        <!-- Right: Content -->
+        <div class="order-1 lg:order-2 space-y-8">
+          <!-- Launch Badge -->
+          <div class="animate-fade-in">
+            <div class="launch-badge inline-flex items-center gap-2 px-4 py-2 rounded-full">
+              <span class="w-2 h-2 rounded-full bg-primary pulse-dot"></span>
+              <span class="text-xs font-medium tracking-widest uppercase text-indigo-300">Launching Soon</span>
+            </div>
+          </div>
+
+          <!-- Headline -->
+          <div class="animate-fade-in animate-delay-1">
+            <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight">
+              Coming<br>
+              <span class="text-primary">Soon</span>
+            </h1>
+          </div>
+
+          <!-- Subtitle -->
+          <div class="space-y-3 animate-fade-in animate-delay-2">
+            <p class="text-lg md:text-xl text-slate-300 font-medium leading-relaxed">
+              AI-Powered Photo Books — Beautiful memories, printed perfectly.
+            </p>
+            <p class="text-sm text-slate-500 leading-relaxed max-w-md">
+              We're crafting something special. Premium photo books designed by AI, printed with love in Jerusalem.
+            </p>
+          </div>
+
+          <!-- Email Signup -->
+          <div class="animate-fade-in animate-delay-3">
+            <form id="notify-form" class="email-form glass-form rounded-xl p-1.5 flex items-center gap-2 max-w-md">
+              <div class="flex items-center gap-2 flex-1 px-3">
+                <span class="material-icons-round text-slate-500 text-lg">mail_outline</span>
+                <input type="email" id="email-input" placeholder="Enter your email address"
+                  class="bg-transparent border-none text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-0 w-full py-2.5"
+                  required>
+              </div>
+              <button type="submit"
+                class="bg-primary hover:bg-indigo-500 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-all active:scale-95 whitespace-nowrap shadow-lg shadow-primary/25">
+                Notify Me
+              </button>
+            </form>
+            <div id="success-msg" class="success-msg items-center gap-2 mt-3 text-sm text-emerald-400">
+              <span class="material-icons-round text-lg">check_circle</span>
+              <span>You're on the list! We'll let you know when we launch.</span>
+            </div>
+          </div>
+
+          <!-- Social -->
+          <div class="flex items-center gap-4 animate-fade-in animate-delay-4">
+            <a href="#"
+              class="social-icon w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 no-underline">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+              </svg>
+            </a>
+            <a href="#"
+              class="social-icon w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 no-underline">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M9.198 21.5h4v-8.01h3.604l.396-3.98h-4V7.5a1 1 0 0 1 1-1h3v-4h-3a5 5 0 0 0-5 5v2.01h-2l-.396 3.98h2.396v8.01Z" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="relative z-20 px-8 py-6">
+      <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <p class="text-slate-600 text-xs tracking-wide">© 2026 SHOSHO. All rights reserved.</p>
+        <div class="flex gap-4 text-xs text-slate-600">
+          <a href="privacy.html" class="hover:text-slate-400 transition-colors no-underline">Privacy</a>
+          <a href="terms.html" class="hover:text-slate-400 transition-colors no-underline">Terms</a>
+        </div>
+      </div>
+    </footer>
+
   </div>
 
-  <!-- Design Editor Script -->
-  <script src="/js/design-editor.js"></script>
+  <!-- Three.js Import Map -->
+  <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 
-  <!-- Icons (Memory Director + UI) -->
-  <script src="/js/icons.js"></script>
+  <!-- GSAP for 3D Book Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
-  <!-- Nano Banana AI Service -->
-  <script type="module" src="/js/ai-editor/services/ai-service.js"></script>
-
-  <!-- Main Application Script -->
-  <script src="/js/app.js?v=v84_dropdown_bounce_fix"></script>
-
-  <!-- Template Gallery Script -->
-  <script src="/js/template-gallery.js?v=v5_picker_fix"></script>
-
-  <!-- Support Chat Widget (AI + Human escalation) -->
-  <!-- <script src="/js/support-chat.js"></script> -->
-  <!-- Magic Create v2 Helper -->
+  <!-- 3D Book Logic (reused from landing page) -->
   <script type="module">
-    import { store } from '/js/ai-editor/core/state.js';
-    window.getSelectedPhotos = () => {
-      return store.state.assets.photos || [];
-    };
+    import { initPhotosAssembling } from './js/landing-photos-assembling.js?v=1772708000';
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof initPhotosAssembling === 'function') {
+        initPhotosAssembling();
+      }
+    });
   </script>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCnrmoGSaebSk03F6dzAUOj5-3okolxwb0",
+      authDomain: "shoso-photobook.firebaseapp.com",
+      projectId: "shoso-photobook",
+      storageBucket: "shoso-photobook.firebasestorage.app",
+      messagingSenderId: "982613325804",
+      appId: "1:982613325804:web:d778a62a1fc8107045f2c9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    document.getElementById('notify-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const email = document.getElementById('email-input').value.trim();
+      if (!email) return;
+
+      try {
+        await addDoc(collection(db, 'launch_subscribers'), {
+          email: email,
+          source: 'coming-soon-en',
+          subscribedAt: serverTimestamp(),
+          notified: false
+        });
+        this.classList.add('hide');
+        document.getElementById('success-msg').classList.add('show');
+      } catch (err) {
+        console.error('Error saving email:', err);
+        alert('Something went wrong. Please try again.');
+      }
+    });
+  </script>
+
 </body>
 
 </html>

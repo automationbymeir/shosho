@@ -172,13 +172,13 @@ export class RenderEngine {
                     const err = document.createElement('div');
                     err.style.width = '100%';
                     err.style.height = '100%';
-                    err.style.background = 'rgba(255, 0, 0, 0.5)';
-                    err.style.color = 'white';
+                    err.style.background = 'rgba(200, 200, 210, 0.15)';
+                    err.style.color = 'rgba(150, 150, 160, 0.6)';
                     err.style.display = 'flex';
                     err.style.alignItems = 'center';
                     err.style.justifyContent = 'center';
-                    err.style.fontSize = '12px';
-                    err.innerHTML = `Missing Photo<br>${targetId || 'No ID'}`;
+                    err.style.fontSize = '28px';
+                    err.innerHTML = '📷';
                     slotEl.appendChild(err);
                 }
 

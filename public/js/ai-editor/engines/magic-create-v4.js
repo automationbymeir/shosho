@@ -456,6 +456,11 @@ class MagicCreateV4 {
                     console.log(`[MagicCreate v4] Resolved layout string "${layoutId}" → ${page.layout.slots.length} slots`);
                 }
 
+                // Map AI photoShape → renderer imageShape (rounded, circle, oval, rect)
+                if (page.photoShape && !page.imageShape) {
+                    page.imageShape = page.photoShape;
+                }
+
                 // Hydrate page.photos from layout.slots if missing
                 if (!page.photos && page.layout && page.layout.slots) {
                     const assetPhotos = window.store.state.assets.photos;

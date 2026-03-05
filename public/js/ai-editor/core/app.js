@@ -466,10 +466,24 @@ class App {
     }
 
     renderActivePage() {
-        const p = store.state.pages.find(pg => pg.id === store.state.activePageId);
-        console.log('[renderActivePage] activePageId:', store.state.activePageId?.substring(0, 12), 'found:', !!p, 'totalPages:', store.state.pages.length);
+        let p = store.state.pages.find(pg => pg.id === store.state.activePageId);
+        console.error('[renderActivePage] activePageId:', store.state.activePageId?.substring(0, 12), 'found:', !!p, 'totalPages:', store.state.pages.length);
+
+        // CRITICAL FIX: If the page isn't found in the store, try to restore from
+        // _magicPages. Magic Create writes pages to _target directly, but they get
+        // overwritten by later proxy sets (e.g., addPage creates a new array via
+        // this.state.pages = [...this.state.pages, newPage]).
+        if (!p && window._magicPages && window._magicPages.length > 0) {
+            console.error('[renderActivePage] Page not in store — restoring', window._magicPages.length, 'pages from _magicPages');
+            store._isBatchUpdating = true;
+            store.state.pages = window._magicPages;
+            store._isBatchUpdating = false;
+            p = store.state.pages.find(pg => pg.id === store.state.activePageId);
+            console.error('[renderActivePage] After restore: found:', !!p, 'totalPages:', store.state.pages.length);
+        }
+
         if (!p) {
-            console.warn('[renderActivePage] Page NOT FOUND! Page IDs:', store.state.pages.map(pg => pg.id?.substring(0, 12)));
+            console.error('[renderActivePage] Page NOT FOUND even after restore! Page IDs:', store.state.pages.map(pg => pg.id?.substring(0, 12)));
             return;
         }
 
@@ -1436,6 +1450,112 @@ class App {
     }
 
     bindEvents() {
+        // ── TIMELINE EVENT DELEGATION ──
+        // Single click handler on the timeline container that catches ALL page/cover clicks.
+        // This is bulletproof — works even if individual onclick handlers are lost during rebuilds.
+        const timelineEl = document.getElementById('page-timeline');
+        if (timelineEl) {
+            timelineEl.addEventListener('click', (e) => {
+                // Find the closest .timeline-page ancestor from the clicked element
+                const pageItem = e.target.closest('.timeline-page');
+                if (!pageItem) return;
+
+                console.error('[TIMELINE DELEGATION] Click on:', pageItem.classList.toString(), 'pageId:', pageItem.dataset?.pageId?.substring(0, 12));
+
+                // ── COVER CLICK ──
+                if (pageItem.classList.contains('cover-thumb')) {
+                    if (store.state.viewMode === 'cover') return;
+                    console.error('[TIMELINE DELEGATION] Switching to COVER');
+
+                    this._manualRenderLock = true;
+                    store._isBatchUpdating = true;
+                    store.state.viewMode = 'cover';
+                    store.state.activePageId = null;
+                    store._isBatchUpdating = false;
+                    this._rafPending = false;
+                    this._pendingUpdates = new Set();
+
+                    this.renderCoverWithTemplate();
+                    this.updateTimelineActiveState(store.state);
+                    this.updatePropertiesPanel(store.state);
+
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => { this._manualRenderLock = false; });
+                    });
+                    return;
+                }
+
+                // ── PAGE CLICK ──
+                const pageId = pageItem.dataset?.pageId;
+                if (!pageId) {
+                    console.warn('[TIMELINE DELEGATION] No pageId on element');
+                    return;
+                }
+
+                if (store.state.activePageId === pageId && store.state.viewMode === 'pages') {
+                    // Don't early return if the page wasn't actually rendered
+                    // (e.g., store.state.pages didn't contain it when renderActivePage was called)
+                    const actualPage = store.state.pages.find(pg => pg.id === pageId);
+                    if (actualPage) {
+                        console.error('[TIMELINE DELEGATION] EARLY RETURN: same page active and found in store');
+                        return;
+                    }
+                    console.error('[TIMELINE DELEGATION] Same page active but NOT in store — forcing re-render');
+                }
+
+
+                console.error('[TIMELINE DELEGATION] Switching to page:', pageId.substring(0, 12));
+
+                this._manualRenderLock = true;
+                store._isBatchUpdating = true;
+                store.state.activePageId = pageId;
+                store.state.viewMode = 'pages';
+                store._isBatchUpdating = false;
+                this._rafPending = false;
+                this._pendingUpdates = new Set();
+
+                // CRITICAL FIX: Check if the page exists in store.state.pages.
+                // Magic Create writes pages to _target directly, but they can get
+                // overwritten by later state changes (auth observer, addPage, etc).
+                // If the page isn't found, force-restore from _magicPages backup.
+                let foundPage = store.state.pages.find(p => p.id === pageId);
+                if (!foundPage && window._magicPages && window._magicPages.length > 0) {
+                    console.error('[TIMELINE DELEGATION] Page not in store! Restoring', window._magicPages.length, 'pages from _magicPages backup');
+                    // Force-write Magic Create pages back to the store
+                    store._isBatchUpdating = true;
+                    store.state.pages = window._magicPages;
+                    store._isBatchUpdating = false;
+                    foundPage = store.state.pages.find(p => p.id === pageId);
+                }
+                console.error('[TIMELINE DELEGATION] Page found:', !!foundPage, 'in', store.state.pages.length, 'pages');
+
+                if (foundPage) {
+                    this.renderActivePage();
+                } else {
+                    // Last resort: render directly from _magicPages if still not found
+                    const magicPage = window._magicPages?.find(p => p.id === pageId);
+                    if (magicPage) {
+                        console.error('[TIMELINE DELEGATION] Direct-rendering from _magicPages');
+                        const canvas = document.getElementById('canvas-container');
+                        if (canvas) {
+                            this.renderer.renderPageToContainer(magicPage, store.state.assets, canvas, null);
+                        }
+                    } else {
+                        console.error('[TIMELINE DELEGATION] Page completely not found anywhere!');
+                    }
+                }
+
+                // Sync UI
+                this.updateTimelineActiveState(store.state);
+                this.updatePropertiesPanel(store.state);
+                this.updateMoveable(store.state);
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => { this._manualRenderLock = false; });
+                });
+            });
+        }
+
         // Profile Button
         const btnProfile = document.getElementById('btn-profile');
         if (btnProfile) {
@@ -1887,15 +2007,30 @@ class App {
                     const assetPhotos = store.state.assets.photos;
                     page.photos = page.layout.slots
                         .filter(s => s.photoId)
-                        .map(s => assetPhotos.find(p => p.id === s.photoId))
+                        .map(s => {
+                            const p = assetPhotos.find(p => p.id === s.photoId);
+                            if (p && s.shape) p.shape = s.shape;
+                            return p;
+                        })
                         .filter(p => p);
+                } else if (page.photos && page.layout && page.layout.slots) {
+                    // Preserve shapes from current slots
+                    page.layout.slots.forEach(s => {
+                        if (s.shape && s.photoId) {
+                            const p = page.photos.find(ph => ph.id === s.photoId);
+                            if (p) p.shape = s.shape;
+                        }
+                    });
                 }
                 if (page.photos && page.photos.length > 0) {
                     const currentName = page.layout ? page.layout.name : null;
                     const newLayout = layoutEngine.getNextLayout(page.photos, currentName);
                     if (newLayout) {
                         store.pushState('Remix Layout');
+                        // Preserve imageShape on new layout
+                        const savedShape = page.imageShape;
                         page.layout = newLayout;
+                        if (savedShape) page.imageShape = savedShape;
                         store.notify('pages', state.pages);
                     }
                 }

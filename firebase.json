@@ -6,13 +6,7 @@
             "**/.*",
             "**/node_modules/**"
         ],
-        "redirects": [
-            {
-                "source": "/",
-                "destination": "/Landing.html",
-                "type": 302
-            }
-        ],
+        "redirects": [],
         "rewrites": [
             {
                 "source": "/oauth/callback",

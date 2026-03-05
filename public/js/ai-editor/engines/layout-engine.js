@@ -124,15 +124,21 @@ export class LayoutEngine {
         const count = photos.length;
         if (count === 0) return null;
 
-        // Find all templates that match this count
+        // Build a comprehensive list of ALL possible layouts
+        // 1. Exact match layouts for this photo count
         const keys = Object.keys(this.layouts).filter(k => k.startsWith(`${count}-`));
 
-        // Add dynamic grid as an option
+        // 2. Also include layouts for +/-1 photo count for more variety
+        if (count > 1) {
+            Object.keys(this.layouts).filter(k => k.startsWith(`${count - 1}-`)).forEach(k => keys.push(k));
+        }
+        Object.keys(this.layouts).filter(k => k.startsWith(`${count + 1}-`)).forEach(k => keys.push(k));
+
+        // 3. Add dynamic grid as an option
         keys.push(`dynamic-${count}`);
 
         let nextIndex = 0;
         if (currentLayoutName) {
-            // Handle if current is "dynamic-5" etc
             const currIdx = keys.indexOf(currentLayoutName);
             if (currIdx > -1) {
                 nextIndex = (currIdx + 1) % keys.length;
@@ -153,13 +159,16 @@ export class LayoutEngine {
 
         const slots = photos.map((photo, index) => {
             const slotDef = template.slots[index % template.slots.length];
-            return {
+            const slot = {
                 photoId: photo.id,
                 x: slotDef.x,
                 y: slotDef.y,
                 width: slotDef.w,
                 height: slotDef.h
             };
+            // Preserve photo shape (rounded, circle, oval) from previous layout
+            if (photo.shape) slot.shape = photo.shape;
+            return slot;
         });
 
         return {

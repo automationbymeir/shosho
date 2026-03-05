@@ -365,7 +365,7 @@ The result must feel curated, consistent, and beautiful — not just random colo
 
 ${userRequest ? `CRITICAL DIRECTIVE FROM CLIENT: "${userRequest}" \nYou MUST analyze this request and explicitly select backgroundTextureId, elementCategories, pageFrameId, photoFrameId, text styles, and templateId that BEST MATCH the mood, theme, and subjects of this request. Do not default to random.
 
-COUNTRY FLAG DETECTION: If the prompt mentions ANY country name (in Hebrew or English), you MUST include "flags" in the elementCategories for the cover page AND 2-3 interior pages. Country names include but are not limited to: ישראל/Israel, ארצות הברית/USA, צרפת/France, איטליה/Italy, יפן/Japan, גרמניה/Germany, ספרד/Spain, בריטניה/UK, ברזיל/Brazil, הודו/India, תאילנד/Thailand, יוון/Greece, טורקיה/Turkey, etc.` : `Every run should vary (use the provided seed to introduce variation).`}
+COUNTRY FLAG RULES: Only include "flags" in elementCategories if the client's prompt EXPLICITLY mentions a specific country name (in Hebrew or English). Do NOT add flags for general travel, vacation, or trip prompts that don't name a specific country. Country name examples: ישראל/Israel, ארצות הברית/USA, צרפת/France, איטליה/Italy, יפן/Japan, גרמניה/Germany, ספרד/Spain, בריטניה/UK, ברזיל/Brazil, הודו/India, תאילנד/Thailand, יוון/Greece, טורקיה/Turkey. If a country IS mentioned, include "flags" in elementCategories for the cover and 1-2 interior pages only.` : `Every run should vary (use the provided seed to introduce variation).`}
 
 Language: ${isHe ? "Hebrew (he)" : "English (en)"}.
 ${isHe ? "CRITICAL: ALL text content (cover title, cover subtitle, back cover text, photo captions, and text block content) MUST be written in Hebrew. Do NOT use any English text in the output." : ""}
@@ -380,7 +380,7 @@ ${JSON.stringify(allowedElementCategories)}
 Constraints:
 - Choose ONE templateId from this list only: ${JSON.stringify(allowedTemplates)}
 - globalCornerRadius: integer 0..24
-- backgroundTextureId: MUST be one of the background ids listed above. Pick backgrounds that match the mood/theme of the prompt. Use at least 2-3 different backgrounds across the album for visual variety.
+- backgroundTextureId: MUST be one of the background ids listed above. Pick backgrounds that BEST match the mood/theme of the prompt. CRITICAL: Use at least 5-8 DIFFERENT backgrounds across the album — every single page should ideally have a unique background. NEVER repeat the same background on consecutive pages. Scan the full list of available backgrounds and select the ones whose mood/name best fits the album theme.
 - elementCategories: array of 0-2 category strings (e.g. ["beach","nature"]). These add small decorative SVG elements to the page corners. Pick categories that match the album mood. Use [] for clean/minimal pages.
 - pageFrameId: null or one of: ${JSON.stringify(allowedPageFrames)}
 - text styleId: one of: ${JSON.stringify(allowedTextStyles)}

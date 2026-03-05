@@ -228,7 +228,10 @@ class EditorStore {
     addPage() {
         const newPage = {
             id: crypto.randomUUID(),
-            layout: 'single', // Default layout
+            layout: {
+                id: 'single',
+                slots: [{ x: 10, y: 10, width: 80, height: 80 }]
+            },
             elements: [],     // Photos, Text, etc.
             background: this.state.theme
         };
