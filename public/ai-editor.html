@@ -82,6 +82,8 @@
                 <button class="nav-item" data-tab="ai" title="יצירת AI"><i
                         class="fa-solid fa-wand-magic-sparkles"></i></button>
                 <button class="nav-item" data-tab="elements" title="אלמנטים"><i class="fa-solid fa-shapes"></i></button>
+                <button class="nav-item" data-tab="covers" title="כריכות נסיעות"><i
+                        class="fa-solid fa-globe"></i></button>
                 <button class="nav-item" data-tab="frames" title="מסגרות"><i class="fa-regular fa-square"></i></button>
             </div>
 
@@ -153,6 +155,18 @@
                     <!-- Element Grid Injection Point -->
                     <div id="elements-library" class="asset-grid elements-grid"
                         style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px;"></div>
+                </div>
+
+                <div id="tab-covers" class="tab-pane">
+                    <div class="panel-header" style="background: linear-gradient(135deg, #1e3a5f 0%, #1e1e2f 100%);">
+                        <h3 style="display:flex; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-globe" style="color: #38bdf8;"></i>
+                            כריכות נסיעות
+                        </h3>
+                    </div>
+                    <div id="covers-library"
+                        style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px; max-height: calc(100vh - 200px); overflow-y: auto;">
+                    </div>
                 </div>
             </div>
         </aside>
@@ -240,6 +254,7 @@
     <script src="data/templates.js"></script>
     <script src="data/textStyles.js"></script>
     <script src="data/elements.js?v=flags3"></script>
+    <script src="data/covers.js?v=1"></script>
     <script src="js/template-registry.js?v=debug2"></script>
 
     <!-- PDF Lib -->

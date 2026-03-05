@@ -637,6 +637,13 @@ export class RenderEngine {
                     el.style.backgroundColor = cover.theme;
                     return;
                 }
+                // Check if it's a data: URI (SVG cover gallery or inline SVG)
+                if (cover.theme.startsWith('data:')) {
+                    el.style.backgroundImage = `url("${cover.theme}")`;
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                    return;
+                }
                 // Check global textures
                 const globalTheme = window.BACKGROUND_TEXTURES?.find(t => t.id === cover.theme);
                 if (globalTheme) {

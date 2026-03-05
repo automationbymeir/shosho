@@ -227,13 +227,19 @@ export class UnifiedCoverRenderer {
         const bgId = typeof cover.background === 'string' ? cover.background
             : (cover.background?.textureId || cover.theme ||
                 magicFallback.background || magicFallback.theme || null);
-        if (bgId && window.BACKGROUND_TEXTURES) {
-            const tex = window.BACKGROUND_TEXTURES.find(t => t.id === bgId);
-            if (tex && tex.url) {
-                bgTextureUrl = tex.url;
-                console.log('[UnifiedCoverRenderer] Resolved texture:', bgId, '→ URL length:', tex.url.length);
-            } else {
-                console.warn('[UnifiedCoverRenderer] Texture NOT FOUND for ID:', bgId, 'Available:', window.BACKGROUND_TEXTURES.length);
+        if (bgId) {
+            // Direct data: URI or http URL — use as-is
+            if (bgId.startsWith('data:') || bgId.startsWith('http') || bgId.startsWith('assets')) {
+                bgTextureUrl = bgId;
+                console.log('[UnifiedCoverRenderer] Direct URL background detected. Length:', bgId.length);
+            } else if (window.BACKGROUND_TEXTURES) {
+                const tex = window.BACKGROUND_TEXTURES.find(t => t.id === bgId);
+                if (tex && tex.url) {
+                    bgTextureUrl = tex.url;
+                    console.log('[UnifiedCoverRenderer] Resolved texture:', bgId, '→ URL length:', tex.url.length);
+                } else {
+                    console.warn('[UnifiedCoverRenderer] Texture NOT FOUND for ID:', bgId, 'Available:', window.BACKGROUND_TEXTURES.length);
+                }
             }
         } else {
             console.log('[UnifiedCoverRenderer] No background ID to resolve. cover.background:', cover.background, 'cover.theme:', cover.theme, 'magicFallback:', magicFallback.background);
@@ -313,9 +319,10 @@ export class UnifiedCoverRenderer {
             border-radius: 2px 0 0 2px;
             overflow: hidden;
         `;
-        // Apply texture background if available
-        if (bgTextureUrl) {
-            backEl.style.backgroundImage = `url('${bgTextureUrl}')`;
+        // Apply texture background: prefer dedicated back cover SVG for gallery covers
+        const backBgUrl = cover._backSvgDataUri || bgTextureUrl;
+        if (backBgUrl) {
+            backEl.style.backgroundImage = `url("${backBgUrl}")`;
             backEl.style.backgroundSize = 'cover';
             backEl.style.backgroundPosition = 'center';
         }
@@ -373,8 +380,10 @@ export class UnifiedCoverRenderer {
             justify-content: center;
             box-shadow: inset 2px 0 5px rgba(0,0,0,0.2);
         `;
-        if (bgTextureUrl) {
-            spineEl.style.backgroundImage = `url('${bgTextureUrl}')`;
+        // For spine, prefer a subtle back-cover pattern over the front illustration
+        const spineBgUrl = cover._backSvgDataUri || bgTextureUrl;
+        if (spineBgUrl) {
+            spineEl.style.backgroundImage = `url("${spineBgUrl}")`;
             spineEl.style.backgroundSize = 'cover';
             spineEl.style.backgroundPosition = 'center';
         }
@@ -424,7 +433,7 @@ export class UnifiedCoverRenderer {
         `;
         // Apply texture background if available
         if (bgTextureUrl) {
-            frontEl.style.backgroundImage = `url('${bgTextureUrl}')`;
+            frontEl.style.backgroundImage = `url("${bgTextureUrl}")`;
             frontEl.style.backgroundSize = 'cover';
             frontEl.style.backgroundPosition = 'center';
         }
@@ -680,8 +689,9 @@ export class UnifiedCoverRenderer {
                 // But custom layout might have multiple slots? 
                 // For 'cover-dramatic' there is one 'heroPhoto'.
                 // We use cover.frontPhotoId for the first slot found.
+                // But skip if a gallery cover is active — illustration takes priority
                 let photoUrl = null;
-                if (cover.frontPhotoId && assets?.photos) {
+                if (!cover._coverGalleryId && cover.frontPhotoId && assets?.photos) {
                     const photo = assets.photos.find(p => p.id === cover.frontPhotoId);
                     if (photo) photoUrl = photo.thumbnailUrl || photo.url;
                 }
@@ -899,6 +909,18 @@ export class UnifiedCoverRenderer {
     static createPhotoArea(cover, assets, { layout, interactive }) {
         const photoEl = document.createElement('div');
         photoEl.className = 'cover-photo-area';
+
+        // Gallery cover: show SVG illustration instead of photo drop zone
+        if (cover._coverGalleryId) {
+            // The SVG is already rendered as the cover background.
+            // Make the photo area transparent so the illustration shows through.
+            photoEl.style.cssText = `
+                pointer-events: none;
+            `;
+            // No photo drop, no placeholder — the illustration IS the content
+            return photoEl;
+        }
+
         // Apply saved crop position if available
         const frontCrop = cover.frontCrop || {};
         const bgPosX = frontCrop.panX !== undefined ? frontCrop.panX : 50;
@@ -1086,8 +1108,8 @@ export class UnifiedCoverRenderer {
             box-sizing: border-box;
         `;
 
-        // Photo preview
-        if (cover.frontPhotoId && assets?.photos) {
+        // Photo preview — skip for gallery covers since illustration is in background
+        if (!cover._coverGalleryId && cover.frontPhotoId && assets?.photos) {
             const photo = assets.photos.find(p => p.id === cover.frontPhotoId);
             if (photo) {
                 const img = document.createElement('div');

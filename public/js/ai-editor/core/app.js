@@ -1727,10 +1727,20 @@ class App {
                         store.notify('cover', store.state.cover);
                     } else if (targetSlotEl.classList.contains('cover-photo-area') || targetSlotEl.classList.contains('front-cover')) {
                         // FIX: Both .cover-photo-area and .front-cover target the front cover
-                        store.pushState('Add Photo to Front Cover');
-                        if (!store.state.cover) store.state.cover = {};
-                        store.state.cover.frontPhotoId = item.id;
-                        store.notify('cover', store.state.cover);
+                        // But block if a gallery cover is active — illustration takes priority
+                        if (store.state.cover?._coverGalleryId) {
+                            console.log('[Drop] Gallery cover active — blocking front cover photo drop. Use back cover instead.');
+                            // Redirect to back cover instead
+                            store.pushState('Add Photo to Back Cover');
+                            if (!store.state.cover) store.state.cover = {};
+                            store.state.cover.backPhotoId = item.id;
+                            store.notify('cover', store.state.cover);
+                        } else {
+                            store.pushState('Add Photo to Front Cover');
+                            if (!store.state.cover) store.state.cover = {};
+                            store.state.cover.frontPhotoId = item.id;
+                            store.notify('cover', store.state.cover);
+                        }
                     } else if (targetSlotEl.classList.contains('empty-slot')) {
                         const slotIndex = parseInt(targetSlotEl.dataset.slotIndex);
                         store.pushState('Add Photo to Slot');
@@ -2439,7 +2449,13 @@ class App {
             // Left < 0.45 is Back, > 0.55 is Front.
 
             if (relativeX > 0.5) {
-                state.cover.frontPhotoId = photoId;
+                // Front cover — but block if gallery cover is active
+                if (state.cover._coverGalleryId) {
+                    console.log('[addPhotoToPage] Gallery cover active — redirecting front drop to back cover');
+                    state.cover.backPhotoId = photoId;
+                } else {
+                    state.cover.frontPhotoId = photoId;
+                }
             } else {
                 state.cover.backPhotoId = photoId;
             }
@@ -4256,6 +4272,83 @@ class App {
                     } catch (err) {
                         console.error(`Error rendering frame ${frame.name}:`, err);
                     }
+                });
+            }
+        }
+
+        // Cover Gallery (Travel Covers)
+        const coversList = document.getElementById('covers-library');
+        if (coversList) {
+            coversList.innerHTML = '';
+            if (window.COVER_GALLERY) {
+                window.COVER_GALLERY.forEach(cover => {
+                    const el = document.createElement('div');
+                    el.className = 'cover-gallery-item';
+                    el.style.cssText = `
+                        aspect-ratio: 5/7;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        cursor: pointer;
+                        position: relative;
+                        transition: transform 0.2s, box-shadow 0.2s;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                        border: 2px solid transparent;
+                    `;
+
+                    // Create SVG data URI
+                    const svgDataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(cover.svg);
+
+                    el.innerHTML = `
+                        <img src="${svgDataUri}" alt="${cover.cityEn}" style="width:100%; height:100%; object-fit:cover; display:block;" loading="lazy" />
+                        <div style="position:absolute; bottom:0; left:0; right:0; padding:6px 8px; background:linear-gradient(transparent, rgba(0,0,0,0.7)); color:#fff; font-size:11px; font-weight:600; text-align:center;">
+                            ${cover.cityEn}
+                        </div>
+                    `;
+
+                    el.addEventListener('mouseenter', () => {
+                        el.style.transform = 'scale(1.05)';
+                        el.style.boxShadow = '0 6px 20px rgba(0,0,0,0.5)';
+                        el.style.borderColor = '#38bdf8';
+                    });
+                    el.addEventListener('mouseleave', () => {
+                        el.style.transform = 'scale(1)';
+                        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                        el.style.borderColor = 'transparent';
+                    });
+
+                    el.addEventListener('click', () => {
+                        // Apply cover to the book
+                        if (!store.state.cover) store.state.cover = {};
+                        store.state.cover.title = cover.cityEn;
+                        store.state.cover.subtitle = new Date().getFullYear().toString();
+                        store.state.cover.textColor = cover.textColor;
+                        store.state.cover.color = cover.bgColor;
+                        // Store SVG as cover background
+                        store.state.cover.theme = svgDataUri;
+                        store.state.cover.background = svgDataUri;
+                        store.state.cover._coverGalleryId = cover.id;
+                        // Clear any existing front photo — illustration replaces it
+                        store.state.cover.frontPhotoId = null;
+                        // Store dedicated back cover SVG
+                        if (cover.backSvg) {
+                            store.state.cover._backSvgDataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(cover.backSvg);
+                        }
+                        // Update text content tracking
+                        if (!store.state.cover.textContent) store.state.cover.textContent = {};
+                        store.state.cover.textContent['title'] = cover.cityEn;
+                        store.state.cover.textContent['date'] = new Date().getFullYear().toString();
+                        store.state.cover.textContent['subtitle'] = new Date().getFullYear().toString();
+
+                        // Switch to cover view and re-render
+                        store.state.viewMode = 'cover';
+                        store.notify('cover', store.state.cover);
+                        store.notify('viewMode', 'cover');
+
+                        console.log('[CoverGallery] Applied cover:', cover.id, cover.cityEn);
+                    });
+
+                    el.title = `${cover.cityEn} (${cover.countryEn})`;
+                    coversList.appendChild(el);
                 });
             }
         }

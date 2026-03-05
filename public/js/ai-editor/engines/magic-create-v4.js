@@ -563,6 +563,53 @@ class MagicCreateV4 {
                 if (result.cover) t.coverData = result.cover;
                 if (result.backCover) t.backCoverData = result.backCover;
 
+                // 7.5 Travel Cover Gallery Auto-Match
+                // If a country/city name is detected in the prompt, auto-apply matching travel cover
+                if (window.COVER_GALLERY && window.COVER_GALLERY.length > 0) {
+                    const searchText = [
+                        window._magicPrompt || '',
+                        t.cover?.title || '',
+                        t.cover?.subtitle || '',
+                        result.cover?.title || '',
+                        result.cover?.subtitle || ''
+                    ].join(' ').toLowerCase();
+
+                    let matchedCover = null;
+                    for (const gc of window.COVER_GALLERY) {
+                        if (gc.keywords.some(kw => searchText.includes(kw.toLowerCase()))) {
+                            matchedCover = gc;
+                            break;
+                        }
+                    }
+
+                    if (matchedCover) {
+                        const svgDataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(matchedCover.svg);
+                        // If there was a frontPhotoId, move it to back cover
+                        const existingFrontPhoto = t.cover?.frontPhotoId;
+                        t.cover = {
+                            ...(t.cover || {}),
+                            title: matchedCover.cityEn,
+                            subtitle: new Date().getFullYear().toString(),
+                            textColor: matchedCover.textColor,
+                            color: matchedCover.bgColor,
+                            theme: svgDataUri,
+                            background: svgDataUri,
+                            _coverGalleryId: matchedCover.id,
+                            _backSvgDataUri: matchedCover.backSvg ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(matchedCover.backSvg) : undefined,
+                            frontPhotoId: null  // Gallery cover illustration replaces front photo
+                        };
+                        // Redirect front photo to back cover if it existed
+                        if (existingFrontPhoto && !t.cover.backPhotoId) {
+                            t.cover.backPhotoId = existingFrontPhoto;
+                        }
+                        if (!t.cover.textContent) t.cover.textContent = {};
+                        t.cover.textContent['title'] = matchedCover.cityEn;
+                        t.cover.textContent['date'] = new Date().getFullYear().toString();
+                        t.cover.textContent['subtitle'] = new Date().getFullYear().toString();
+                        console.log('[MagicCreate v4] 🌍 Travel cover auto-matched:', matchedCover.id, matchedCover.cityEn);
+                    }
+                }
+
                 // 8. Store window-level backups for preview/PDF
                 window._magicCover = { ...t.cover };
                 window._magicPages = contentPages;
