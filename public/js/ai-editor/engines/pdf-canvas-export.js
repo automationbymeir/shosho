@@ -357,8 +357,58 @@ export class PDFCanvasExport {
         const container = this.createOffscreenContainer(spreadWidth, height);
         console.log(`[PDFCanvas] Rendering Unified Cover Spread as ${spreadWidth}x${height}`);
 
+        // PRE-RASTERIZE: Convert SVG data URIs to PNG BEFORE rendering to DOM
+        // html2canvas cannot render SVG at all. We must rasterize to PNG first.
+        const renderCover = { ...cover };
+
+        // Helper: rasterize SVG data URI to PNG data URI
+        const rasterizeSvg = (svgDataUri, targetWidth, targetHeight) => {
+            return new Promise((resolve) => {
+                if (!svgDataUri || !svgDataUri.includes('data:image/svg+xml')) {
+                    resolve(svgDataUri); // Not an SVG, return as-is
+                    return;
+                }
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = targetWidth * 2; // 2x for quality
+                        canvas.height = targetHeight * 2;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const pngUri = canvas.toDataURL('image/png');
+                        console.log(`[PDFCanvas] Rasterized SVG (${svgDataUri.length} chars) → PNG (${pngUri.length} chars)`);
+                        resolve(pngUri);
+                    } catch (e) {
+                        console.warn('[PDFCanvas] SVG rasterization error:', e);
+                        resolve(svgDataUri); // Fall back to original
+                    }
+                };
+                img.onerror = () => {
+                    console.warn('[PDFCanvas] SVG load error during rasterization');
+                    resolve(svgDataUri);
+                };
+                img.src = svgDataUri;
+            });
+        };
+
+        // Rasterize front cover background
+        if (renderCover.background && renderCover.background.includes('data:image/svg+xml')) {
+            const frontWidth = width; // front cover width
+            const frontHeight = height;
+            renderCover.background = await rasterizeSvg(renderCover.background, frontWidth, frontHeight);
+            renderCover.theme = renderCover.background; // Keep in sync
+            console.log('[PDFCanvas] Front cover SVG rasterized to PNG');
+        }
+
+        // Rasterize back cover SVG
+        if (renderCover._backSvgDataUri && renderCover._backSvgDataUri.includes('data:image/svg+xml')) {
+            renderCover._backSvgDataUri = await rasterizeSvg(renderCover._backSvgDataUri, width, height);
+            console.log('[PDFCanvas] Back cover SVG rasterized to PNG');
+        }
+
         const wrapper = UnifiedCoverRenderer.render({
-            cover,
+            cover: renderCover,
             assets,
             templateConfig: this.templateConfig,
             container: null,
@@ -369,60 +419,6 @@ export class PDFCanvasExport {
         wrapper.style.width = `${spreadWidth}px`;
         wrapper.style.height = `${height}px`;
         container.appendChild(wrapper);
-
-        // CRITICAL FIX: Rasterize SVG data URI backgrounds to PNG
-        // html2canvas CANNOT render SVG at all — not as CSS background-image,
-        // not as <img> src. The solution: draw SVG onto a temporary canvas,
-        // convert to PNG data URI, and set THAT as background-image.
-        const allElements = wrapper.querySelectorAll('*');
-        const rasterizePromises = [];
-        for (const el of allElements) {
-            const bgImage = el.style.backgroundImage;
-            if (bgImage && bgImage.includes('data:image/svg+xml')) {
-                const urlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
-                if (urlMatch && urlMatch[1]) {
-                    const svgUrl = urlMatch[1];
-                    const elWidth = el.offsetWidth || 800;
-                    const elHeight = el.offsetHeight || 600;
-
-                    const rasterPromise = new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            try {
-                                // Draw SVG onto a canvas to rasterize it
-                                const rasterCanvas = document.createElement('canvas');
-                                rasterCanvas.width = elWidth * 2; // 2x for quality
-                                rasterCanvas.height = elHeight * 2;
-                                const ctx = rasterCanvas.getContext('2d');
-                                ctx.drawImage(img, 0, 0, rasterCanvas.width, rasterCanvas.height);
-                                // Convert to PNG data URI
-                                const pngDataUri = rasterCanvas.toDataURL('image/png');
-                                // Replace SVG background with rasterized PNG
-                                el.style.backgroundImage = `url("${pngDataUri}")`;
-                                el.style.backgroundSize = 'cover';
-                                el.style.backgroundPosition = 'center';
-                                console.log('[PDFCanvas] Rasterized SVG to PNG for element:', el.className, `(${elWidth}x${elHeight})`);
-                            } catch (e) {
-                                console.warn('[PDFCanvas] SVG rasterization failed:', e);
-                            }
-                            resolve();
-                        };
-                        img.onerror = () => {
-                            console.warn('[PDFCanvas] SVG image load failed for rasterization');
-                            resolve();
-                        };
-                        img.src = svgUrl;
-                    });
-                    rasterizePromises.push(rasterPromise);
-                }
-            }
-        }
-
-        // Wait for all SVG rasterizations to complete
-        if (rasterizePromises.length > 0) {
-            console.log(`[PDFCanvas] Rasterizing ${rasterizePromises.length} SVG backgrounds to PNG...`);
-            await Promise.all(rasterizePromises);
-        }
 
         // Wait for resources
         await this.waitForImages(wrapper);
