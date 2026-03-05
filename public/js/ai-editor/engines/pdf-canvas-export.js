@@ -370,10 +370,46 @@ export class PDFCanvasExport {
         wrapper.style.height = `${height}px`;
         container.appendChild(wrapper);
 
+        // CRITICAL FIX: Convert SVG data URI backgrounds to <img> elements
+        // html2canvas often fails to render complex SVG data URIs in CSS background-image.
+        // We convert them to actual <img> elements which html2canvas handles reliably.
+        const allElements = wrapper.querySelectorAll('*');
+        for (const el of allElements) {
+            const bgImage = el.style.backgroundImage;
+            if (bgImage && bgImage.includes('data:image/svg+xml')) {
+                const urlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
+                if (urlMatch && urlMatch[1]) {
+                    const svgUrl = urlMatch[1];
+                    // Create an <img> element positioned absolutely to fill the element
+                    const img = document.createElement('img');
+                    img.src = svgUrl;
+                    img.style.cssText = `
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                        z-index: 0;
+                        pointer-events: none;
+                    `;
+                    // Ensure parent has relative positioning for image to fill correctly
+                    if (!el.style.position || el.style.position === 'static') {
+                        el.style.position = 'relative';
+                    }
+                    // Remove the CSS background-image
+                    el.style.backgroundImage = 'none';
+                    // Prepend the <img> so it's behind other content
+                    el.insertBefore(img, el.firstChild);
+                    console.log('[PDFCanvas] Converted SVG background to <img> for html2canvas compatibility');
+                }
+            }
+        }
+
         // Wait for resources
         await this.waitForImages(wrapper);
         await this.waitForBackgroundImages(wrapper);
-        await new Promise(resolve => setTimeout(resolve, 300)); // Extra time for fonts and high-res
+        await new Promise(resolve => setTimeout(resolve, 500)); // Extra time for SVG images and fonts
 
         try {
             const spreadCanvas = await window.html2canvas(wrapper, {
@@ -482,7 +518,7 @@ export class PDFCanvasExport {
             console.log(`[PDFCanvas] Total pages: ${pages.length}, Content pages (excluding covers): ${contentPages.length}`);
 
             // Determine if cover spread is needed
-            const hasCover = cover && (cover.frontPhotoId || cover.title || cover.templateId || cover.layout);
+            const hasCover = cover && (cover.frontPhotoId || cover.title || cover.templateId || cover.layout || cover._coverGalleryId || cover.background);
             // If hasCover, we're adding 3 pages (Front, Back, Spine)
             const totalItems = (hasCover ? 3 : 0) + contentPages.length; // front + back + spine
 
