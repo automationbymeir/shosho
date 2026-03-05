@@ -1112,6 +1112,9 @@ export class AlbumPreview {
                             }
                         });
                     }
+
+                    // INJECT USER ELEMENTS (text, shapes, visual elements like flags)
+                    this._injectPageElements(page, pageEl);
                 } else {
                     console.error('[Preview] Renderer returned null for page:', page);
                     container.innerHTML = '<div style="color:red;padding:20px;">Render Error</div>';
@@ -1123,14 +1126,94 @@ export class AlbumPreview {
         } else {
             // Fallback to Generic RenderEngine
             // This handles Magic Create pages and standard layouts that don't need a specific class
-            // console.log(`[Preview] Using Generic RenderEngine for template: ${templateId}`);
             try {
                 this.fallbackRenderer.renderPageToContainer(page, this.assets, container);
+                // Elements are already injected by RenderEngine
             } catch (err) {
                 console.error('[Preview] Generic render error:', err);
                 container.innerHTML = `<div style="color:red;padding:20px;">Generic Render Error: ${err.message}</div>`;
             }
         }
+    }
+
+    /**
+     * Inject user-placed elements (text, shapes, visual elements) into a rendered page.
+     * These are stored in page.elements and include drag transforms from Moveable.
+     */
+    _injectPageElements(page, pageEl) {
+        if (!page.elements || !Array.isArray(page.elements) || page.elements.length === 0) return;
+
+        console.log(`[Preview] Injecting ${page.elements.length} elements into page ${page.id}`);
+
+        page.elements.forEach(el => {
+            const domEl = document.createElement('div');
+            domEl.className = `page-element element-${el.type}`;
+            domEl.style.position = 'absolute';
+            domEl.style.left = `${el.x}%`;
+            domEl.style.top = `${el.y}%`;
+            if (el.zIndex !== undefined) domEl.style.zIndex = el.zIndex;
+
+            // Apply drag/resize transform from Moveable
+            if (el.transform) domEl.style.transform = el.transform;
+
+            if (el.type === 'text') {
+                domEl.classList.add('text-element');
+                domEl.style.minWidth = '200px';
+                if (el.pixelWidth) domEl.style.width = el.pixelWidth;
+                if (el.pixelHeight) domEl.style.height = el.pixelHeight;
+                domEl.style.maxWidth = `${el.width || 50}%`;
+                if (!el.zIndex) domEl.style.zIndex = 10;
+
+                if (window.TEXT_STYLES) {
+                    const styleDef = window.TEXT_STYLES.find(s => s.id === el.styleId);
+                    if (styleDef) Object.assign(domEl.style, styleDef.style);
+                }
+
+                if (el.fontSize) domEl.style.fontSize = `${el.fontSize}px`;
+                if (el.color) domEl.style.color = el.color;
+                if (el.fontFamily) domEl.style.fontFamily = el.fontFamily;
+                if (el.textAlign) domEl.style.textAlign = el.textAlign;
+                domEl.textContent = el.content;
+
+                // Hebrew detection
+                const hebrewRegex = /[\u0590-\u05FF]/;
+                if (hebrewRegex.test(el.content)) {
+                    domEl.style.direction = 'rtl';
+                    domEl.style.textAlign = el.textAlign || 'right';
+                    domEl.style.unicodeBidi = 'plaintext';
+                    if (!el.fontFamily) {
+                        domEl.style.fontFamily = "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Heebo', sans-serif";
+                    }
+                }
+            } else if (el.type === 'shape') {
+                domEl.classList.add('shape-element');
+                if (el.subtype) domEl.classList.add(el.subtype);
+                domEl.style.width = `${el.width}%`;
+                domEl.style.height = `${el.height}%`;
+                if (el.color) domEl.style.backgroundColor = el.color;
+            } else if (el.type === 'element') {
+                domEl.classList.add('visual-element');
+                domEl.style.width = el.pixelWidth || '100px';
+                domEl.style.height = el.pixelHeight || '100px';
+
+                const img = document.createElement('img');
+                img.src = el.url;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'contain';
+                img.draggable = false;
+
+                let filterStr = '';
+                if (el.filterHue) filterStr += `hue-rotate(${el.filterHue}deg) `;
+                if (el.filterBrightness && el.filterBrightness !== 100) filterStr += `brightness(${el.filterBrightness}%) `;
+                if (el.filterShadow) filterStr += `drop-shadow(2px 4px 6px ${el.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
+                if (filterStr) img.style.filter = filterStr.trim();
+
+                domEl.appendChild(img);
+            }
+
+            pageEl.appendChild(domEl);
+        });
     }
 
     /**
@@ -1369,7 +1452,7 @@ export class AlbumPreview {
         frontCoverThumb.className = 'preview-thumb active';
         frontCoverThumb.dataset.index = '-1';
 
-        // Front Cover Photo or Placeholder
+        // Front Cover Photo or Gallery Cover Thumbnail
         if (this.cover?.frontPhotoId && this.assets?.photos) {
             const photo = this.assets.photos.find(p => p.id === this.cover.frontPhotoId);
             if (photo) {
@@ -1377,6 +1460,9 @@ export class AlbumPreview {
             } else {
                 frontCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Front</div>`;
             }
+        } else if (this.cover?._coverGalleryId && this.cover?.background) {
+            // Gallery cover with SVG illustration — render as thumbnail background
+            frontCoverThumb.innerHTML = `<div style="background-color:${this.cover?.color || '#f5f0e8'};background-image:url('${this.cover.background}');background-size:cover;background-position:center;width:100%;height:100%;display:flex;align-items:flex-end;justify-content:center;"><span style="color:${this.cover?.textColor || '#333'};font-size:0.45rem;text-align:center;padding:2px;">${this.cover?.title || ''}</span></div>`;
         } else {
             frontCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Front</div>`;
         }

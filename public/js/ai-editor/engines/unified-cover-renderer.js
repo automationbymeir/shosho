@@ -395,12 +395,13 @@ export class UnifiedCoverRenderer {
             writing-mode: vertical-rl;
             transform: rotate(180deg);
             font-family: ${titleFont};
-            font-size: 12px;
+            font-size: 9px;
             color: ${textColor};
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-height: 90%;
+            max-height: 80%;
+            letter-spacing: 0.5px;
         `;
         // Hebrew spine text: use Hebrew font
         const _heRegex = /[\u0590-\u05FF]/;
