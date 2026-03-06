@@ -248,7 +248,7 @@ export class PDFCanvasExport {
                 }
 
                 // INJECT USER ELEMENTS (text, shapes, visual elements like flags)
-                this._injectPageElements(page, pageElement, width, height);
+                await this._injectPageElements(page, pageElement, width, height);
             }
         }
 
@@ -349,13 +349,14 @@ export class PDFCanvasExport {
     /**
      * Inject user-placed elements (text, shapes, visual elements like flags) into a rendered page.
      * These are stored in page.elements and include drag transforms from Moveable.
+     * Made async to support SVG rasterization for html2canvas compatibility.
      */
-    _injectPageElements(page, pageElement, width, height) {
+    async _injectPageElements(page, pageElement, width, height) {
         if (!page.elements || !Array.isArray(page.elements) || page.elements.length === 0) return;
 
         console.log(`[PDFCanvas] Injecting ${page.elements.length} elements into page ${page.id}`);
 
-        page.elements.forEach(el => {
+        for (const el of page.elements) {
             const domEl = document.createElement('div');
             domEl.className = `page-element element-${el.type}`;
             domEl.style.position = 'absolute';
@@ -406,9 +407,19 @@ export class PDFCanvasExport {
                 domEl.style.width = el.pixelWidth || '100px';
                 domEl.style.height = el.pixelHeight || '100px';
 
-                // Use background-image instead of <img> with object-fit
-                // because html2canvas does NOT support object-fit on <img> elements
-                domEl.style.backgroundImage = `url("${el.url}")`;
+                // CRITICAL: Rasterize SVG data URIs to PNG for html2canvas compatibility
+                // html2canvas cannot render SVG data URIs in CSS background-image
+                let imgUrl = el.url;
+                if (imgUrl && imgUrl.includes('data:image/svg+xml')) {
+                    try {
+                        const pngUrl = await this._rasterizeSvgToCanvas(imgUrl, 300, 200);
+                        if (pngUrl) imgUrl = pngUrl;
+                    } catch (e) {
+                        console.warn('[PDFCanvas] SVG rasterization failed for element:', e);
+                    }
+                }
+
+                domEl.style.backgroundImage = `url("${imgUrl}")`;
                 domEl.style.backgroundSize = 'contain';
                 domEl.style.backgroundPosition = 'center';
                 domEl.style.backgroundRepeat = 'no-repeat';
@@ -421,6 +432,39 @@ export class PDFCanvasExport {
             }
 
             pageElement.appendChild(domEl);
+        }
+    }
+
+    /**
+     * Rasterize an SVG data URI to a PNG data URI via canvas.
+     */
+    _rasterizeSvgToCanvas(svgDataUri, targetWidth, targetHeight) {
+        return new Promise((resolve) => {
+            if (!svgDataUri || !svgDataUri.includes('data:image/svg+xml')) {
+                resolve(svgDataUri);
+                return;
+            }
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = targetWidth * 2;
+                    canvas.height = targetHeight * 2;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const pngUri = canvas.toDataURL('image/png');
+                    console.log(`[PDFCanvas] Rasterized element SVG → PNG`);
+                    resolve(pngUri);
+                } catch (e) {
+                    console.warn('[PDFCanvas] Element SVG rasterization error:', e);
+                    resolve(svgDataUri);
+                }
+            };
+            img.onerror = () => {
+                console.warn('[PDFCanvas] Element SVG load error');
+                resolve(svgDataUri);
+            };
+            img.src = svgDataUri;
         });
     }
 

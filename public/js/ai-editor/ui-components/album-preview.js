@@ -1451,87 +1451,25 @@ export class AlbumPreview {
         const frontCoverThumb = document.createElement('div');
         frontCoverThumb.className = 'preview-thumb active';
         frontCoverThumb.dataset.index = '-1';
-
-        // Front Cover Photo or Gallery Cover Thumbnail
-        if (this.cover?.frontPhotoId && this.assets?.photos) {
-            const photo = this.assets.photos.find(p => p.id === this.cover.frontPhotoId);
-            if (photo) {
-                frontCoverThumb.innerHTML = `<img src="${photo.thumbnailUrl || photo.url}" style="width:100%;height:100%;object-fit:cover;">`;
-            } else {
-                frontCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Front</div>`;
-            }
-        } else if (this.cover?._coverGalleryId && this.cover?.background) {
-            // Gallery cover with SVG illustration — render as thumbnail background
-            frontCoverThumb.innerHTML = `<div style="background-color:${this.cover?.color || '#f5f0e8'};background-image:url('${this.cover.background}');background-size:cover;background-position:center;width:100%;height:100%;display:flex;align-items:flex-end;justify-content:center;"><span style="color:${this.cover?.textColor || '#333'};font-size:0.45rem;text-align:center;padding:2px;">${this.cover?.title || ''}</span></div>`;
-        } else {
-            frontCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Front</div>`;
-        }
+        this._renderCoverThumb(frontCoverThumb, 'front');
         frontCoverThumb.addEventListener('click', () => this.goToPage(-1));
         container.appendChild(frontCoverThumb);
 
         // Page/Spread Thumbnails (Index 0..N)
         const spreadCount = Math.ceil(this.contentPages.length / 2);
-
-        // Get editor dimensions for scaling
-        let editorW = 1200, editorH = 1600;
-        if (this.templateConfig?.designSystem?.canvas) {
-            editorW = this.templateConfig.designSystem.canvas.width || 800;
-            editorH = this.templateConfig.designSystem.canvas.height || 600;
-        } else if (this.templateConfig?.pageSize) {
-            editorW = this.templateConfig.pageSize.width;
-            editorH = this.templateConfig.pageSize.height;
-        }
-
-        // Thumbnail dimensions
-        const thumbW = 100;
-        const thumbH = 75;
-        const spreadW = editorW * 2;
-        const spreadH = editorH;
-        const thumbScale = Math.min(thumbW / spreadW, thumbH / spreadH);
-
         for (let i = 0; i < spreadCount; i++) {
             const thumb = document.createElement('div');
             thumb.className = 'preview-thumb';
             thumb.dataset.index = i.toString();
 
-            const leftPageIndex = i * 2;
-            const rightPageIndex = (i * 2) + 1;
-            const leftPage = this.contentPages[leftPageIndex];
-            const rightPage = this.contentPages[rightPageIndex];
+            const leftPage = this.contentPages[i * 2];
+            const rightPage = this.contentPages[(i * 2) + 1];
 
-            // Create mini spread container
+            // Simple visual thumbnail with actual page data
             const miniSpread = document.createElement('div');
-            miniSpread.style.cssText = `
-                width: ${spreadW}px;
-                height: ${spreadH}px;
-                transform: scale(${thumbScale});
-                transform-origin: top left;
-                display: flex;
-                flex-direction: row;
-                position: absolute;
-                top: 0;
-                left: ${(thumbW - spreadW * thumbScale) / 2}px;
-                pointer-events: none;
-            `;
-
-            // Left page
-            const leftSlot = document.createElement('div');
-            leftSlot.style.cssText = `flex:1;height:100%;position:relative;overflow:hidden;background:#fcfaf7;`;
-            if (leftPage) {
-                try { this.renderPageToContainer(leftPage, leftSlot); } catch (e) { /* skip */ }
-            }
-            miniSpread.appendChild(leftSlot);
-
-            // Right page
-            const rightSlot = document.createElement('div');
-            rightSlot.style.cssText = `flex:1;height:100%;position:relative;overflow:hidden;background:#fcfaf7;`;
-            if (rightPage) {
-                try { this.renderPageToContainer(rightPage, rightSlot); } catch (e) { /* skip */ }
-            }
-            miniSpread.appendChild(rightSlot);
-
-            thumb.style.position = 'relative';
-            thumb.style.overflow = 'hidden';
+            miniSpread.style.cssText = `display:flex;width:100%;height:100%;`;
+            miniSpread.appendChild(this._createPageMiniThumb(leftPage));
+            miniSpread.appendChild(this._createPageMiniThumb(rightPage));
             thumb.appendChild(miniSpread);
 
             thumb.addEventListener('click', () => this.goToPage(i));
@@ -1542,19 +1480,110 @@ export class AlbumPreview {
         const backCoverThumb = document.createElement('div');
         backCoverThumb.className = 'preview-thumb';
         backCoverThumb.dataset.index = spreadCount.toString();
-
-        if (this.cover?.backPhotoId && this.assets?.photos) {
-            const photo = this.assets.photos.find(p => p.id === this.cover.backPhotoId);
-            if (photo) {
-                backCoverThumb.innerHTML = `<img src="${photo.thumbnailUrl || photo.url}" style="width:100%;height:100%;object-fit:cover;">`;
-            } else {
-                backCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Back</div>`;
-            }
-        } else {
-            backCoverThumb.innerHTML = `<div style="background:${this.cover?.color || '#1a1a2e'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.6rem;">Back</div>`;
-        }
+        this._renderCoverThumb(backCoverThumb, 'back');
         backCoverThumb.addEventListener('click', () => this.goToPage(spreadCount));
         container.appendChild(backCoverThumb);
+    }
+
+    /**
+     * Render a cover thumbnail (front or back)
+     */
+    _renderCoverThumb(thumb, side) {
+        const cover = this.cover;
+        if (!cover) {
+            thumb.innerHTML = `<div style="background:#1a1a2e;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.5rem;">${side === 'front' ? 'Front' : 'Back'}</div>`;
+            return;
+        }
+
+        const bgColor = cover.color || '#f5f0e8';
+        const photoId = side === 'front' ? cover.frontPhotoId : cover.backPhotoId;
+
+        // Photo on cover
+        if (photoId && this.assets?.photos) {
+            const photo = this.assets.photos.find(p => p.id === photoId);
+            if (photo) {
+                thumb.innerHTML = `<div style="width:100%;height:100%;background-image:url('${photo.thumbnailUrl || photo.url}');background-size:cover;background-position:center;"></div>`;
+                return;
+            }
+        }
+
+        // Gallery cover with SVG illustration
+        if (side === 'front' && cover._coverGalleryId && cover.background) {
+            const el = document.createElement('div');
+            el.style.cssText = `width:100%;height:100%;background-color:${bgColor};position:relative;overflow:hidden;`;
+
+            // SVG illustration
+            const illEl = document.createElement('div');
+            illEl.style.cssText = `position:absolute;inset:0;background-image:url('${cover.background}');background-size:contain;background-position:center;background-repeat:no-repeat;`;
+            el.appendChild(illEl);
+
+            // Title text overlay
+            if (cover.title) {
+                const titleEl = document.createElement('div');
+                titleEl.style.cssText = `position:absolute;top:3px;left:0;right:0;text-align:center;font-size:0.4rem;font-weight:bold;color:${cover.textColor || '#333'};z-index:1;`;
+                titleEl.textContent = cover.title;
+                el.appendChild(titleEl);
+            }
+            thumb.appendChild(el);
+            return;
+        }
+
+        // Back cover with pattern
+        if (side === 'back' && cover._backSvgDataUri) {
+            thumb.innerHTML = `<div style="width:100%;height:100%;background-color:${bgColor};background-image:url('${cover._backSvgDataUri}');background-size:cover;background-position:center;"></div>`;
+            return;
+        }
+
+        // Plain color fallback
+        thumb.innerHTML = `<div style="background:${bgColor};width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:${cover.textColor || '#333'};font-size:0.5rem;">${cover.title || (side === 'front' ? 'Front' : 'Back')}</div>`;
+    }
+
+    /**
+     * Create a lightweight page mini-thumbnail from page data.
+     * Shows background color and photo thumbnails in a simple layout.
+     */
+    _createPageMiniThumb(page) {
+        const mini = document.createElement('div');
+        mini.style.cssText = `flex:1;height:100%;position:relative;overflow:hidden;`;
+        if (!page) { mini.style.background = '#f5f5f5'; return mini; }
+
+        // Page background
+        mini.style.backgroundColor = page.backgroundColor || page.color || '#ffffff';
+        if (page.background) {
+            mini.style.backgroundImage = `url("${page.background}")`;
+            mini.style.backgroundSize = 'cover';
+            mini.style.backgroundPosition = 'center';
+        }
+
+        // Extract photo IDs from slots
+        const photoIds = [];
+        if (page.layout && page.layout.slots) {
+            page.layout.slots.forEach(slot => { if (slot.photoId) photoIds.push(slot.photoId); });
+        }
+
+        if (photoIds.length > 0 && this.assets?.photos) {
+            const count = Math.min(photoIds.length, 4);
+            const grid = document.createElement('div');
+            if (count === 1) {
+                grid.style.cssText = `position:absolute;inset:2px;`;
+            } else if (count === 2) {
+                grid.style.cssText = `position:absolute;inset:1px;display:flex;gap:1px;`;
+            } else {
+                grid.style.cssText = `position:absolute;inset:1px;display:grid;grid-template-columns:1fr 1fr;gap:1px;`;
+            }
+            for (let j = 0; j < count; j++) {
+                const photo = this.assets.photos.find(p => p.id === photoIds[j]);
+                const cell = document.createElement('div');
+                if (photo) {
+                    cell.style.cssText = `flex:1;background-image:url("${photo.thumbnailUrl || photo.url}");background-size:cover;background-position:center;border-radius:1px;min-height:0;`;
+                } else {
+                    cell.style.cssText = `flex:1;background:#ddd;border-radius:1px;min-height:0;`;
+                }
+                grid.appendChild(cell);
+            }
+            mini.appendChild(grid);
+        }
+        return mini;
     }
 
     /**
