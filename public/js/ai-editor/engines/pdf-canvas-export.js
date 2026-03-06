@@ -246,6 +246,9 @@ export class PDFCanvasExport {
                         }
                     });
                 }
+
+                // INJECT USER ELEMENTS (text, shapes, visual elements like flags)
+                this._injectPageElements(page, pageElement, width, height);
             }
         }
 
@@ -341,6 +344,87 @@ export class PDFCanvasExport {
             console.error('[PDFCanvas] html2canvas error:', error);
             return null;
         }
+    }
+
+    /**
+     * Inject user-placed elements (text, shapes, visual elements like flags) into a rendered page.
+     * These are stored in page.elements and include drag transforms from Moveable.
+     */
+    _injectPageElements(page, pageElement, width, height) {
+        if (!page.elements || !Array.isArray(page.elements) || page.elements.length === 0) return;
+
+        console.log(`[PDFCanvas] Injecting ${page.elements.length} elements into page ${page.id}`);
+
+        page.elements.forEach(el => {
+            const domEl = document.createElement('div');
+            domEl.className = `page-element element-${el.type}`;
+            domEl.style.position = 'absolute';
+            domEl.style.left = `${el.x}%`;
+            domEl.style.top = `${el.y}%`;
+            if (el.zIndex !== undefined) domEl.style.zIndex = el.zIndex;
+
+            // Apply drag/resize transform from Moveable
+            if (el.transform) domEl.style.transform = el.transform;
+
+            if (el.type === 'text') {
+                domEl.classList.add('text-element');
+                domEl.style.minWidth = '200px';
+                if (el.pixelWidth) domEl.style.width = el.pixelWidth;
+                if (el.pixelHeight) domEl.style.height = el.pixelHeight;
+                domEl.style.maxWidth = `${el.width || 50}%`;
+                if (!el.zIndex) domEl.style.zIndex = 10;
+
+                if (window.TEXT_STYLES) {
+                    const styleDef = window.TEXT_STYLES.find(s => s.id === el.styleId);
+                    if (styleDef) Object.assign(domEl.style, styleDef.style);
+                }
+
+                if (el.fontSize) domEl.style.fontSize = `${el.fontSize}px`;
+                if (el.color) domEl.style.color = el.color;
+                if (el.fontFamily) domEl.style.fontFamily = el.fontFamily;
+                if (el.textAlign) domEl.style.textAlign = el.textAlign;
+                domEl.textContent = el.content;
+
+                // Hebrew detection
+                const hebrewRegex = /[\u0590-\u05FF]/;
+                if (hebrewRegex.test(el.content)) {
+                    domEl.style.direction = 'rtl';
+                    domEl.style.textAlign = el.textAlign || 'right';
+                    domEl.style.unicodeBidi = 'plaintext';
+                    if (!el.fontFamily) {
+                        domEl.style.fontFamily = "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Heebo', sans-serif";
+                    }
+                }
+            } else if (el.type === 'shape') {
+                domEl.classList.add('shape-element');
+                if (el.subtype) domEl.classList.add(el.subtype);
+                domEl.style.width = `${el.width}%`;
+                domEl.style.height = `${el.height}%`;
+                if (el.color) domEl.style.backgroundColor = el.color;
+            } else if (el.type === 'element') {
+                domEl.classList.add('visual-element');
+                domEl.style.width = el.pixelWidth || '100px';
+                domEl.style.height = el.pixelHeight || '100px';
+
+                const img = document.createElement('img');
+                img.src = el.url;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'contain';
+                img.draggable = false;
+                img.crossOrigin = 'anonymous'; // Important for html2canvas
+
+                let filterStr = '';
+                if (el.filterHue) filterStr += `hue-rotate(${el.filterHue}deg) `;
+                if (el.filterBrightness && el.filterBrightness !== 100) filterStr += `brightness(${el.filterBrightness}%) `;
+                if (el.filterShadow) filterStr += `drop-shadow(2px 4px 6px ${el.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
+                if (filterStr) img.style.filter = filterStr.trim();
+
+                domEl.appendChild(img);
+            }
+
+            pageElement.appendChild(domEl);
+        });
     }
 
     /**

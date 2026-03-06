@@ -392,8 +392,8 @@ export class UnifiedCoverRenderer {
         const spineContent = cover.spineText || cover.title || '';
         spineTextEl.textContent = spineContent;
         spineTextEl.style.cssText = `
-            writing-mode: vertical-rl;
-            transform: rotate(180deg);
+            writing-mode: vertical-lr;
+            text-orientation: mixed;
             font-family: ${titleFont};
             font-size: 9px;
             color: ${textColor};
