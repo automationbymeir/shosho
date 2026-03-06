@@ -115,7 +115,7 @@
             // Calculate new height
             let newHeight = startHeight + diff;
             const maxHeight = window.innerHeight * 0.7;
-            const minHeight = 80;
+            const minHeight = 56; // Nav bar height
 
             newHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
 
@@ -169,7 +169,7 @@
         if (!sidebar) return;
 
         sidebar.classList.remove('expanded');
-        sidebar.classList.add('hidden');
+        // Don't add 'hidden' - nav bar should always stay visible
         sidebar.style.height = '';
         state.leftPanelExpanded = false;
 
