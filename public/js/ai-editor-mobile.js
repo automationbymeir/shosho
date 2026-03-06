@@ -60,10 +60,14 @@
         backdrop.addEventListener('click', closePanels);
         document.body.appendChild(backdrop);
 
-        // Hide desktop timeline, use panel timeline instead
-        const timeline = document.getElementById('timeline-bar');
-        if (timeline && isMobile) {
-            timeline.style.display = 'none';
+        // Timeline stays visible on mobile (fixed at bottom)
+
+        // Wire up hamburger menu button
+        const btnMobileMenu = document.getElementById('btn-mobile-menu');
+        if (btnMobileMenu) {
+            btnMobileMenu.addEventListener('click', () => {
+                toggleLeftPanel();
+            });
         }
 
         // Adjust viewport meta tag for proper mobile handling
@@ -153,7 +157,8 @@
         if (!sidebar) return;
 
         sidebar.classList.add('expanded');
-        sidebar.style.height = `${window.innerHeight * 0.45}px`;
+        sidebar.classList.remove('hidden');
+        sidebar.style.height = '';
         state.leftPanelExpanded = true;
 
         showBackdrop();
@@ -164,7 +169,8 @@
         if (!sidebar) return;
 
         sidebar.classList.remove('expanded');
-        sidebar.style.height = '80px';
+        sidebar.classList.add('hidden');
+        sidebar.style.height = '';
         state.leftPanelExpanded = false;
 
         hideBackdrop();

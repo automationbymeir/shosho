@@ -69,33 +69,32 @@
     }
 
     /* ============================================
-       LEFT SIDEBAR → BOTTOM SHEET
+       LEFT SIDEBAR → HIDDEN BY DEFAULT, OVERLAY WHEN TOGGLED
        ============================================ */
     #sidebar-left {
+        display: none;
         position: fixed;
-        bottom: 0;
+        top: var(--mobile-toolbar-height);
         left: 0;
         right: 0;
-        height: var(--mobile-panel-collapsed);
-        max-height: 70vh;
+        bottom: 0;
+        height: auto;
+        max-height: none;
         flex-direction: column;
         border-right: none;
         border-top: 1px solid var(--border);
-        border-radius: 20px 20px 0 0;
         z-index: 100;
-        transform: translateY(0);
-        transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         padding-bottom: var(--safe-area-bottom);
         box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
+        background-color: var(--bg-panel);
     }
 
     #sidebar-left.expanded {
-        height: var(--mobile-panel-height);
+        display: flex;
     }
 
     #sidebar-left.hidden {
-        transform: translateY(100%);
+        display: none;
     }
 
     /* Sidebar Nav → Horizontal Tab Bar */
@@ -152,19 +151,7 @@
         font-size: 1rem;
     }
 
-    /* Drag Handle for Bottom Sheet */
-    #sidebar-left::before {
-        content: '';
-        position: absolute;
-        top: 8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 40px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 2px;
-        z-index: 101;
-    }
+    /* No drag handle needed - sidebar opens via hamburger */
 
     /* Asset Grid - Larger Touch Targets */
     .asset-grid,
@@ -234,7 +221,7 @@
         top: var(--mobile-toolbar-height);
         left: 0;
         right: 0;
-        bottom: var(--mobile-panel-collapsed);
+        bottom: 0;
         grid-column: unset;
         grid-row: unset;
         padding-top: var(--safe-area-top);
@@ -399,12 +386,12 @@
     }
 
     /* ============================================
-       TIMELINE BAR → FIXED ABOVE BOTTOM PANEL
+       TIMELINE BAR → FIXED AT BOTTOM
        ============================================ */
     #timeline-bar {
         display: flex !important;
         position: fixed;
-        bottom: var(--mobile-panel-collapsed);
+        bottom: 0;
         left: 0;
         right: 0;
         z-index: 99;
@@ -412,6 +399,7 @@
         border-top: 1px solid var(--border);
         height: auto;
         padding: 8px 0;
+        padding-bottom: var(--safe-area-bottom);
     }
 
     /* Timeline in bottom panel */
@@ -509,17 +497,16 @@
         transform: scale(0.95);
     }
 
-    /* Provide Magic FAB on mobile anyway as redundancy/quick access */
     .mobile-fab-magic {
         display: flex !important;
-        bottom: calc(var(--mobile-panel-collapsed) + 90px);
+        bottom: calc(var(--mobile-timeline-height) + 20px);
         right: 20px;
         background: linear-gradient(135deg, var(--accent), #ec4899);
     }
 
     .mobile-fab-properties {
         right: 20px;
-        bottom: calc(var(--mobile-panel-collapsed) + 20px);
+        bottom: calc(var(--mobile-timeline-height) + 80px);
         background: var(--bg-hover);
     }
 
