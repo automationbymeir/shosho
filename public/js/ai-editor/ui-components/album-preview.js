@@ -1457,24 +1457,80 @@ export class AlbumPreview {
 
         // Page/Spread Thumbnails (Index 0..N)
         const spreadCount = Math.ceil(this.contentPages.length / 2);
+
+        // Determine page size for rendering
+        let pageW = 400, pageH = 300;
+        if (this.templateConfig?.designSystem?.canvas) {
+            pageW = this.templateConfig.designSystem.canvas.width || 400;
+            pageH = this.templateConfig.designSystem.canvas.height || 300;
+        } else if (this.templateConfig?.pageSize) {
+            pageW = this.templateConfig.pageSize.width || 400;
+            pageH = this.templateConfig.pageSize.height || 300;
+        }
+
+        // Create offscreen container for rendering (must be in DOM for CSS to work)
+        const offscreen = document.createElement('div');
+        offscreen.style.cssText = `position:fixed;left:-9999px;top:-9999px;pointer-events:none;z-index:-1;`;
+        document.body.appendChild(offscreen);
+
+        const thumbW = 100;
+        const thumbH = 75;
+        const spreadW = pageW * 2;
+        const spreadH = pageH;
+        const thumbScale = Math.min(thumbW / spreadW, thumbH / spreadH);
+
         for (let i = 0; i < spreadCount; i++) {
             const thumb = document.createElement('div');
             thumb.className = 'preview-thumb';
             thumb.dataset.index = i.toString();
+            thumb.style.position = 'relative';
+            thumb.style.overflow = 'hidden';
 
             const leftPage = this.contentPages[i * 2];
             const rightPage = this.contentPages[(i * 2) + 1];
 
-            // Simple visual thumbnail with actual page data
-            const miniSpread = document.createElement('div');
-            miniSpread.style.cssText = `display:flex;width:100%;height:100%;`;
-            miniSpread.appendChild(this._createPageMiniThumb(leftPage));
-            miniSpread.appendChild(this._createPageMiniThumb(rightPage));
-            thumb.appendChild(miniSpread);
+            // Create full-size spread in offscreen container
+            const spreadEl = document.createElement('div');
+            spreadEl.style.cssText = `display:flex;width:${spreadW}px;height:${spreadH}px;`;
 
+            const leftSlot = document.createElement('div');
+            leftSlot.style.cssText = `width:${pageW}px;height:${pageH}px;position:relative;overflow:hidden;background:#fcfaf7;`;
+            const rightSlot = document.createElement('div');
+            rightSlot.style.cssText = `width:${pageW}px;height:${pageH}px;position:relative;overflow:hidden;background:#fcfaf7;`;
+
+            spreadEl.appendChild(leftSlot);
+            spreadEl.appendChild(rightSlot);
+            offscreen.appendChild(spreadEl);
+
+            // Render pages into the offscreen container (in DOM so CSS works)
+            if (leftPage) {
+                try { this.renderPageToContainer(leftPage, leftSlot); } catch (e) { /* skip */ }
+            }
+            if (rightPage) {
+                try { this.renderPageToContainer(rightPage, rightSlot); } catch (e) { /* skip */ }
+            }
+
+            // Now scale down to thumbnail size
+            spreadEl.style.cssText = `
+                width: ${spreadW}px;
+                height: ${spreadH}px;
+                transform: scale(${thumbScale});
+                transform-origin: top left;
+                display: flex;
+                position: absolute;
+                top: 0;
+                left: ${(thumbW - spreadW * thumbScale) / 2}px;
+                pointer-events: none;
+            `;
+
+            // Move the rendered spread from offscreen to thumbnail
+            thumb.appendChild(spreadEl);
             thumb.addEventListener('click', () => this.goToPage(i));
             container.appendChild(thumb);
         }
+
+        // Remove offscreen container (all spreads have been moved to thumbnails)
+        offscreen.remove();
 
         // Back Cover Thumbnail (Index = spreadCount)
         const backCoverThumb = document.createElement('div');

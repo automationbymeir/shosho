@@ -407,22 +407,52 @@ export class PDFCanvasExport {
                 domEl.style.width = el.pixelWidth || '100px';
                 domEl.style.height = el.pixelHeight || '100px';
 
-                // CRITICAL: Rasterize SVG data URIs to PNG for html2canvas compatibility
-                // html2canvas cannot render SVG data URIs in CSS background-image
-                let imgUrl = el.url;
-                if (imgUrl && imgUrl.includes('data:image/svg+xml')) {
+                // For SVG data URIs: decode and embed as inline <svg>
+                // html2canvas renders inline SVGs natively (unlike background-image SVGs)
+                if (el.url && el.url.includes('data:image/svg+xml')) {
                     try {
-                        const pngUrl = await this._rasterizeSvgToCanvas(imgUrl, 300, 200);
-                        if (pngUrl) imgUrl = pngUrl;
+                        let svgMarkup = '';
+                        if (el.url.includes(';utf8,') || el.url.includes(';charset=utf-8,')) {
+                            // URL-encoded SVG
+                            const dataStart = el.url.indexOf(',') + 1;
+                            svgMarkup = decodeURIComponent(el.url.substring(dataStart));
+                        } else if (el.url.includes(';base64,')) {
+                            // Base64-encoded SVG
+                            const dataStart = el.url.indexOf(',') + 1;
+                            svgMarkup = atob(el.url.substring(dataStart));
+                        }
+                        if (svgMarkup && svgMarkup.includes('<svg')) {
+                            domEl.innerHTML = svgMarkup;
+                            const svgEl = domEl.querySelector('svg');
+                            if (svgEl) {
+                                svgEl.style.width = '100%';
+                                svgEl.style.height = '100%';
+                                svgEl.setAttribute('width', '100%');
+                                svgEl.setAttribute('height', '100%');
+                            }
+                            console.log(`[PDFCanvas] Embedded inline SVG for element ${el.id}`);
+                        } else {
+                            // Could not parse, fallback to img
+                            const img = document.createElement('img');
+                            img.src = el.url;
+                            img.style.cssText = 'width:100%;height:100%;';
+                            domEl.appendChild(img);
+                        }
                     } catch (e) {
-                        console.warn('[PDFCanvas] SVG rasterization failed for element:', e);
+                        console.warn('[PDFCanvas] SVG decode error:', e);
+                        const img = document.createElement('img');
+                        img.src = el.url;
+                        img.style.cssText = 'width:100%;height:100%;';
+                        domEl.appendChild(img);
                     }
+                } else {
+                    // Non-SVG image URL
+                    const img = document.createElement('img');
+                    img.src = el.url;
+                    img.crossOrigin = 'anonymous';
+                    img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+                    domEl.appendChild(img);
                 }
-
-                domEl.style.backgroundImage = `url("${imgUrl}")`;
-                domEl.style.backgroundSize = 'contain';
-                domEl.style.backgroundPosition = 'center';
-                domEl.style.backgroundRepeat = 'no-repeat';
 
                 let filterStr = '';
                 if (el.filterHue) filterStr += `hue-rotate(${el.filterHue}deg) `;
