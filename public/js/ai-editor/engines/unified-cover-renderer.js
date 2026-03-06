@@ -435,8 +435,11 @@ export class UnifiedCoverRenderer {
         // Apply texture background if available
         if (bgTextureUrl) {
             frontEl.style.backgroundImage = `url("${bgTextureUrl}")`;
-            frontEl.style.backgroundSize = 'cover';
+            // Gallery cover illustrations: use 'contain' to show full artwork without clipping
+            // Regular textures: use 'cover' to fill the entire area
+            frontEl.style.backgroundSize = cover._coverGalleryId ? 'contain' : 'cover';
             frontEl.style.backgroundPosition = 'center';
+            frontEl.style.backgroundRepeat = 'no-repeat';
         }
 
         // Handle different layouts

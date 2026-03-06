@@ -1471,17 +1471,69 @@ export class AlbumPreview {
 
         // Page/Spread Thumbnails (Index 0..N)
         const spreadCount = Math.ceil(this.contentPages.length / 2);
+
+        // Get editor dimensions for scaling
+        let editorW = 1200, editorH = 1600;
+        if (this.templateConfig?.designSystem?.canvas) {
+            editorW = this.templateConfig.designSystem.canvas.width || 800;
+            editorH = this.templateConfig.designSystem.canvas.height || 600;
+        } else if (this.templateConfig?.pageSize) {
+            editorW = this.templateConfig.pageSize.width;
+            editorH = this.templateConfig.pageSize.height;
+        }
+
+        // Thumbnail dimensions
+        const thumbW = 100;
+        const thumbH = 75;
+        const spreadW = editorW * 2;
+        const spreadH = editorH;
+        const thumbScale = Math.min(thumbW / spreadW, thumbH / spreadH);
+
         for (let i = 0; i < spreadCount; i++) {
             const thumb = document.createElement('div');
             thumb.className = 'preview-thumb';
             thumb.dataset.index = i.toString();
-            const pageNum1 = (i * 2) + 1;
-            const pageNum2 = (i * 2) + 2;
-            let thumbText = `${pageNum1}`;
-            if (pageNum2 <= this.contentPages.length) {
-                thumbText += `-${pageNum2}`;
+
+            const leftPageIndex = i * 2;
+            const rightPageIndex = (i * 2) + 1;
+            const leftPage = this.contentPages[leftPageIndex];
+            const rightPage = this.contentPages[rightPageIndex];
+
+            // Create mini spread container
+            const miniSpread = document.createElement('div');
+            miniSpread.style.cssText = `
+                width: ${spreadW}px;
+                height: ${spreadH}px;
+                transform: scale(${thumbScale});
+                transform-origin: top left;
+                display: flex;
+                flex-direction: row;
+                position: absolute;
+                top: 0;
+                left: ${(thumbW - spreadW * thumbScale) / 2}px;
+                pointer-events: none;
+            `;
+
+            // Left page
+            const leftSlot = document.createElement('div');
+            leftSlot.style.cssText = `flex:1;height:100%;position:relative;overflow:hidden;background:#fcfaf7;`;
+            if (leftPage) {
+                try { this.renderPageToContainer(leftPage, leftSlot); } catch (e) { /* skip */ }
             }
-            thumb.innerHTML = `<div style="background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#666;font-size:0.7rem;">${thumbText}</div>`;
+            miniSpread.appendChild(leftSlot);
+
+            // Right page
+            const rightSlot = document.createElement('div');
+            rightSlot.style.cssText = `flex:1;height:100%;position:relative;overflow:hidden;background:#fcfaf7;`;
+            if (rightPage) {
+                try { this.renderPageToContainer(rightPage, rightSlot); } catch (e) { /* skip */ }
+            }
+            miniSpread.appendChild(rightSlot);
+
+            thumb.style.position = 'relative';
+            thumb.style.overflow = 'hidden';
+            thumb.appendChild(miniSpread);
+
             thumb.addEventListener('click', () => this.goToPage(i));
             container.appendChild(thumb);
         }
