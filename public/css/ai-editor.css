@@ -882,12 +882,13 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
     .toolbar-top .btn-tool {
         width: 36px;
         height: 36px;
-        padding: 0;
+        padding: 0 !important;
         margin-right: 4px;
-        font-size: 0;
-        display: inline-flex;
+        font-size: 0 !important;
+        display: inline-flex !important;
         align-items: center;
         justify-content: center;
+        width: 36px !important;
     }
 
     .toolbar-top .btn-tool i {
@@ -905,7 +906,6 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
         margin: 0;
     }
 
-    /* Keep Magic Create text visible since it's the main CTA */
     #btn-magic-create {
         font-size: 0.8rem !important;
     }
@@ -921,74 +921,94 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
     }
 }
 
-/* Mobile: Single column, overlay sidebar, compact toolbar */
+/* Mobile: Single column, overlay sidebar, single-row toolbar */
 @media (max-width: 768px) {
+
+    /* GRID: Collapse to single column */
     #app-container {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr auto;
     }
 
-    /* Hide sidebars on mobile — they become overlays */
+    /* SIDEBAR LEFT: completely remove from grid flow */
     #sidebar-left {
+        display: none !important;
         position: fixed;
-        left: -100%;
         top: 0;
+        right: 0;
         bottom: 0;
         width: 85vw;
         max-width: 320px;
         z-index: 1000;
-        transition: left 0.3s ease;
+        flex-direction: row;
+        border-right: none;
+        border-left: 1px solid var(--border);
     }
 
     #sidebar-left.mobile-open {
-        left: 0;
-        box-shadow: 5px 0 30px rgba(0, 0, 0, 0.5);
+        display: flex !important;
+        box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
     }
 
+    /* SIDEBAR RIGHT: hide */
     #sidebar-right {
-        display: none;
+        display: none !important;
     }
 
+    /* WORKSPACE */
     #workspace {
         grid-column: 1;
         grid-row: 2;
     }
 
+    /* TIMELINE */
     #timeline-bar {
         grid-column: 1;
         grid-row: 3;
         padding: 0 8px;
         height: auto;
-        min-height: 90px;
+        min-height: 80px;
     }
 
-    /* Compact toolbar */
+    /* TOOLBAR: single row, horizontal scroll, no wrap */
     .toolbar-top {
-        height: auto;
-        min-height: 48px;
-        flex-wrap: wrap;
-        padding: 6px 8px;
-        gap: 4px;
+        height: 44px;
+        min-height: 44px;
+        max-height: 44px;
+        flex-wrap: nowrap;
+        padding: 0 8px;
+        gap: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        justify-content: center;
+    }
+
+    .toolbar-top::-webkit-scrollbar {
+        display: none;
     }
 
     .toolbar-group {
         display: flex;
         align-items: center;
         gap: 3px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
     }
 
-    /* All toolbar buttons: icons only, compact */
+    /* Toolbar buttons: icon-only, compact */
     .toolbar-top .btn-tool {
-        width: 34px;
+        width: 34px !important;
         height: 34px;
-        padding: 0;
-        margin: 0;
-        font-size: 0;
-        display: inline-flex;
+        padding: 0 !important;
+        margin: 0 1px !important;
+        font-size: 0 !important;
+        display: inline-flex !important;
         align-items: center;
         justify-content: center;
         border-radius: 6px;
+        flex-shrink: 0;
     }
 
     .toolbar-top .btn-tool i {
@@ -996,11 +1016,17 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
         margin: 0;
     }
 
+    /* Pill buttons: icon-only */
     .toolbar-top .btn-pill {
-        padding: 6px 10px;
+        padding: 0 10px;
         font-size: 0;
         border-radius: 16px;
         height: 34px;
+        flex-shrink: 0;
+        margin: 0 1px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .toolbar-top .btn-pill i {
@@ -1008,10 +1034,10 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
         margin: 0;
     }
 
-    /* Magic Create: keep compact but with abbreviation */
+    /* Magic Create: icon + "AI" label */
     #btn-magic-create {
         font-size: 0 !important;
-        padding: 6px 10px !important;
+        padding: 0 10px !important;
         min-width: unset;
     }
 
@@ -1020,25 +1046,28 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
     }
 
     #btn-magic-create::after {
-        content: 'Magic';
+        content: 'AI';
+        font-size: 0.65rem;
+        margin-left: 3px;
+        font-weight: 700;
+    }
+
+    /* Preview/Order buttons: compact text */
+    .toolbar-top .btn-primary,
+    .toolbar-top .btn-secondary {
+        padding: 6px 8px;
         font-size: 0.7rem;
-        margin-left: 4px;
-    }
-
-    /* Preview/Order buttons compact */
-    .btn-primary,
-    .btn-secondary {
-        padding: 6px 10px;
-        font-size: 0.75rem;
         border-radius: 6px;
+        flex-shrink: 0;
+        white-space: nowrap;
     }
 
-    /* Online users: hide on mobile */
+    /* Online users: hide */
     .online-users-container {
         display: none !important;
     }
 
-    /* Canvas container fills screen */
+    /* Canvas: fill viewport */
     #canvas-viewport {
         min-height: 0;
     }
@@ -1048,7 +1077,7 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
         height: 90%;
     }
 
-    /* Smaller page thumbnails in timeline */
+    /* Smaller page thumbnails */
     .timeline-page {
         width: 70px;
     }
@@ -1063,11 +1092,14 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
 /* Small mobile phones */
 @media (max-width: 480px) {
     .toolbar-top {
-        padding: 4px 6px;
+        height: 38px;
+        min-height: 38px;
+        max-height: 38px;
+        padding: 0 4px;
     }
 
     .toolbar-top .btn-tool {
-        width: 30px;
+        width: 30px !important;
         height: 30px;
     }
 
@@ -1077,7 +1109,7 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
 
     .toolbar-top .btn-pill {
         height: 30px;
-        padding: 4px 8px;
+        padding: 0 6px;
     }
 
     .toolbar-top .btn-pill i {
@@ -1088,19 +1120,18 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
         display: none;
     }
 
-    .btn-primary,
-    .btn-secondary {
-        padding: 4px 8px;
-        font-size: 0.7rem;
+    .toolbar-top .btn-primary,
+    .toolbar-top .btn-secondary {
+        padding: 4px 6px;
+        font-size: 0.65rem;
     }
 
-    /* Even smaller timeline */
     .timeline-page {
         width: 55px;
     }
 
     #timeline-bar {
-        min-height: 70px;
+        min-height: 65px;
         gap: 6px;
     }
 
@@ -1110,14 +1141,12 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
         font-size: 0.7rem;
     }
 
-    /* Profile modal also needs to be responsive */
     .profile-content {
         width: 95vw !important;
         height: 85vh !important;
         max-width: 95vw !important;
     }
 
-    /* Projects modal responsive */
     #projects-modal .modal-content {
         width: 95vw !important;
         max-width: 95vw !important;
@@ -1134,13 +1163,14 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
     height: 100vh;
     background: rgba(0, 0, 0, 0.5);
     z-index: 999;
+    backdrop-filter: blur(2px);
 }
 
 .mobile-sidebar-backdrop.active {
     display: block;
 }
 
-/* Mobile menu toggle button (injected by JS on mobile) */
+/* Mobile menu toggle button */
 .mobile-menu-toggle {
     display: none;
     background: transparent;
@@ -1153,6 +1183,7 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
     align-items: center;
     justify-content: center;
     font-size: 1rem;
+    flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
