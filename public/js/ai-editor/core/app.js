@@ -2359,6 +2359,39 @@ class App {
             btnShare.addEventListener('click', () => this.openShareModal());
         }
 
+        // --- MOBILE MENU TOGGLE ---
+        const btnMobileMenu = document.getElementById('btn-mobile-menu');
+        if (btnMobileMenu) {
+            // Create backdrop for mobile sidebar
+            let backdrop = document.querySelector('.mobile-sidebar-backdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'mobile-sidebar-backdrop';
+                document.body.appendChild(backdrop);
+            }
+
+            const sidebarLeft = document.getElementById('sidebar-left');
+            const toggleSidebar = () => {
+                const isOpen = sidebarLeft.classList.toggle('mobile-open');
+                backdrop.classList.toggle('active', isOpen);
+            };
+
+            btnMobileMenu.addEventListener('click', toggleSidebar);
+            backdrop.addEventListener('click', () => {
+                sidebarLeft.classList.remove('mobile-open');
+                backdrop.classList.remove('active');
+            });
+
+            // Close sidebar when a nav item is clicked (mobile UX)
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        // Keep sidebar open to show content pane, but close on second interaction
+                    }
+                });
+            });
+        }
+
         const btnGoogle = document.getElementById('btn-upload-google');
         if (btnGoogle) {
             btnGoogle.addEventListener('click', async () => {

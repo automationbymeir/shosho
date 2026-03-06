@@ -57,7 +57,7 @@ export class ProfileModal {
                     backdrop-filter: blur(5px); font-family: 'Rubik', sans-serif;
                 }
                 .profile-content {
-                    background: #1e1e2e; color: #fff; width: 800px; height: 600px;
+                    background: #1e1e2e; color: #fff; width: 800px; max-width: 95vw; height: 600px; max-height: 85vh;
                     border-radius: 12px; display: flex; flex-direction: column;
                     box-shadow: 0 10px 40px rgba(0,0,0,0.5); position: relative;
                 }

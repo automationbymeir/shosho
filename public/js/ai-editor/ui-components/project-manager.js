@@ -5,7 +5,7 @@ export class ProjectManager {
     constructor(appInstance) {
         this.app = appInstance;
         this.modal = document.getElementById('projects-modal');
-        this.btnOpen = document.getElementById('btn-my-projects');
+        this.btnOpen = document.getElementById('btn-my-projects'); // May not exist (removed from toolbar)
         this.btnManualSave = document.getElementById('btn-manual-save');
         this.listContainer = document.getElementById('projects-list-container');
 
@@ -156,7 +156,7 @@ export class ProjectManager {
         this.modal.style.display = 'none';
 
         // Indicate loading on the main UI
-        const btnProj = document.getElementById('btn-my-projects');
+        const btnProj = document.getElementById('btn-my-projects') || document.getElementById('btn-new-project');
         const oldProjText = btnProj ? btnProj.innerHTML : '';
         if (btnProj) btnProj.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 

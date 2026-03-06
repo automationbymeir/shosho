@@ -857,3 +857,306 @@ body.preview-mode .toolbar-top .toolbar-group:not(:last-child) {
     border-radius: 50%;
     border: 2px solid var(--bg-dark);
 }
+
+/* ============================================
+   RESPONSIVE / MOBILE STYLES
+   ============================================ */
+
+/* Tablet: hide text labels, show icons only */
+@media (max-width: 900px) {
+    :root {
+        --sidebar-width: 260px;
+        --properties-width: 220px;
+    }
+
+    .toolbar-top {
+        padding: 0 10px;
+        gap: 4px;
+    }
+
+    .toolbar-group {
+        gap: 4px;
+    }
+
+    /* Hide text from toolbar buttons, show icons only */
+    .toolbar-top .btn-tool {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        margin-right: 4px;
+        font-size: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .toolbar-top .btn-tool i {
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .toolbar-top .btn-pill {
+        padding: 8px 12px;
+        font-size: 0;
+    }
+
+    .toolbar-top .btn-pill i {
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    /* Keep Magic Create text visible since it's the main CTA */
+    #btn-magic-create {
+        font-size: 0.8rem !important;
+    }
+
+    #btn-magic-create i {
+        margin-right: 4px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+}
+
+/* Mobile: Single column, overlay sidebar, compact toolbar */
+@media (max-width: 768px) {
+    #app-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+    }
+
+    /* Hide sidebars on mobile — they become overlays */
+    #sidebar-left {
+        position: fixed;
+        left: -100%;
+        top: 0;
+        bottom: 0;
+        width: 85vw;
+        max-width: 320px;
+        z-index: 1000;
+        transition: left 0.3s ease;
+    }
+
+    #sidebar-left.mobile-open {
+        left: 0;
+        box-shadow: 5px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    #sidebar-right {
+        display: none;
+    }
+
+    #workspace {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    #timeline-bar {
+        grid-column: 1;
+        grid-row: 3;
+        padding: 0 8px;
+        height: auto;
+        min-height: 90px;
+    }
+
+    /* Compact toolbar */
+    .toolbar-top {
+        height: auto;
+        min-height: 48px;
+        flex-wrap: wrap;
+        padding: 6px 8px;
+        gap: 4px;
+    }
+
+    .toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        flex-wrap: wrap;
+    }
+
+    /* All toolbar buttons: icons only, compact */
+    .toolbar-top .btn-tool {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        margin: 0;
+        font-size: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+    }
+
+    .toolbar-top .btn-tool i {
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .toolbar-top .btn-pill {
+        padding: 6px 10px;
+        font-size: 0;
+        border-radius: 16px;
+        height: 34px;
+    }
+
+    .toolbar-top .btn-pill i {
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    /* Magic Create: keep compact but with abbreviation */
+    #btn-magic-create {
+        font-size: 0 !important;
+        padding: 6px 10px !important;
+        min-width: unset;
+    }
+
+    #btn-magic-create i {
+        font-size: 1rem;
+    }
+
+    #btn-magic-create::after {
+        content: 'Magic';
+        font-size: 0.7rem;
+        margin-left: 4px;
+    }
+
+    /* Preview/Order buttons compact */
+    .btn-primary,
+    .btn-secondary {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+
+    /* Online users: hide on mobile */
+    .online-users-container {
+        display: none !important;
+    }
+
+    /* Canvas container fills screen */
+    #canvas-viewport {
+        min-height: 0;
+    }
+
+    #canvas-container {
+        width: 95%;
+        height: 90%;
+    }
+
+    /* Smaller page thumbnails in timeline */
+    .timeline-page {
+        width: 70px;
+    }
+
+    .btn-add-page {
+        padding: 0 12px;
+        height: 60px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Small mobile phones */
+@media (max-width: 480px) {
+    .toolbar-top {
+        padding: 4px 6px;
+    }
+
+    .toolbar-top .btn-tool {
+        width: 30px;
+        height: 30px;
+    }
+
+    .toolbar-top .btn-tool i {
+        font-size: 0.8rem;
+    }
+
+    .toolbar-top .btn-pill {
+        height: 30px;
+        padding: 4px 8px;
+    }
+
+    .toolbar-top .btn-pill i {
+        font-size: 0.8rem;
+    }
+
+    #btn-magic-create::after {
+        display: none;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+
+    /* Even smaller timeline */
+    .timeline-page {
+        width: 55px;
+    }
+
+    #timeline-bar {
+        min-height: 70px;
+        gap: 6px;
+    }
+
+    .btn-add-page {
+        height: 50px;
+        padding: 0 8px;
+        font-size: 0.7rem;
+    }
+
+    /* Profile modal also needs to be responsive */
+    .profile-content {
+        width: 95vw !important;
+        height: 85vh !important;
+        max-width: 95vw !important;
+    }
+
+    /* Projects modal responsive */
+    #projects-modal .modal-content {
+        width: 95vw !important;
+        max-width: 95vw !important;
+    }
+}
+
+/* Mobile sidebar overlay backdrop */
+.mobile-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+.mobile-sidebar-backdrop.active {
+    display: block;
+}
+
+/* Mobile menu toggle button (injected by JS on mobile) */
+.mobile-menu-toggle {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-toggle {
+        display: inline-flex;
+    }
+}
