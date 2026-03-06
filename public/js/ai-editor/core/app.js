@@ -1170,17 +1170,46 @@ class App {
                 // Use 'coverPosition' instead of 'cover' to trigger auto-save only
                 store.notify('coverPosition', store.state.cover);
             }, 500);
-        } else if (type === 'text' || type === 'shape') {
+        } else if (type === 'text' || type === 'shape' || type === 'element') {
             const page = store.state.pages.find(p => p.id === store.state.activePageId);
             if (page && page.elements) {
                 const el = page.elements.find(e => e.id === id);
                 if (el) {
-                    el.transform = target.style.transform;
+                    // Convert pixel-based Moveable transform to percentage-based coordinates
+                    // so that positions are resolution-independent and scale correctly in preview/PDF
+                    const positioningContext = target.offsetParent || target.parentElement;
+                    if (positioningContext) {
+                        const containerRect = positioningContext.getBoundingClientRect();
+                        const targetRect = target.getBoundingClientRect();
+
+                        const relativeLeft = targetRect.left - containerRect.left;
+                        const relativeTop = targetRect.top - containerRect.top;
+
+                        const newX = parseFloat(((relativeLeft / containerRect.width) * 100).toFixed(2));
+                        const newY = parseFloat(((relativeTop / containerRect.height) * 100).toFixed(2));
+
+                        // Update state with percentage positions
+                        el.x = newX;
+                        el.y = newY;
+
+                        // Clear pixel-based transform and use absolute positioning
+                        target.style.transform = '';
+                        target.style.position = 'absolute';
+                        target.style.left = `${newX}%`;
+                        target.style.top = `${newY}%`;
+
+                        // Clear the stored transform since position is now in x/y percentages
+                        el.transform = '';
+                    }
+
                     el.pixelWidth = target.style.width;
                     el.pixelHeight = target.style.height;
 
+                    console.log(`[App] Persisted page ${type} position: ${id} → (${el.x}%, ${el.y}%)`);
+
                     clearTimeout(window._moveableDebounce);
                     window._moveableDebounce = setTimeout(() => {
+                        store.pushState('Move Element');
                         store.notify('pages', store.state.pages);
                     }, 500);
                 }
