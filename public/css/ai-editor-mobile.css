@@ -231,7 +231,7 @@
        ============================================ */
     #workspace {
         position: fixed;
-        top: 0;
+        top: var(--mobile-toolbar-height);
         left: 0;
         right: 0;
         bottom: var(--mobile-panel-collapsed);
@@ -243,30 +243,36 @@
 
     /* Top Toolbar - Mobile Optimized (Scrollable Ribbon) */
     .toolbar-top {
-        height: auto;
+        height: var(--mobile-toolbar-height);
         min-height: var(--mobile-toolbar-height);
-        padding: 8px 8px;
+        max-height: var(--mobile-toolbar-height);
+        padding: 0 8px;
         flex-wrap: nowrap;
-        gap: 10px;
+        gap: 4px;
         background: var(--bg-dark);
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         z-index: 50;
-        justify-content: flex-start;
+        justify-content: center;
         align-items: center;
         overflow-x: auto;
+        overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
-        /* Smooth scrolling */
+        scrollbar-width: none;
+        padding-top: var(--safe-area-top);
+    }
+
+    .toolbar-top::-webkit-scrollbar {
+        display: none;
     }
 
     .toolbar-group {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 4px;
         flex-shrink: 0;
-        /* Keep items on a single line */
     }
 
     /* Remove absolute positioning on mobile - causes overlap */
@@ -274,37 +280,49 @@
         position: relative;
         left: auto;
         transform: none;
-        flex: 1;
-        justify-content: center;
+        flex-shrink: 0;
     }
 
-    /* Touch-Friendly Toolbar Buttons */
+    /* Touch-Friendly Toolbar Buttons - MUST override inline styles */
     .btn-tool {
-        width: 40px;
+        width: 40px !important;
         height: 40px;
-        min-width: 40px;
-        margin-right: 0;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        margin: 0 !important;
         border-radius: 10px;
-        font-size: 0.9rem;
-        padding: 0;
-        display: flex;
+        font-size: 0 !important;
+        /* Hide all text labels */
+        padding: 0 !important;
+        display: inline-flex !important;
         align-items: center;
         justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .btn-tool i {
+        font-size: 1rem !important;
+        margin: 0 !important;
     }
 
     .btn-pill {
-        padding: 8px 12px;
-        font-size: 0.75rem;
+        padding: 0 10px;
+        font-size: 0;
         border-radius: 20px;
         min-width: 40px;
         min-height: 40px;
+        height: 40px;
         white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
     }
 
     /* Hide text on pill buttons, show icon only */
     #btn-remix-layout,
     #btn-magic-create {
-        padding: 10px;
+        padding: 0 10px;
         font-size: 0;
     }
 
@@ -319,6 +337,7 @@
         font-size: 0.75rem;
         min-height: 40px;
         white-space: nowrap;
+        flex-shrink: 0;
     }
 
     /* ALL tools are explicitly visible in the horizontal ribbon */
@@ -327,8 +346,32 @@
     #btn-remix-layout,
     #btn-review,
     #btn-undo,
-    #btn-magic-create {
+    #btn-magic-create,
+    #btn-share-project,
+    #btn-toggle-dir {
         display: inline-flex !important;
+    }
+
+    /* Mobile menu toggle */
+    .mobile-menu-toggle {
+        display: inline-flex !important;
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 10px;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-main);
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    /* Online users: hide on mobile */
+    .online-users-container {
+        display: none !important;
     }
 
     /* Canvas Viewport */
