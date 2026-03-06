@@ -406,21 +406,18 @@ export class PDFCanvasExport {
                 domEl.style.width = el.pixelWidth || '100px';
                 domEl.style.height = el.pixelHeight || '100px';
 
-                const img = document.createElement('img');
-                img.src = el.url;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'contain';
-                img.draggable = false;
-                img.crossOrigin = 'anonymous'; // Important for html2canvas
+                // Use background-image instead of <img> with object-fit
+                // because html2canvas does NOT support object-fit on <img> elements
+                domEl.style.backgroundImage = `url("${el.url}")`;
+                domEl.style.backgroundSize = 'contain';
+                domEl.style.backgroundPosition = 'center';
+                domEl.style.backgroundRepeat = 'no-repeat';
 
                 let filterStr = '';
                 if (el.filterHue) filterStr += `hue-rotate(${el.filterHue}deg) `;
                 if (el.filterBrightness && el.filterBrightness !== 100) filterStr += `brightness(${el.filterBrightness}%) `;
                 if (el.filterShadow) filterStr += `drop-shadow(2px 4px 6px ${el.filterShadowColor || 'rgba(0,0,0,0.5)'}) `;
-                if (filterStr) img.style.filter = filterStr.trim();
-
-                domEl.appendChild(img);
+                if (filterStr) domEl.style.filter = filterStr.trim();
             }
 
             pageElement.appendChild(domEl);

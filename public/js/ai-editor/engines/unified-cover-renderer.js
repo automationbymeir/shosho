@@ -391,23 +391,28 @@ export class UnifiedCoverRenderer {
         const spineTextEl = document.createElement('div');
         const spineContent = cover.spineText || cover.title || '';
         spineTextEl.textContent = spineContent;
+        // Use transform rotate instead of writing-mode for html2canvas compatibility.
+        // Render text horizontally, then rotate the container -90deg to appear vertical.
         spineTextEl.style.cssText = `
-            writing-mode: vertical-lr;
-            text-orientation: mixed;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-90deg);
             font-family: ${titleFont};
             font-size: 9px;
             color: ${textColor};
             white-space: nowrap;
+            letter-spacing: 0.5px;
+            max-width: 80%;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-height: 80%;
-            letter-spacing: 0.5px;
         `;
         // Hebrew spine text: use Hebrew font
         const _heRegex = /[\u0590-\u05FF]/;
         if (_heRegex.test(spineContent)) {
             spineTextEl.style.fontFamily = "'Fredoka', 'Heebo', sans-serif";
         }
+        spineEl.style.position = 'relative';
         spineEl.appendChild(spineTextEl);
 
         return spineEl;
