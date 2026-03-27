@@ -1382,49 +1382,10 @@ export class AlbumPreview {
 
         container.innerHTML = '';
 
-        // ── CANVAS-RESOLUTION SCALER ──────────────────────────────────────────────
-        // Render at the editor's actual canvas size so that all pixel-based values
-        // (font sizes, element dimensions, Moveable translate transforms) are correct.
-        // A single CSS scale() then shrinks the whole page to fit the container.
-        // Using offsetWidth/offsetHeight (CSS pixels, unaffected by parent transforms)
-        // means thumbnail slots (already at canvas size) get scale=1 — no double-scale.
-        const canvasW = this.templateConfig?.designSystem?.canvas?.width  ||
-                        this.templateConfig?.pageSize?.width  || 800;
-        const canvasH = this.templateConfig?.designSystem?.canvas?.height ||
-                        this.templateConfig?.pageSize?.height || 600;
-
-        // Ensure container clips the scaler (containers already have correct positioning from CSS)
         container.style.overflow = 'hidden';
-        // Set container background to match page background so letterbox areas blend in
+        // Set background to match page for a clean look
         const pageBg = page?.backgroundColor || page?.background || page?.bg || '#f5f0e8';
         container.style.background = pageBg;
-
-        const scaler = document.createElement('div');
-        scaler.className = 'preview-page-scaler';
-        scaler.style.cssText = `width:${canvasW}px;height:${canvasH}px;position:absolute;top:0;left:0;transform-origin:top left;overflow:hidden;`;
-        container.appendChild(scaler);
-
-        // Apply uniform scale after layout — preserves aspect ratio (no stretch/squish).
-        // Center the scaler within the container so content is visually centered.
-        // offsetWidth/offsetHeight are CSS pixels, unaffected by ancestor CSS transform:scale()
-        // (thumbnail spreads), so thumbnail slots (already at canvas size) get scale≈1 — no double-scale.
-        // We also preserve any scaleX(-1) counter-mirror that RTL applyContentMirror() adds after this call.
-        requestAnimationFrame(() => {
-            const w = container.offsetWidth  || parseFloat(container.style.width)  || 0;
-            const h = container.offsetHeight || parseFloat(container.style.height) || 0;
-            if (w > 0 && h > 0) {
-                const s = Math.min(w / canvasW, h / canvasH);
-                // Center the scaled content within the container
-                const offsetX = (w - canvasW * s) / 2;
-                const offsetY = (h - canvasH * s) / 2;
-                scaler.style.left = `${offsetX}px`;
-                scaler.style.top  = `${offsetY}px`;
-                // Keep RTL counter-mirror if applyContentMirror() has set it
-                const hasMirror = (scaler.style.transform || '').includes('scaleX(-1)');
-                scaler.style.transform = (hasMirror ? 'scaleX(-1) ' : '') + `scale(${s})`;
-            }
-        });
-        // ─────────────────────────────────────────────────────────────────────────
 
         // RESILIENCE: Sanitize photo URLs before rendering
         // If thumbnailUrl is a dead blob URL, fall back to url
@@ -1516,7 +1477,7 @@ export class AlbumPreview {
                     pageEl.style.width = '100%';
                     pageEl.style.height = '100%';
                     pageEl.style.overflow = 'hidden';
-                    scaler.appendChild(pageEl);
+                    container.appendChild(pageEl);
 
                     // INJECT CROP STYLES FOR PREVIEW MATCH
                     if (page.layout && page.layout.slots) {
@@ -1554,7 +1515,7 @@ export class AlbumPreview {
             // Fallback to Generic RenderEngine
             // This handles Magic Create pages and standard layouts that don't need a specific class
             try {
-                this.fallbackRenderer.renderPageToContainer(page, this.assets, scaler);
+                this.fallbackRenderer.renderPageToContainer(page, this.assets, container);
                 // Elements are already injected by RenderEngine at canvas scale
             } catch (err) {
                 console.error('[Preview] Generic render error:', err);
@@ -1572,16 +1533,28 @@ export class AlbumPreview {
 
         console.log(`[Preview] Injecting ${page.elements.length} elements into page ${page.id}`);
 
-        // NOTE: pageEl is now inside a canvas-resolution scaler, so all pixel values
-        // (font sizes, widths, heights, translate transforms) are correct as-is.
-        // No per-element RAF scaling is needed — the scaler handles the overall zoom.
+        // Read canvas dimensions from templateConfig
+        const canvasW = this.templateConfig?.designSystem?.canvas?.width  ||
+                        this.templateConfig?.pageSize?.width  || 800;
+        const canvasH = this.templateConfig?.designSystem?.canvas?.height ||
+                        this.templateConfig?.pageSize?.height || 600;
+
+        // Read actual container dimensions; fall back to canvas dims if not yet laid out
+        const containerEl = pageEl.parentElement;
+        const containerW = (containerEl && containerEl.offsetWidth  > 0) ? containerEl.offsetWidth  : canvasW;
+        const containerH = (containerEl && containerEl.offsetHeight > 0) ? containerEl.offsetHeight : canvasH;
+
+        // Compute per-axis scale factors and a uniform font scale
+        const scaleX    = containerW / canvasW;
+        const scaleY    = containerH / canvasH;
+        const scaleFont = Math.min(scaleX, scaleY);
 
         page.elements.forEach(el => {
             const domEl = document.createElement('div');
             domEl.className = `page-element element-${el.type}`;
             domEl.style.position = 'absolute';
             domEl.style.left = `${el.x}%`;
-            domEl.style.top = `${el.y}%`;
+            domEl.style.top  = `${el.y}%`;
             if (el.zIndex !== undefined) domEl.style.zIndex = el.zIndex;
 
             // Determine centering for text
@@ -1589,20 +1562,27 @@ export class AlbumPreview {
                 (el.alignment && el.alignment.horizontal === 'center') ||
                 (el.alignment && el.alignment.method && el.alignment.method.includes('translateX(-50%)'));
 
-            // Apply full Moveable transform (translate values are in canvas-px → correct at canvas scale)
+            // Scale translate() px values in Moveable transforms by scaleX/scaleY
+            const scaledTransform = el.transform
+                ? el.transform.replace(
+                    /translate\(\s*([-\d.]+)px\s*,\s*([-\d.]+)px\s*\)/g,
+                    (m, x, y) => `translate(${parseFloat(x) * scaleX}px, ${parseFloat(y) * scaleY}px)`
+                  )
+                : null;
+
             if (el.type === 'text' && isCentered) {
-                domEl.style.transform = el.transform
-                    ? `translateX(-50%) ${el.transform}`
+                domEl.style.transform = scaledTransform
+                    ? `translateX(-50%) ${scaledTransform}`
                     : 'translateX(-50%)';
-            } else if (el.transform) {
-                domEl.style.transform = el.transform;
+            } else if (scaledTransform) {
+                domEl.style.transform = scaledTransform;
             }
 
             if (el.type === 'text') {
                 domEl.classList.add('text-element');
-                // Width: use stored pixel width (correct at canvas scale)
-                const pxW = parseFloat(el.pixelWidth);
-                domEl.style.width = (pxW > 0) ? `${pxW}px` : `${el.width || 80}%`;
+                // Width: scale stored pixel width; fall back to percentage
+                const pxW = parseFloat(el.pixelWidth || 0);
+                domEl.style.width = (pxW > 0) ? `${pxW * scaleX}px` : `${el.width || 80}%`;
                 domEl.style.boxSizing = 'border-box';
                 domEl.style.wordBreak = 'break-word';
                 domEl.style.overflowWrap = 'break-word';
@@ -1613,8 +1593,8 @@ export class AlbumPreview {
                     if (styleDef) Object.assign(domEl.style, styleDef.style);
                 }
 
-                // Font size in canvas-px (correct at canvas scale — scaler will shrink visually)
-                if (el.fontSize) domEl.style.fontSize = `${el.fontSize}px`;
+                // Scale font size to actual container dimensions
+                if (el.fontSize) domEl.style.fontSize = `${el.fontSize * scaleFont}px`;
                 if (el.color) domEl.style.color = el.color;
                 if (el.fontFamily) domEl.style.fontFamily = el.fontFamily;
                 if (el.textAlign) domEl.style.textAlign = el.textAlign;
@@ -1633,15 +1613,16 @@ export class AlbumPreview {
             } else if (el.type === 'shape') {
                 domEl.classList.add('shape-element');
                 if (el.subtype) domEl.classList.add(el.subtype);
+                // Shapes use percentage dimensions (already relative)
                 domEl.style.width  = `${el.width}%`;
                 domEl.style.height = `${el.height}%`;
                 if (el.color) domEl.style.backgroundColor = el.color;
 
             } else if (el.type === 'element') {
                 domEl.classList.add('visual-element');
-                // Pixel dimensions are at canvas scale — correct as-is
-                domEl.style.width  = `${parseFloat(el.pixelWidth)  || 100}px`;
-                domEl.style.height = `${parseFloat(el.pixelHeight) || 100}px`;
+                // Scale pixel dimensions to actual container size
+                domEl.style.width  = `${parseFloat(el.pixelWidth  || 100) * scaleX}px`;
+                domEl.style.height = `${parseFloat(el.pixelHeight || 100) * scaleY}px`;
 
                 const img = document.createElement('img');
                 img.src = el.url;
@@ -1661,7 +1642,6 @@ export class AlbumPreview {
 
             pageEl.appendChild(domEl);
         });
-        // No RAF scaling needed — the preview-page-scaler wrapper handles the zoom.
     }
 
     /**
