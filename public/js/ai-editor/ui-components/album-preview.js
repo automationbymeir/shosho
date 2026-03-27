@@ -879,6 +879,7 @@ export class AlbumPreview {
                 this.currentPageIndex = -1;
                 const bookEl = document.getElementById('mb-book-ed');
                 if (bookEl) bookEl.classList.add('book-closed');
+                this._setBookAspectRatio(true);
                 this._updateLeftPageForIndex();
             } else {
                 // Normal page flip backwards
@@ -922,6 +923,7 @@ export class AlbumPreview {
                 this.currentPageIndex = 0;
                 const bookEl = document.getElementById('mb-book-ed');
                 if (bookEl) bookEl.classList.remove('book-closed');
+                this._setBookAspectRatio(false);
                 this._updateLeftPageForIndex();
             } else {
                 // Normal page flip forward
@@ -971,14 +973,39 @@ export class AlbumPreview {
      * Flip pages are ONLY content pages (standard half-width).
      * Cover is shown/hidden via a static overlay (not a flip page).
      */
+    /**
+     * Set the book's aspect-ratio inline style to match the canvas dimensions.
+     * Called whenever the book transitions between open (2-page spread) and closed (cover only).
+     * @param {boolean} closed - true = closed book (single-page cover), false = open spread
+     */
+    _setBookAspectRatio(closed) {
+        const bookEl = document.getElementById('mb-book-ed');
+        if (!bookEl) return;
+        const w = this._canvasW || 800;
+        const h = this._canvasH || 600;
+        // Open: two pages side by side → spread ratio = 2w:h
+        // Closed: single page (cover) → ratio = w:h
+        bookEl.style.aspectRatio = closed ? `${w} / ${h}` : `${2 * w} / ${h}`;
+    }
+
     buildMixbookPages() {
         const bookEl = document.getElementById('mb-book-ed');
         const leftPageEl = document.getElementById('mb-left-page-ed');
         const rightStaticEl = document.getElementById('mb-right-static-ed');
         const coverOverlay = document.getElementById('mb-cover-overlay');
-        
+
         if (!bookEl || !leftPageEl || !rightStaticEl) return;
-        
+
+        // ── Read canvas dimensions and store for use throughout this session ──────
+        this._canvasW = this.templateConfig?.designSystem?.canvas?.width  ||
+                        this.templateConfig?.pageSize?.width  || 800;
+        this._canvasH = this.templateConfig?.designSystem?.canvas?.height ||
+                        this.templateConfig?.pageSize?.height || 600;
+
+        // Apply dynamic aspect-ratio so each page slot matches the canvas exactly.
+        // The book starts CLOSED (currentPageIndex = -1), so use the single-page ratio.
+        this._setBookAspectRatio(true);
+
         // Clear any old flip pages
         bookEl.querySelectorAll('.mb-flip-page-ed').forEach(el => el.remove());
         leftPageEl.innerHTML = '';
@@ -1324,8 +1351,10 @@ export class AlbumPreview {
         if (bookEl) {
             if (this.currentPageIndex === -1) {
                 bookEl.classList.add('book-closed');
+                this._setBookAspectRatio(true);
             } else {
                 bookEl.classList.remove('book-closed');
+                this._setBookAspectRatio(false);
             }
         }
         
@@ -2253,10 +2282,12 @@ export class AlbumPreview {
             .flipbook-container { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 16px 8px; width: 100%; height: 100%; }
 
             /* ===== MIXBOOK-STYLE BOOK ===== */
+            /* aspect-ratio is set dynamically by JS (_setBookAspectRatio) to match the canvas.
+               CSS only sets the fallback aspect-ratio and sizing constraints. */
             .mb-book-ed {
                 position: relative;
                 width: min(80vw, 900px);
-                aspect-ratio: 2 / 1.2;
+                aspect-ratio: 2 / 1.2; /* fallback — overridden by inline style from JS */
                 max-height: calc(100vh - 280px);
                 cursor: pointer;
                 perspective: 2000px;
@@ -2264,22 +2295,21 @@ export class AlbumPreview {
                 transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
                             max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             }
-            /* When max-height constrains, recalculate width from height */
+            /* When max-height constrains, allow browser to resolve from aspect-ratio */
             @media (max-height: 800px) {
                 .mb-book-ed {
-                    width: min(80vw, calc((100vh - 280px) * 2 / 1.2));
+                    width: min(80vw, 900px);
                 }
             }
 
             /* === CLOSED BOOK STATE === */
-            /* Book looks like a single portrait rectangle (front cover only) */
             .mb-book-ed.book-closed {
                 width: min(40vw, 450px);
-                aspect-ratio: 1 / 1.2;
+                aspect-ratio: 1 / 1.2; /* fallback — overridden by inline style */
             }
             @media (max-height: 800px) {
                 .mb-book-ed.book-closed {
-                    width: min(40vw, calc((100vh - 280px) / 1.2));
+                    width: min(40vw, 450px);
                 }
             }
             /* Hide internal book elements when closed */
@@ -2486,18 +2516,15 @@ export class AlbumPreview {
                 /* Separator inside controls */
                 .preview-controls > div[style*="width:1px"] { display: none; }
 
-                /* Book: maximize — constrain by available height */
+                /* Book: maximize — constrain by available height.
+                   Aspect-ratio is set dynamically by JS (_setBookAspectRatio) to match the
+                   canvas, so we only constrain width/max-height here; the browser resolves height. */
                 .mb-book-ed {
-                    width: min(92vw, calc((100vh - 200px) * 2 / 1.2));
+                    width: min(92vw, 100%);
                     max-height: calc(100vh - 200px);
                 }
-                @media (max-height: 800px) {
-                    .mb-book-ed {
-                        width: min(92vw, calc((100vh - 200px) * 2 / 1.2));
-                    }
-                }
                 .mb-book-ed.book-closed {
-                    width: min(56vw, calc((100vh - 200px) / 1.2));
+                    width: min(56vw, 60%);
                 }
 
                 /* Nav arrows: smaller, tucked into book edges */
