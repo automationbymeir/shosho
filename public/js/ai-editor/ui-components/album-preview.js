@@ -1002,9 +1002,18 @@ export class AlbumPreview {
         this._canvasH = this.templateConfig?.designSystem?.canvas?.height ||
                         this.templateConfig?.pageSize?.height || 600;
 
-        // Apply dynamic aspect-ratio so each page slot matches the canvas exactly.
-        // The book starts CLOSED (currentPageIndex = -1), so use the single-page ratio.
-        this._setBookAspectRatio(true);
+        // ── Temporarily put the book in OPEN state before rendering pages ─────────
+        // Flip-page containers (mb-flip-front-ed, mb-flip-back-ed) get their
+        // dimensions from the book's CSS width × aspect-ratio. If we render while
+        // the book is in CLOSED state (narrower), the container.offsetWidth will be
+        // ~half of what it is when open. Then when the user opens the book the
+        // percentage-based template layout stretches to fill the wider slot while
+        // injected pixel elements stay sized for the narrow closed slot — causing
+        // distortion. Render at OPEN dimensions so the template and element scaling
+        // both match what the user actually sees.
+        bookEl.classList.remove('book-closed');
+        this._setBookAspectRatio(false); // Open: 2*canvasW / canvasH
+        void bookEl.offsetWidth;         // Force reflow so offsetWidth is current
 
         // Clear any old flip pages
         bookEl.querySelectorAll('.mb-flip-page-ed').forEach(el => el.remove());
