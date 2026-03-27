@@ -11,13 +11,8 @@ import { pdfCanvasExport } from '../engines/pdf-canvas-export.js';
 import { RenderEngine } from '../engines/render-engine.js';
 
 // Template renderers for page preview
-import { PhotographyPortfolioRenderer } from '../templates/photography-portfolio-renderer.js';
-import { RomanticJourneyRenderer } from '../templates/romantic-journey-renderer.js';
-import { TravelJourneyRenderer } from '../templates/travel-journey-renderer.js';
-import { FamilyRootsRenderer } from '../templates/family-roots-renderer.js';
-import { BarMitzvahRenderer } from '../templates/bar-mitzvah-renderer.js';
+import { UnifiedTemplateRenderer } from '../templates/unified-template-renderer.js';
 import { UnifiedCoverRenderer } from '../engines/unified-cover-renderer.js';
-import { WeddingPrestigeRenderer } from '../templates/wedding-prestige-renderer.js';
 import { UltimateBook3D } from './ultimate-book-3d.js';
 
 export class AlbumPreview {
@@ -79,7 +74,17 @@ export class AlbumPreview {
         this.currentPageIndex = -1; // Start Closed
         this.isOpen = true;
 
+        // Detect RTL: Hebrew templates default to RTL
+        const templateId = this.templateConfig?.templateId || this.pages[0]?.templateId || '';
+        const isHebrew = /[\u0590-\u05FF]/.test(this.cover?.title || '') || 
+                         templateId.includes('-he') || 
+                         templateId.includes('hebrew') ||
+                         (this.templateConfig?.language === 'he');
+        this._isRTL = isHebrew; // Default based on language
+
         this.createModal();
+        this._applyDirection(); // Apply RTL/LTR to book
+        this.buildMixbookPages();
         this.renderCurrentView();
         document.body.classList.add('preview-mode');
     }
@@ -124,6 +129,10 @@ export class AlbumPreview {
                     <button class="preview-view-btn" data-view="3d">
                         <i class="fa-solid fa-cube"></i> 3D View
                     </button>
+                    <div style="width:1px;height:24px;background:rgba(255,255,255,0.2);margin:0 4px;"></div>
+                    <button class="preview-dir-btn" id="btn-toggle-dir" title="Toggle reading direction">
+                        <i class="fa-solid fa-right-left"></i> <span id="dir-label">RTL</span>
+                    </button>
                 </div>
                 <button class="preview-close-btn">
                     <i class="fa-solid fa-xmark"></i>
@@ -136,14 +145,23 @@ export class AlbumPreview {
                     <i class="fa-solid fa-chevron-left"></i>
                 </button>
 
-                <!-- Flipbook View -->
+                <!-- Flipbook View (Mixbook-style Open Book) -->
                 <div class="preview-flipbook active" id="preview-flipbook">
                     <div class="flipbook-container">
-                        <div class="flipbook-page" id="flipbook-page">
-                            <!-- Page content rendered here -->
+                        <div class="mb-book-ed" id="mb-book-ed">
+                            <!-- Left page (static, updates on flip) -->
+                            <div class="mb-left-page-ed" id="mb-left-page-ed"></div>
+                            <!-- Right static (last page, visible when all flipped) -->
+                            <div class="mb-right-static-ed" id="mb-right-static-ed"></div>
+                            <!-- Spine -->
+                            <div class="mb-spine-ed"></div>
+                            <!-- Cover overlay: visible when book is closed, sits on top of everything -->
+                            <div class="mb-cover-overlay" id="mb-cover-overlay"></div>
+                            <!-- Flip pages are injected directly here by buildMixbookPages -->
                         </div>
                         <div class="page-indicator" id="page-indicator">
-                            Cover
+                            <i class="fa-solid fa-book-open" style="color: #6366f1; font-size: 12px;"></i>
+                            <span id="page-indicator-text">Cover</span>
                         </div>
                     </div>
                 </div>
@@ -316,6 +334,9 @@ export class AlbumPreview {
             }
 
             .flip-nav {
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
                 width: 60px;
                 height: 60px;
                 display: flex;
@@ -328,11 +349,15 @@ export class AlbumPreview {
                 font-size: 1.5rem;
                 cursor: pointer;
                 transition: all 0.2s;
+                z-index: 100;
             }
+
+            .flip-prev { left: 16px; }
+            .flip-next { right: 16px; }
 
             .flip-nav:hover:not(:disabled) {
                 background: rgba(255, 255, 255, 0.2);
-                transform: scale(1.1);
+                transform: translateY(-50%) scale(1.1);
             }
 
             .flip-nav:disabled {
@@ -346,8 +371,9 @@ export class AlbumPreview {
             }
 
             .flipbook-page {
-                width: 800px;
-                height: 600px;
+                max-width: min(800px, calc(100vw - 40px));
+                max-height: min(600px, calc(100vh - 200px));
+                width: 100%;
                 background: white;
                 border-radius: 4px;
                 box-shadow: 
@@ -356,6 +382,13 @@ export class AlbumPreview {
                 overflow: hidden;
                 transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
                 transform-style: preserve-3d;
+            }
+
+            @media (max-width: 600px) {
+                .flip-prev { left: 4px; }
+                .flip-next { right: 4px; }
+                .flip-nav { width: 40px; height: 40px; font-size: 1rem; }
+                .preview-content { padding: 0 2px; }
             }
 
             .flipbook-page.flipping-left {
@@ -665,7 +698,7 @@ export class AlbumPreview {
         });
 
         // View toggle buttons
-        document.querySelectorAll('.preview-view-btn').forEach(btn => {
+        document.querySelectorAll('.preview-view-btn[data-view]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const view = btn.dataset.view;
                 document.querySelectorAll('.preview-view-btn').forEach(b => b.classList.remove('active'));
@@ -679,6 +712,11 @@ export class AlbumPreview {
                     setTimeout(() => {
                         this.render3DBook();
                     }, 50);
+                } else if (view === 'flipbook') {
+                    // Rebuild Mixbook pages when switching back
+                    this.buildMixbookPages();
+                    this.renderCurrentView();
+                    this._attachNavHandlers();
                 }
             });
         });
@@ -689,21 +727,33 @@ export class AlbumPreview {
             return container ? container.classList.contains('force-ltr') : false;
         };
 
-        document.getElementById('flip-prev').addEventListener('click', () => {
-            isLTR() ? this.prevPage() : this.nextPage();
-        });
-        document.getElementById('flip-next').addEventListener('click', () => {
-            isLTR() ? this.nextPage() : this.prevPage();
-        });
+        this._flipPrevHandler = () => { if (this._isRTL) this.nextPage(); else this.prevPage(); };
+        this._flipNextHandler = () => { if (this._isRTL) this.prevPage(); else this.nextPage(); };
+        this._attachNavHandlers();
+
+
+        // Direction toggle button — use querySelector scoped to modal to avoid
+        // matching the duplicate #btn-toggle-dir in the main toolbar
+        const dirToggle = document.querySelector('#album-preview-modal #btn-toggle-dir');
+        console.log('[Preview] Dir toggle button found:', !!dirToggle);
+        if (dirToggle) {
+            dirToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('[Preview] Dir toggle CLICKED! Current _isRTL:', this._isRTL);
+                this._isRTL = !this._isRTL;
+                console.log('[Preview] Toggled _isRTL to:', this._isRTL);
+                this._applyDirection();
+            });
+        }
 
         // Keyboard navigation
         this.keyHandler = (e) => {
             if (!this.isOpen) return;
             if (e.key === 'ArrowLeft') {
-                isLTR() ? this.prevPage() : this.nextPage();
+                if (this._isRTL) this.nextPage(); else this.prevPage();
             }
             if (e.key === 'ArrowRight') {
-                isLTR() ? this.nextPage() : this.prevPage();
+                if (this._isRTL) this.prevPage(); else this.nextPage();
             }
             if (e.key === 'Escape') this.close();
         };
@@ -786,6 +836,26 @@ export class AlbumPreview {
 
         // Generate PDF button
         document.getElementById('btn-generate-pdf').addEventListener('click', () => this.generatePDF());
+
+        // Touch swipe navigation for mobile flipbook
+        const flipbookEl = document.getElementById('preview-flipbook');
+        if (flipbookEl) {
+            let swipeStartX = 0;
+            let swipeStartY = 0;
+            flipbookEl.addEventListener('touchstart', (e) => {
+                swipeStartX = e.touches[0].clientX;
+                swipeStartY = e.touches[0].clientY;
+            }, { passive: true });
+            flipbookEl.addEventListener('touchend', (e) => {
+                const deltaX = e.changedTouches[0].clientX - swipeStartX;
+                const deltaY = e.changedTouches[0].clientY - swipeStartY;
+                // Only trigger on dominant horizontal swipe >= 50px
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) >= 50) {
+                    if (deltaX < 0) this._flipNextHandler();
+                    else this._flipPrevHandler();
+                }
+            }, { passive: true });
+        }
     }
 
     /**
@@ -795,21 +865,37 @@ export class AlbumPreview {
         const is3DView = document.getElementById('preview-3d')?.classList.contains('active');
 
         if (is3DView && this.ultimateBook) {
-            // Let the 3D book handle its own boundaries
             if (this.ultimateBook.isAnimating) return;
             const flipped = this.ultimateBook.pages.filter(p => p.isFlipped);
             if (flipped.length > 0) {
                 this.ultimateBook.prevPage();
             }
-        } else if (this.currentPageIndex > -1) {
-            const pageEl = document.getElementById('flipbook-page');
-            pageEl.classList.add('flipping-right');
-            setTimeout(() => {
-                pageEl.classList.remove('flipping-right');
+        } else {
+            if (this._isFlipping || this.currentPageIndex <= -1) return;
+            this._isFlipping = true;
+
+            if (this.currentPageIndex === 0) {
+                // Closing the book: go from first spread back to closed cover
+                this.currentPageIndex = -1;
+                const bookEl = document.getElementById('mb-book-ed');
+                if (bookEl) bookEl.classList.add('book-closed');
+                this._updateLeftPageForIndex();
+            } else {
+                // Normal page flip backwards
                 this.currentPageIndex--;
-                this.renderCurrentView();
-                this.updateThumbnailSelection();
-            }, 300);
+                const totalFlipPages = this._mbFlipPages ? this._mbFlipPages.length : 0;
+                // Unflip the page at current index (the page that needs to go back)
+                const page = this._mbFlipPages ? this._mbFlipPages[this.currentPageIndex] : null;
+                if (page) {
+                    page.classList.remove('flipped');
+                    setTimeout(() => { page.style.zIndex = totalFlipPages - this.currentPageIndex; }, 350);
+                }
+                setTimeout(() => { this._updateLeftPageForIndex(); }, 300);
+            }
+
+            this._updateIndicator();
+            this._updateNavButtons();
+            setTimeout(() => { this._isFlipping = false; }, 650);
         }
     }
 
@@ -820,7 +906,6 @@ export class AlbumPreview {
         const is3DView = document.getElementById('preview-3d')?.classList.contains('active');
 
         if (is3DView && this.ultimateBook) {
-            // Let the 3D book handle its own boundaries
             if (this.ultimateBook.isAnimating) return;
             const unflipped = this.ultimateBook.pages.filter(p => !p.isFlipped);
             if (unflipped.length > 0) {
@@ -829,16 +914,30 @@ export class AlbumPreview {
         } else {
             const spreadCount = Math.ceil(this.contentPages.length / 2);
             const maxIndex = spreadCount;
-            if (this.currentPageIndex < maxIndex) {
-                const pageEl = document.getElementById('flipbook-page');
-                pageEl.classList.add('flipping-left');
-                setTimeout(() => {
-                    pageEl.classList.remove('flipping-left');
-                    this.currentPageIndex++;
-                    this.renderCurrentView();
-                    this.updateThumbnailSelection();
-                }, 300);
+            if (this._isFlipping || this.currentPageIndex >= maxIndex) return;
+            this._isFlipping = true;
+
+            if (this.currentPageIndex === -1) {
+                // Opening the book: transition from closed cover to first spread
+                this.currentPageIndex = 0;
+                const bookEl = document.getElementById('mb-book-ed');
+                if (bookEl) bookEl.classList.remove('book-closed');
+                this._updateLeftPageForIndex();
+            } else {
+                // Normal page flip forward
+                const totalFlipPages = this._mbFlipPages ? this._mbFlipPages.length : 0;
+                const page = this._mbFlipPages ? this._mbFlipPages[this.currentPageIndex] : null;
+                if (page) {
+                    page.style.zIndex = totalFlipPages + 10 + this.currentPageIndex;
+                    page.classList.add('flipped');
+                }
+                this.currentPageIndex++;
+                setTimeout(() => { this._updateLeftPageForIndex(); }, 300);
             }
+
+            this._updateIndicator();
+            this._updateNavButtons();
+            setTimeout(() => { this._isFlipping = false; }, 700);
         }
     }
 
@@ -867,148 +966,383 @@ export class AlbumPreview {
     }
 
     /**
-     * Render the current page view (Flipbook Mode)
-     * Handles Spread Rendering:
-     * - Index -1: Front Cover
-     * - Index 0: Page 1 + Page 2
-     * - Index N: Page (2N+1) + Page (2N+2)
-     * - Index Last: Back Cover
+     * Build the Mixbook-style book.
+     * The book starts CLOSED with a static cover overlay.
+     * Flip pages are ONLY content pages (standard half-width).
+     * Cover is shown/hidden via a static overlay (not a flip page).
      */
+    buildMixbookPages() {
+        const bookEl = document.getElementById('mb-book-ed');
+        const leftPageEl = document.getElementById('mb-left-page-ed');
+        const rightStaticEl = document.getElementById('mb-right-static-ed');
+        const coverOverlay = document.getElementById('mb-cover-overlay');
+        
+        if (!bookEl || !leftPageEl || !rightStaticEl) return;
+        
+        // Clear any old flip pages
+        bookEl.querySelectorAll('.mb-flip-page-ed').forEach(el => el.remove());
+        leftPageEl.innerHTML = '';
+        rightStaticEl.innerHTML = '';
+        
+        // Track flip page elements
+        this._mbFlipPages = [];
+        this._mbCurrentFlipped = 0;
+        this._isFlipping = false;
+        
+        const isRTL = this._isRTL;
+        const pages = isRTL ? [...this.contentPages].reverse() : this.contentPages;
+        const spreadCount = Math.ceil(pages.length / 2);
+        
+        // Apply RTL visual mirror on the book container
+        if (isRTL) {
+            bookEl.style.transform = 'scaleX(-1)';
+        } else {
+            bookEl.style.transform = '';
+        }
+        
+        // Helper: counter-mirror for RTL
+        const applyContentMirror = (container) => {
+            if (!isRTL) return;
+            Array.from(container.children).forEach(child => {
+                child.style.transform = (child.style.transform || '') + ' scaleX(-1)';
+            });
+        };
+        
+        // --- Cover Overlay ---
+        // Render the front cover into the overlay (shown when book is closed)
+        if (coverOverlay) {
+            coverOverlay.innerHTML = '';
+            this.renderFrontCoverToContainer(coverOverlay);
+            applyContentMirror(coverOverlay);
+        }
+        
+        // --- Left static page ---
+        // Shows the front cover initially (when book opens, the left page = front cover inside)
+        this.renderFrontCoverToContainer(leftPageEl);
+        applyContentMirror(leftPageEl);
+        
+        // --- Right static page = Back Cover ---
+        this.renderBackCoverToContainer(rightStaticEl);
+        applyContentMirror(rightStaticEl);
+        
+        // === BUILD CONTENT FLIP PAGES ===
+        // Standard half-width flip pages sitting at left: 50%
+        // First flip page: front = page[1] (right of first spread), back = page[2] (left of second spread)
+        // The left page of the first spread (page[0]) is shown as the left static page.
+        
+        const totalFlipPages = spreadCount + 1; // +1 for back cover
+        
+        for (let i = 0; i < totalFlipPages; i++) {
+            const flipPage = document.createElement('div');
+            flipPage.className = 'mb-flip-page-ed';
+            flipPage.dataset.page = String(i);
+            flipPage.style.zIndex = totalFlipPages - i;
+            
+            const front = document.createElement('div');
+            front.className = 'mb-flip-front-ed';
+            
+            const back = document.createElement('div');
+            back.className = 'mb-flip-back-ed';
+            
+            if (i === 0) {
+                // First flip page:
+                // front = right page of first spread (page index 1)
+                // back = left page of second spread (page index 2)
+                const rightPage = pages[1];
+                const leftPage = pages[2];
+                
+                if (rightPage) {
+                    this.renderPageToContainer(rightPage, front);
+                } else {
+                    front.style.background = '#fcfaf7';
+                    front.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#bbb;font-style:italic;font-size:14px;">End of Album</div>';
+                }
+                
+                if (leftPage) {
+                    this.renderPageToContainer(leftPage, back);
+                } else {
+                    back.style.background = '#fcfaf7';
+                }
+                
+            } else if (i === totalFlipPages - 1) {
+                // Last flip page: front = back cover, back = empty
+                this.renderBackCoverToContainer(front);
+                back.style.background = '#fcfaf7';
+                
+            } else {
+                // Middle flip pages
+                const rightIdx = i * 2 + 1;
+                const leftIdx = (i + 1) * 2;
+                
+                const rightPage = pages[rightIdx];
+                const leftPage = pages[leftIdx];
+                
+                if (rightPage) {
+                    this.renderPageToContainer(rightPage, front);
+                } else {
+                    front.style.background = '#fcfaf7';
+                    if (rightIdx >= pages.length) {
+                        front.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#bbb;font-style:italic;font-size:14px;">End of Album</div>';
+                    }
+                }
+                
+                if (leftPage) {
+                    this.renderPageToContainer(leftPage, back);
+                } else {
+                    back.style.background = '#fcfaf7';
+                }
+            }
+            
+            applyContentMirror(front);
+            applyContentMirror(back);
+            
+            front.appendChild(this._createShadowEl('right'));
+            back.appendChild(this._createShadowEl('left'));
+            
+            flipPage.appendChild(front);
+            flipPage.appendChild(back);
+            bookEl.appendChild(flipPage);
+            this._mbFlipPages.push(flipPage);
+        }
+        
+        // Handle click on the book to flip pages
+        if (bookEl) {
+            bookEl.onclick = (e) => {
+                // If book is closed, any click opens it
+                if (this.currentPageIndex === -1) {
+                    this.nextPage();
+                    return;
+                }
+                const rect = bookEl.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                if (this._isRTL) {
+                    if (x < rect.width / 2) {
+                        this.nextPage();
+                    } else {
+                        this.prevPage();
+                    }
+                } else {
+                    if (x > rect.width / 2) {
+                        this.nextPage();
+                    } else {
+                        this.prevPage();
+                    }
+                }
+            };
+        }
+    }
+    
     /**
-     * Render the current page view (Flipbook Mode)
+     * Create a spine shadow element
+     */
+    _createShadowEl(side) {
+        const el = document.createElement('div');
+        el.className = side === 'right' ? 'mb-page-shadow-right-ed' : 'mb-page-shadow-left-ed';
+        return el;
+    }
+
+    /**
+     * Apply reading direction (RTL/LTR) to the book
+     */
+    _applyDirection() {
+        console.log('[Preview] _applyDirection called. _isRTL:', this._isRTL);
+        const dirLabel = document.getElementById('dir-label');
+        const dirBtn = document.querySelector('#album-preview-modal #btn-toggle-dir');
+        
+        if (dirLabel) {
+            dirLabel.textContent = this._isRTL ? 'RTL' : 'LTR';
+            console.log('[Preview] Label set to:', dirLabel.textContent);
+        } else {
+            console.warn('[Preview] dir-label element NOT found!');
+        }
+        if (dirBtn) {
+            if (this._isRTL) {
+                dirBtn.classList.add('active');
+            } else {
+                dirBtn.classList.remove('active');
+            }
+        }
+
+        // Swap nav button icons to match reading direction
+        const prevBtn = document.getElementById('flip-prev');
+        const nextBtn = document.getElementById('flip-next');
+        if (prevBtn) prevBtn.innerHTML = this._isRTL
+            ? '<i class="fa-solid fa-chevron-right"></i>'
+            : '<i class="fa-solid fa-chevron-left"></i>';
+        if (nextBtn) nextBtn.innerHTML = this._isRTL
+            ? '<i class="fa-solid fa-chevron-left"></i>'
+            : '<i class="fa-solid fa-chevron-right"></i>';
+
+        // Rebuild flip pages to apply new direction.
+        // Guard on DOM presence rather than _mbFlipPages state, because
+        // _mbFlipPages is only set after the early-return check in buildMixbookPages,
+        // so it may stay undefined if elements weren't ready on first call.
+        const bookEl = document.getElementById('mb-book-ed');
+        if (this.isOpen && bookEl) {
+            this.currentPageIndex = -1;
+            this.buildMixbookPages();
+            this.renderCurrentView();
+            this.renderThumbnails(); // Re-render in new direction's page order
+        }
+    }
+
+    /**
+     * Attach direction-aware click handlers to the nav buttons.
+     * Must be called after any DOM replacement of those buttons.
+     */
+    _attachNavHandlers() {
+        const prevBtn = document.getElementById('flip-prev');
+        const nextBtn = document.getElementById('flip-next');
+        if (prevBtn) prevBtn.addEventListener('click', this._flipPrevHandler);
+        if (nextBtn) nextBtn.addEventListener('click', this._flipNextHandler);
+    }
+
+    /**
+     * Update nav button disabled states
+     */
+    _updateNavButtons() {
+        const prevBtn = document.getElementById('flip-prev');
+        const nextBtn = document.getElementById('flip-next');
+        const spreadCount = Math.ceil(this.contentPages.length / 2);
+        // maxIndex: cover flip (0) + content flips (spreadCount) = spreadCount total flips
+        // currentPageIndex: -1 = closed, 0..spreadCount = open states
+        const maxIndex = spreadCount;
+        if (this._isRTL) {
+            if (prevBtn) prevBtn.disabled = this.currentPageIndex >= maxIndex;
+            if (nextBtn) nextBtn.disabled = this.currentPageIndex <= -1;
+        } else {
+            if (prevBtn) prevBtn.disabled = this.currentPageIndex <= -1;
+            if (nextBtn) nextBtn.disabled = this.currentPageIndex >= maxIndex;
+        }
+    }
+
+    /**
+     * Update the page indicator text
+     */
+    _updateIndicator() {
+        const indicatorText = document.getElementById('page-indicator-text');
+        if (!indicatorText) return;
+        const spreadCount = Math.ceil(this.contentPages.length / 2);
+        const maxIndex = spreadCount;
+        if (this.currentPageIndex === -1) {
+            indicatorText.textContent = 'Cover (Closed)';
+        } else if (this.currentPageIndex === 0) {
+            // Book just opened - first spread
+            const p1 = 1;
+            const p2 = Math.min(2, this.contentPages.length);
+            indicatorText.textContent = `Pages ${p1}-${p2}`;
+        } else if (this.currentPageIndex >= maxIndex) {
+            indicatorText.textContent = 'Back Cover';
+        } else {
+            const p1 = this.currentPageIndex * 2 + 1;
+            const p2 = Math.min(this.currentPageIndex * 2 + 2, this.contentPages.length);
+            indicatorText.textContent = `Pages ${p1}-${p2}`;
+        }
+        this.updateThumbnailSelection();
+    }
+
+    /**
+     * Update the left page content based on current page index.
+     * Cover-overlay model:
+     *   -1 = closed (left hidden behind cover overlay)
+     *    0 = book open to first spread (left = front cover / page[0])
+     *    N = spread N (left = pages[N*2])
+     *    maxIndex = back cover (left = last right page)
+     */
+    _updateLeftPageForIndex() {
+        const leftPageEl = document.getElementById('mb-left-page-ed');
+        if (!leftPageEl) return;
+        
+        const isRTL = this._isRTL;
+        const pages = isRTL ? [...this.contentPages].reverse() : this.contentPages;
+        const spreadCount = Math.ceil(pages.length / 2);
+        const maxIndex = spreadCount;
+
+        leftPageEl.innerHTML = '';
+        leftPageEl.style.background = '#faf8f3';
+
+        if (this.currentPageIndex === -1) {
+            // Book is closed — left page hidden behind cover overlay
+            return;
+        }
+        
+        if (this.currentPageIndex === 0) {
+            // First spread: left page shows first content page (page[0])
+            const firstPage = pages[0];
+            if (firstPage) {
+                this.renderPageToContainer(firstPage, leftPageEl);
+            } else {
+                // If no content pages, show front cover
+                this.renderFrontCoverToContainer(leftPageEl);
+            }
+        } else if (this.currentPageIndex >= maxIndex) {
+            // All pages flipped — show last right page on left
+            const lastRightIdx = (spreadCount - 1) * 2 + 1;
+            const lastRight = pages[lastRightIdx];
+            if (lastRight) {
+                this.renderPageToContainer(lastRight, leftPageEl);
+            }
+            const shadow = this._createShadowEl('left');
+            shadow.style.position = 'absolute';
+            shadow.style.top = '0';
+            shadow.style.zIndex = '10';
+            shadow.style.right = '0';
+            leftPageEl.appendChild(shadow);
+        } else {
+            // Show the left page of the current spread
+            const leftIdx = this.currentPageIndex * 2;
+            const leftPage = pages[leftIdx];
+            if (leftPage) {
+                this.renderPageToContainer(leftPage, leftPageEl);
+            }
+        }
+        
+        // Apply RTL counter-mirror on updated left page content
+        if (isRTL) {
+            Array.from(leftPageEl.children).forEach(child => {
+                if (!child.classList.contains('mb-page-shadow-left-ed') && 
+                    !child.classList.contains('mb-page-shadow-right-ed')) {
+                    child.style.transform = (child.style.transform || '') + ' scaleX(-1)';
+                }
+            });
+        }
+    }
+
+    /**
+     * Render the current page view (Flipbook Mode) - Mixbook Style
+     * Updates the left page content and page indicator based on current flip state.
      */
     renderCurrentView() {
         console.log('[Preview] renderCurrentView index:', this.currentPageIndex);
-        const container = document.getElementById('flipbook-page');
-        const indicator = document.getElementById('page-indicator');
-        const prevBtn = document.getElementById('flip-prev');
-        const nextBtn = document.getElementById('flip-next');
+        if (!this._mbFlipPages || this._mbFlipPages.length === 0) return;
 
-        if (!container) return;
-        container.innerHTML = '';
-        container.className = 'flipbook-page';
-
-        const spreadCount = Math.ceil(this.contentPages.length / 2);
-        const maxIndex = spreadCount;
-
-        // In RTL (Hebrew), arrows are swapped: left=next, right=prev
-        // So disabled states must also be swapped
-        const isAtStart = this.currentPageIndex <= -1;
-        const isAtEnd = this.currentPageIndex >= maxIndex;
-        const canvasContainer = document.getElementById('canvas-container');
-        const ltr = canvasContainer ? canvasContainer.classList.contains('force-ltr') : false;
-
-        if (ltr) {
-            prevBtn.disabled = isAtStart;
-            nextBtn.disabled = isAtEnd;
-        } else {
-            // RTL: left arrow (prevBtn) = nextPage, right arrow (nextBtn) = prevPage
-            prevBtn.disabled = isAtEnd;   // left arrow disabled at end
-            nextBtn.disabled = isAtStart; // right arrow disabled at start
+        const bookEl = document.getElementById('mb-book-ed');
+        const totalPages = this._mbFlipPages.length;
+        const targetFlipped = this.currentPageIndex + 1;
+        
+        // Apply/remove closed state
+        if (bookEl) {
+            if (this.currentPageIndex === -1) {
+                bookEl.classList.add('book-closed');
+            } else {
+                bookEl.classList.remove('book-closed');
+            }
         }
-
-        // 1. FRONT COVER 
-        if (this.currentPageIndex === -1) {
-            indicator.textContent = 'Front Cover';
-            container.classList.add('view-cover');
-            this.renderFrontCoverToContainer(container);
-            return;
-        }
-
-        // 2. BACK COVER 
-        if (this.currentPageIndex === spreadCount) {
-            indicator.textContent = 'Back Cover';
-            container.classList.add('view-cover');
-            this.renderBackCoverToContainer(container);
-            return;
-        }
-
-        // 3. SPREAD VIEW 
-        container.classList.add('view-spread');
-
-        const leftPageIndex = this.currentPageIndex * 2;
-        const rightPageIndex = (this.currentPageIndex * 2) + 1;
-
-        console.log('[Preview] Spread Indices:', leftPageIndex, rightPageIndex);
-
-        const leftPage = this.contentPages[leftPageIndex];
-        const rightPage = this.contentPages[rightPageIndex];
-
-        const p1Num = leftPageIndex + 1;
-        const p2Num = rightPageIndex + 1;
-        indicator.textContent = `Pages ${p1Num}-${Math.min(p2Num, this.contentPages.length)}`;
-
-        container.style.display = 'flex';
-        container.style.flexDirection = 'row';
-
-        // Left Slot
-        const leftSlot = document.createElement('div');
-        leftSlot.className = 'spread-slot left-page';
-        leftSlot.style.flex = '1';
-        leftSlot.style.height = '100%';
-        leftSlot.style.position = 'relative';
-        leftSlot.style.overflow = 'hidden';
-        leftSlot.style.borderRight = '1px solid rgba(0,0,0,0.1)';
-
-        if (leftPage) {
-            this.renderPageToContainer(leftPage, leftSlot);
-        } else {
-            leftSlot.style.background = '#fcfaf7';
-        }
-        container.appendChild(leftSlot);
-
-        // Right Slot
-        const rightSlot = document.createElement('div');
-        rightSlot.className = 'spread-slot right-page';
-        rightSlot.style.flex = '1';
-        rightSlot.style.height = '100%';
-        rightSlot.style.position = 'relative';
-        rightSlot.style.overflow = 'hidden';
-
-        if (rightPage) {
-            this.renderPageToContainer(rightPage, rightSlot);
-        } else {
-            rightSlot.style.background = '#fcfaf7';
-            rightSlot.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#ccc;font-style:italic;">End of Album</div>';
-        }
-        container.appendChild(rightSlot);
-
-        // --- DYNAMIC SIZING ---
-        let editorW = 1200;
-        let editorH = 1600;
-
-        if (this.templateConfig?.designSystem?.canvas) {
-            editorW = this.templateConfig.designSystem.canvas.width || 800;
-            editorH = this.templateConfig.designSystem.canvas.height || 600;
-        } else if (this.templateConfig?.pageSize) {
-            editorW = this.templateConfig.pageSize.width;
-            editorH = this.templateConfig.pageSize.height;
-        }
-
-        const MAX_H = 600;
-        const MAX_W = 1000;
-
-        const spreadW = editorW * 2;
-        const spreadH = editorH;
-
-        let targetH = MAX_H;
-        let targetW = targetH * (spreadW / spreadH);
-
-        if (targetW > MAX_W) {
-            targetW = MAX_W;
-            targetH = targetW * (spreadH / spreadW);
-        }
-
-        container.style.width = `${targetW}px`;
-        container.style.height = `${targetH}px`;
-
-        // Apply fit to Left and Right Pages
-        if (leftPage && leftSlot) {
-            this.fitContentToContainer(leftSlot, 'right'); // Align right (to spine)
-        }
-        if (rightPage && rightSlot) {
-            this.fitContentToContainer(rightSlot, 'left'); // Align left (to spine)
-        }
+        
+        // Instantly sync all flip states (no animation — used for initial load and goToPage)
+        this._mbFlipPages.forEach((page, i) => {
+            if (i < targetFlipped) {
+                page.classList.add('flipped');
+                page.style.zIndex = totalPages + 10 + i;
+            } else {
+                page.classList.remove('flipped');
+                page.style.zIndex = totalPages - i;
+            }
+        });
+        
+        this._updateLeftPageForIndex();
+        this._updateNavButtons();
+        this._updateIndicator();
     }
 
     /**
@@ -1018,6 +1352,61 @@ export class AlbumPreview {
         if (!page || !container) return;
 
         container.innerHTML = '';
+
+        // ── CANVAS-RESOLUTION SCALER ──────────────────────────────────────────────
+        // Render at the editor's actual canvas size so that all pixel-based values
+        // (font sizes, element dimensions, Moveable translate transforms) are correct.
+        // A single CSS scale() then shrinks the whole page to fit the container.
+        // Using offsetWidth/offsetHeight (CSS pixels, unaffected by parent transforms)
+        // means thumbnail slots (already at canvas size) get scale=1 — no double-scale.
+        const canvasW = this.templateConfig?.designSystem?.canvas?.width  ||
+                        this.templateConfig?.pageSize?.width  || 800;
+        const canvasH = this.templateConfig?.designSystem?.canvas?.height ||
+                        this.templateConfig?.pageSize?.height || 600;
+
+        // Ensure container clips the scaler (containers already have correct positioning from CSS)
+        container.style.overflow = 'hidden';
+        // Set container background to match page background so letterbox areas blend in
+        const pageBg = page?.backgroundColor || page?.background || page?.bg || '#f5f0e8';
+        container.style.background = pageBg;
+
+        const scaler = document.createElement('div');
+        scaler.className = 'preview-page-scaler';
+        scaler.style.cssText = `width:${canvasW}px;height:${canvasH}px;position:absolute;top:0;left:0;transform-origin:top left;overflow:hidden;`;
+        container.appendChild(scaler);
+
+        // Apply uniform scale after layout — preserves aspect ratio (no stretch/squish).
+        // Center the scaler within the container so content is visually centered.
+        // offsetWidth/offsetHeight are CSS pixels, unaffected by ancestor CSS transform:scale()
+        // (thumbnail spreads), so thumbnail slots (already at canvas size) get scale≈1 — no double-scale.
+        // We also preserve any scaleX(-1) counter-mirror that RTL applyContentMirror() adds after this call.
+        requestAnimationFrame(() => {
+            const w = container.offsetWidth  || parseFloat(container.style.width)  || 0;
+            const h = container.offsetHeight || parseFloat(container.style.height) || 0;
+            if (w > 0 && h > 0) {
+                const s = Math.min(w / canvasW, h / canvasH);
+                // Center the scaled content within the container
+                const offsetX = (w - canvasW * s) / 2;
+                const offsetY = (h - canvasH * s) / 2;
+                scaler.style.left = `${offsetX}px`;
+                scaler.style.top  = `${offsetY}px`;
+                // Keep RTL counter-mirror if applyContentMirror() has set it
+                const hasMirror = (scaler.style.transform || '').includes('scaleX(-1)');
+                scaler.style.transform = (hasMirror ? 'scaleX(-1) ' : '') + `scale(${s})`;
+            }
+        });
+        // ─────────────────────────────────────────────────────────────────────────
+
+        // RESILIENCE: Sanitize photo URLs before rendering
+        // If thumbnailUrl is a dead blob URL, fall back to url
+        if (this.assets?.photos) {
+            this.assets.photos.forEach(photo => {
+                if (photo.thumbnailUrl && photo.thumbnailUrl.startsWith('blob:')) {
+                    // Blob URLs from previous sessions are dead - fall back to url
+                    photo.thumbnailUrl = photo.url || '';
+                }
+            });
+        }
 
         // Try to identify the correct renderer
         // Pages usually have a templateId if they were created with one
@@ -1078,18 +1467,27 @@ export class AlbumPreview {
                 }
 
                 // 4. Render
+                // Fix: Prevent text duplication!
+                // If the page already has editable DOM elements (v3.2+ pattern), hide the
+                // underlying static template texts to avoid rendering text twice.
+                let renderLayoutDef = layoutDef || {};
+                if (page.elements && page.elements.some(e => e.type === 'text')) {
+                    renderLayoutDef = { ...renderLayoutDef, textElements: [] };
+                }
+
                 const pageEl = renderer.renderPage(
-                    layoutDef || {},
+                    renderLayoutDef,
                     photosArray,
                     page.textContent || {},
                     page.textPositions || {}
                 );
 
-                // Ensure page element fills the container
+                // Ensure page element fills the scaler (canvas-size wrapper)
                 if (pageEl) {
                     pageEl.style.width = '100%';
                     pageEl.style.height = '100%';
-                    container.appendChild(pageEl);
+                    pageEl.style.overflow = 'hidden';
+                    scaler.appendChild(pageEl);
 
                     // INJECT CROP STYLES FOR PREVIEW MATCH
                     if (page.layout && page.layout.slots) {
@@ -1127,8 +1525,8 @@ export class AlbumPreview {
             // Fallback to Generic RenderEngine
             // This handles Magic Create pages and standard layouts that don't need a specific class
             try {
-                this.fallbackRenderer.renderPageToContainer(page, this.assets, container);
-                // Elements are already injected by RenderEngine
+                this.fallbackRenderer.renderPageToContainer(page, this.assets, scaler);
+                // Elements are already injected by RenderEngine at canvas scale
             } catch (err) {
                 console.error('[Preview] Generic render error:', err);
                 container.innerHTML = `<div style="color:red;padding:20px;">Generic Render Error: ${err.message}</div>`;
@@ -1145,6 +1543,10 @@ export class AlbumPreview {
 
         console.log(`[Preview] Injecting ${page.elements.length} elements into page ${page.id}`);
 
+        // NOTE: pageEl is now inside a canvas-resolution scaler, so all pixel values
+        // (font sizes, widths, heights, translate transforms) are correct as-is.
+        // No per-element RAF scaling is needed — the scaler handles the overall zoom.
+
         page.elements.forEach(el => {
             const domEl = document.createElement('div');
             domEl.className = `page-element element-${el.type}`;
@@ -1153,15 +1555,28 @@ export class AlbumPreview {
             domEl.style.top = `${el.y}%`;
             if (el.zIndex !== undefined) domEl.style.zIndex = el.zIndex;
 
-            // Apply drag/resize transform from Moveable
-            if (el.transform) domEl.style.transform = el.transform;
+            // Determine centering for text
+            const isCentered = el.textAlign === 'center' ||
+                (el.alignment && el.alignment.horizontal === 'center') ||
+                (el.alignment && el.alignment.method && el.alignment.method.includes('translateX(-50%)'));
+
+            // Apply full Moveable transform (translate values are in canvas-px → correct at canvas scale)
+            if (el.type === 'text' && isCentered) {
+                domEl.style.transform = el.transform
+                    ? `translateX(-50%) ${el.transform}`
+                    : 'translateX(-50%)';
+            } else if (el.transform) {
+                domEl.style.transform = el.transform;
+            }
 
             if (el.type === 'text') {
                 domEl.classList.add('text-element');
-                domEl.style.minWidth = '200px';
-                if (el.pixelWidth) domEl.style.width = el.pixelWidth;
-                if (el.pixelHeight) domEl.style.height = el.pixelHeight;
-                domEl.style.maxWidth = `${el.width || 50}%`;
+                // Width: use stored pixel width (correct at canvas scale)
+                const pxW = parseFloat(el.pixelWidth);
+                domEl.style.width = (pxW > 0) ? `${pxW}px` : `${el.width || 80}%`;
+                domEl.style.boxSizing = 'border-box';
+                domEl.style.wordBreak = 'break-word';
+                domEl.style.overflowWrap = 'break-word';
                 if (!el.zIndex) domEl.style.zIndex = 10;
 
                 if (window.TEXT_STYLES) {
@@ -1169,15 +1584,15 @@ export class AlbumPreview {
                     if (styleDef) Object.assign(domEl.style, styleDef.style);
                 }
 
+                // Font size in canvas-px (correct at canvas scale — scaler will shrink visually)
                 if (el.fontSize) domEl.style.fontSize = `${el.fontSize}px`;
                 if (el.color) domEl.style.color = el.color;
                 if (el.fontFamily) domEl.style.fontFamily = el.fontFamily;
                 if (el.textAlign) domEl.style.textAlign = el.textAlign;
                 domEl.textContent = el.content;
 
-                // Hebrew detection
-                const hebrewRegex = /[\u0590-\u05FF]/;
-                if (hebrewRegex.test(el.content)) {
+                // Hebrew auto-detection
+                if (/[\u0590-\u05FF]/.test(el.content)) {
                     domEl.style.direction = 'rtl';
                     domEl.style.textAlign = el.textAlign || 'right';
                     domEl.style.unicodeBidi = 'plaintext';
@@ -1185,20 +1600,23 @@ export class AlbumPreview {
                         domEl.style.fontFamily = "'Fredoka', 'Gveret Levin', 'Playpen Sans Hebrew', 'Heebo', sans-serif";
                     }
                 }
+
             } else if (el.type === 'shape') {
                 domEl.classList.add('shape-element');
                 if (el.subtype) domEl.classList.add(el.subtype);
-                domEl.style.width = `${el.width}%`;
+                domEl.style.width  = `${el.width}%`;
                 domEl.style.height = `${el.height}%`;
                 if (el.color) domEl.style.backgroundColor = el.color;
+
             } else if (el.type === 'element') {
                 domEl.classList.add('visual-element');
-                domEl.style.width = el.pixelWidth || '100px';
-                domEl.style.height = el.pixelHeight || '100px';
+                // Pixel dimensions are at canvas scale — correct as-is
+                domEl.style.width  = `${parseFloat(el.pixelWidth)  || 100}px`;
+                domEl.style.height = `${parseFloat(el.pixelHeight) || 100}px`;
 
                 const img = document.createElement('img');
                 img.src = el.url;
-                img.style.width = '100%';
+                img.style.width  = '100%';
                 img.style.height = '100%';
                 img.style.objectFit = 'contain';
                 img.draggable = false;
@@ -1214,6 +1632,7 @@ export class AlbumPreview {
 
             pageEl.appendChild(domEl);
         });
+        // No RAF scaling needed — the preview-page-scaler wrapper handles the zoom.
     }
 
     /**
@@ -1301,8 +1720,9 @@ export class AlbumPreview {
         const content = container.firstElementChild;
         if (!content) return;
 
-        let editorW = 1200;
-        let editorH = 1600;
+        // Default MUST match RenderEngine fallback (container.clientWidth||800, clientHeight||600)
+        let editorW = 800;
+        let editorH = 600;
 
         if (this.templateConfig?.designSystem?.canvas) {
             editorW = this.templateConfig.designSystem.canvas.width || 800;
@@ -1420,24 +1840,11 @@ export class AlbumPreview {
      * Get the appropriate renderer for a template
      */
     getRenderer(templateId) {
-        // if (!this.templateConfig) return null; // Allow renderers to fallback to defaults
-
-        switch (templateId) {
-            case 'photography-portfolio-v1':
-                return new PhotographyPortfolioRenderer(this.templateConfig);
-            case 'romantic-journey-v1':
-                return new RomanticJourneyRenderer(this.templateConfig);
-            case 'travel-journey-v1':
-                return new TravelJourneyRenderer(this.templateConfig);
-            case 'family-roots-v1':
-                return new FamilyRootsRenderer(this.templateConfig);
-            case 'bar-mitzvah-v1':
-                return new BarMitzvahRenderer(this.templateConfig);
-            case 'wedding-prestige-hebrew-v1':
-                return new WeddingPrestigeRenderer(this.templateConfig);
-            default:
-                return null;
+        // Unified renderer for ALL templates — no per-template dispatch
+        if (templateId && this.templateConfig) {
+            return new UnifiedTemplateRenderer(this.templateConfig);
         }
+        return null;
     }
 
     /**
@@ -1473,11 +1880,23 @@ export class AlbumPreview {
         offscreen.style.cssText = `position:fixed;left:-9999px;top:-9999px;pointer-events:none;z-index:-1;`;
         document.body.appendChild(offscreen);
 
-        const thumbW = 100;
-        const thumbH = 75;
+        // Measure actual CSS thumbnail dimensions dynamically so the scale is correct
+        // regardless of whether we're on desktop (90×68) or mobile (52×40).
+        const tempThumb = document.createElement('div');
+        tempThumb.className = 'preview-thumb';
+        tempThumb.style.cssText = 'visibility:hidden;position:absolute;pointer-events:none;';
+        container.appendChild(tempThumb);
+        const thumbW = tempThumb.offsetWidth  || 90;
+        const thumbH = tempThumb.offsetHeight || 68;
+        container.removeChild(tempThumb);
+
         const spreadW = pageW * 2;
         const spreadH = pageH;
+        // Use Math.min to FIT the full spread inside the thumbnail (no cropping)
         const thumbScale = Math.min(thumbW / spreadW, thumbH / spreadH);
+
+        // Match navigation order: RTL reverses the page sequence
+        const thumbPages = this._isRTL ? [...this.contentPages].reverse() : this.contentPages;
 
         for (let i = 0; i < spreadCount; i++) {
             const thumb = document.createElement('div');
@@ -1486,8 +1905,8 @@ export class AlbumPreview {
             thumb.style.position = 'relative';
             thumb.style.overflow = 'hidden';
 
-            const leftPage = this.contentPages[i * 2];
-            const rightPage = this.contentPages[(i * 2) + 1];
+            const leftPage = thumbPages[i * 2];
+            const rightPage = thumbPages[(i * 2) + 1];
 
             // Create full-size spread in offscreen container
             const spreadEl = document.createElement('div');
@@ -1502,7 +1921,6 @@ export class AlbumPreview {
             spreadEl.appendChild(rightSlot);
             offscreen.appendChild(spreadEl);
 
-            // Render pages into the offscreen container (in DOM so CSS works)
             if (leftPage) {
                 try { this.renderPageToContainer(leftPage, leftSlot); } catch (e) { /* skip */ }
             }
@@ -1510,7 +1928,9 @@ export class AlbumPreview {
                 try { this.renderPageToContainer(rightPage, rightSlot); } catch (e) { /* skip */ }
             }
 
-            // Now scale down to thumbnail size
+            // Scale to cover the thumbnail fully (centered)
+            const scaledW = spreadW * thumbScale;
+            const scaledH = spreadH * thumbScale;
             spreadEl.style.cssText = `
                 width: ${spreadW}px;
                 height: ${spreadH}px;
@@ -1518,13 +1938,19 @@ export class AlbumPreview {
                 transform-origin: top left;
                 display: flex;
                 position: absolute;
-                top: 0;
-                left: ${(thumbW - spreadW * thumbScale) / 2}px;
+                top: ${(thumbH - scaledH) / 2}px;
+                left: ${(thumbW - scaledW) / 2}px;
                 pointer-events: none;
             `;
 
             // Move the rendered spread from offscreen to thumbnail
             thumb.appendChild(spreadEl);
+
+            // In RTL mode, mirror the thumbnail visually to match the book's scaleX(-1) appearance
+            if (this._isRTL) {
+                thumb.style.transform = 'scaleX(-1)';
+            }
+
             thumb.addEventListener('click', () => this.goToPage(i));
             container.appendChild(thumb);
         }
@@ -1646,9 +2072,15 @@ export class AlbumPreview {
      * Update thumbnail selection
      */
     updateThumbnailSelection() {
+        let activeThumb = null;
         document.querySelectorAll('.preview-thumb').forEach(thumb => {
-            thumb.classList.toggle('active', parseInt(thumb.dataset.index) === this.currentPageIndex);
+            const isActive = parseInt(thumb.dataset.index) === this.currentPageIndex;
+            thumb.classList.toggle('active', isActive);
+            if (isActive) activeThumb = thumb;
         });
+        if (activeThumb) {
+            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
     }
 
     /**
@@ -1748,115 +2180,345 @@ export class AlbumPreview {
 
     // --- STYLING UPDATE FOR BUTTONS ---
     injectStyles() {
-        if (document.getElementById('album-preview-styles')) return;
+        // Always overwrite - remove old style if present (prevents stale cached CSS)
+        const existing = document.getElementById('album-preview-styles');
+        if (existing) existing.remove();
 
         const style = document.createElement('style');
         style.id = 'album-preview-styles';
         style.textContent = `
-            /* ... (Previous Styles) ... */
-             
-             /* NAV BUTTONS */
-             .flip-nav {
-                width: 60px;
-                height: 60px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 50%;
-                color: white;
-                font-size: 1.5rem;
-                cursor: pointer;
-                transition: all 0.2s;
-                position: absolute; /* Changed to Absolute */
-                top: 50%;
-                transform: translateY(-50%);
-                z-index: 1000;
-            }
-            
-            #flip-prev {
-                 left: 40px;
-            }
-            
-            #flip-next {
-                 right: 40px;
-            }
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 
-            .flip-nav:hover:not(:disabled) {
-                background: rgba(255, 255, 255, 0.2);
-                transform: translateY(-50%) scale(1.1); /* Keep vertical align */
-            }
-
-            /* ... (Rest of Styles) ... */
-            
             #album-preview-modal {
                 position: fixed;
                 inset: 0;
-                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                background: linear-gradient(180deg, #e8eaf0 0%, #f1f3f8 40%, #e8eaf0 100%);
                 z-index: 10000;
                 display: flex;
                 flex-direction: column;
                 animation: fadeIn 0.3s ease;
             }
-            
-            /* (Include truncated styles for completeness) */
-            .preview-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: rgba(0, 0, 0, 0.3); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-            .preview-title { display: flex; align-items: center; gap: 12px; font-size: 1.2rem; font-weight: 600; color: white; }
-            .preview-title i { color: #8b5cf6; }
+            #album-preview-modal.closing { animation: fadeOut 0.3s ease forwards; }
+
+            /* Header */
+            .preview-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,0.08); }
+            .preview-title { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 700; color: #1e293b; }
+            .preview-title i { color: #6366f1; }
             .preview-controls { display: flex; gap: 8px; }
-            .preview-view-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
-            .preview-view-btn:hover { background: rgba(255, 255, 255, 0.15); color: white; }
+            .preview-view-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; color: #64748b; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
+            .preview-view-btn:hover { background: rgba(0,0,0,0.08); color: #1e293b; }
             .preview-view-btn.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-color: transparent; color: white; }
-            .preview-close-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.1); border: none; border-radius: 50%; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
-            .preview-close-btn:hover { background: #ef4444; color: white; }
-            .preview-content { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+            .preview-dir-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; color: #64748b; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
+            .preview-dir-btn:hover { background: rgba(0,0,0,0.08); color: #1e293b; }
+            .preview-dir-btn.active { background: linear-gradient(135deg, #10b981, #059669); border-color: transparent; color: white; }
+            .preview-close-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.08); border-radius: 50%; color: #64748b; cursor: pointer; transition: all 0.2s; }
+            .preview-close-btn:hover { background: #ef4444; color: white; border-color: transparent; }
+
+            /* Content area */
+            .preview-content { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: linear-gradient(180deg, #e8eaf0 0%, #f4f5f9 50%, #e8eaf0 100%); }
             
-            /* Flipbook */
-            .preview-flipbook { display: none; width: 100%; height: 100%; align-items: center; justify-content: center; gap: 24px; }
+            /* NAV BUTTONS */
+            .flip-nav {
+                width: 48px;
+                height: 48px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(255,255,255,0.92);
+                border: 1px solid rgba(0,0,0,0.1);
+                border-radius: 50%;
+                color: #475569;
+                font-size: 1.2rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                z-index: 1000;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            }
+            #flip-prev { left: 24px; }
+            #flip-next { right: 24px; }
+            .flip-nav:hover:not(:disabled) {
+                background: white;
+                transform: translateY(-50%) scale(1.1);
+                box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+            }
+            .flip-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+            
+            /* Flipbook container */
+            .preview-flipbook { display: none; width: 100%; height: 100%; align-items: center; justify-content: center; }
             .preview-flipbook.active { display: flex; }
-            .flipbook-container { position: relative; perspective: 2000px; }
-            .flipbook-page { width: 800px; height: 600px; background: white; border-radius: 4px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1); overflow: hidden; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
-            .flipbook-page.flipping-left { animation: flipLeft 0.6s ease; }
-            .flipbook-page.flipping-right { animation: flipRight 0.6s ease; }
-            @keyframes flipLeft { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(-15deg); } 100% { transform: rotateY(0deg); } }
-            @keyframes flipRight { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(15deg); } 100% { transform: rotateY(0deg); } }
-            .page-indicator { text-align: center; margin-top: 16px; color: #64748b; font-size: 0.9rem; }
+            .flipbook-container { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 16px 8px; width: 100%; height: 100%; }
+
+            /* ===== MIXBOOK-STYLE BOOK ===== */
+            .mb-book-ed {
+                position: relative;
+                width: min(80vw, 900px);
+                aspect-ratio: 2 / 1.2;
+                max-height: calc(100vh - 280px);
+                cursor: pointer;
+                perspective: 2000px;
+                filter: drop-shadow(0 12px 40px rgba(0,0,0,0.22));
+                transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                            max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            /* When max-height constrains, recalculate width from height */
+            @media (max-height: 800px) {
+                .mb-book-ed {
+                    width: min(80vw, calc((100vh - 280px) * 2 / 1.2));
+                }
+            }
+
+            /* === CLOSED BOOK STATE === */
+            /* Book looks like a single portrait rectangle (front cover only) */
+            .mb-book-ed.book-closed {
+                width: min(40vw, 450px);
+                aspect-ratio: 1 / 1.2;
+            }
+            @media (max-height: 800px) {
+                .mb-book-ed.book-closed {
+                    width: min(40vw, calc((100vh - 280px) / 1.2));
+                }
+            }
+            /* Hide internal book elements when closed */
+            .mb-book-ed.book-closed .mb-left-page-ed,
+            .mb-book-ed.book-closed .mb-right-static-ed,
+            .mb-book-ed.book-closed .mb-spine-ed {
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            /* Left page (static background) */
+            .mb-left-page-ed {
+                position: absolute;
+                top: 0; left: 0;
+                width: 50%; height: 100%;
+                background: #faf8f3;
+                border-radius: 4px 0 0 4px;
+                overflow: hidden;
+                z-index: 1;
+                box-shadow: -2px 1px 6px rgba(0,0,0,0.1);
+                transition: opacity 0.3s ease;
+            }
+            /* Inner spine shadow - left page */
+            .mb-left-page-ed::after {
+                content: '';
+                position: absolute;
+                top: 0; right: 0;
+                width: 30px; height: 100%;
+                background: linear-gradient(to left, rgba(0,0,0,0.06), transparent);
+                z-index: 10;
+                pointer-events: none;
+            }
+
+            /* Right static (visible when all pages flipped) */
+            .mb-right-static-ed {
+                position: absolute;
+                top: 0; right: 0;
+                width: 50%; height: 100%;
+                background: #faf8f3;
+                border-radius: 0 4px 4px 0;
+                overflow: hidden;
+                z-index: 0;
+                transition: opacity 0.3s ease;
+            }
+            /* Inner spine shadow - right page */
+            .mb-right-static-ed::before {
+                content: '';
+                position: absolute;
+                top: 0; left: 0;
+                width: 30px; height: 100%;
+                background: linear-gradient(to right, rgba(0,0,0,0.06), transparent);
+                z-index: 10;
+                pointer-events: none;
+            }
+
+            /* Spine */
+            .mb-spine-ed {
+                position: absolute;
+                top: -1px; bottom: -1px;
+                left: calc(50% - 2px);
+                width: 4px;
+                background: linear-gradient(to right, 
+                    rgba(0,0,0,0.15) 0%, 
+                    rgba(255,255,255,0.3) 30%, 
+                    rgba(0,0,0,0.12) 60%, 
+                    rgba(0,0,0,0.2) 100%);
+                z-index: 200;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+            }
+
+            /* Flippable pages */
+            .mb-flip-page-ed {
+                position: absolute;
+                top: 0; left: 50%;
+                width: 50%; height: 100%;
+                transform-origin: left center;
+                transform-style: preserve-3d;
+                transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            }
+            .mb-flip-page-ed.flipped {
+                transform: rotateY(-180deg);
+            }
             
-            /* 3D View - Styles now loaded from css/book-3d-enhanced.css */
+            /* === COVER OVERLAY (closed-book state) === */
+            /* A static div that covers the entire book with the front cover.
+               Only visible when .book-closed is active. */
+            .mb-cover-overlay {
+                position: absolute;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                z-index: 300;
+                border-radius: 4px;
+                overflow: hidden;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+                transition: opacity 0.4s ease;
+                pointer-events: none;
+            }
+            /* Show overlay only when book is closed */
+            .mb-book-ed:not(.book-closed) .mb-cover-overlay {
+                opacity: 0;
+                pointer-events: none;
+            }
+            .mb-book-ed.book-closed .mb-cover-overlay {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            .mb-flip-front-ed,
+            .mb-flip-back-ed {
+                position: absolute;
+                inset: 0;
+                backface-visibility: hidden;
+                overflow: hidden;
+                background: #faf8f3;
+                border-radius: 0 4px 4px 0;
+            }
+            .mb-flip-front-ed { z-index: 2; }
+            .mb-flip-back-ed {
+                transform: rotateY(180deg);
+                border-radius: 4px 0 0 4px;
+            }
+
+            /* Inner edge shadows on flip pages */
+            .mb-page-shadow-right-ed {
+                position: absolute;
+                top: 0; left: 0;
+                width: 25px; height: 100%;
+                background: linear-gradient(to right, rgba(0,0,0,0.05), transparent);
+                pointer-events: none;
+                z-index: 5;
+            }
+            .mb-page-shadow-left-ed {
+                position: absolute;
+                top: 0; right: 0;
+                width: 25px; height: 100%;
+                background: linear-gradient(to left, rgba(0,0,0,0.05), transparent);
+                pointer-events: none;
+                z-index: 5;
+            }
+
+            /* Page indicator badge */
+            .page-indicator {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                justify-content: center;
+                margin-top: 14px;
+                background: rgba(255,255,255,0.9);
+                backdrop-filter: blur(8px);
+                padding: 6px 16px;
+                border-radius: 20px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                border: 1px solid rgba(0,0,0,0.06);
+                color: #475569;
+                font-size: 0.85rem;
+                font-weight: 600;
+                width: fit-content;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            /* 3D View */
             .preview-3d { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
             .preview-3d.active { display: flex; }
             .book-3d-container { perspective: 2000px; flex: 1; display: flex; align-items: center; justify-content: center; cursor: grab; user-select: none; }
             .book-3d-container:active { cursor: grabbing; }
-            
-            /* Responsive */
-            @media (max-width: 900px) {
-                height: var(--book-thickness);
-                top: 0;
-                bottom: auto;
-                transform: rotateX(90deg);
-                transform-origin: top;
-                background-image: repeating-linear-gradient(to bottom, #fdfbf7 0px, #fdfbf7 2px, #e2e8f0 3px);
-            }
-            .book3d-page-block-face.bottom {
-                height: var(--book-thickness);
-                bottom: 0;
-                top: auto;
-                transform: rotateX(-90deg);
-                transform-origin: bottom;
-                background-image: repeating-linear-gradient(to bottom, #fdfbf7 0px, #fdfbf7 2px, #e2e8f0 3px);
-            }
-            
-            .book-3d-controls { padding: 20px; color: white; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10; }
-            .preview-footer { padding: 16px 24px; background: rgba(0, 0, 0, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; gap: 16px; }
-            .preview-thumbnails { display: flex; gap: 12px; overflow-x: auto; padding: 8px 0; justify-content: center; }
-            .preview-thumb { width: 100px; height: 75px; background: white; border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; flex-shrink: 0; }
-            .preview-thumb:hover { transform: scale(1.05); }
-            .preview-thumb.active { border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3); }
+            .book-3d-controls { padding: 20px; color: #475569; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10; }
+
+            /* Footer */
+            .preview-footer { padding: 14px 24px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 14px; }
+            .preview-thumbnails { display: flex; gap: 10px; overflow-x: auto; padding: 6px 0; justify-content: center; }
+            .preview-thumb { width: 90px; height: 68px; background: white; border-radius: 6px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+            .preview-thumb:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+            .preview-thumb.active { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.3); }
             .preview-thumb img, .preview-thumb > div { width: 100%; height: 100%; object-fit: cover; }
             .preview-actions { display: flex; justify-content: center; }
-            .btn-generate-pdf { display: flex; align-items: center; gap: 12px; padding: 14px 32px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 12px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-            .btn-generate-pdf:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); }
+            .btn-generate-pdf { display: flex; align-items: center; gap: 10px; padding: 12px 28px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 10px; color: white; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 14px rgba(99,102,241,0.3); }
+            .btn-generate-pdf:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.4); }
+            /* RTL direction is handled via CSS scaleX(-1) on .mb-book-ed to mirror the book visually.
+               Page content is counter-mirrored with scaleX(-1) so text/images remain readable.
+               Content pages array is reversed in JS for correct Hebrew reading order. */
+
+            /* ── Responsive: Mobile ── */
+            @media (max-width: 768px) {
+
+                /* Header: icon-only buttons, compact single row */
+                .preview-header { padding: 8px 12px; gap: 6px; }
+                .preview-title { font-size: 0.88rem; gap: 6px; }
+                .preview-controls { gap: 4px; }
+
+                /* Icon-only view/dir buttons — hide text via font-size trick */
+                .preview-view-btn, .preview-dir-btn {
+                    font-size: 0;
+                    padding: 0;
+                    width: 36px;
+                    height: 36px;
+                    justify-content: center;
+                    border-radius: 8px;
+                }
+                .preview-view-btn i, .preview-dir-btn i { font-size: 0.95rem; }
+                .preview-close-btn { width: 36px; height: 36px; }
+
+                /* Separator inside controls */
+                .preview-controls > div[style*="width:1px"] { display: none; }
+
+                /* Book: maximize — constrain by available height */
+                .mb-book-ed {
+                    width: min(92vw, calc((100vh - 200px) * 2 / 1.2));
+                    max-height: calc(100vh - 200px);
+                }
+                @media (max-height: 800px) {
+                    .mb-book-ed {
+                        width: min(92vw, calc((100vh - 200px) * 2 / 1.2));
+                    }
+                }
+                .mb-book-ed.book-closed {
+                    width: min(56vw, calc((100vh - 200px) / 1.2));
+                }
+
+                /* Nav arrows: smaller, tucked into book edges */
+                .flip-nav { width: 32px; height: 32px; font-size: 0.8rem; opacity: 0.85; }
+                #flip-prev { left: 3px; }
+                #flip-next { right: 3px; }
+
+                /* Page indicator: compact */
+                .page-indicator { margin-top: 6px; padding: 4px 12px; font-size: 0.75rem; }
+
+                /* Footer: compact thumbnails + full-width PDF button */
+                .preview-footer { padding: 8px 10px; gap: 6px; }
+                .preview-thumbnails { gap: 5px; padding: 3px 0; justify-content: flex-start; }
+                .preview-thumb { width: 52px; height: 40px; border-radius: 4px; }
+                .preview-thumb:hover { transform: scale(1.04); }
+                .preview-actions { width: 100%; }
+                .btn-generate-pdf { width: 100%; justify-content: center; padding: 10px 16px; font-size: 0.875rem; gap: 8px; border-radius: 8px; }
+
+                /* 3D controls: more compact */
+                .book-3d-controls { padding: 10px 16px; font-size: 0.8rem; }
+            }
         `;
         document.head.appendChild(style);
     }
@@ -1897,14 +2559,12 @@ export class AlbumPreview {
             const newPrev = prevBtn.cloneNode(true);
             prevBtn.parentNode.replaceChild(newPrev, prevBtn);
             newPrev.addEventListener('click', handlePrev);
-            // newPrev.addEventListener('touchend', handlePrev);
         }
 
         if (nextBtn) {
             const newNext = nextBtn.cloneNode(true);
             nextBtn.parentNode.replaceChild(newNext, nextBtn);
             newNext.addEventListener('click', handleNext);
-            // newNext.addEventListener('touchend', handleNext);
         }
 
         // Slider Event
