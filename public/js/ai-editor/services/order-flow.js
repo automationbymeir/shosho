@@ -4,7 +4,7 @@
  */
 
 const PAYPAL_CLIENT_ID = "AeaBp323CjqYmHp-xUAI75zxRjYdV-zZBX9qoxbipdeQooVrakI7aAdfbPizQ3QmsUe0MjZ-4X71PuiC";
-const MOCK_MODE = true; // Enable for testing/demo without backend
+const MOCK_MODE = false; // Disable mock mode for real orders
 
 // Load PayPal SDK dynamically
 function loadPayPalSDK() {
@@ -19,7 +19,7 @@ function loadPayPalSDK() {
             return;
         }
         const script = document.createElement('script');
-        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=ILS`; // Changed to ILS to match backend default
+        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=ILS`; 
         script.onload = () => resolve(window.paypal);
         script.onerror = reject;
         document.head.appendChild(script);
@@ -27,15 +27,50 @@ function loadPayPalSDK() {
 }
 
 export const orderFlow = {
-    MOCK_MODE: true,
+    MOCK_MODE: false,
 
     async startOrderFlow(pdfBlob) {
-        const state = window.app.state;
-        const user = state.user;
+        let state = window.app.state;
+        let user = state.user;
 
-        if (!user && !this.MOCK_MODE) {
-            alert("Please sign in to order.");
-            return;
+        if (!user) {
+            const overlay = document.createElement('div');
+            overlay.innerHTML = `
+                <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter: blur(5px); direction: rtl; font-family: 'Inter', sans-serif;">
+                    <div style="background:#1e1e1e; padding:40px; border-radius:12px; border: 1px solid #333; color:white; text-align:center; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                        <i class="fa-solid fa-user-lock fa-3x" style="color: #4285F4; margin-bottom: 20px;"></i>
+                        <h2 style="margin-bottom:15px; font-weight: 600;">התחברות חובה להמשך</h2>
+                        <p style="margin-bottom:25px; color: #aaa; line-height: 1.5;">כדי שנוכל לשמור את פרטי ההזמנה שלך, לעקוב אחר המשלוח ולעדכן אותך במייל – עליך להתחבר למערכת.</p>
+                        <button id="btn-force-login" style="background:#4285F4; color:white; border:none; padding:12px 24px; border-radius:8px; font-size:16px; font-weight: 500; cursor:pointer; width: 100%; transition: background 0.2s;">
+                            <i class="fa-brands fa-google" style="margin-left: 8px;"></i> התחבר עם Google
+                        </button>
+                        <button id="btn-force-cancel" style="background:transparent; color:#888; margin-top:20px; border:none; cursor:pointer; font-size: 14px; text-decoration: underline;">חזור לעריכה</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            
+            return new Promise((resolve) => {
+                document.getElementById('btn-force-login').addEventListener('click', async () => {
+                    document.body.removeChild(overlay);
+                    try {
+                        const { authService } = await import('./firebase-auth-service.js');
+                        await authService.signInWithGoogle();
+                        // Wait briefly for observer
+                        await new Promise(r => setTimeout(r, 1000));
+                        // Restart the order flow after successful login
+                        resolve(this.startOrderFlow(pdfBlob)); 
+                    } catch (e) {
+                        console.error(e);
+                        alert("ההתחברות נכשלה, אנא נסה שוב.");
+                        resolve();
+                    }
+                });
+                document.getElementById('btn-force-cancel').addEventListener('click', () => {
+                    document.body.removeChild(overlay);
+                    resolve();
+                });
+            });
         }
 
         // Calculate Price (Simple Logic)
@@ -72,7 +107,7 @@ export const orderFlow = {
 
         } catch (error) {
             console.error("Order Flow Error:", error);
-            alert("Failed to process order: " + error.message);
+            alert("שגיאה בעיבוד ההזמנה: " + error.message);
             document.body.removeChild(overlay);
         }
     },
@@ -103,18 +138,18 @@ export const orderFlow = {
         return overlay;
     },
 
-    async uploadPdfToStorage(blob, uid, onProgress) {
+    async uploadPdfToStorage(blob, uid, onProgress, suffix = 'album') {
         if (this.MOCK_MODE) {
-            console.log("[OrderFlow] Mock Uploading PDF...");
+            console.log(`[OrderFlow] Mock Uploading PDF (${suffix})...`);
             for (let i = 0; i <= 100; i += 10) {
                 onProgress(i);
                 await new Promise(r => setTimeout(r, 100));
             }
-            return "https://mock-storage.com/album.pdf";
+            return `https://mock-storage.com/${suffix}.pdf`;
         }
 
         const timestamp = Date.now();
-        const filename = `orders/${uid}/${timestamp}_album.pdf`;
+        const filename = `orders/${uid}/${timestamp}_${suffix}.pdf`;
         const ref = firebase.storage().ref().child(filename);
         const task = ref.put(blob);
 
@@ -143,6 +178,21 @@ export const orderFlow = {
 
         paymentStage.style.maxWidth = '600px';
 
+        // Load saved shipping address
+        let savedAddress = {};
+        if (window.app.state.user) {
+            try {
+                const { authService } = await import('./firebase-auth-service.js');
+                const db = authService.getDB();
+                const doc = await db.collection("users").doc(window.app.state.user.uid).get();
+                if (doc.exists && doc.data().shippingAddress) {
+                    savedAddress = doc.data().shippingAddress;
+                }
+            } catch (e) {
+                console.error("Failed to load saved address", e);
+            }
+        }
+
         // Helper to recalculate total
         const updatePrice = () => {
             const shipMethod = document.getElementById('ship-method')?.value || '2';
@@ -153,6 +203,11 @@ export const orderFlow = {
             order.total = order.bookPrice + order.shipping;
             if (shipEl) shipEl.textContent = `₪${order.shipping.toFixed(2)}`;
             if (totalEl) totalEl.textContent = `₪${order.total.toFixed(2)}`;
+
+            const pickupContainer = document.getElementById('pickup-point-container');
+            if (pickupContainer) {
+                pickupContainer.style.display = (shipMethod === '1') ? 'block' : 'none';
+            }
         };
 
         paymentStage.innerHTML = `
@@ -166,16 +221,57 @@ export const orderFlow = {
                         <div>
                             <label style="display:block; margin-bottom:4px; font-size:13px; color:#aaa;">סוג דפים</label>
                             <select id="book-paper-type" style="width:100%; padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;">
-                                <option value="white80">כרומו לבן לח ליין 170 גרם (קלאסי)</option>
-                                <option value="matte130">מט פרימיום 130 גרם</option>
+                                <option value="chromo170">כרומו לבן לח ליין 170 גרם (קלאסי)</option>
+                                <option value="chromo130">מט פרימיום 130 גרם</option>
                             </select>
                         </div>
                         <div>
                             <label style="display:block; margin-bottom:4px; font-size:13px; color:#aaa;">למינציה בכריכה</label>
                             <select id="book-lamination" style="width:100%; padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;">
                                 <option value="none" selected>ללא למינציה (מראה טבעי)</option>
-                                <option value="glossy">מבריק</option>
-                                <option value="matte">מט</option>
+                                <option value="flat">מבריק (Flat)</option>
+                                <option value="matt">מט (Matt)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:4px; font-size:13px; color:#aaa;">רוחב ספר (ס"מ)</label>
+                            <select id="book-width" style="width:100%; padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;">
+                                <option value="10.5">10.5</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                                <option value="13">13</option>
+                                <option value="14">14</option>
+                                <option value="14.8">14.8</option>
+                                <option value="15">15</option>
+                                <option value="16">16</option>
+                                <option value="17">17</option>
+                                <option value="18">18</option>
+                                <option value="19">19</option>
+                                <option value="20" selected>20</option>
+                                <option value="21">21</option>
+                                <option value="22">22</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:4px; font-size:13px; color:#aaa;">גובה ספר (ס"מ)</label>
+                            <select id="book-height" style="width:100%; padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;">
+                                <option value="14.8">14.8</option>
+                                <option value="15">15</option>
+                                <option value="16">16</option>
+                                <option value="17">17</option>
+                                <option value="18">18</option>
+                                <option value="19">19</option>
+                                <option value="20" selected>20</option>
+                                <option value="21">21</option>
+                                <option value="22">22</option>
+                                <option value="23">23</option>
+                                <option value="24">24</option>
+                                <option value="25">25</option>
+                                <option value="26">26</option>
+                                <option value="27">27</option>
+                                <option value="28">28</option>
+                                <option value="29">29</option>
+                                <option value="29.7">29.7</option>
                             </select>
                         </div>
                     </div>
@@ -185,20 +281,38 @@ export const orderFlow = {
                 <div style="background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                     <h4 style="margin-bottom: 10px; color: #ccc;"><i class="fa-solid fa-truck"></i> פרטי משלוח</h4>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                        <input type="text" id="ship-fname" placeholder="שם פרטי" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${window.app.state.user?.displayName?.split(' ')[0] || ''}">
-                        <input type="text" id="ship-lname" placeholder="שם משפחה" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${window.app.state.user?.displayName?.split(' ')[1] || ''}">
+                        <input type="text" id="ship-name" placeholder="שם מלא" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${savedAddress.name || window.app.state.user?.displayName || ''}">
+                        <input type="email" id="ship-email" placeholder="אימייל" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${savedAddress.email || window.app.state.user?.email || ''}">
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                        <input type="tel" id="ship-phone" placeholder="מס׳ טלפון מדויק לשליח" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;">
-                        <input type="text" id="ship-city" placeholder="עיר מגורים" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;">
+                        <input type="tel" id="ship-phone" placeholder="טלפון מדוייק (חובה)" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${savedAddress.phoneNumber || ''}">
+                        <input type="text" id="ship-city" placeholder="עיר מגורים" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${savedAddress.city || ''}">
                     </div>
-                    <input type="text" id="ship-address" placeholder="רחוב, מספר בית ודירה" style="width:100%; padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white; margin-bottom: 10px; box-sizing: border-box;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="ship-street" placeholder="רחוב" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${savedAddress.street || ''}">
+                        <input type="text" id="ship-house" placeholder="מס' בניין" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${savedAddress.house || ''}">
+                        <input type="text" id="ship-apartment" placeholder="דירה" title="דירה" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${savedAddress.apartment || ''}">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="ship-zip" placeholder="מיקוד (אופציונלי)" style="padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;" value="${savedAddress.zipCode || ''}">
+                    </div>
                     <div>
                         <label style="display:block; margin-bottom:4px; font-size:13px; color:#aaa;">שיטת משלוח</label>
                         <select id="ship-method" style="width:100%; padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white;">
                             <option value="2" selected>שליח עד הבית (₪25)</option>
-                            <option value="pickup">איסוף עצמי - תל אביב (₪0)</option>
+                            <option value="1">נקודת איסוף K.Express (₪0)</option>
+                            <option value="3">איסוף עצמי מהמפעל (₪0)</option>
                         </select>
+                    </div>
+                    <div id="pickup-point-container" style="display:none; margin-top: 10px;">
+                        <label style="display:block; margin-bottom:4px; font-size:13px; color:#aaa;">בחירת נקודת חלוקה</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btn-fetch-points" type="button" style="padding:8px 12px; border-radius:4px; border:none; background:#4285f4; color:white; cursor:pointer; font-family: 'Inter', sans-serif;">חפש נקודות</button>
+                            <select id="ship-pickup-point" style="flex:1; padding:8px; border-radius:4px; border:1px solid #444; background:#333; color:white; max-width: 300px;">
+                                <option value="">יש לחפש ולבחור נקודה</option>
+                            </select>
+                        </div>
+                        <div id="pickup-point-loading" style="display:none; color:#aaa; font-size:12px; margin-top:4px;">מחפש נקודות קרובות...</div>
                     </div>
                 </div>
 
@@ -240,46 +354,123 @@ export const orderFlow = {
             </div>
         `;
 
-        document.getElementById('ship-method').addEventListener('change', updatePrice);
+        const shipMethodSelect = document.getElementById('ship-method');
+        const cityInput = document.getElementById('ship-city');
+        const streetInput = document.getElementById('ship-street');
+        const fetchPointsBtn = document.getElementById('btn-fetch-points');
+
+        shipMethodSelect.addEventListener('change', (e) => {
+            updatePrice();
+            if (e.target.value === '1' && cityInput.value.trim()) {
+                fetchPointsBtn.click();
+            }
+        });
+
+        const tryAutoFetch = () => {
+            if (shipMethodSelect.value === '1' && cityInput.value.trim()) {
+                fetchPointsBtn.click();
+            }
+        };
+        
+        cityInput.addEventListener('blur', tryAutoFetch);
+        streetInput.addEventListener('blur', tryAutoFetch);
 
         document.getElementById('btn-cancel-order').addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
 
+        document.getElementById('btn-fetch-points').addEventListener('click', async () => {
+            const city = document.getElementById('ship-city').value.trim();
+            const street = document.getElementById('ship-street').value.trim();
+            const loading = document.getElementById('pickup-point-loading');
+            const selectEl = document.getElementById('ship-pickup-point');
+
+            if (!city) {
+                alert("אנא הזן עיר מגורים כדי לחפש נקודות איסוף.");
+                return;
+            }
+
+            try {
+                loading.style.display = 'block';
+                const searchFn = firebase.functions().httpsCallable('bookpodSearchPickupPoints');
+                const result = await searchFn({ address: { city: city, address1: street } });
+                const points = result.data.pickupPoints || [];
+
+                selectEl.innerHTML = '';
+                if (points.length === 0) {
+                    selectEl.innerHTML = '<option value="">לא נמצאו נקודות, נסה שנית.</option>';
+                } else {
+                    points.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id || p.n_code;
+                        opt.textContent = `${p.name} - ${p.city}, ${p.street} ${p.house || ''}`;
+                        selectEl.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch pickup points:", err);
+                alert("שגיאה בחיפוש נקודות איסוף.");
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
         // Validation Extractor
         const extractFormData = () => {
-            const fname = document.getElementById('ship-fname').value.trim();
-            const lname = document.getElementById('ship-lname').value.trim();
+            const name = document.getElementById('ship-name').value.trim();
             const phone = document.getElementById('ship-phone').value.trim();
+            const email = document.getElementById('ship-email').value.trim();
             const city = document.getElementById('ship-city').value.trim();
-            const address = document.getElementById('ship-address').value.trim();
+            const street = document.getElementById('ship-street').value.trim();
+            const house = document.getElementById('ship-house').value.trim();
+            const apartment = document.getElementById('ship-apartment').value.trim();
+            const zipCode = document.getElementById('ship-zip').value.trim();
             const method = document.getElementById('ship-method').value;
+            const pickupPoint = document.getElementById('ship-pickup-point')?.value;
 
             const paperType = document.getElementById('book-paper-type').value;
             const lamination = document.getElementById('book-lamination').value;
+            // book-width and book-height are read inside the bookpod object below
 
-            if (!fname || !phone || !city || !address) {
-                alert("אנא מלא את כל פרטי המשלוח (שם, טלפון, עיר וכתובת).");
+            if (!name || !phone || !city) {
+                alert("אנא מלא את כל פרטי המשלוח (שם עיר וטלפון חובה).");
+                return null;
+            }
+
+            if (method === '2') {
+                if (!street || !house) {
+                    alert("במשלוח עד הבית חובה להזין רחוב ומספר בית.");
+                    return null;
+                }
+            }
+            
+            if (method === '1' && !pickupPoint) {
+                alert("אנא בחר נקודת איסוף.");
                 return null;
             }
 
             return {
                 shipping: {
-                    firstName: fname,
-                    lastName: lname,
-                    phone: phone,
+                    name: name,
+                    phoneNumber: phone,
+                    email: email,
                     city: city,
-                    address1: address,
-                    shippingMethod: method === 'pickup' ? 0 : 2
+                    street: street,
+                    house: house,
+                    apartment: apartment,
+                    zipCode: zipCode,
+                    shippingMethod: parseInt(method, 10),
+                    pickupPoint: method === '1' ? pickupPoint : undefined,
+                    reference_num1: 'REF_' + Date.now() // required by API
                 },
                 bookpod: {
                     printcolor: "color",
                     sheettype: paperType,
                     laminationtype: lamination,
                     finishtype: "soft", // Bookpod API requires 'soft'
-                    width: 20.0, // Requires CM (10.50-22.00)
-                    height: 20.0, // Requires CM (14.80-29.70)
-                    readingdirection: "right", // API expects 'right' or 'left'
+                    width: parseFloat(document.getElementById('book-width')?.value || '20'),
+                    height: parseFloat(document.getElementById('book-height')?.value || '20'),
+                    readingdirection: window.app?.state?.language === 'en' ? 'left' : 'right',
                     bleed: true // Required
                 }
             };
@@ -298,15 +489,60 @@ export const orderFlow = {
         // Initialize PayPal
         await loadPayPalSDK();
 
+        // Mutable refs for final PDF URLs (may be replaced after re-generation)
+        let finalPdfUrl    = pdfUrl;
+        let finalCoverPdfUrl = null;
+
         paypal.Buttons({
             createOrder: async (data, actions) => {
                 const formData = extractFormData();
                 if (!formData) {
-                    // Prevent PayPal popup if validation fails
                     throw new Error("Validation Failed");
                 }
 
-                // Call Cloud Function to create order
+                // Re-generate content PDF + cover PDF at the selected physical dimensions
+                const wCm = formData.bookpod.width;
+                const hCm = formData.bookpod.height;
+                if (window.pdfCanvasExport?.setBookSizeCm) {
+                    window.pdfCanvasExport.setBookSizeCm(wCm, hCm);
+                    // Ensure templateConfig is set so template-based text (textContent) is applied in PDF
+                    const tmConfig = window.app?.templateSidebar?.manager?.config;
+                    if (tmConfig && window.pdfCanvasExport.setTemplateConfig) {
+                        window.pdfCanvasExport.setTemplateConfig(tmConfig);
+                    }
+                    const uid = window.app?.state?.user?.uid || 'anon';
+
+                    // --- Content PDF ---
+                    try {
+                        const newBlob = await window.pdfCanvasExport.generatePDF(
+                            window.app.state.pages, window.app.state.cover, window.app.state.assets, true
+                        );
+                        if (newBlob) {
+                            finalPdfUrl = await this.uploadPdfToStorage(newBlob, uid, () => {});
+                        }
+                    } catch (regenErr) {
+                        console.warn('[OrderFlow] Content PDF regen failed, using original:', regenErr);
+                    }
+
+                    // --- Cover PDF (designed cover, client-side rendered) ---
+                    try {
+                        if (window.pdfCanvasExport.generateCoverPDF) {
+                            const coverBlob = await window.pdfCanvasExport.generateCoverPDF(
+                                window.app.state.cover, window.app.state.assets
+                            );
+                            if (coverBlob) {
+                                finalCoverPdfUrl = await this.uploadPdfToStorage(
+                                    coverBlob, uid, () => {}, 'cover'
+                                );
+                                console.log('[OrderFlow] Cover PDF uploaded:', finalCoverPdfUrl);
+                            }
+                        }
+                    } catch (coverErr) {
+                        console.warn('[OrderFlow] Cover PDF generation failed:', coverErr);
+                    }
+                }
+
+                // Call Cloud Function to create PayPal order
                 try {
                     const createFn = firebase.functions().httpsCallable('createPayPalOrder');
                     const result = await createFn({
@@ -314,29 +550,55 @@ export const orderFlow = {
                         currency: order.currency
                     });
 
-                    // Storing formData temporarily so onApprove can use it
                     window._currentCheckoutFormData = formData;
-
                     return result.data.id;
                 } catch (e) {
                     console.error("Create Order Error:", e);
-                    alert("Could not initialize payment. Please try again.");
+                    alert("לא ניתן לאתחל את התשלום. אנא נסה שוב.");
                     throw e;
                 }
             },
             onApprove: async (data, actions) => {
-                await this.handleOrderSuccess(paymentStage, data.orderID, pdfUrl, window._currentCheckoutFormData);
+                await this.handleOrderSuccess(paymentStage, data.orderID, finalPdfUrl, window._currentCheckoutFormData, finalCoverPdfUrl);
             },
             onError: (err) => {
                 // Ignore if it's the custom validation error
                 if (err.message === "Validation Failed") return;
                 console.error("PayPal Error:", err);
-                alert("PayPal Payment Error. Please try again.");
+                alert("שגיאת תשלום PayPal. אנא נסה שוב.");
             }
         }).render('#paypal-button-container');
+
+        // Optional UI polish: Make sure PayPal starts rendering correctly
     },
 
-    async handleOrderSuccess(paymentStage, orderId, pdfUrl, formData) {
+    async saveAddressToProfile(formData) {
+        if (!formData || !formData.shipping) return;
+        const user = window.app.state.user;
+        if (!user) return;
+
+        try {
+            const { authService } = await import('./firebase-auth-service.js');
+            const db = authService.getDB();
+            // Preserve the address they just submitted for future checkout
+            await db.collection("users").doc(user.uid).set({
+                shippingAddress: {
+                    name: formData.shipping.name || '',
+                    phoneNumber: formData.shipping.phoneNumber || '',
+                    email: formData.shipping.email || '',
+                    city: formData.shipping.city || '',
+                    street: formData.shipping.street || '',
+                    house: formData.shipping.house || '',
+                    apartment: formData.shipping.apartment || '',
+                    zipCode: formData.shipping.zipCode || ''
+                }
+            }, { merge: true });
+        } catch (e) {
+            console.warn("Could not save address locally:", e);
+        }
+    },
+
+    async handleOrderSuccess(paymentStage, orderId, pdfUrl, formData, coverPdfUrl = null) {
         // Show processing state
         paymentStage.innerHTML = `
             <div style="padding: 40px; text-align: center; direction: rtl;">
@@ -347,9 +609,12 @@ export const orderFlow = {
         `;
 
         try {
+            // Save address right as we start processing the success step
+            await this.saveAddressToProfile(formData);
+
             if (this.MOCK_MODE) {
                 console.log("[OrderFlow] Mocking Capture & Bookpod API...");
-                await new Promise(r => setTimeout(r, 1500)); // Simulate delay
+                await new Promise(r => setTimeout(r, 2000));
 
                 // Simulate Bookpod API Payload
                 const bookData = {
@@ -377,7 +642,10 @@ export const orderFlow = {
                 title: window.app.state.cover?.title || "My Photo Book",
                 pages: window.app.state.pages, // Full page data required for any backend rendering pipeline
                 cover: window.app.state.cover,
-                bookpodPrint: formData.bookpod // Injected from HTML Form selection
+                bookpodPrint: formData.bookpod, // Injected from HTML Form selection
+                // Client-generated cover PDF (designed cover); if present the server uses it
+                // directly instead of generating a generic cover server-side.
+                coverPdfUrl: coverPdfUrl || null
             };
 
             const orderDraft = {
@@ -411,6 +679,179 @@ export const orderFlow = {
                     </button>
                 </div>
             `;
+        }
+    },
+
+    async startTestFlow(pdfBlob) {
+        const overlay = this.createOverlay();
+        document.body.appendChild(overlay);
+
+        try {
+            const user = window.app?.state?.user;
+            const pdfUrl = await this.uploadPdfToStorage(pdfBlob, user?.uid || 'test', (progress) => {
+                const bar = document.getElementById('upload-progress');
+                if (bar) bar.style.width = `${progress}%`;
+            });
+
+            const uploadStage = overlay.querySelector('#upload-stage');
+            const paymentStage = overlay.querySelector('#payment-stage');
+            if (uploadStage) uploadStage.style.display = 'none';
+            if (paymentStage) {
+                paymentStage.style.display = 'block';
+                paymentStage.style.maxWidth = '500px';
+                paymentStage.style.textAlign = 'right';
+            }
+
+            const contentArea = paymentStage || overlay;
+            contentArea.innerHTML = `
+                <div style="padding: 30px; direction: rtl; max-width: 500px; margin: 0 auto; font-family: 'Inter', sans-serif; color: white;">
+                    <div style="background: rgba(255, 193, 7, 0.15); border: 1px solid #ffc107; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-flask" style="color: #ffc107; font-size: 1.2rem;"></i>
+                        <span style="color: #ffc107; font-weight: 600;">מצב בדיקה — ללא תשלום</span>
+                    </div>
+
+                    <h2 style="margin: 0 0 20px 0; font-size: 1.4rem;">שליחה ישירה לדפוס (בדיקה)</h2>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 0.85rem; color: #94a3b8;">שם מלא</label>
+                            <input id="test-name" type="text" value="Test User" style="padding: 10px; background: #1e1e2f; color: white; border: 1px solid #444; border-radius: 6px; font-family: inherit; direction: rtl;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 0.85rem; color: #94a3b8;">טלפון</label>
+                            <input id="test-phone" type="text" value="0500000000" style="padding: 10px; background: #1e1e2f; color: white; border: 1px solid #444; border-radius: 6px; font-family: inherit; direction: ltr; text-align: left;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 0.85rem; color: #94a3b8;">עיר</label>
+                            <input id="test-city" type="text" value="תל אביב" style="padding: 10px; background: #1e1e2f; color: white; border: 1px solid #444; border-radius: 6px; font-family: inherit; direction: rtl;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 0.85rem; color: #94a3b8;">רחוב ומספר בית</label>
+                            <input id="test-street" type="text" value="הרצל 1" style="padding: 10px; background: #1e1e2f; color: white; border: 1px solid #444; border-radius: 6px; font-family: inherit; direction: rtl;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 0.85rem; color: #94a3b8;">סוג נייר</label>
+                            <select id="test-paper" style="padding: 10px; background: #1e1e2f; color: white; border: 1px solid #444; border-radius: 6px; font-family: inherit;">
+                                <option value="white80">לבן רגיל 80g</option>
+                                <option value="coated115">מצופה 115g</option>
+                                <option value="coated150">מצופה 150g</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="test-status" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 6px; text-align: center;"></div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button id="test-cancel-btn" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.05); color: #a1a1aa; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; font-size: 1rem;">
+                            ביטול
+                        </button>
+                        <button id="test-send-btn" style="flex: 2; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fa-solid fa-flask"></i> שלח לדפוס (בדיקה)
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('test-cancel-btn').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+            });
+
+            document.getElementById('test-send-btn').addEventListener('click', async () => {
+                const sendBtn = document.getElementById('test-send-btn');
+                const statusDiv = document.getElementById('test-status');
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מייצר כריכה ושולח לדפוס...';
+
+                const name = document.getElementById('test-name').value.trim();
+                const phone = document.getElementById('test-phone').value.trim();
+                const city = document.getElementById('test-city').value.trim();
+                const street = document.getElementById('test-street').value.trim();
+                const paper = document.getElementById('test-paper').value;
+
+                // Read actual selected dimensions from pdfCanvasExport
+                const bookSz = window.pdfCanvasExport?.bookSizeCm;
+                const wCm = bookSz?.width  || 20.0;
+                const hCm = bookSz?.height || 20.0;
+                const uid  = window.app?.state?.user?.uid || 'test';
+
+                // Generate client-side cover PDF (designed cover)
+                let testCoverPdfUrl = null;
+                try {
+                    if (window.pdfCanvasExport?.generateCoverPDF) {
+                        const coverBlob = await window.pdfCanvasExport.generateCoverPDF(
+                            window.app?.state?.cover, window.app?.state?.assets
+                        );
+                        if (coverBlob) {
+                            testCoverPdfUrl = await this.uploadPdfToStorage(coverBlob, uid, () => {}, 'cover');
+                            console.log('[TestFlow] Cover PDF uploaded:', testCoverPdfUrl);
+                        }
+                    }
+                } catch (covErr) {
+                    console.warn('[TestFlow] Cover PDF generation skipped:', covErr);
+                }
+
+                const bookData = {
+                    title: window.app?.state?.cover?.title || "Test Photo Book",
+                    pages: window.app?.state?.pages,
+                    cover: window.app?.state?.cover,
+                    bookpodPrint: {
+                        printcolor: "color",
+                        sheettype: paper,
+                        laminationtype: "none",
+                        finishtype: "soft",
+                        width: wCm,
+                        height: hCm,
+                        readingdirection: window.app?.state?.language === 'en' ? 'left' : 'right',
+                        bleed: true
+                    },
+                    coverPdfUrl: testCoverPdfUrl
+                };
+
+                const orderDraft = {
+                    quantity: 1,
+                    totalprice: 0,
+                    invoiceUrl: pdfUrl,
+                    shippingDetails: {
+                        name,
+                        phoneNumber: phone,
+                        city,
+                        street,
+                        house: "",
+                        shippingMethod: 2,
+                        reference_num1: 'TEST_' + Date.now()
+                    }
+                };
+
+                try {
+                    const testFn = firebase.functions().httpsCallable('testDirectPrint');
+                    const result = await testFn({ bookData, pdfDownloadUrl: pdfUrl, orderDraft });
+
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = 'rgba(39, 174, 96, 0.15)';
+                    statusDiv.style.border = '1px solid #27ae60';
+                    statusDiv.style.color = '#27ae60';
+                    statusDiv.innerHTML = `
+                        <i class="fa-solid fa-check-circle"></i> הועבר לדפוס בהצלחה!<br>
+                        <small style="color: #94a3b8; font-size: 0.8rem;">Book ID: ${result.data?.bookpodBook?.book?.bookid || 'N/A'}</small>
+                    `;
+                    sendBtn.innerHTML = '<i class="fa-solid fa-check"></i> נשלח!';
+                    console.log('[testDirectPrint] Result:', result.data);
+                } catch (err) {
+                    console.error('[testDirectPrint] Error:', err);
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = 'rgba(231, 76, 60, 0.15)';
+                    statusDiv.style.border = '1px solid #e74c3c';
+                    statusDiv.style.color = '#e74c3c';
+                    statusDiv.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> שגיאה: ${err.message}`;
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fa-solid fa-flask"></i> נסה שוב';
+                }
+            });
+
+        } catch (err) {
+            console.error('[TestFlow] Error:', err);
+            alert('שגיאה בהעלאת PDF: ' + err.message);
+            document.body.removeChild(overlay);
         }
     },
 

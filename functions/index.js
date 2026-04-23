@@ -33,6 +33,7 @@ const payments = lazyRequire("./src/payments");
 const paypal = lazyRequire("./src/paypal");
 const bookpod = lazyRequire("./src/bookpod");
 const supportBot = lazyRequire("./src/support-bot");
+const notifications = require("./src/notifications.js");
 
 // ============================================
 // OAUTH & AUTHENTICATION
@@ -453,13 +454,25 @@ exports.bookpodSubmitPrintJob = onCall({
     throw new HttpsError("invalid-argument", "pdfDownloadUrl is required");
   }
 
-  // 1) Generate an A4 cover PDF for BookPod and upload it to Storage
-  const cover = await printPdf.generateBookpodCoverPdf(request.auth.uid, bookData);
+  // 1) Resolve cover PDF — prefer client-generated designed cover if provided,
+  //    otherwise fall back to server-side generic cover generation.
+  let submitCoverUrl;
+  if (bookData.coverPdfUrl && typeof bookData.coverPdfUrl === "string") {
+    console.log("[bookpodSubmitPrintJob] Using client-generated cover PDF:", bookData.coverPdfUrl.substring(0, 80));
+    submitCoverUrl = bookData.coverPdfUrl;
+  } else {
+    console.log("[bookpodSubmitPrintJob] Generating server-side cover PDF...");
+    const cover = await printPdf.generateBookpodCoverPdf(request.auth.uid, bookData);
+    submitCoverUrl = cover.pdfDownloadUrl || cover.pdfUrl;
+  }
 
   // 2) Create BookPod book (upload PDFs to BookPod + create book record)
   const print = (bookData.bookpodPrint && typeof bookData.bookpodPrint === "object") ? bookData.bookpodPrint : {};
   const title = bookData.title || bookData?.story?.title || "My Photo Book";
   const author = request.auth.token?.name || "Shoso";
+
+  // Give BookPod's storage a moment to settle after PDF uploads
+  await new Promise((r) => setTimeout(r, 6000));
 
   const created = await bookpod.createBookFromPdfUrls({
     title,
@@ -476,8 +489,8 @@ exports.bookpodSubmitPrintJob = onCall({
     status: true,
     // PDF sources
     contentSourceUrl: pdfDownloadUrl,
-    coverSourceUrl: cover.pdfDownloadUrl || cover.pdfUrl,
-  });
+    coverSourceUrl: submitCoverUrl,
+  }, {attempts: 8, baseDelayMs: 5000});
 
   const bookid =
     created?.book?.bookid ||
@@ -501,13 +514,11 @@ exports.bookpodSubmitPrintJob = onCall({
     const shippingDetails = (orderDraft.shippingDetails && typeof orderDraft.shippingDetails === "object") ?
       {...orderDraft.shippingDetails} :
       {};
-    shippingDetails.shippingCompanyId = 6;
+    shippingDetails.shippingCompanyId = 7;
     shippingDetails.shippingMethod = Number(orderDraft.shippingMethod || shippingDetails.shippingMethod || 2);
-    if (orderDraft.pickupPoint) {
-      shippingDetails.pickupPoint = orderDraft.pickupPoint;
-      if (!shippingDetails.pickupPointId && orderDraft.pickupPoint.id) {
-        shippingDetails.pickupPointId = orderDraft.pickupPoint.id;
-      }
+    const pickupPointVal = orderDraft.pickupPoint || shippingDetails.pickupPoint;
+    if (pickupPointVal) {
+      shippingDetails.deliveryPointCode = typeof pickupPointVal === "object" ? pickupPointVal.id : pickupPointVal;
     }
 
     order = await bookpod.createOrder({
@@ -520,7 +531,7 @@ exports.bookpodSubmitPrintJob = onCall({
 
   return {
     success: true,
-    coverPdf: cover,
+    coverPdfUrl: submitCoverUrl,
     bookpodBook: created,
     bookpodOrder: order,
   };
@@ -923,6 +934,8 @@ exports.capturePayPalOrder = onCall({
 
   // 2. Fulfill Order via BookPod (if book data provided)
   let fulfillment = null;
+  let bookidStr = null;
+  let trackingUrl = null;
   if (bookData && pdfDownloadUrl) {
     try {
       fulfillment = await processBookPodOrder(
@@ -930,12 +943,55 @@ exports.capturePayPalOrder = onCall({
           request.auth.token?.name || "Shoso User",
           {bookData, pdfDownloadUrl, orderDraft},
       );
+      bookidStr = fulfillment.bookpodBook?.book?.bookid || null;
+      if (fulfillment.bookpodOrder && typeof fulfillment.bookpodOrder.id !== "undefined") {
+        // K.Express / HFD tracking or bookpod tracking depending on what bookpod returns
+        trackingUrl = `https://bookpod.co.il/track/${fulfillment.bookpodOrder.id}`;
+      }
     } catch (error) {
       console.error("Fulfillment failed after payment:", error);
-      // We don't throw here to avoid rolling back the payment success response to client,
-      // but we return the error.
       fulfillment = {success: false, error: error.message};
     }
+  }
+
+  // 3. Save purchase to Firestore
+  const db = admin.firestore();
+  const purchaseDocRef = db.collection("users").doc(request.auth.uid).collection("purchases").doc(orderId);
+  const amountStr = capture.purchase_units?.[0]?.amount?.value || "0.00";
+  const currencyCode = capture.purchase_units?.[0]?.amount?.currency_code || "ILS";
+
+  const purchaseData = {
+    status: "COMPLETED",
+    provider: "paypal",
+    currency: currencyCode,
+    amount: parseFloat(amountStr),
+    description: "Shoso Photo Book",
+    projectId: orderDraft?.projectId || null,
+    projectTitle: orderDraft?.projectTitle || null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    trackingUrl: trackingUrl || null,
+    bookpodOrder: fulfillment?.bookpodOrder || null,
+    bookpodBookId: bookidStr,
+  };
+  await purchaseDocRef.set(purchaseData, {merge: true});
+
+  // 4. Send Confirmation Email
+  const userEmail = request.auth.token?.email || orderDraft?.shippingDetails?.email;
+  if (userEmail) {
+    let addressDetails = "None";
+    if (orderDraft?.shippingDetails) {
+      const {city, street, house} = orderDraft.shippingDetails;
+      const methodStr = orderDraft.shippingMethod === 1 ? "איסוף מנקודה" : "עד הבית";
+      addressDetails = `${city}, ${street} ${house}\nשיטת משלוח: ${methodStr}`;
+    }
+    await notifications.sendOrderConfirmation(userEmail, {
+      orderId,
+      amount: amountStr,
+      name: request.auth.token?.name || orderDraft?.shippingDetails?.name,
+      address: addressDetails,
+      bookid: bookidStr,
+      trackingUrl,
+    });
   }
 
   return {
@@ -965,13 +1021,25 @@ async function processBookPodOrder(uid, authName, {bookData, pdfDownloadUrl, ord
     throw new Error("pdfDownloadUrl is required");
   }
 
-  // 1) Generate an A4 cover PDF for BookPod and upload it to Storage
-  const cover = await printPdf.generateBookpodCoverPdf(uid, bookData);
+  // 1) Resolve cover PDF — prefer client-generated designed cover if provided,
+  //    otherwise fall back to server-side generic cover generation.
+  let coverPdfDownloadUrl;
+  if (bookData.coverPdfUrl && typeof bookData.coverPdfUrl === "string") {
+    console.log("[processBookPodOrder] Using client-generated cover PDF:", bookData.coverPdfUrl.substring(0, 80));
+    coverPdfDownloadUrl = bookData.coverPdfUrl;
+  } else {
+    console.log("[processBookPodOrder] Generating server-side cover PDF...");
+    const cover = await printPdf.generateBookpodCoverPdf(uid, bookData);
+    coverPdfDownloadUrl = cover.pdfDownloadUrl || cover.pdfUrl;
+  }
 
   // 2) Create BookPod book (upload PDFs to BookPod + create book record)
   const print = (bookData.bookpodPrint && typeof bookData.bookpodPrint === "object") ? bookData.bookpodPrint : {};
   const title = bookData.title || bookData?.story?.title || "My Photo Book";
   const author = authName || "Shoso";
+
+  // Give BookPod's storage a moment to settle after PDF uploads
+  await new Promise((r) => setTimeout(r, 6000));
 
   const created = await bookpod.createBookFromPdfUrls({
     title,
@@ -988,8 +1056,8 @@ async function processBookPodOrder(uid, authName, {bookData, pdfDownloadUrl, ord
     status: true,
     // PDF sources
     contentSourceUrl: pdfDownloadUrl,
-    coverSourceUrl: cover.pdfDownloadUrl || cover.pdfUrl,
-  });
+    coverSourceUrl: coverPdfDownloadUrl,
+  }, {attempts: 8, baseDelayMs: 5000});
 
   const bookid =
     created?.book?.bookid ||
@@ -1013,13 +1081,11 @@ async function processBookPodOrder(uid, authName, {bookData, pdfDownloadUrl, ord
     const shippingDetails = (orderDraft.shippingDetails && typeof orderDraft.shippingDetails === "object") ?
       {...orderDraft.shippingDetails} :
       {};
-    shippingDetails.shippingCompanyId = 6;
+    shippingDetails.shippingCompanyId = 7;
     shippingDetails.shippingMethod = Number(orderDraft.shippingMethod || shippingDetails.shippingMethod || 2);
-    if (orderDraft.pickupPoint) {
-      shippingDetails.pickupPoint = orderDraft.pickupPoint;
-      if (!shippingDetails.pickupPointId && orderDraft.pickupPoint.id) {
-        shippingDetails.pickupPointId = orderDraft.pickupPoint.id;
-      }
+    const pickupPointVal = orderDraft.pickupPoint || shippingDetails.pickupPoint;
+    if (pickupPointVal) {
+      shippingDetails.deliveryPointCode = typeof pickupPointVal === "object" ? pickupPointVal.id : pickupPointVal;
     }
 
     order = await bookpod.createOrder({
@@ -1032,12 +1098,64 @@ async function processBookPodOrder(uid, authName, {bookData, pdfDownloadUrl, ord
 
   return {
     success: true,
-    coverPdf: cover,
+    coverPdfUrl: coverPdfDownloadUrl,
     bookpodBook: created,
     bookpodOrder: order,
   };
 }
 
+
+// ============================================
+// TEST / DEBUG: Direct print without payment
+// ============================================
+
+exports.testDirectPrint = onRequest({
+  cors: true,
+  timeoutSeconds: 300,
+  memory: "256MiB",
+  secrets: ["BOOKPOD_USER_ID", "BOOKPOD_CUSTOM_TOKEN"],
+}, async (req, res) => {
+  setCors(res);
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+  if (req.method !== "POST") {
+    res.status(405).json({error: "Method not allowed"});
+    return;
+  }
+
+  // Verify Firebase auth token
+  const authHeader = req.headers.authorization || "";
+  if (!authHeader.startsWith("Bearer ")) {
+    res.status(401).json({error: "Unauthorized"});
+    return;
+  }
+
+  let uid; let authName;
+  try {
+    const decoded = await admin.auth().verifyIdToken(authHeader.slice(7));
+    uid = decoded.uid;
+    authName = decoded.name || "Test User";
+  } catch (e) {
+    res.status(401).json({error: "Invalid token"});
+    return;
+  }
+
+  const {bookData, pdfDownloadUrl, orderDraft} = req.body || {};
+  if (!pdfDownloadUrl) {
+    res.status(400).json({error: "pdfDownloadUrl is required"});
+    return;
+  }
+
+  try {
+    const result = await processBookPodOrder(uid, authName, {bookData, pdfDownloadUrl, orderDraft});
+    res.json(result);
+  } catch (error) {
+    console.error("[testDirectPrint] Error:", error);
+    res.status(500).json({error: error.message || "Failed to submit to print API"});
+  }
+});
 
 exports.supportGetMessages = onRequest({cors: true}, async (req, res) => {
   // [DEBUG] Stub implementation to stop crashes and spam
@@ -1090,3 +1208,13 @@ exports.magic = onRequest({
   memory: "1GiB",
   cors: true,
 }, magicApp);
+
+// ============================================
+// WHATSAPP BOT (Webhook)
+// ============================================
+const whatsappWebhook = require("./src/whatsapp/webhook");
+exports.whatsapp = onRequest({
+  timeoutSeconds: 300,
+  memory: "1GiB",
+  secrets: ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"],
+}, whatsappWebhook);

@@ -7,12 +7,7 @@
 import { authService } from '../services/firebase-auth-service.js';
 
 // Import all template renderers to ensure they are available
-import { PhotographyPortfolioRenderer } from '../templates/photography-portfolio-renderer.js';
-import { RomanticJourneyRenderer } from '../templates/romantic-journey-renderer.js';
-import { TravelJourneyRenderer } from '../templates/travel-journey-renderer.js';
-import { FamilyRootsRenderer } from '../templates/family-roots-renderer.js';
-import { BarMitzvahRenderer } from '../templates/bar-mitzvah-renderer.js';
-import { WeddingPrestigeRenderer } from '../templates/wedding-prestige-renderer.js';
+import { UnifiedTemplateRenderer } from '../templates/unified-template-renderer.js';
 import { RenderEngine } from './render-engine.js';
 import { UnifiedCoverRenderer } from './unified-cover-renderer.js';
 
@@ -28,6 +23,18 @@ export class PDFCanvasExport {
     }
 
     /**
+     * Set the physical book size in centimetres.
+     * This overrides the canvas-derived PDF page dimensions so the output PDF
+     * is at the correct physical size for printing (e.g. 20×20 cm).
+     * @param {number} widthCm
+     * @param {number} heightCm
+     */
+    setBookSizeCm(widthCm, heightCm) {
+        this.bookSizeCm = { width: widthCm, height: heightCm };
+        console.log(`[PDFCanvas] Book size set: ${widthCm}×${heightCm} cm`);
+    }
+
+    /**
      * Get the appropriate renderer for a template
      */
     getRenderer(templateId) {
@@ -39,29 +46,12 @@ export class PDFCanvasExport {
         }
 
         let renderer = null;
-        switch (templateId) {
-            case 'photography-portfolio-v1':
-                renderer = new PhotographyPortfolioRenderer(this.templateConfig);
-                break;
-            case 'romantic-journey-v1':
-                renderer = new RomanticJourneyRenderer(this.templateConfig);
-                break;
-            case 'travel-journey-v1':
-                renderer = new TravelJourneyRenderer(this.templateConfig);
-                break;
-            case 'family-roots-v1':
-                renderer = new FamilyRootsRenderer(this.templateConfig);
-                break;
-            case 'bar-mitzvah-v1':
-                renderer = new BarMitzvahRenderer(this.templateConfig);
-                break;
-            case 'wedding-prestige-hebrew-v1':
-                renderer = new WeddingPrestigeRenderer(this.templateConfig);
-                break;
-            default:
-                // Use generic render engine
-                renderer = new RenderEngine('offscreen-render');
-                break;
+        if (templateId && this.templateConfig) {
+            // Unified renderer for ALL templates
+            renderer = new UnifiedTemplateRenderer(this.templateConfig);
+        } else {
+            // Fallback for non-template pages
+            renderer = new RenderEngine('offscreen-render');
         }
 
         this.rendererCache[templateId] = renderer;
@@ -357,6 +347,15 @@ export class PDFCanvasExport {
         console.log(`[PDFCanvas] Injecting ${page.elements.length} elements into page ${page.id}`);
 
         for (const el of page.elements) {
+            // SKIP TemplateManager-managed elements — they have id prefixes text_/dec_/container_
+            // and are already rendered by UnifiedTemplateRenderer (layout.textElements + decorations).
+            // The editor view (app.js renderActivePage) uses the same guard at line 1072.
+            // Without this skip the same text/decoration renders twice in the PDF.
+            if (el.id && (el.id.startsWith('text_') || el.id.startsWith('dec_') || el.id.startsWith('container_'))) {
+                console.log(`[PDFCanvas] Skipping TemplateManager element "${el.id}" — already rendered by template renderer`);
+                continue;
+            }
+
             const domEl = document.createElement('div');
             domEl.className = `page-element element-${el.type}`;
             domEl.style.position = 'absolute';
@@ -368,6 +367,13 @@ export class PDFCanvasExport {
             if (el.transform) domEl.style.transform = el.transform;
 
             if (el.type === 'text') {
+                // Secondary dedup guard: skip if a [data-selectable-id] with the same id
+                // already exists in the page (e.g. from a different template renderer).
+                if (el.id && pageElement.querySelector(`[data-selectable-id="${el.id}"]`)) {
+                    console.log(`[PDFCanvas] Skipping duplicate text element "${el.id}" — already rendered by template`);
+                    continue;
+                }
+
                 domEl.classList.add('text-element');
                 domEl.style.minWidth = '200px';
                 if (el.pixelWidth) domEl.style.width = el.pixelWidth;
@@ -401,7 +407,10 @@ export class PDFCanvasExport {
                 if (el.subtype) domEl.classList.add(el.subtype);
                 domEl.style.width = `${el.width}%`;
                 domEl.style.height = `${el.height}%`;
+                // Support both 'color' and 'fill' (rgba/gradient)
+                if (el.fill)  domEl.style.backgroundColor = el.fill;
                 if (el.color) domEl.style.backgroundColor = el.color;
+                if (el.borderRadius) domEl.style.borderRadius = `${el.borderRadius}px`;
             } else if (el.type === 'element') {
                 domEl.classList.add('visual-element');
                 domEl.style.width = el.pixelWidth || '100px';
@@ -627,7 +636,7 @@ export class PDFCanvasExport {
                 0, 0, width * scale, height * scale // Destination
             );
 
-            return { frontCanvas, spineCanvas, backCanvas };
+            return { frontCanvas, spineCanvas, backCanvas, spreadCanvas, spreadWidth, height };
         } catch (error) {
             console.error('[PDFCanvas] Cover Spread capture error:', error);
             return null;
@@ -635,155 +644,292 @@ export class PDFCanvasExport {
     }
 
     /**
-     * Main PDF generation method
+     * Generate a print-ready cover PDF — single page, split evenly:
+     *   Left half  = front cover
+     *   Right half = back cover
+     * Page dimensions = 2× book width × book height (+ 3 mm bleed on all outer edges).
+     *
+     * @param {Object} cover  - Cover state from store
+     * @param {Object} assets - Assets with photos array
+     * @returns {Promise<Blob|null>}
+     */
+    async generateCoverPDF(cover, assets) {
+        if (!window.jspdf) {
+            console.error('[PDFCanvas] jsPDF not found for cover PDF');
+            return null;
+        }
+        const { jsPDF } = window.jspdf;
+
+        const CM_TO_PT = 28.3465;
+        const MM_TO_PT = 2.83465;
+        const BLEED_PT = 3 * MM_TO_PT;          // 3 mm bleed
+
+        let trimWPt, trimHPt;
+        if (this.bookSizeCm) {
+            trimWPt = this.bookSizeCm.width  * CM_TO_PT;
+            trimHPt = this.bookSizeCm.height * CM_TO_PT;
+        } else {
+            const canvW = this.templateConfig?.designSystem?.canvas?.width  || 800;
+            const canvH = this.templateConfig?.designSystem?.canvas?.height || 600;
+            trimWPt = canvW * 0.75;
+            trimHPt = canvH * 0.75;
+        }
+
+        // Page = 2 covers side by side, bleed on outer edges only
+        // Total media: (2 × trimW + 2 × bleed) × (trimH + 2 × bleed)
+        const mediaWPt = trimWPt * 2 + 2 * BLEED_PT;
+        const mediaHPt = trimHPt + 2 * BLEED_PT;
+        // Each half (cover + its outer bleed) occupies half the media width
+        const halfW = mediaWPt / 2;
+
+        console.log(`[PDFCanvas] Cover PDF (2-up) | ${trimWPt.toFixed(1)}×${trimHPt.toFixed(1)}pt per side | media=${mediaWPt.toFixed(1)}×${mediaHPt.toFixed(1)}pt`);
+
+        try {
+            const cc = await this.renderCoverSpreadToCanvas(cover, assets);
+            if (!cc) {
+                console.error('[PDFCanvas] Cover spread render failed');
+                return null;
+            }
+
+            // Always landscape — the 2-up spread is always wider than tall.
+            // MUST pass orientation explicitly: without it jsPDF silently swaps
+            // width/height back to portrait when width > height.
+            const doc = new jsPDF({ unit: 'pt', format: [mediaWPt, mediaHPt], orientation: 'landscape' });
+            doc.setProperties({
+                title:   cover?.title || 'Shoso Cover',
+                author:  'Shoso',
+                creator: 'Shoso AI Photo Book Creator'
+            });
+
+            // TrimBox covers both halves (full trim area, excluding bleed)
+            const trimBoxVal  = `${BLEED_PT.toFixed(3)} ${BLEED_PT.toFixed(3)} ${(BLEED_PT + trimWPt * 2).toFixed(3)} ${(BLEED_PT + trimHPt).toFixed(3)}`;
+            const bleedBoxVal = `0 0 ${mediaWPt.toFixed(3)} ${mediaHPt.toFixed(3)}`;
+            try {
+                doc.internal.events.subscribe('putPage', function () {
+                    doc.internal.write(`/TrimBox [${trimBoxVal}]`);
+                    doc.internal.write(`/BleedBox [${bleedBoxVal}]`);
+                });
+            } catch (e) { /* non-fatal */ }
+
+            // Left half: front cover
+            doc.addImage(cc.frontCanvas.toDataURL('image/jpeg', 0.95), 'JPEG',
+                0, 0, halfW, mediaHPt, undefined, 'FAST');
+
+            // Right half: back cover
+            doc.addImage(cc.backCanvas.toDataURL('image/jpeg', 0.95), 'JPEG',
+                halfW, 0, halfW, mediaHPt, undefined, 'FAST');
+
+            const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+            console.log(`[PDFCanvas] Cover PDF 2-up blob: ${blob.size} bytes`);
+            return blob;
+        } catch (err) {
+            console.error('[PDFCanvas] generateCoverPDF failed:', err);
+            return null;
+        }
+    }
+
+    /**
+     * Main PDF generation method.
+     *
+     * Print mode  (returnBlob = true):
+     *   • No cover (cover PDF is generated server-side by generateBookpodCoverPdf)
+     *   • MediaBox = TrimBox + 3mm bleed on all sides
+     *   • Content canvas is scaled to fill the MediaBox so backgrounds "bleed"
+     *     3mm beyond the trim edge — correct bleed behaviour
+     *   • Page count is padded to an even number (required for soft-cover binding)
+     *   • TrimBox + BleedBox injected into every page dictionary
+     *   • PDF metadata (Title, Author, Creator)
+     *
+     * Preview mode (returnBlob = false):
+     *   • Cover spread included (first pages)
+     *   • MediaBox = TrimBox (no bleed padding)
+     *   • Saved to file as a full-book preview PDF
      */
     async generatePDF(pages, cover, assets, returnBlob = false) {
         console.log("[PDFCanvas] Starting canvas-based PDF generation...");
-        console.log("[PDFCanvas] Template config:", this.templateConfig?.templateId);
 
-        // Check for required libraries
         if (!window.jspdf) {
             console.error('[PDFCanvas] jsPDF not found!');
-            alert('PDF Library Missing. Please refresh.');
+            alert('ספריית PDF חסרה. אנא רענן את הדף.');
             return;
         }
-
         if (!window.html2canvas) {
             console.error('[PDFCanvas] html2canvas not found!');
-            alert('Canvas Library Missing. Please refresh.');
+            alert('ספריית Canvas חסרה. אנא רענן את הדף.');
             return;
         }
 
         const { jsPDF } = window.jspdf;
 
+        // ── Constants ──────────────────────────────────────────────────────────
+        const CM_TO_PT  = 28.3465;
+        const MM_TO_PT  = 2.83465;
+        const BLEED_MM  = 3;                       // 3 mm bleed on every side
+        const BLEED_PT  = BLEED_MM * MM_TO_PT;     // ≈ 8.504 pt
+        const SAFE_PT   = 5 * MM_TO_PT;            // 5 mm safe zone from trim edge
+
+        const isPrintMode = returnBlob;
+
         try {
-            // Get dimensions from template
-            const width = this.templateConfig?.designSystem?.canvas?.width || 800;
-            const height = this.templateConfig?.designSystem?.canvas?.height || 600;
-
-            // Convert to points (1px = 0.75pt)
-            const ptWidth = width * 0.75;
-            const ptHeight = height * 0.75;
-
-            console.log(`[PDFCanvas] Creating PDF: ${ptWidth}pt x ${ptHeight}pt`);
-
-            const doc = new jsPDF({
-                orientation: width > height ? 'landscape' : 'portrait',
-                unit: 'pt',
-                format: [ptWidth, ptHeight]
-            });
-
-            // Filter out cover pages from the pages array to avoid duplication
-            // Cover pages are identified by having 'cover' in their layoutId or rawLayoutId
-            const contentPages = pages.filter(page => {
-                const layoutId = (page.rawLayoutId || page.layout?.id || '').toLowerCase();
-                const isCoverPage = layoutId.includes('cover');
-                if (isCoverPage) {
-                    console.log(`[PDFCanvas] Skipping cover page: ${layoutId}`);
-                }
-                return !isCoverPage;
-            });
-
-            console.log(`[PDFCanvas] Total pages: ${pages.length}, Content pages (excluding covers): ${contentPages.length}`);
-
-            // Determine if cover spread is needed
-            const hasCover = cover && (cover.frontPhotoId || cover.title || cover.templateId || cover.layout || cover._coverGalleryId || cover.background);
-            // If hasCover, we're adding 3 pages (Front, Back, Spine)
-            const totalItems = (hasCover ? 3 : 0) + contentPages.length; // front + back + spine
-
-            let pageIndex = 0;
-            let backImageData = null;
-            let spineImageData = null;
-
-            // 1. Render Cover Spread & Print Front Cover (Page 1)
-            if (hasCover) {
-                this.showProgress('Rendering Cover Spread...', pageIndex, totalItems);
-                const coverCanvases = await this.renderCoverSpreadToCanvas(cover, assets);
-                if (coverCanvases) {
-                    const frontImgData = coverCanvases.frontCanvas.toDataURL('image/jpeg', 0.95);
-                    doc.addImage(frontImgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
-                    console.log('[PDFCanvas] Front Cover added to PDF');
-
-                    backImageData = coverCanvases.backCanvas.toDataURL('image/jpeg', 0.95);
-                    spineImageData = coverCanvases.spineCanvas.toDataURL('image/jpeg', 0.95);
-                }
-                pageIndex++;
+            // ── Trim (physical book) dimensions ────────────────────────────────
+            let trimWPt, trimHPt;
+            if (this.bookSizeCm) {
+                trimWPt = this.bookSizeCm.width  * CM_TO_PT;
+                trimHPt = this.bookSizeCm.height * CM_TO_PT;
+            } else {
+                const canvW = this.templateConfig?.designSystem?.canvas?.width  || 800;
+                const canvH = this.templateConfig?.designSystem?.canvas?.height || 600;
+                trimWPt = canvW * 0.75;
+                trimHPt = canvH * 0.75;
             }
 
-            // 2. Render Content Pages
-            for (let i = 0; i < contentPages.length; i++) {
-                this.showProgress(`Rendering page ${i + 1}...`, pageIndex + i, totalItems);
+            // Orientation derived from the selected physical size, not pixel canvas
+            const orientation = trimWPt > trimHPt ? 'landscape' : 'portrait';
 
-                if (pageIndex > 0 || i > 0) {
-                    doc.addPage([ptWidth, ptHeight]);
+            // In print mode add bleed; preview uses trim size directly
+            const bleedPt  = isPrintMode ? BLEED_PT : 0;
+            const mediaWPt = trimWPt + 2 * bleedPt;
+            const mediaHPt = trimHPt + 2 * bleedPt;
+
+            console.log(
+                `[PDFCanvas] ${isPrintMode ? 'PRINT' : 'PREVIEW'} | ` +
+                `${orientation} | ` +
+                `trim=${trimWPt.toFixed(1)}×${trimHPt.toFixed(1)}pt | ` +
+                `media=${mediaWPt.toFixed(1)}×${mediaHPt.toFixed(1)}pt`
+            );
+
+            // ── Create jsPDF document ──────────────────────────────────────────
+            // Pass orientation explicitly so jsPDF never swaps width/height for
+            // landscape books (trimWPt > trimHPt). Without this param jsPDF
+            // defaults to portrait and silently swaps dimensions.
+            const doc = new jsPDF({ unit: 'pt', format: [mediaWPt, mediaHPt], orientation });
+
+            // PDF metadata (satisfies BookPod's XMP/metadata requirement)
+            doc.setProperties({
+                title:    cover?.title   || 'Shoso Photo Book',
+                author:   'Shoso',
+                creator:  'Shoso AI Photo Book Creator',
+                subject:  'Photo Book',
+                keywords: 'photobook, photos, memories'
+            });
+
+            // ── TrimBox + BleedBox in every page dictionary ────────────────────
+            // The image is placed at (0,0) and sized to mediaWPt×mediaHPt,
+            // so the trim box is inset by bleedPt from each edge.
+            if (isPrintMode && bleedPt > 0) {
+                const trimBoxVal  = `${bleedPt.toFixed(3)} ${bleedPt.toFixed(3)} ${(bleedPt + trimWPt).toFixed(3)} ${(bleedPt + trimHPt).toFixed(3)}`;
+                const bleedBoxVal = `0 0 ${mediaWPt.toFixed(3)} ${mediaHPt.toFixed(3)}`;
+                // ArtBox marks the "safe zone" — 5 mm inside the trim edge
+                const artBoxVal   = `${(bleedPt + SAFE_PT).toFixed(3)} ${(bleedPt + SAFE_PT).toFixed(3)} ${(bleedPt + trimWPt - SAFE_PT).toFixed(3)} ${(bleedPt + trimHPt - SAFE_PT).toFixed(3)}`;
+                try {
+                    doc.internal.events.subscribe('putPage', function () {
+                        // Fires for every page during doc.output() serialisation
+                        doc.internal.write(`/TrimBox [${trimBoxVal}]`);
+                        doc.internal.write(`/BleedBox [${bleedBoxVal}]`);
+                        doc.internal.write(`/ArtBox [${artBoxVal}]`);
+                    });
+                } catch (e) {
+                    console.warn('[PDFCanvas] TrimBox/BleedBox injection skipped:', e.message);
                 }
+            }
+
+            // ── Helper: place image filling the full MediaBox ──────────────────
+            // Scaling the trim-size canvas to fill the MediaBox (trim + bleed) means
+            // edge content extends ~3 mm into the bleed zone — correct bleed behaviour.
+            // Safe-zone content (≥5 mm from trim) is never cut.
+            const placeImage = (imgData) => {
+                doc.addImage(imgData, 'JPEG', 0, 0, mediaWPt, mediaHPt, undefined, 'FAST');
+            };
+
+            // ── Helper: add a blank white page ────────────────────────────────
+            const addBlankPage = () => {
+                doc.addPage([mediaWPt, mediaHPt], orientation);
+                doc.setFillColor(255, 255, 255);
+                doc.rect(0, 0, mediaWPt, mediaHPt, 'F');
+            };
+
+            // ── Exclude cover-layout pages from content array ──────────────────
+            // Filter by rawLayoutId / layout.id containing 'cover' OR pageType === 'cover'
+            const contentPages = pages.filter(page => {
+                const lid = (page.rawLayoutId || page.layout?.id || '').toLowerCase();
+                const ptype = (page.pageType || page.layout?.pageType || '').toLowerCase();
+                if (lid.includes('cover') || ptype === 'cover') {
+                    console.log(`[PDFCanvas] Skipping cover-layout page: ${lid || ptype}`);
+                    return false;
+                }
+                return true;
+            });
+
+            console.log(`[PDFCanvas] Content pages: ${contentPages.length} (of ${pages.length} total)`);
+
+            // In preview mode include cover; in print mode cover is generated server-side
+            const hasCover = !isPrintMode && cover &&
+                (cover.frontPhotoId || cover.title || cover.templateId ||
+                 cover.layout || cover._coverGalleryId || cover.background);
+
+            const totalItems = (hasCover ? 2 : 0) + contentPages.length;
+            let progressIdx  = 0;
+
+            // ── Cover spread (preview mode only) ──────────────────────────────
+            if (hasCover) {
+                this.showProgress('Rendering Cover...', progressIdx, totalItems);
+                const cc = await this.renderCoverSpreadToCanvas(cover, assets);
+                if (cc) {
+                    placeImage(cc.frontCanvas.toDataURL('image/jpeg', 0.95));
+                    progressIdx++;
+                    doc.addPage([mediaWPt, mediaHPt], orientation);
+                    placeImage(cc.backCanvas.toDataURL('image/jpeg', 0.95));
+                    progressIdx++;
+                }
+            }
+
+            // ── Content pages ──────────────────────────────────────────────────
+            for (let i = 0; i < contentPages.length; i++) {
+                this.showProgress(`מעבד עמוד ${i + 1} מתוך ${contentPages.length}...`, progressIdx + i, totalItems);
+
+                if (progressIdx > 0 || i > 0) doc.addPage([mediaWPt, mediaHPt], orientation);
 
                 const pageCanvas = await this.renderPageToCanvas(contentPages[i], assets);
                 if (pageCanvas) {
-                    const imgData = pageCanvas.toDataURL('image/jpeg', 0.95);
-                    doc.addImage(imgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
-                    console.log(`[PDFCanvas] Page ${i + 1} added to PDF`);
+                    placeImage(pageCanvas.toDataURL('image/jpeg', 0.95));
+                    console.log(`[PDFCanvas] Page ${i + 1} added`);
+                } else {
+                    // Blank page fallback so page count stays consistent
+                    doc.setFillColor(255, 255, 255);
+                    doc.rect(0, 0, mediaWPt, mediaHPt, 'F');
                 }
             }
 
-            // 3. Render Back Cover (Last Content-Sized Page)
-            if (backImageData) {
-                this.showProgress('Rendering Back Cover...', totalItems - 2, totalItems);
-                if (pageIndex > 0 || contentPages.length > 0) {
-                    doc.addPage([ptWidth, ptHeight]);
+            // ── Pad to even page count (BookPod soft-cover requirement) ────────
+            if (isPrintMode) {
+                const nPages = doc.internal.getNumberOfPages();
+                if (nPages % 2 !== 0) {
+                    console.log(`[PDFCanvas] Adding blank page — page count ${nPages} → ${nPages + 1} (even)`);
+                    addBlankPage();
                 }
-                doc.addImage(backImageData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
-                console.log('[PDFCanvas] Back Cover added to PDF');
+                console.log(`[PDFCanvas] Final page count: ${doc.internal.getNumberOfPages()}`);
             }
 
-            // 4. Render Spine as full-width page (centered) for print
-            if (spineImageData) {
-                this.showProgress('Rendering Spine...', totalItems - 1, totalItems);
-                doc.addPage([ptWidth, ptHeight]);
-                // Center the narrow spine on a full-size page
-                const spinePtWidth = 40 * 0.75;
-                const spineX = (ptWidth - spinePtWidth) / 2;
-                // Draw a background matching the cover
-                doc.setFillColor(240, 240, 240);
-                doc.rect(0, 0, ptWidth, ptHeight, 'F');
-                doc.addImage(spineImageData, 'JPEG', spineX, 0, spinePtWidth, ptHeight, undefined, 'FAST');
-                console.log('[PDFCanvas] Spine added to PDF (centered on full page)');
-            }
-
-            // Hide progress
+            // ── Finalise ───────────────────────────────────────────────────────
             this.hideProgress();
-
-            // Cleanup
             const container = document.getElementById('pdf-offscreen-render');
             if (container) container.remove();
 
-            console.log("[PDFCanvas] PDF generation complete!");
-
-            // Generate Filename with .pdf extension
             const filename = `photo-book-${new Date().toISOString().slice(0, 10)}.pdf`;
 
-            // Return or download
             if (returnBlob) {
-                // For blob return, use arraybuffer method with explicit MIME type
-                const pdfData = doc.output('arraybuffer');
-                const blob = new Blob([pdfData], { type: 'application/pdf' });
-                console.log(`[PDFCanvas] Blob created for return. Size: ${blob.size} bytes, Type: ${blob.type}`);
+                const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+                console.log(`[PDFCanvas] Print-ready blob: ${blob.size} bytes, ${doc.internal.getNumberOfPages()} pages`);
                 return blob;
             }
 
-            // For download, use jsPDF's built-in save method which handles everything properly
-            console.log(`[PDFCanvas] Triggering direct download: ${filename}`);
             doc.save(filename);
-
-            console.log("[PDFCanvas] Download triggered successfully.");
-
-            // Show success modal
             this.showSuccessModal(filename);
 
         } catch (error) {
             console.error('[PDFCanvas] PDF generation failed:', error);
             this.hideProgress();
-            alert('PDF Generation Failed: ' + error.message);
+            alert('יצירת ה-PDF נכשלה: ' + error.message);
         }
     }
 
@@ -954,8 +1100,8 @@ export class PDFCanvasExport {
 
                 } catch (err) {
                     console.error("[PDFCanvas] Download error:", err);
-                    alert("Download Error: " + err.message);
-                    newBtn.innerHTML = 'Download PDF';
+                    alert("שגיאת הורדה: " + err.message);
+                    newBtn.innerHTML = 'הורד PDF';
                 }
             };
 
